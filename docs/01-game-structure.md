@@ -111,6 +111,8 @@ MelonLoader 로그는 게임 이름과 버전을 읽지 못했다(`Game Name: UN
 |---|---|
 | 2408730 | 鬼谷八荒 - 不归玄境 |
 | 3294480 | Tale of Immortal - BaHuang Chronicles Digital Art Book |
+| 3326620 | Tale of Immortal - Five Blooms |
+| 1536810 | 鬼谷八荒 Soundtrack |
 
 ## 7. 모드 관련 경로
 
