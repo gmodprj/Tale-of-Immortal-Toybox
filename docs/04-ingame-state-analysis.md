@@ -49,7 +49,7 @@
 
 **런타임 계층** `WorldMgr`의 주요 멤버: `playerUnit`(`WorldUnitBase`), `unit`(`WorldUnitMgr`), `build`(`WorldBuildMgr`), `mapEvent`(`WorldMapEventMgr`), `run`(`WorldRunMgr`), `battle`(`WorldBattleMgr`), `unitAI`(`WorldUnitAIMgr`), `fortuitousTrigger`, `dramaTrigger`, `system`, `isIntoWorld`.
 
-**저장 계층** `DataMgr`의 주요 멤버: `unit`(`DataUnit/Unit`), `world`(`DataWorld/World`), `buildSchool`(`DataBuildSchool/School`), `buildTown`, `map`, `grid`, `terr`, `unitLog`, `unitDie`, `globle`(`DataGloble/Globle`), `allData`, `isSaveData`, `SaveData(Action)`.
+**저장 계층** `DataMgr`의 주요 멤버: `unit`(`DataUnit/Unit`), `world`(`DataWorld/World`), `buildSchool`(`DataBuildSchool/School`), `buildTown`, `map`, `grid`, `terr`, `unitLog`, `unitDie`, `globle`(`DataGloble/Globle`), `allData`, `isSaveData`, `SaveData(Action<T>)`.
 
 **장면별 진입점** `SceneType`: `SceneType.map`(`SceneMap`), `SceneType.battle`(`SceneBattle`), `SceneType.login`(`SceneLogin`).
 
@@ -529,6 +529,6 @@ chm이 프록시보다 나은 점: 멤버마다 중국어 설명이 있고, 필�
 
 **공통 확인 사항**
 
-- 세이브 시점(`DataMgr.SaveData`, `isSaveData`)과 백업 대상 폴더(`01` 문서 9절의 `Steam\CacheData`).
+- 세이브 시점(`DataMgr.SaveData(Action<T>)`, `isSaveData`)과 백업 대상 폴더(`01` 문서 9절의 `Steam\CacheData`).
 - `Init`이 다시 불릴 때 이벤트 구독·Harmony 패치·타이머가 중복되지 않는지.
 - 모든 쓰기 시험은 별도 테스트 세이브에서 한다.
