@@ -8,7 +8,8 @@
 - 모드 로더는 게임에 포함된 **MelonLoader v0.5.4**다. 공식 모드 시스템은 `Mods\GGBH_MOD.dll`을 통해 MelonLoader 위에서 동작한다.
 - IL2CPP 프록시 어셈블리(`MelonLoader\Managed\Assembly-CSharp.dll`, 45.6MB)가 이미 생성되어 있어 정적 분석에 쓸 수 있다.
 - 공식 모드 제작 자료가 `Mod\modFQA`에 들어 있다. 코드 템플릿, API 문서(chm), 교안 4종, 예제 프로젝트 4종, **설정 테이블 761종의 머리글(xlsx)과 읽기 전용 JSON 사본**이 포함된다.
-- 설치본은 Steam 클라이언트로 설치된 것이 아니다. `steam_api64.dll` 옆에 Steam 에뮬레이터 설정 파일 `tenoke.ini`가 있고, Steam 라이브러리에 매니페스트와 창작마당 구독 폴더가 없다. 따라서 **Steam 빌드 ID는 확인할 수 없고, 이 설치본으로는 창작마당 구독·업로드를 할 수 없다.**
+- 현재 설치본(`E:\Games\Tale of Immortal`)은 Steam 라이브러리 밖에 있고, `steam_api64.dll` 옆에 Steam 에뮬레이터 설정 파일 `tenoke.ini`가 있다. Steam 매니페스트와 창작마당 구독 폴더가 연결되어 있지 않아 **Steam 빌드 ID는 확인할 수 없고, 이 설치본으로는 창작마당 구독·업로드를 할 수 없다.**
+- 같은 PC에 **Steam 설치본을 쓰던 흔적**이 있다. 2026-10-04의 `Player-prev.log`에 따르면 게임이 `E:\SteamLibrary\steamapps\common\鬼谷八荒`에서 같은 버전(v1.2.113.259)으로 실행됐고 창작마당 모드 204개를 로드했다. 지금 그 폴더에는 게임 파일이 없고 모드가 만든 파일만 남아 있다(12절).
 - 설치된 외부 모드는 없다(`Plugins`, `UserLibs`, `ModExportData` 비어 있음).
 
 ## 2. 버전 정보
@@ -208,3 +209,21 @@ MelonLoader 로그는 게임 이름과 버전을 읽지 못했다(`Game Name: UN
 | `ModExportData\`의 용도 | 비어 있고 이름만으로는 확정할 수 없다 | 02 문서(공식 교안) |
 | `Steam\DaguiToolCmdData.cache`, `data\`의 용도 | 내용을 열지 않았다 | 필요 시 v0.1 단계에서 확인 |
 | 2023-02-08 로그 9개의 출처 | 배포본에 포함되어 온 것인지 이 PC에서 실행한 기록인지 알 수 없다(파일 시각이 2020-02-02로 통일됨) | 확인 불필요 |
+
+## 12. 이전 Steam 설치의 흔적
+
+2026-10-12 후속 조사에서 확인했다. 1~11절을 처음 쓸 때는 표준 경로만 확인해 놓쳤던 내용이다.
+
+| 항목 | 내용 | 근거 |
+|---|---|---|
+| 이전 실행 경로 | `E:/SteamLibrary/steamapps/common/鬼谷八荒/` | `Player-prev.log`(2026-10-04 17:45)의 `Discovering subsystems at path` |
+| 이전 실행 버전 | v1.2.113.259 (현재 설치본과 같음) | 같은 로그의 `游戏版本` |
+| 이전에 로드한 모드 | 창작마당 모드 204개(`E:\SteamLibrary\steamapps\workshop\content\1468810\<ID>`) | 같은 로그의 `加载模组：` 줄 204개 |
+| 현재 `E:\SteamLibrary\steamapps\common\鬼谷八荒\` | 게임 실행 파일과 데이터가 없다. `MelonLoader\`, `Mods\MOD_HvBArn`, `XSMSX\`, `AIPromptFile.json`, `GiftPropSort_Config.json`, `warhistory_*.json` 등 모드가 만든 파일만 남아 있다 | 폴더 목록 |
+| 현재 창작마당 폴더 | `workshop\content\1468810_disabled_claude`(항목 3개). `appworkshop_1468810.acf`와 `appmanifest_1468810.acf`는 없다 | 폴더 목록 |
+| 현재 실행 로그 | `Player.log`(2026-10-11)에는 `加载模组` 줄이 없다. 현재 설치본은 모드 없이 실행됐다 | `Player.log` |
+| 세이브 폴더의 백업 | `Steam\CacheData_backup_20261004_claude\`, `Steam\Mod_LoadData_backup_20261004_claude.bin` — 2026-10-04에 만들어졌다 | 9절 |
+
+Steam 설치본이 언제 왜 제거됐는지는 이 조사로 알 수 없다. 창작마당 구독·업로드와 Steam 빌드 ID 확인에는 Steam 설치본이 필요하다는 결론은 그대로다.
+
+이 로그는 공식 경로의 로드 순서도 보여 준다. 창작마당 모드는 `<ID>\ModExportData.cache` 또는 `<ID>\debug\Mod_<모드ID>\ModExportData.cache`에서 로드된다. `ModExportData.cache`는 암호화된 파일이어서 모드 에디터의 내보내기 없이 손으로 만들 수 없다.
