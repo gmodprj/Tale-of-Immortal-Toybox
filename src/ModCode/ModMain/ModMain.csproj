@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 임시 모드 ID. 게임 내 모드 에디터가 발급한 ID로 바꿀 때 ModMain.cs의 네임스페이스도 함께 바꾼다. -->
+    <ModId Condition="'$(ModId)' == ''">TlTbx0</ModId>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>MOD_$(ModId)</AssemblyName>
+    <RootNamespace>MOD_$(ModId)</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+    <Deterministic>true</Deterministic>
+    <!-- 모드 에디터는 bin\Release의 모든 DLL을 게임으로 복사한다. 산출물은 DLL 하나여야 한다. -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>none</DebugType>
+    <GameDir Condition="'$(GameDir)' == ''">E:\Games\Tale of Immortal</GameDir>
+    <ManagedDir>$(GameDir)\MelonLoader\Managed</ManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MelonLoader">
+      <HintPath>$(GameDir)\MelonLoader\MelonLoader.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameDir)\MelonLoader\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(ManagedDir)\Il2Cppmscorlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnhollowerBaseLib">
+      <HintPath>$(ManagedDir)\UnhollowerBaseLib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
