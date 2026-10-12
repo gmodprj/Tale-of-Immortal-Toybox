@@ -43,6 +43,7 @@
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
 | `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~24절) |
 | `docs/06-handoff.md` | 이 문서 |
+| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획 |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
 | `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기 |
 | `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미), `EditorHost.cs`(단축키), `EditorWindow.cs`(창 전체, 탭별 Render 함수) |
@@ -69,7 +70,7 @@
 사용자의 화면·마우스·키보드를 건드리지 않고 한다. 사용자가 게임을 켜 둔 동안에는 시험할 수 없고, 사용자의 게임을 임의로 끄지 않는다(끄도록 알리고 기다린다).
 
 1. 게임이 꺼져 있는지 확인한다(`Get-Process guigubahuang`).
-2. 저장이 필요한 시험이면 세이브 폴더를 `.devremote\save-backup-<날짜>-<이름>`으로 복사한다. 세이브는 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Steam\CacheData`.
+2. 세이브 폴더를 `.devremote\save-backup-<날짜>-<이름>`으로 복사한다. 세이브는 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Steam\CacheData`. 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않는 시험이라도 복사해 둔다.
 3. 개발 빌드 DLL을 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 복사하고 `.devremote\park.flag`를 만든다(게임 창이 1920x1080으로 화면 밖 x=30000에 뜬다).
 4. `tools\DevRemote\enter.ps1 -Launch -Direct` — 게임을 띄워 1번 세이브까지 들어간다. "WORLD READY"가 나오면 준비된 것이다.
 5. 조작:
@@ -77,7 +78,9 @@
    - `rc.ps1 -Cmd "click x y" -NoShot` / `"hit x y"` / `"scroll x y delta"` — 게임 좌표(1920x1080)의 UI 요소를 누르거나 이름을 확인한다.
    - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
    - `win.ps1 -Do key -Vk 0x2D` — Insert 키.
-6. 끝나면 게임을 끄고(`Stop-Process`), `park.flag`를 지우고, 저장했으면 세이브를 복사본으로 되돌려 `diff -rq`로 확인하고, `tools/install.ps1`로 배포 빌드를 다시 설치한다.
+6. 끝나면 게임을 끄고, `park.flag`를 지우고, 세이브를 복사본으로 되돌려(`robocopy <복사본> <세이브> /MIR`, 종료 코드 1이 정상) `diff -rq`로 확인하고, `tools/install.ps1`로 배포 빌드를 다시 설치한다. 게임은 창 닫기 요청으로 끈다: `(Get-Process guigubahuang).CloseMainWindow()`. `Stop-Process`는 권한 검사에 막힌다(2026-10-12).
+
+시험 중에 게임 메뉴(돌아가기·저장…)가 떠 있을 때가 있다. 게임 창이 포커스를 가졌다가 잃은 뒤로 추정한다. `hit`의 결과에 `UI/GameMemu`가 나오면 `click 959 391`(돌아가기)로 닫는다. `win.ps1 -Do key`로 보낸 ESC는 메뉴를 열지 못했다.
 
 편집기 좌표 계산: 창은 (60,60)에서 시작하고 내용 영역의 원점은 게임 좌표 (240,164)다. 탭 버튼은 x=150, y=185+52×순번.
 
