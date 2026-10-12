@@ -16,7 +16,7 @@ namespace MOD_sWP6UL
         private const int NpcRows = 8;
         private const int HistoryRows = 14;
 
-        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "기운", "NPC", "세계", "안전" };
+        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "운명", "NPC", "세계", "안전" };
         private static readonly int[] Amounts = { 1, 10, 100, 1000 };
         private const int MaxAmount = 999999;
 
@@ -55,6 +55,8 @@ namespace MOD_sWP6UL
         private static int replaceIndex = -1; // 옵션 교체 중인 자리. -1이면 교체 화면이 아니다
         private static int replacePage;
         private static int luckPage;
+        private static int pendingLuckRemove;
+        private static int luckReplaceIndex = -1; // 교체할 선천운명 자리. -1이면 후천운명 추가
         private static bool luckPicking;
         private static int luckType = 1;
         private static int luckPickPage;
@@ -661,18 +663,18 @@ namespace MOD_sWP6UL
 
         private static void RenderLuck(WorldUnitBase target)
         {
-            const int rows = 10;
+            const int rows = 14;
             if (luckPicking)
             {
-                RenderLuckPicker(target, 8);
+                RenderLuckPicker(target, 12);
                 return;
             }
             List<LuckService.LuckView> owned = LuckService.Owned(target).FindAll(v => !v.Hidden);
             int pages = Math.Max(1, (owned.Count + rows - 1) / rows);
             luckPage = Mathf.Clamp(luckPage, 0, pages - 1);
-            Ui.Label(content, "기운", 0, 0, 200, 30, 18).color = Ui.Dim;
-            Ui.Label(content, "종류", 210, 0, 100, 30, 18).color = Ui.Dim;
-            Ui.Label(content, "효과", 320, 0, 400, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "운명", 0, 0, 240, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "구분", 250, 0, 120, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "효과", 380, 0, 700, 30, 18).color = Ui.Dim;
             for (int row = 0; row < rows; row++)
             {
                 int index = luckPage * rows + row;
@@ -682,33 +684,55 @@ namespace MOD_sWP6UL
                 }
                 LuckService.LuckView view = owned[index];
                 float y = 32 + row * 40;
-                Ui.Label(content, Shorten(view.Name, 9), 0, y, 205, 36);
-                Ui.Label(content, view.Born ? "선천" : LuckService.TypeLabel(view.Type), 210, y, 100, 36, 18);
-                Ui.Label(content, Shorten(view.Tips, 34), 320, y, 490, 36, 16);
-                Ui.Button("LuckRemove" + index, content, "삭제", 822, y + 1, 84, 34, new Action(() => Say(LuckService.Remove(Target, view.Id))), LuckService.AddedByEditor(target, view.Id));
+                bool mine = LuckService.AddedByEditor(target, view.Id);
+                bool confirming = pendingLuckRemove == view.Id;
+                Ui.Label(content, Shorten(view.Name, 11), 0, y, 245, 36);
+                Ui.Label(content, view.Born ? "선천운명" : "후천운명", 250, y, 120, 36, 18);
+                Ui.Label(content, Shorten(view.Tips, 50), 380, y, 780, 36, 16);
+                // 선천운명은 게임의 삭제 기능이 저장 데이터를 바꾸지 못해 지울 수 없다(docs/05 15절).
+                Ui.Button("LuckRemove" + index, content, confirming ? "정말 삭제" : "삭제", 1180, y + 1, 120, 34, new Action(() =>
+                {
+                    if (!mine && !confirming)
+                    {
+                        pendingLuckRemove = view.Id;
+                        Say(view.Name + ": 게임이 붙인 운명입니다" + (view.IsSystem ? "(경지 진행 표식)" : "") + ". 지우려면 '정말 삭제'를 한 번 더 누르세요.");
+                        return;
+                    }
+                    pendingLuckRemove = 0;
+                    Say(LuckService.Remove(Target, view.Id));
+                }), !view.Born, confirming);
+                if (view.Born)
+                {
+                    int bornIndex = view.BornIndex;
+                    Ui.Button("LuckReplace" + index, content, "교체", 1054, y + 1, 120, 34, new Action(() => { luckReplaceIndex = bornIndex; luckPicking = true; luckPickPage = 0; pendingLuckRemove = 0; message = ""; Render(); }));
+                }
             }
             float footer = 32 + rows * 40 + 8;
-            Ui.Button("LuckPrev", content, "이전", 0, footer, 90, 40, new Action(() => { luckPage--; Render(); }), luckPage > 0);
+            Ui.Button("LuckPrev", content, "이전", 0, footer, 90, 40, new Action(() => { luckPage--; pendingLuckRemove = 0; Render(); }), luckPage > 0);
             Ui.Label(content, (luckPage + 1) + " / " + pages, 100, footer, 80, 40, 18, TextAnchor.MiddleCenter);
-            Ui.Button("LuckNext", content, "다음", 190, footer, 90, 40, new Action(() => { luckPage++; Render(); }), luckPage < pages - 1);
-            Ui.Button("LuckAddOpen", content, "기운 추가", 300, footer, 160, 40, new Action(() => { luckPicking = true; luckPickPage = 0; message = ""; Render(); }));
-            Ui.Label(content, "편집기로 추가한 기운만 지울 수 있습니다. 숨김 기운은 표시하지 않습니다.", 480, footer, 440, 40, 15).color = Ui.Dim;
+            Ui.Button("LuckNext", content, "다음", 190, footer, 90, 40, new Action(() => { luckPage++; pendingLuckRemove = 0; Render(); }), luckPage < pages - 1);
+            Ui.Button("LuckAddOpen", content, "후천운명 추가", 300, footer, 200, 40, new Action(() => { luckReplaceIndex = -1; luckPicking = true; luckPickPage = 0; pendingLuckRemove = 0; message = ""; Render(); }));
+            Ui.Label(content, "선천운명은 지울 수 없고 교체만 됩니다. 게임이 붙인 후천운명은 한 번 더 확인한 뒤 지웁니다. 숨김 운명은 표시하지 않습니다.", 520, footer, 780, 40, 15).color = Ui.Dim;
         }
 
         private static void RenderLuckPicker(WorldUnitBase target, int rows)
         {
-            Ui.Label(content, "기운 추가 — " + EditService.NameOf(target), 0, 0, 400, 36, 21);
-            Ui.Button("LuckBack", content, "돌아가기", 780, 0, 130, 36, new Action(() => { luckPicking = false; message = ""; Render(); }));
-            // 후천 분류에는 게임의 상태 표식 기운이 섞여 있어 후보에서 뺀다.
-            int[] types = { 1, 3 };
+            bool replacing = luckReplaceIndex >= 0;
+            Ui.Label(content, (replacing ? "선천운명 " + (luckReplaceIndex + 1) + "번 교체 — " : "후천운명 추가 — ") + EditService.NameOf(target), 0, 0, 600, 36, 21);
+            Ui.Button("LuckBack", content, "돌아가기", ContentW - 130, 0, 130, 36, new Action(() => { luckPicking = false; message = ""; Render(); }));
+            int[] types = { 1, 2, 3 };
             for (int i = 0; i < types.Length; i++)
             {
                 int type = types[i];
-                Ui.Button("LuckType" + type, content, LuckService.TypeLabel(type), i * 126, 44, 120, 38, new Action(() => { luckType = type; luckPickPage = 0; Render(); }), true, luckType == type);
+                Ui.Button("LuckType" + type, content, LuckService.TypeLabel(type) + " 분류", i * 146, 44, 140, 38, new Action(() => { luckType = type; luckPickPage = 0; Render(); }), true, luckType == type);
             }
-            Ui.Input("LuckQuery", content, luckQuery, "이름·효과의 일부", 396, 44, 250, 38, new Action<string>(v => luckQuery = v));
-            Ui.Button("LuckSearch", content, "검색", 654, 44, 80, 38, new Action(() => { appliedLuckQuery = luckQuery.Trim(); luckPickPage = 0; Render(); }));
-            Ui.Button("LuckSearchClear", content, "지움", 740, 44, 80, 38, new Action(() => { luckQuery = ""; appliedLuckQuery = ""; luckPickPage = 0; Render(); }), luckQuery.Length > 0 || appliedLuckQuery.Length > 0);
+            Ui.Input("LuckQuery", content, luckQuery, "이름·효과의 일부", 460, 44, 250, 38, new Action<string>(v => luckQuery = v));
+            Ui.Button("LuckSearch", content, "검색", 718, 44, 80, 38, new Action(() => { appliedLuckQuery = luckQuery.Trim(); luckPickPage = 0; Render(); }));
+            Ui.Button("LuckSearchClear", content, "지움", 804, 44, 80, 38, new Action(() => { luckQuery = ""; appliedLuckQuery = ""; luckPickPage = 0; Render(); }), luckQuery.Length > 0 || appliedLuckQuery.Length > 0);
+            if (luckType == 2)
+            {
+                Ui.Label(content, "후천 분류에는 게임이 진행 상태를 나타내려고 쓰는 운명이 섞여 있습니다.", 900, 44, 400, 38, 14).color = Ui.Warn;
+            }
 
             List<LuckService.LuckView> candidates = LuckService.Candidates(luckType, appliedLuckQuery);
             int pages = Math.Max(1, (candidates.Count + rows - 1) / rows);
@@ -723,15 +747,30 @@ namespace MOD_sWP6UL
                 LuckService.LuckView view = candidates[index];
                 float y = 92 + row * 50;
                 bool has = LuckService.Has(target, view.Id);
-                Ui.Label(content, Shorten(view.Name, 12) + "  (품질 " + view.Level + ")", 0, y, 780, 26, 18);
-                Ui.Label(content, Shorten(view.Tips, 52), 16, y + 24, 770, 22, 15).color = Ui.Dim;
-                Ui.Button("LuckAdd" + index, content, has ? "보유 중" : "추가", 800, y + 6, 110, 36, new Action(() => Say(LuckService.Add(Target, view.Id))), !has);
+                Text name = Ui.Label(content, Shorten(view.Name, 14) + "  (품질 " + view.Level + ")" + (view.IsSystem ? "  — 경지 진행 표식" : ""), 0, y, 1100, 26, 18);
+                if (view.IsSystem)
+                {
+                    name.color = Ui.Warn;
+                }
+                Ui.Label(content, Shorten(view.Tips, 80), 16, y + 24, 1140, 22, 15).color = Ui.Dim;
+                Ui.Button("LuckAdd" + index, content, has ? "보유 중" : replacing ? "이것으로 교체" : "추가", ContentW - 150, y + 6, 150, 36, new Action(() =>
+                {
+                    if (!replacing)
+                    {
+                        Say(LuckService.Add(Target, view.Id));
+                        return;
+                    }
+                    string result = LuckService.ReplaceBorn(Target, luckReplaceIndex, view.Id);
+                    luckPicking = false;
+                    luckReplaceIndex = -1;
+                    Say(result);
+                }), !has);
             }
             float footer = 92 + rows * 50 + 4;
             Ui.Button("LuckPickPrev", content, "이전", 0, footer, 90, 38, new Action(() => { luckPickPage--; Render(); }), luckPickPage > 0);
             Ui.Label(content, (luckPickPage + 1) + " / " + pages, 100, footer, 90, 38, 18, TextAnchor.MiddleCenter);
             Ui.Button("LuckPickNext", content, "다음", 200, footer, 90, 38, new Action(() => { luckPickPage++; Render(); }), luckPickPage < pages - 1);
-            Ui.Label(content, "후보 " + candidates.Count + "개" + (appliedLuckQuery.Length > 0 ? "  ('" + appliedLuckQuery + "' 포함)" : ""), 310, footer, 500, 38, 16).color = Ui.Dim;
+            Ui.Label(content, "후보 " + candidates.Count + "개" + (appliedLuckQuery.Length > 0 ? "  ('" + appliedLuckQuery + "' 포함)" : "") + (replacing ? "" : "  ·  어느 분류에서 골라도 후천운명으로 붙습니다."), 310, footer, 900, 38, 16).color = Ui.Dim;
         }
 
         private static void RenderWorld()

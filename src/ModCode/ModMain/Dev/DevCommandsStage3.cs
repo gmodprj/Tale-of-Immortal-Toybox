@@ -84,6 +84,10 @@ namespace MOD_sWP6UL
                 case "upcheck":
                 case "upgo":
                     return UpGrade(p[0] == "upgo", int.Parse(p[1]), p.Length > 2 ? int.Parse(p[2]) : 0, p.Length > 3 ? int.Parse(p[3]) : 0);
+                case "luckfind": return LuckFind(p[1]);
+                case "bornset":
+                    Me().data.unitData.propertyData.bornLuck[int.Parse(p[1])].id = int.Parse(p[2]);
+                    return "bornLuck[" + p[1] + "].id written; " + Luck(Me()) + " | " + Stats(Me());
                 case "luck": return Luck(Unit(p.Length > 1 ? p[1] : "me"));
                 case "luckadd":
                     int addCode = Me().CreateAction(new UnitActionLuckAdd(int.Parse(p[1])), false);
@@ -269,6 +273,21 @@ namespace MOD_sWP6UL
                     .Append(',').Append(item.weight4).Append(',').Append(item.weight5)
                     .Append(" max=").Append(conf.GetPrefixMaxLevel(martial, item))
                     .Append(" desc=").Append(GameTool.LS(item.desc));
+            }
+            return sb.ToString();
+        }
+
+        private static string LuckFind(string text)
+        {
+            var sb = new StringBuilder();
+            var all = g.conf.roleCreateFeature._allConfList;
+            for (int i = 0; i < all.Count && sb.Length < 1500; i++)
+            {
+                string name = GameTool.LS(all[i].name);
+                if (name.Contains(text))
+                {
+                    sb.Append(all[i].id).Append(":").Append(name).Append("(type").Append(all[i].type).Append(" lv").Append(all[i].level).Append(") ");
+                }
             }
             return sb.ToString();
         }
