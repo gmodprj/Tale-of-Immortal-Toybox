@@ -60,6 +60,11 @@ namespace MOD_sWP6UL
             {
                 return ui;
             }
+            string fate = DevCommandsFate.Execute(p);
+            if (fate != null)
+            {
+                return fate;
+            }
             string stage4 = DevCommandsStage4.Execute(p);
             if (stage4 != null)
             {
