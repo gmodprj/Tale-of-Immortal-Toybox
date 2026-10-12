@@ -13,12 +13,12 @@ namespace MOD_sWP6UL
         private const float ContentX = 180;
         private const float ContentY = 104;
         private const float ContentW = 1304;
-        private const int AttributeRows = 12;
         private const int NpcRows = 8;
         private const int HistoryRows = 14;
 
         private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "기운", "NPC", "세계", "안전" };
-        private static readonly int[] Steps = { 1, 10, 100, 1000, 10000 };
+        private static readonly int[] Amounts = { 1, 10, 100, 1000 };
+        private const int MaxAmount = 999999;
 
         private static GameObject root;
         private static RectTransform window;
@@ -28,8 +28,11 @@ namespace MOD_sWP6UL
         private static RectTransform tabBar;
 
         private static int tab;
-        private static int stepIndex = 1;
-        private static int attributePage;
+        private static int step = 10;        // 능력치 증감 등에 쓰는 단위
+        private static int moneyAmount = 10; // 영석 추가량
+        private static int itemAmount = 1;   // 아이템 지급 수량
+        private static readonly Dictionary<string, string> amountInputs = new Dictionary<string, string>();
+        private static int attributeCategory;
         private static int npcPage;
         private static string targetId;    // 능력치 편집 대상. null이면 플레이어
         private static string selectedNpcId;
@@ -92,7 +95,7 @@ namespace MOD_sWP6UL
 
         private static int Step
         {
-            get { return Steps[stepIndex]; }
+            get { return step; }
         }
 
         private static void Build()
@@ -177,9 +180,37 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static void StepButton(float x, float y)
+        // 수량을 고르는 줄: 1/10/100/1000 버튼과 직접 입력 칸. 오른쪽 끝의 x를 돌려준다.
+        private static float AmountBar(string name, float x, float y, int current, Action<int> set)
         {
-            Ui.Button("Step", content, "단위: " + Step, x, y, 150, 40, new Action(() => { stepIndex = (stepIndex + 1) % Steps.Length; Render(); }));
+            for (int i = 0; i < Amounts.Length; i++)
+            {
+                int amount = Amounts[i];
+                Ui.Button(name + amount, content, amount.ToString(), x + i * 66, y, 62, 38,
+                    new Action(() => { amountInputs.Remove(name); set(amount); message = ""; Render(); }), true, current == amount);
+            }
+            float inputX = x + Amounts.Length * 66 + 6;
+            string typed;
+            if (!amountInputs.TryGetValue(name, out typed))
+            {
+                typed = Array.IndexOf(Amounts, current) < 0 ? current.ToString() : "";
+            }
+            Ui.Input(name + "Input", content, typed, "직접 입력", inputX, y, 130, 38, new Action<string>(v => amountInputs[name] = v), true);
+            Ui.Button(name + "Apply", content, "적용", inputX + 136, y, 70, 38, new Action(() =>
+            {
+                string text;
+                int value;
+                amountInputs.TryGetValue(name, out text);
+                if (!int.TryParse(text, out value) || value < 1 || value > MaxAmount)
+                {
+                    Say("수량은 1~" + MaxAmount + " 사이의 숫자로 입력하세요.");
+                    return;
+                }
+                set(value);
+                message = "";
+                Render();
+            }));
+            return inputX + 136 + 70;
         }
 
         private static void RenderAttributes(WorldUnitBase target)
@@ -188,44 +219,52 @@ namespace MOD_sWP6UL
             var dyn = target.data.dynUnitData;
             ConfRoleAttributeLimit limit = g.conf.roleAttributeLimit;
             List<AttributeDef> all = AttributeCatalog.All;
-            int pages = (all.Count + AttributeRows - 1) / AttributeRows;
-            attributePage = Mathf.Clamp(attributePage, 0, pages - 1);
 
-            Text head = Ui.Label(content, "항목", 0, 0, 150, 30, 18);
-            head.color = Ui.Dim;
-            Ui.Label(content, "저장값", 170, 0, 110, 30, 18).color = Ui.Dim;
-            Ui.Label(content, "적용값(보정 포함)", 290, 0, 170, 30, 18).color = Ui.Dim;
-            Ui.Label(content, "허용 범위", 470, 0, 220, 30, 18).color = Ui.Dim;
-
-            for (int row = 0; row < AttributeRows; row++)
+            // 게임의 인물 화면과 같은 분류
+            for (int i = 0; i < AttributeCatalog.Categories.Length; i++)
             {
-                int index = attributePage * AttributeRows + row;
-                if (index >= all.Count)
+                int category = i;
+                Ui.Button("AttrCat" + i, content, AttributeCatalog.Categories[i], i * 156, 0, 150, 40,
+                    new Action(() => { attributeCategory = category; selectedAttribute = -1; message = ""; Render(); }), true, attributeCategory == i);
+            }
+
+            const float head = 52;
+            Ui.Label(content, "항목", 0, head, 190, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "저장값", 206, head, 110, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "게임 화면 값(보정 포함)", 330, head, 220, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "허용 범위", 560, head, 220, 30, 18).color = Ui.Dim;
+
+            int row = 0;
+            for (int i = 0; i < all.Count; i++)
+            {
+                AttributeDef def = all[i];
+                if (def.Category != attributeCategory)
                 {
-                    break;
+                    continue;
                 }
-                AttributeDef def = all[index];
-                float y = 34 + row * 40;
+                int index = i;
+                float y = head + 34 + row * 40;
+                row++;
                 int value = def.Get(saved);
                 int min = def.Min(limit);
                 int max = def.Max(limit);
-                Ui.Label(content, def.Label, 0, y, 160, 36);
-                Ui.Button("Select" + index, content, value.ToString(), 166, y, 104, 34, new Action(() => { selectedAttribute = index; attributeInput = ""; message = ""; Render(); }), true, index == selectedAttribute);
-                Ui.Label(content, def.DynValue(dyn).ToString(), 290, y, 170, 36);
-                Ui.Label(content, min + " ~ " + max + (def.OwnLimit ? " (자체 상한)" : ""), 470, y, 230, 36, 18).color = Ui.Dim;
-                Ui.Button("Minus" + index, content, "-", 700, y, 56, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Get(Target.data.unitData.propertyData) - Step))));
-                Ui.Button("Plus" + index, content, "+", 762, y, 56, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Get(Target.data.unitData.propertyData) + Step))));
-                Ui.Button("Max" + index, content, "최대", 824, y, 84, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Max(g.conf.roleAttributeLimit)))));
+                Ui.Label(content, def.Label, 0, y, 200, 36);
+                Ui.Button("Select" + index, content, value.ToString(), 206, y, 104, 34, new Action(() => { selectedAttribute = index; attributeInput = ""; message = ""; Render(); }), true, index == selectedAttribute);
+                Ui.Label(content, def.DynValue(dyn).ToString(), 330, y, 220, 36);
+                Ui.Label(content, min + " ~ " + max + (def.OwnLimit ? " (자체 상한)" : ""), 560, y, 260, 36, 18).color = Ui.Dim;
+                Ui.Button("Minus" + index, content, "- " + step, 830, y, 100, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Get(Target.data.unitData.propertyData) - step))));
+                Ui.Button("Plus" + index, content, "+ " + step, 936, y, 100, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Get(Target.data.unitData.propertyData) + step))));
+                Ui.Button("Max" + index, content, "최대", 1042, y, 84, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Max(g.conf.roleAttributeLimit)))));
             }
 
-            float footer = 34 + AttributeRows * 40 + 12;
-            Ui.Button("Prev", content, "이전", 0, footer, 90, 40, new Action(() => { attributePage--; Render(); }), attributePage > 0);
-            Ui.Label(content, (attributePage + 1) + " / " + pages, 100, footer, 80, 40, 20, TextAnchor.MiddleCenter);
-            Ui.Button("Next", content, "다음", 190, footer, 90, 40, new Action(() => { attributePage++; Render(); }), attributePage < pages - 1);
-            StepButton(300, footer);
-            Ui.Button("Restore", content, "자원 회복", 470, footer, 140, 40, new Action(() => Say(EditService.RestoreResources(Target))));
-            Ui.Button("ToPlayer", content, "대상: 플레이어로", 630, footer, 200, 40, new Action(() => { targetId = null; martialId = null; replaceIndex = -1; Say("편집 대상을 플레이어로 바꿨습니다."); }), targetId != null);
+            // 분류마다 줄 수가 달라도 아래쪽 줄의 위치는 고정한다(가장 긴 분류가 12줄).
+            float footer = head + 34 + 12 * 40 + 12;
+            Ui.Label(content, "증감 단위", 0, footer, 110, 38, 18).color = Ui.Dim;
+            float right = AmountBar("Step", 110, footer, step, v => step = v);
+            Ui.Button("Restore", content, "자원 회복", right + 30, footer, 140, 38, new Action(() => Say(EditService.RestoreResources(Target))));
+            Ui.Button("ToPlayer", content, "대상: 플레이어로", right + 180, footer, 200, 38, new Action(() => { targetId = null; martialId = null; replaceIndex = -1; Say("편집 대상을 플레이어로 바꿨습니다."); }), targetId != null);
             RenderAttributeInput(footer + 52);
+            Ui.Label(content, "저장값은 인물 고유의 값이고, 게임 화면에는 운명·장비 등의 보정이 더해진 값이 나옵니다. 편집기는 저장값을 바꿉니다.", 0, footer + 104, ContentW, 30, 15).color = Ui.Dim;
         }
 
         // 능력치 탭 아래쪽의 직접 입력 줄. 저장값 칸을 눌러 항목을 고른 뒤 숫자를 입력해 적용한다.
@@ -296,43 +335,47 @@ namespace MOD_sWP6UL
             var props = player.data.unitData.propData;
             float contentH = Height - ContentY - 56;
 
-            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 52, Ui.Section);
-            Ui.Label(content, "영석: " + EditService.Money(player), 16, 6, 260, 40, 22);
-            Ui.Button("MoneyAdd", content, "+ " + Step, 290, 6, 140, 40, new Action(() => Say(EditService.AddMoney(Player, Step))));
-            StepButton(440, 6);
-            Ui.Label(content, "'단위'는 영석 추가량과 아이템 지급 수량에 함께 쓰입니다.", 604, 8, 500, 36, 15).color = Ui.Dim;
+            // 영석 추가량과 아이템 지급 수량은 따로 고른다.
+            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 96, Ui.Section);
+            Ui.Label(content, "영석: " + EditService.Money(player), 16, 6, 250, 40, 22);
+            Ui.Label(content, "추가량", 270, 6, 70, 40, 18).color = Ui.Dim;
+            float moneyRight = AmountBar("MoneyAmount", 340, 7, moneyAmount, v => moneyAmount = v);
+            Ui.Button("MoneyAdd", content, "영석 + " + moneyAmount, moneyRight + 20, 7, 200, 38, new Action(() => Say(EditService.AddMoney(Player, moneyAmount))));
+            Ui.Label(content, "아이템 지급 수량", 16, 50, 250, 40, 20);
+            AmountBar("ItemAmount", 340, 51, itemAmount, v => itemAmount = v);
+            Ui.Label(content, "아래 표의 지급 버튼 한 번에 이 수량만큼 지급합니다.", 840, 51, 460, 38, 15).color = Ui.Dim;
 
             // 필터: 아이템명
-            Ui.Label(content, "아이템명", 0, 62, 90, 38);
-            Ui.Input("ItemQuery", content, itemQuery, "이름의 일부 또는 번호", 90, 62, 280, 38, new Action<string>(v => itemQuery = v));
-            Ui.Button("ItemSearch", content, "검색", 378, 62, 84, 38, new Action(() => { appliedItemQuery = itemQuery.Trim(); ResetItemList(); Render(); }));
-            Ui.Button("ItemSearchClear", content, "초기화", 468, 62, 96, 38, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemMainType = -1; itemSubType = -1; ResetItemList(); Render(); }),
+            Ui.Label(content, "아이템명", 0, 106, 90, 38);
+            Ui.Input("ItemQuery", content, itemQuery, "이름의 일부 또는 번호", 90, 106, 280, 38, new Action<string>(v => itemQuery = v));
+            Ui.Button("ItemSearch", content, "검색", 378, 106, 84, 38, new Action(() => { appliedItemQuery = itemQuery.Trim(); ResetItemList(); Render(); }));
+            Ui.Button("ItemSearchClear", content, "초기화", 468, 106, 96, 38, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemMainType = -1; itemSubType = -1; ResetItemList(); Render(); }),
                 itemQuery.Length > 0 || appliedItemQuery.Length > 0 || itemMainType >= 0);
 
             // 페이지당 개수
-            Ui.Label(content, "페이지당", 1010, 62, 90, 38, 18).color = Ui.Dim;
+            Ui.Label(content, "페이지당", 1010, 106, 90, 38, 18).color = Ui.Dim;
             for (int i = 0; i < ItemPageSizes.Length; i++)
             {
                 int index = i;
-                Ui.Button("ItemPageSize" + ItemPageSizes[i], content, ItemPageSizes[i] + "개", 1100 + i * 70, 62, 64, 38,
+                Ui.Button("ItemPageSize" + ItemPageSizes[i], content, ItemPageSizes[i] + "개", 1100 + i * 70, 106, 64, 38,
                     new Action(() => { itemPageSizeIndex = index; ResetItemList(); Render(); }), true, itemPageSizeIndex == i);
             }
             int pageSize = ItemPageSizes[itemPageSizeIndex];
 
             // 필터: 카테고리(게임의 분류표). 첫 줄은 대분류, 대분류를 고르면 아래에 세부 분류가 나온다.
-            Ui.Label(content, "카테고리", 0, 106, 90, 38);
+            Ui.Label(content, "카테고리", 0, 150, 90, 38);
             float cx = 90;
-            Ui.Button("ItemCatAll", content, "전체", cx, 106, 80, 38, new Action(() => { itemMainType = -1; itemSubType = -1; ResetItemList(); Render(); }), true, itemMainType < 0);
+            Ui.Button("ItemCatAll", content, "전체", cx, 150, 80, 38, new Action(() => { itemMainType = -1; itemSubType = -1; ResetItemList(); Render(); }), true, itemMainType < 0);
             cx += 86;
             foreach (ItemCatalog.Category category in ItemCatalog.MainCategories)
             {
                 int type = category.Id;
                 string label = category.Name + " (" + category.Count + ")";
                 float width = 24 + label.Length * 15;
-                Ui.Button("ItemCat" + type, content, label, cx, 106, width, 38, new Action(() => { itemMainType = type; itemSubType = -1; itemSubScrollY = 0; ResetItemList(); Render(); }), true, itemMainType == type);
+                Ui.Button("ItemCat" + type, content, label, cx, 150, width, 38, new Action(() => { itemMainType = type; itemSubType = -1; itemSubScrollY = 0; ResetItemList(); Render(); }), true, itemMainType == type);
                 cx += width + 4;
             }
-            float top = 150;
+            float top = 194;
             if (itemMainType >= 0)
             {
                 // 세부 분류가 많은 대분류(도구는 50종 이상)는 두 줄만 보이게 하고 그 안에서 스크롤한다.
@@ -411,7 +454,7 @@ namespace MOD_sWP6UL
                 Ui.Label(rowsRoot, entry.Level.ToString(), colLevel, y, 60, rowHeight, 16);
                 Ui.Label(rowsRoot, props.GetPropsNum(entry.Id).ToString(), colOwned, y, 70, rowHeight, 16);
                 Ui.Label(rowsRoot, Shorten(entry.Desc, 27), colDesc, y, 440, rowHeight, 15).color = Ui.Dim;
-                Ui.Button("ItemGive" + row, rowsRoot, "지급 x" + Step, colGive, y + 2, 116, rowHeight - 4, new Action(() => Say(EditService.GiveItem(Player, entry.Id, Step))));
+                Ui.Button("ItemGive" + row, rowsRoot, "지급 x" + itemAmount, colGive, y + 2, 116, rowHeight - 4, new Action(() => Say(EditService.GiveItem(Player, entry.Id, itemAmount))));
             }
 
             // 페이징
@@ -553,7 +596,7 @@ namespace MOD_sWP6UL
             }
             Ui.Label(content, MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")", 16, box + 6, 420, 36, 21);
             Ui.Button("MartialExp", content, "숙련 경험치 + " + Step, 450, box + 8, 230, 34, new Action(() => Say(MartialService.AddExp(Target, martialId, Step))));
-            StepButton(700, box + 6);
+            AmountBar("Step", 700, box + 6, step, v => step = v);
             List<MartialService.PrefixView> prefixes = MartialService.Prefixes(selected);
             if (prefixes.Count == 0)
             {
@@ -697,7 +740,7 @@ namespace MOD_sWP6UL
             Ui.Panel("MoveBox", content, 0, 0, ContentW, 250, Ui.Section);
             Ui.Label(content, "순간 이동", 16, 6, 300, 36, 21);
             Ui.Label(content, "현재 위치: (" + here.x + ", " + here.y + ")", 16, 44, 400, 34);
-            StepButton(700, 8);
+            AmountBar("Step", 700, 8, step, v => step = v);
             // 방향 버튼: 단위 값만큼의 칸을 이동한다. 대지도는 y가 커질수록 아래쪽이다(실측 전: 방향은 버튼 이름 기준).
             Ui.Button("MoveUp", content, "y - " + Step, 150, 88, 120, 40, new Action(() => Say(WorldService.TeleportBy(0, -Step))));
             Ui.Button("MoveLeft", content, "x - " + Step, 16, 136, 120, 40, new Action(() => Say(WorldService.TeleportBy(-Step, 0))));
@@ -770,8 +813,8 @@ namespace MOD_sWP6UL
                 Ui.Button("IntimMinus", content, "- " + Step, 400, 54, 100, 38, new Action(() => ChangeIntim(-Step)));
                 Ui.Button("IntimPlus", content, "+ " + Step, 506, 54, 100, 38, new Action(() => ChangeIntim(Step)));
                 Ui.Button("IntimZero", content, "0으로", 612, 54, 90, 38, new Action(() => Say(EditService.SetIntimBoth(Player, g.world.unit.GetUnit(selectedNpcId, true), 0))));
-                Ui.Button("EditNpc", content, "능력치 편집", 716, 54, 190, 38, new Action(() => { targetId = selectedNpcId; tab = 0; attributePage = 0; martialId = null; replaceIndex = -1; luckPicking = false; luckPage = 0; Say("편집 대상을 NPC로 바꿨습니다."); }));
-                StepButton(716, 8);
+                Ui.Button("EditNpc", content, "능력치 편집", 716, 54, 190, 38, new Action(() => { targetId = selectedNpcId; tab = 0; attributeCategory = 0; selectedAttribute = -1; martialId = null; replaceIndex = -1; luckPicking = false; luckPage = 0; Say("편집 대상을 NPC로 바꿨습니다."); }));
+                AmountBar("Step", 716, 8, step, v => step = v);
             }
 
             int pages = Math.Max(1, (npcCache.Count + NpcRows - 1) / NpcRows);
