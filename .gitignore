@@ -6,3 +6,6 @@ obj/
 ModProject_*/
 .superpowers/
 .devremote/
+
+# 게임 어셈블리에서 뽑은 형식 목록(tools/research/dump-types.ps1로 다시 만든다)
+tools/research/types.txt
