@@ -69,7 +69,7 @@
 
 사용자의 화면·마우스·키보드를 건드리지 않고 한다. 사용자가 게임을 켜 둔 동안에는 시험할 수 없고, 사용자의 게임을 임의로 끄지 않는다(끄도록 알리고 기다린다).
 
-아래 1~4번과 6번은 `tools\DevRemote\session.ps1`이 한 번에 한다: `-Begin <이름>`(확인 → 빌드 → 세이브 복사 → 설치 → 실행), `-Restart`(저장 후 재시작 확인), `-End <이름>`(종료 → 세이브 복원과 일치 확인 → 설치돼 있던 DLL 되돌리기). 날짜·가방의 자동 검증은 `tools\research\datebag-check.ps1 -Part <이름>`이다.
+아래 1~4번과 6번은 `tools\DevRemote\session.ps1`이 한 번에 한다: `-Begin <이름>`(확인 → 빌드 → 세이브 복사 → 설치 → 실행), `-Restart`(저장 후 재시작 확인), `-End <이름>`(종료 → 세이브 복원과 일치 확인 → 설치돼 있던 DLL 되돌리기). 회차는 한 번에 하나다. `-Begin`이 표식(`.devremote\session.name`)을 남기고, `-End`는 열린 회차와 이름이 같을 때만 세이브를 되돌린다(되돌리기 직전의 세이브는 `save-before-restore-<이름>`). 자기가 띄우지 않은 게임은 닫지 않고, `bag-slots.txt`도 회차 전 상태로 되돌린다. 이 규칙의 시험은 `tools\DevRemote\session.tests.ps1`(게임을 띄우지 않는다)이다. 날짜·가방의 자동 검증은 회차 안에서 `tools\research\datebag-check.ps1 -Part <이름>`으로 한다.
 
 1. 게임이 꺼져 있는지 확인한다(`Get-Process guigubahuang`).
 2. 세이브 폴더를 `.devremote\save-backup-<날짜>-<이름>`으로 복사한다. 세이브는 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Steam\CacheData`. 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않는 시험이라도 복사해 둔다.
@@ -110,7 +110,7 @@
 - 달이 넘어가는 동안(`g.world.run.isRunning`)에는 NPC 대화가 떠서 처리가 멈춰 있을 수 있다. 자동 시험은 고정 시간만큼 기다리지 말고 `isRunning`이 꺼질 때까지 기다린다(`datebag-check.ps1`의 `WaitRun`).
 - 세이브 폴더 밖의 모드 파일(`TlToybox\bag-slots.txt` 등)은 세이브를 되돌려도 남는다. 시험이 만든 값은 시험이 지운다.
 - `MelonLoader\Latest.log`의 한글은 UTF-8이 아니라 CP949다. 로그에서 한글 문구를 찾는 검사는 아무것도 잡지 못한다.
-- PowerShell에서 함수 이름이 별칭과 겹치면 별칭이 먼저 실행된다(`R`은 `Invoke-History`, `History`는 `Get-History`).
+- PowerShell에서 함수 이름이 별칭과 겹치면 별칭이 먼저 실행된다(`R`은 `Invoke-History`, `History`는 `Get-History`, `Erase`는 삭제 명령). 새 함수를 만들면 `Get-Alias <이름>`으로 확인한다.
 
 ## 7. 알려진 한계와 미확인 목록
 
@@ -128,7 +128,7 @@
 | 한글 입력기(IME)로 검색 칸 입력 | 미확인(개발 명령으로 값을 넣어 시험) | 14절 |
 | 실제 마우스 휠·막대 끌기 | 미확인(도구의 스크롤 이벤트로 시험) | 14절 |
 | 월말 처리, 이동 불가 칸, 보호막·지속 피해 | 미확인 | 13절 |
-| 날짜 고정·달력 지정 | 이동과 수련 밖의 행동의 날짜 소모, 달 넘기기 단축키, 날짜 기준 기록(임무 기한 등)에 주는 영향 미확인 | 25절 |
+| 날짜 고정·달력 지정 | 이동과 수련 밖의 행동의 날짜 소모, 달 넘기기 단축키, 지도 화면 밖에서의 사용 미확인. 달력을 앞으로 옮기면 날짜 기준 사건이 바로 일어날 수 있다(식혼검 사건 관찰) | 25절 |
 | 가방 칸 | 수백 칸일 때의 가방 화면, 세이브가 여럿일 때 미확인 | 25절 |
 | 모드를 뺀 뒤의 세이브 동작 | 미확인 | — |
 
