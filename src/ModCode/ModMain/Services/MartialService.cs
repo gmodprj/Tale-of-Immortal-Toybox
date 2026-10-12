@@ -24,11 +24,11 @@ namespace MOD_sWP6UL
         {
             switch (type)
             {
-                case MartialType.SkillLeft: return "기술(좌)";
-                case MartialType.SkillRight: return "기술(우)";
+                case MartialType.SkillLeft: return "무예/영술";
+                case MartialType.SkillRight: return "절기";
                 case MartialType.Step: return "신법";
                 case MartialType.Ability: return "심법";
-                case MartialType.Ultimate: return "절기";
+                case MartialType.Ultimate: return "신통";
                 default: return type.ToString();
             }
         }
@@ -285,6 +285,102 @@ namespace MOD_sWP6UL
             ChangeLog.Add(EditService.NameOf(unit), Name(martial) + " 옵션" + (index + 1),
                 before.Number + "번(품질 " + before.Level + ")", after.Number + "번(품질 " + after.Level + ")", verified);
             return "옵션" + (index + 1) + " 교체: " + before.Number + "번 -> " + after.Number + "번, 품질 " + after.Level;
+        }
+
+        // 장착 칸에 들어 있는지.
+        public static bool IsEquipped(WorldUnitBase unit, string soleId)
+        {
+            var data = unit.data.unitData;
+            if (data.skillLeft == soleId || data.skillRight == soleId || data.ultimate == soleId || data.step == soleId)
+            {
+                return true;
+            }
+            for (int i = 0; data.abilitys != null && i < data.abilitys.Length; i++)
+            {
+                if (data.abilitys[i] == soleId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 장착한다. 심법은 빈 칸 가운데 첫 칸에, 나머지는 하나뿐인 칸에 넣는다.
+        public static string Equip(WorldUnitBase unit, string soleId)
+        {
+            var data = unit.data.unitData;
+            DataUnit.ActionMartialData action = data.GetActionMartial(soleId);
+            if (action == null)
+            {
+                return "공법을 찾지 못했습니다.";
+            }
+            DataProps.MartialData martial = action.data.To<DataProps.MartialData>();
+            int index = 0;
+            if (martial.martialType == MartialType.Ability)
+            {
+                index = -1;
+                for (int i = 0; data.abilitys != null && i < data.abilitys.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(data.abilitys[i]))
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+                if (index < 0)
+                {
+                    return Name(martial) + ": 심법 칸이 모두 차 있습니다. 먼저 하나를 해제하세요.";
+                }
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            int code = unit.CreateAction(new UnitActionMartialEquip(action, index), false);
+            bool ok = IsEquipped(unit, soleId);
+            ChangeLog.Add(EditService.NameOf(unit), Name(martial) + " 장착", "해제", ok ? "장착" : "해제", ok);
+            return ok ? "장착: " + Name(martial) : Name(martial) + ": 게임이 장착하지 않았습니다(코드 " + code + "). 경지나 칸 수 조건일 수 있습니다.";
+        }
+
+        public static string Unequip(WorldUnitBase unit, string soleId)
+        {
+            DataUnit.ActionMartialData action = unit.data.unitData.GetActionMartial(soleId);
+            if (action == null)
+            {
+                return "공법을 찾지 못했습니다.";
+            }
+            DataProps.MartialData martial = action.data.To<DataProps.MartialData>();
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            int code = unit.CreateAction(new UnitActionMartialUnequip(action), false);
+            bool ok = !IsEquipped(unit, soleId);
+            ChangeLog.Add(EditService.NameOf(unit), Name(martial) + " 해제", "장착", ok ? "해제" : "장착", ok);
+            return ok ? "해제: " + Name(martial) : Name(martial) + ": 게임이 해제하지 않았습니다(코드 " + code + ").";
+        }
+
+        // 익힌 공법을 지운다(게임의 기술 망각 행동).
+        public static string Forget(WorldUnitBase unit, string soleId)
+        {
+            var data = unit.data.unitData;
+            DataUnit.ActionMartialData action = data.GetActionMartial(soleId);
+            if (action == null)
+            {
+                return "공법을 찾지 못했습니다.";
+            }
+            string name = Name(action.data.To<DataProps.MartialData>());
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            unit.CreateAction(new UnitActionMartialDel(action), false);
+            bool ok = !data.allActionMartial.ContainsKey(soleId);
+            ChangeLog.Add(EditService.NameOf(unit), "공법 " + name, "익힘", ok ? "없음" : "익힘", ok);
+            return ok ? "공법 망각: " + name : name + ": 게임이 지우지 않았습니다.";
         }
 
         public static string AddExp(WorldUnitBase unit, string soleId, int amount)

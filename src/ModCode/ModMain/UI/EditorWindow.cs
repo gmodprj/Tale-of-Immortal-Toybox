@@ -16,7 +16,7 @@ namespace MOD_sWP6UL
         private const int NpcRows = 8;
         private const int HistoryRows = 14;
 
-        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "운명", "NPC", "세계", "안전" };
+        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "운명", "기예", "NPC", "세계", "안전" };
         private static readonly int[] Amounts = { 1, 10, 100, 1000 };
         private const int MaxAmount = 999999;
 
@@ -58,6 +58,19 @@ namespace MOD_sWP6UL
         private static int pendingLuckRemove;
         private static int luckReplaceIndex = -1; // 교체할 선천운명 자리. -1이면 후천운명 추가
         private static bool luckPicking;
+        private static int artKind;
+        private static int artPage;
+        private static float artScrollY;
+        private static int artPending;      // 잊기 확인 중인 서적 번호
+        private static string artQuery = "";
+        private static string appliedArtQuery = "";
+        private static string martialPending;
+        private static bool skillAdding;      // 공법 탭의 기술 추가 화면
+        private static int skillKind;
+        private static int skillPage;
+        private static int skillGrade;
+        private static string skillQuery = "";
+        private static string appliedSkillQuery = "";  // 망각 확인 중인 공법
         private static bool fateOpen;       // 운명 탭의 역천개명 화면
         private static int fatePickGrade;   // 후보를 고르는 중인 대경지. 0이면 목록 화면
         private static int fatePickPage;
@@ -181,8 +194,9 @@ namespace MOD_sWP6UL
                 case 2: RenderGrade(); break;
                 case 3: RenderMartial(target); break;
                 case 4: RenderLuck(target); break;
-                case 5: RenderNpcs(); break;
-                case 6: RenderWorld(); break;
+                case 5: RenderArt(); break;
+                case 6: RenderNpcs(); break;
+                case 7: RenderWorld(); break;
                 default: RenderSafety(); break;
             }
         }
@@ -548,10 +562,68 @@ namespace MOD_sWP6UL
             Ui.Label(content, "누르면 편집기를 닫고 게임의 돌파 화면을 엽니다.", 330, open + 4, 560, 36, 16).color = Ui.Dim;
         }
 
+        // 공법 탭의 기술 추가 화면: 게임 기술 화면의 다섯 분류에서 이름으로 골라 배운 상태로 넣는다.
+        private static void RenderSkillAdd(WorldUnitBase target)
+        {
+            const int rows = 12;
+            Ui.Label(content, "기술 추가 — " + EditService.NameOf(target), 0, 0, 500, 36, 21);
+            Ui.Button("SkillBack", content, "돌아가기", ContentW - 130, 0, 130, 36, new Action(() => { skillAdding = false; message = ""; Render(); }));
+            for (int i = 0; i < SkillCatalog.Kinds.Length; i++)
+            {
+                int index = i;
+                Ui.Button("SkillKind" + i, content, SkillCatalog.Kinds[i].Tab, i * 156, 44, 150, 38, new Action(() => { skillKind = index; skillPage = 0; message = ""; Render(); }), true, skillKind == i);
+            }
+            Ui.Input("SkillQuery", content, skillQuery, "이름의 일부 또는 번호", 800, 44, 250, 38, new Action<string>(v => skillQuery = v));
+            Ui.Button("SkillSearch", content, "검색", 1058, 44, 80, 38, new Action(() => { appliedSkillQuery = skillQuery.Trim(); skillPage = 0; Render(); }));
+            Ui.Button("SkillSearchClear", content, "지움", 1144, 44, 80, 38, new Action(() => { skillQuery = ""; appliedSkillQuery = ""; skillPage = 0; Render(); }), skillQuery.Length > 0 || appliedSkillQuery.Length > 0);
+
+            // 만들 기술의 경지. 처음에는 편집 대상의 현재 대경지.
+            if (skillGrade <= 0)
+            {
+                skillGrade = Math.Max(1, FateService.CurrentGrade(target));
+            }
+            Ui.Label(content, "경지", 0, 90, 60, 36, 18).color = Ui.Dim;
+            for (int grade = 1; grade <= 10; grade++)
+            {
+                int value = grade;
+                Ui.Button("SkillGrade" + grade, content, grade.ToString(), 60 + (grade - 1) * 50, 90, 46, 36, new Action(() => { skillGrade = value; message = ""; Render(); }), true, skillGrade == grade);
+            }
+            Ui.Label(content, "기술의 경지(1 연기 ~ 10)입니다. 옵션은 게임의 뽑기로 정해지고, 추가한 뒤 이 탭에서 품질·교체로 고칠 수 있습니다.", 580, 90, 720, 36, 15).color = Ui.Dim;
+
+            List<SkillCatalog.Entry> found = SkillCatalog.Find(skillKind, appliedSkillQuery);
+            int pages = Math.Max(1, (found.Count + rows - 1) / rows);
+            skillPage = Mathf.Clamp(skillPage, 0, pages - 1);
+            for (int row = 0; row < rows; row++)
+            {
+                int index = skillPage * rows + row;
+                if (index >= found.Count)
+                {
+                    break;
+                }
+                SkillCatalog.Entry entry = found[index];
+                float y = 136 + row * 50;
+                bool inRange = skillGrade >= entry.GradeMin && skillGrade <= entry.GradeMax;
+                Ui.Label(content, Shorten(entry.Name, 16) + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 0, y, 1000, 26, 18);
+                Ui.Label(content, Shorten(entry.Desc, 80), 16, y + 24, 1100, 22, 15).color = Ui.Dim;
+                Ui.Button("SkillAdd" + index, content, inRange ? "추가" : "경지 범위 밖", ContentW - 170, y + 6, 170, 36,
+                    new Action(() => Say(SkillCatalog.Learn(Target, skillKind, entry, skillGrade))), inRange);
+            }
+            float footer = 136 + rows * 50 + 4;
+            Ui.Button("SkillPrev", content, "이전", 0, footer, 90, 38, new Action(() => { skillPage--; Render(); }), skillPage > 0);
+            Ui.Label(content, (skillPage + 1) + " / " + pages, 100, footer, 110, 38, 18, TextAnchor.MiddleCenter);
+            Ui.Button("SkillNext", content, "다음", 220, footer, 90, 38, new Action(() => { skillPage++; Render(); }), skillPage < pages - 1);
+            Ui.Label(content, SkillCatalog.Kinds[skillKind].Tab + " " + found.Count + "개" + (appliedSkillQuery.Length > 0 ? "  ('" + appliedSkillQuery + "' 포함)" : ""), 330, footer, 700, 38, 16).color = Ui.Dim;
+        }
+
         private static void RenderMartial(WorldUnitBase target)
         {
-            const int listRows = 5;
-            const int pickRows = 9;
+            if (skillAdding)
+            {
+                RenderSkillAdd(target);
+                return;
+            }
+            const int listRows = 8;
+            const int pickRows = 12;
             var all = new List<KeyValuePair<string, DataUnit.ActionMartialData>>();
             foreach (var pair in target.data.unitData.allActionMartial)
             {
@@ -590,13 +662,15 @@ namespace MOD_sWP6UL
                 Ui.Label(content, MartialService.TypeLabel(martial.martialType), 330, y, 120, 34);
                 Ui.Label(content, martial.grade.ToString(), 460, y, 80, 34);
                 Ui.Label(content, all[index].Value.exp.ToString(), 550, y, 150, 34);
-                Ui.Button("PickMartial" + index, content, id == martialId ? "선택됨" : "선택", 720, y, 110, 32, new Action(() => { martialId = id; replaceIndex = -1; message = ""; Render(); }), true, id == martialId);
+                Ui.Label(content, MartialService.IsEquipped(target, id) ? "장착 중" : "", 840, y, 120, 34, 17).color = Ui.Warn;
+                Ui.Button("PickMartial" + index, content, id == martialId ? "선택됨" : "선택", 720, y, 110, 32, new Action(() => { martialId = id; replaceIndex = -1; martialPending = null; message = ""; Render(); }), true, id == martialId);
             }
             float listEnd = 32 + listRows * 38;
             Ui.Button("MartialPrev", content, "이전", 0, listEnd, 80, 34, new Action(() => { martialPage--; Render(); }), martialPage > 0);
             Ui.Label(content, (martialPage + 1) + " / " + pages, 86, listEnd, 80, 34, 18, TextAnchor.MiddleCenter);
             Ui.Button("MartialNext", content, "다음", 172, listEnd, 80, 34, new Action(() => { martialPage++; Render(); }), martialPage < pages - 1);
             Ui.Label(content, all.Count == 0 ? "익힌 공법이 없습니다." : "대상이 익힌 공법 " + all.Count + "개", 270, listEnd, 400, 34, 18).color = Ui.Dim;
+            Ui.Button("SkillAddOpen", content, "기술 추가", 700, listEnd, 160, 34, new Action(() => { skillAdding = true; skillPage = 0; skillGrade = 0; martialPending = null; message = ""; Render(); }));
 
             float box = listEnd + 46;
             Ui.Panel("MartialBox", content, 0, box, ContentW, 330, Ui.Section);
@@ -608,12 +682,33 @@ namespace MOD_sWP6UL
             Ui.Label(content, MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")", 16, box + 6, 420, 36, 21);
             Ui.Button("MartialExp", content, "숙련 경험치 + " + Step, 450, box + 8, 230, 34, new Action(() => Say(MartialService.AddExp(Target, martialId, Step))));
             AmountBar("Step", 700, box + 6, step, v => step = v);
-            List<MartialService.PrefixView> prefixes = MartialService.Prefixes(selected);
+            // 장착·해제와 망각. 망각은 한 번 더 확인한다.
+            bool equipped = MartialService.IsEquipped(target, martialId);
+            bool forgetting = martialPending == martialId;
+            Ui.Button("MartialEquip", content, equipped ? "장착 해제" : "장착", 16, box + 286, 150, 34, new Action(() =>
+            {
+                martialPending = null;
+                Say(equipped ? MartialService.Unequip(Target, martialId) : MartialService.Equip(Target, martialId));
+            }));
+            Ui.Button("MartialForget", content, forgetting ? "정말 망각" : "기술 망각", 176, box + 286, 150, 34, new Action(() =>
+            {
+                if (!forgetting)
+                {
+                    martialPending = martialId;
+                    Say("이 공법을 익힌 목록에서 지웁니다. 계속하려면 \"정말 망각\"을 한 번 더 누르세요.");
+                    return;
+                }
+                martialPending = null;
+                string result = MartialService.Forget(Target, martialId);
+                martialId = null;
+                Say(result);
+            }), true, forgetting);
+            Ui.Label(content, "수련은 위의 숙련 경험치로, 참오는 위 옵션의 품질·교체로 대신합니다.", 340, box + 286, 800, 34, 15).color = Ui.Dim;            List<MartialService.PrefixView> prefixes = MartialService.Prefixes(selected);
             if (prefixes.Count == 0)
             {
                 Ui.Label(content, "이 공법에는 옵션이 없습니다.", 16, box + 52, 880, 34, 18).color = Ui.Dim;
             }
-            for (int i = 0; i < prefixes.Count && i < 7; i++)
+            for (int i = 0; i < prefixes.Count && i < 6; i++)
             {
                 MartialService.PrefixView view = prefixes[i];
                 int slot = view.Index;
@@ -871,6 +966,91 @@ namespace MOD_sWP6UL
             Ui.Label(content, (luckPickPage + 1) + " / " + pages, 100, footer, 90, 38, 18, TextAnchor.MiddleCenter);
             Ui.Button("LuckPickNext", content, "다음", 200, footer, 90, 38, new Action(() => { luckPickPage++; Render(); }), luckPickPage < pages - 1);
             Ui.Label(content, "후보 " + candidates.Count + "개" + (appliedLuckQuery.Length > 0 ? "  ('" + appliedLuckQuery + "' 포함)" : ""), 310, footer, 900, 38, 16).color = Ui.Dim;
+        }
+
+        // 기예 탭: 게임 기예 화면의 여섯 탭과 같은 분류. 서적을 골라 배우게 하거나 배운 기록을 지운다.
+        private static void RenderArt()
+        {
+            float contentH = Height - ContentY - 56;
+            for (int i = 0; i < ArtService.Kinds.Length; i++)
+            {
+                int index = i;
+                ArtService.Kind each = ArtService.Kinds[i];
+                Ui.Button("ArtKind" + i, content, each.Tab + " (" + ArtService.LearnedCount(each) + "/" + ArtService.Books(each, "").Count + ")", i * 176, 0, 170, 40,
+                    new Action(() => { artKind = index; artPage = 0; artScrollY = 0; artPending = 0; message = ""; Render(); }), true, artKind == i);
+            }
+            ArtService.Kind kind = ArtService.Kinds[artKind];
+
+            Ui.Label(content, kind.Book, 0, 50, 90, 38);
+            Ui.Input("ArtQuery", content, artQuery, "이름의 일부 또는 번호", 90, 50, 280, 38, new Action<string>(v => artQuery = v));
+            Ui.Button("ArtSearch", content, "검색", 378, 50, 84, 38, new Action(() => { appliedArtQuery = artQuery.Trim(); artPage = 0; artScrollY = 0; message = ""; Render(); }));
+            Ui.Button("ArtSearchClear", content, "초기화", 468, 50, 96, 38, new Action(() => { artQuery = ""; appliedArtQuery = ""; artPage = 0; artScrollY = 0; message = ""; Render(); }),
+                artQuery.Length > 0 || appliedArtQuery.Length > 0);
+            Ui.Button("ArtLearnAll", content, kind.Tab + " 모두 배우기", 600, 50, 220, 38, new Action(() => { artPending = 0; Say(ArtService.LearnAll(ArtService.Kinds[artKind])); }));
+            Ui.Label(content, "기예는 플레이어의 기록입니다(편집 대상과 무관).", 840, 50, 460, 38, 15).color = Ui.Dim;
+
+            List<ItemCatalog.Entry> books = ArtService.Books(kind, appliedArtQuery);
+            const int pageSize = 50;
+            int pages = Math.Max(1, (books.Count + pageSize - 1) / pageSize);
+            artPage = Mathf.Clamp(artPage, 0, pages - 1);
+
+            const float colId = 8, colName = 110, colLevel = 420, colState = 490, colDesc = 600, colAct = 1166;
+            Ui.Panel("ArtHead", content, 0, 98, ContentW, 30, Ui.Section);
+            Ui.Label(content, "번호", colId, 98, 100, 30, 16).color = Ui.Dim;
+            Ui.Label(content, kind.Book, colName, 98, 300, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "품질", colLevel, 98, 60, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "상태", colState, 98, 100, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "설명", colDesc, 98, 500, 30, 16).color = Ui.Dim;
+
+            const float rowHeight = 32;
+            float footer = contentH - 46;
+            int first = artPage * pageSize;
+            int shown = Math.Max(0, Math.Min(pageSize, books.Count - first));
+            RectTransform rowsRoot = Ui.Scroll("ArtTable", content, 0, 130, ContentW, footer - 8 - 130, shown * rowHeight, artScrollY, new Action<float>(v => artScrollY = v));
+            if (books.Count == 0)
+            {
+                Ui.Label(rowsRoot, "조건에 맞는 " + kind.Book + "이(가) 없습니다.", 16, 8, 800, 34, 18).color = Ui.Warn;
+            }
+            for (int row = 0; row < shown; row++)
+            {
+                ItemCatalog.Entry book = books[first + row];
+                float y = row * rowHeight;
+                bool learned = ArtService.Learned(kind, book.Id);
+                bool confirming = artPending == book.Id;
+                if (row % 2 == 1)
+                {
+                    Ui.Panel("Stripe", rowsRoot, 0, y, ContentW - Ui.ScrollBarWidth, rowHeight, new Color(1f, 1f, 1f, 0.04f)).GetComponent<Image>().raycastTarget = false;
+                }
+                Ui.Label(rowsRoot, book.Id.ToString(), colId, y, 100, rowHeight, 16);
+                Ui.Label(rowsRoot, Shorten(book.Name, 15), colName, y, 305, rowHeight, 17);
+                Ui.Label(rowsRoot, book.Level.ToString(), colLevel, y, 60, rowHeight, 16);
+                Text state = Ui.Label(rowsRoot, learned ? "배움" : "-", colState, y, 100, rowHeight, 16);
+                state.color = learned ? Ui.Warn : Ui.Dim;
+                Ui.Label(rowsRoot, Shorten(book.Desc, 32), colDesc, y, 560, rowHeight, 15).color = Ui.Dim;
+                Ui.Button("ArtAct" + row, rowsRoot, !learned ? "배우기" : confirming ? "정말 잊기" : "잊기", colAct, y + 2, 116, rowHeight - 4, new Action(() =>
+                {
+                    ArtService.Kind current = ArtService.Kinds[artKind];
+                    if (!learned)
+                    {
+                        artPending = 0;
+                        Say(ArtService.Learn(current, book));
+                        return;
+                    }
+                    if (!confirming)
+                    {
+                        artPending = book.Id;
+                        Say(book.Name + ": 배운 기록을 지웁니다. 계속하려면 \"정말 잊기\"를 한 번 더 누르세요.");
+                        return;
+                    }
+                    artPending = 0;
+                    Say(ArtService.Forget(current, book));
+                }), true, confirming);
+            }
+
+            Ui.Button("ArtPrev", content, "이전", 0, footer, 80, 38, new Action(() => { artPage--; artScrollY = 0; Render(); }), artPage > 0);
+            Ui.Label(content, (artPage + 1) + " / " + pages, 86, footer, 110, 38, 18, TextAnchor.MiddleCenter);
+            Ui.Button("ArtNext", content, "다음", 202, footer, 80, 38, new Action(() => { artPage++; artScrollY = 0; Render(); }), artPage < pages - 1);
+            Ui.Label(content, kind.Book + " " + books.Count + "개  ·  목록은 마우스 휠이나 오른쪽 막대로 스크롤", 300, footer, 900, 38, 15).color = Ui.Dim;
         }
 
         private static void RenderWorld()
