@@ -307,8 +307,38 @@ namespace MOD_sWP6UL
             {
                 Ui.Label(content, blocked, 16, 200, 880, 36, 18).color = Ui.Warn;
             }
-            Ui.Label(content, "돌파는 게임의 정식 돌파 행동을 실행합니다. 능력치 보정이 함께 적용됩니다.", 0, 264, 900, 32, 18).color = Ui.Dim;
-            Ui.Label(content, "대상은 플레이어입니다. 대경지 돌파는 이 버전에서 지원하지 않습니다.", 0, 296, 900, 32, 18).color = Ui.Dim;
+            List<ConfRoleGradeItem> major = EditService.MajorBreakthroughRows(player);
+            if (major.Count == 0)
+            {
+                Ui.Label(content, "돌파는 게임의 정식 돌파 행동을 실행합니다. 능력치 보정이 함께 적용됩니다. 대상은 플레이어입니다.", 0, 264, 900, 32, 18).color = Ui.Dim;
+                return;
+            }
+            // 대경지 돌파: 성공 확률 판정과 실패 시의 천겁은 게임의 절차이므로, 재료만 지급하고 게임의 돌파 화면을 연다.
+            Ui.Panel("MajorBox", content, 0, 262, ContentW, 70 + major.Count * 44 + 60, Ui.Section);
+            Ui.Label(content, "대경지 돌파 — 게임의 돌파 화면에서 진행합니다", 16, 268, 880, 34, 21);
+            Ui.Label(content, "방식마다 필요한 재료와 역천개명 선택 수가 다릅니다. 성공 확률은 넣는 재료에 따라 정해지고, 실패하면 천겁을 치릅니다.", 16, 300, 890, 28, 15).color = Ui.Dim;
+            for (int i = 0; i < major.Count; i++)
+            {
+                ConfRoleGradeItem row = major[i];
+                float y = 334 + i * 44;
+                string need = row.growItemRequire == null || row.growItemRequire.Length == 0 ? "재료 없음"
+                    : (EditService.ItemName(row.growItemRequire[row.growItemRequire.Length - 1]) ?? "?") + " 등 " + row.growItemNum + "개";
+                Ui.Label(content, GameTool.LS(row.qualityName) + "  ·  필요 재료 " + need + "  ·  역천개명 " + row.fateNum + "개", 16, y, 660, 38, 18);
+                Ui.Button("MajorGive" + i, content, "재료 지급", 700, y + 2, 200, 36, new Action(() => Say(EditService.GiveBreakthroughMaterials(Player, row))),
+                    row.growItemRequire != null && row.growItemRequire.Length > 0 && row.growItemNum > 0);
+            }
+            float open = 334 + major.Count * 44 + 6;
+            Ui.Button("MajorOpen", content, "게임의 돌파 화면 열기", 16, open, 300, 44, new Action(() =>
+            {
+                string error = EditService.OpenGameBreakthroughScreen(Player);
+                if (error != null)
+                {
+                    Say(error);
+                    return;
+                }
+                Close();
+            }));
+            Ui.Label(content, "누르면 편집기를 닫고 게임의 돌파 화면을 엽니다.", 330, open + 4, 560, 36, 16).color = Ui.Dim;
         }
 
         private static void RenderMartial(WorldUnitBase target)

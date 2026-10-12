@@ -45,6 +45,39 @@ namespace MOD_sWP6UL
                     MartialOf(p[1], p[2]).SetPrefixID(int.Parse(p[3]), int.Parse(p[4]));
                     return "SetPrefixID called; " + Martial(Unit(p[1]));
                 case "mdetail": return MartialDetail(p[1], p[2]);
+                case "openui":
+                    if (p[1] == "UpGrade") { g.ui.OpenUI(UIType.UpGrade); return "opened UpGrade"; }
+                    if (p[1] == "FateFeature") { g.ui.OpenUI(UIType.FateFeature); return "opened FateFeature"; }
+                    return "unknown ui";
+                case "upclick":
+                    {
+                        // 게임의 돌파 화면이 열려 있고 카드와 재료가 선택된 상태에서, 화면의 돌파 처리 메서드를 직접 부른다.
+                        UIUpGrade ui = g.ui.GetUI<UIUpGrade>(UIType.UpGrade);
+                        if (ui == null)
+                        {
+                            return "UpGrade UI is not open";
+                        }
+                        UIUpGradeGradeList list = ui.uiUpGrade;
+                        UnityEngine.Transform rootT = list.goGradeRoot.transform;
+                        UnityEngine.GameObject card = null;
+                        for (int i = 0; i < rootT.childCount; i++)
+                        {
+                            var toggle = rootT.GetChild(i).gameObject.GetComponentInChildren<UnityEngine.UI.Toggle>();
+                            if (toggle != null && toggle.isOn)
+                            {
+                                card = rootT.GetChild(i).gameObject;
+                            }
+                        }
+                        string info = "cards=" + rootT.childCount + " selectedCard=" + (card == null ? "none" : card.name)
+                            + " require=" + (list.selectRequirePropsSoleID == null ? -1 : list.selectRequirePropsSoleID.Length)
+                            + " cur=" + (list.curGradeItem == null ? 0 : list.curGradeItem.id);
+                        if (card == null)
+                        {
+                            return info + " (no card selected)";
+                        }
+                        list.OnUpGradeClick(card, g.conf.roleGrade.GetItem(int.Parse(p[1])));
+                        return info + " OnUpGradeClick called; " + Stats(Me());
+                    }
                 case "upcomplete":
                     UnitActionRoleUpGrade.ActionUpGradeComplete(Me(), g.conf.roleGrade.GetItem(int.Parse(p[1])), true);
                     return "ActionUpGradeComplete called; " + Stats(Me()) + " | " + Luck(Me());
