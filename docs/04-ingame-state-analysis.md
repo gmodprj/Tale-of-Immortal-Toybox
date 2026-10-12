@@ -577,6 +577,76 @@ chm이 프록시보다 나은 점: 멤버마다 중국어 설명이 있고, 필�
 
 현재 세이브에는 이 시험의 결과(영석 501, 공격 저장값 21, 아이템 `6071014` 3개)가 저장되어 있다. 상한 시험의 값은 저장하지 않았다.
 
+### 3단계 결과 (2026-10-12 실측)
+
+연쇄가 있는 쓰기를 같은 세이브에서 시험했다(`src/ModCode/ModMain/Features/DevCommandsStage3.cs`). 시험 전 세이브는 `E:\TlToybox\.devremote\save-backup-20261012-stage3\`에 백업했다. 관계와 공법 옵션은 NPC `EBswwi`를 대상으로 했다.
+
+**10. 호감도**
+
+| 호출 | 결과 |
+|---|---|
+| `me.relationData.SetIntim(npcId, 60)` | 내 쪽 값만 60이 된다. NPC 쪽 값(`npc.relationData.GetIntim(myId)`, `intimToPlayerUnit`)은 0 그대로 |
+| `me.relationData.SetIntim(npcId, 250)` | 250이 그대로 들어간다. 범위 검증이 없다 |
+| `me.relationData.SetIntim(npcId, -150)` | 내 쪽 판정 `GetRelationType`만 `Hater`가 되고 NPC 쪽 판정은 `None` |
+| `npc.relationData.SetIntim(myId, 250)`만 | NPC 쪽 값과 `intimToPlayerUnit`이 250이 되지만 `IsFriend`는 양쪽 모두 `False` |
+| 양쪽 모두 250 | `IsFriend`가 양쪽 `True`, `GetRelationType`이 양쪽 `Friend` |
+| `UpdateAllUnitRelation()` | 호출 전후로 값과 판정이 같다. 필요 없었다 |
+| 저장 후 재시작 | 양쪽 250과 `Friend` 판정이 유지됐다 |
+
+결론: **호감도는 단위마다 따로 저장되고 한쪽을 바꿔도 반대쪽이 따라오지 않는다.** 친구 판정은 양쪽 값이 모두 높아야 한다. 호감도 편집기는 양쪽을 함께 쓰는 것을 기본으로 하고, 범위를 직접 제한해야 한다(유효 범위는 미확인).
+
+**11. 수련치와 경지**
+
+| 호출 | 결과 |
+|---|---|
+| `propertyData.AddExp(100)` | 경험치 0 → 100, 반환값 100 |
+| `AddExp(200)`, `AddExp(5000)` | 다음 단계 요구량(260)에서 멈춘다. 반환값은 요청한 수치 그대로다. **경지는 자동으로 오르지 않는다** |
+| `unit.CreateAction(new UnitActionRoleUpGrade(2, 빈 배열, 빈 배열))` | 반환값 0. 경지 1 → 2(연기 초기 → 중기). 공격 21 → 23, 방어 7 → 9, 체력 상한 257 → 303, 영력 상한 174 → 190이 함께 올랐다. 게임의 결과 창("속성 변화")이 떴다. 재료 배열을 비워도 통과했다(이 단계는 재료가 필요 없는 소경지다) |
+| `propertyData.SetGradeID(3)` | 경지 ID가 3이 되고 경험치가 그 경지의 요구량(1600)으로 맞춰진다. **능력치는 변하지 않는다**(공격 23, 체력 상한 303 그대로) |
+| `SetGradeID(2)` | 경지 2, 경험치 260으로 돌아온다 |
+| 저장 후 재시작 | 정식 돌파의 결과(경지 2, 오른 능력치)가 유지됐다 |
+
+결론: **경지를 `SetGradeID`로 직접 쓰면 능력치가 따라오지 않아 경지와 능력치가 어긋난다.** 기준 문서 4장과 14장이 우려한 그대로다. 경지 변경은 `UnitActionRoleUpGrade`로 한 단계씩 올리는 방식이 안전하다. 대경지 돌파(재료·역천개명이 걸리는 단계)에서 빈 재료 배열이 통과하는지는 확인하지 못했다.
+
+**12. 공법**
+
+`DataProps/PropsData.values`의 배치를 실측으로 확인했다. 공법의 경우 `[2, 0, ?, martialType, baseID, grade, 옵션 번호들…, -1, 옵션 수치들…]`이다. 예: `2,0,0,1,12111,1,4,5,6,3,-1,16,61,52,218`은 `SkillLeft`, `baseID` 12111, 공법 경지 1, 옵션 번호 4·5·6·3, 옵션 수치 16·61·52·218이다.
+
+| 호출 | 결과 |
+|---|---|
+| `npc.unitData.AddMartialExp(soleId, 500)` | 숙련 경험치 0 → 500 |
+| `me.unitData.AddMartialExp(soleId, 300)` (시작 공법 `baseID` 11423) | 0 그대로다. 이 공법은 경험치가 오르지 않았다. 원인 미확인 |
+| `martial.SetPrefixLevel(0, 100)` | 옵션 수치 16 → 100. `values`의 해당 칸이 바뀐다 |
+| `SetPrefixLevel(0, 100000)` | 100000이 그대로 들어간다. 범위 검증이 없다 |
+| `martial.SetPrefixID(0, 5)` | 옵션 번호 4 → 5로 바뀌고 **옵션 수치가 새로 굴려진다**(141). 같은 번호의 옵션이 두 칸에 중복되어도 막지 않는다 |
+| `SetPrefixID(0, 9999)` | 무시된다. 값이 바뀌지 않는다 |
+| `SetPrefixID(0, 4)` | 번호 4로 돌아오지만 수치는 다시 굴려진다(168). 원래 수치 16은 `SetPrefixLevel`로 되돌렸다 |
+| 저장 후 재시작 | NPC 공법의 경험치 500과 되돌린 옵션 값이 유지됐다 |
+
+결론: `Prefix.prefixLevel`은 단계가 아니라 **옵션의 수치**(관측값 8~395)다. `SetPrefixID`의 두 번째 인자는 `ConfBattleSkillPrefixValueItem.number`에 해당하는 옵션 번호이고, 유효하지 않으면 무시된다. 옵션을 교체하면 수치가 무작위로 다시 정해지므로, 편집기는 `SetPrefixID` 뒤에 `SetPrefixLevel`로 수치를 따로 써야 한다. 중복·수치 범위는 편집기가 직접 검사해야 한다(기준 문서 6.4). 공법 이름이 옵션에 따라 다시 계산되는지는 화면을 열어 보지 않아 확인하지 못했다.
+
+**13. 기운**
+
+| 호출 | 결과 |
+|---|---|
+| `unit.CreateAction(new UnitActionLuckAdd(120))` | 반환값 2. 후천 기운 목록(`addLuck`)에 120이 추가되고 런타임 목록(`allLuck`)이 6 → 7 |
+| `unit.CreateAction(new UnitActionLuckDel(120))` | 반환값 0. 목록에서 제거되고 런타임 목록이 6으로 돌아옴 |
+
+기운 120의 효과가 능력치에 반영되는지는 이 기운의 효과를 몰라 판단하지 못했다(추가 전후 능력치 동일). `CreateAction` 반환값의 의미(0과 2)는 확인하지 못했다. 기운의 저장 후 지속은 시험하지 않았다.
+
+**3단계에서 확인된 쓰기 경로 요약**
+
+| 대상 | 안전한 경로 | 주의 |
+|---|---|---|
+| 호감도 | 양쪽 `RelationData.SetIntim` | 한쪽만 쓰면 친구 판정이 안 된다. 범위 검증 없음 |
+| 수련치 | `PropertyData.AddExp` | 다음 단계 요구량에서 멈춤 |
+| 경지 | `UnitActionRoleUpGrade` | `SetGradeID`는 능력치를 맞추지 않는다 |
+| 공법 경험치 | `UnitInfoData.AddMartialExp` | 오르지 않는 공법이 있다 |
+| 공법 옵션 | `SetPrefixID` 후 `SetPrefixLevel` | 교체 시 수치가 다시 굴려짐. 검증 없음 |
+| 기운 | `UnitActionLuckAdd` / `UnitActionLuckDel` | 효과 반영은 미확인 |
+
+현재 세이브에는 3단계의 결과 중 경지 2(연기 중기)와 그에 따른 능력치, NPC `EBswwi`의 공법 `eJRNCb` 경험치 500이 저장되어 있다. 호감도는 0으로 되돌려 저장했다.
+
 **공통 확인 사항**
 
 - 세이브 시점(`DataMgr.SaveData(Action<T>)`, `isSaveData`)과 백업 대상 폴더(`01` 문서 9절의 `Steam\CacheData`).
