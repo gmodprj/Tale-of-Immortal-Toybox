@@ -60,6 +60,11 @@ namespace MOD_sWP6UL
             {
                 return ui;
             }
+            string screen = DevCommandsUi.Execute(p);
+            if (screen != null)
+            {
+                return screen;
+            }
             string time = DevCommandsTime.Execute(p);
             if (time != null)
             {
