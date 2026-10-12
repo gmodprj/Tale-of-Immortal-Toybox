@@ -239,15 +239,80 @@ namespace MOD_sWP6UL
             return result;
         }
 
-        // 돌파 방식 하나에 필요한 재료를 지급한다. 후보 중 표의 마지막 것(실측: 축기단은 1품)을 필요한 개수만큼 준다.
+        private static System.Collections.Generic.List<int> ParseIds(string text)
+        {
+            var result = new System.Collections.Generic.List<int>();
+            foreach (string part in (text ?? "").Split('_'))
+            {
+                int id;
+                if (int.TryParse(part, out id) && id > 0 && !result.Contains(id))
+                {
+                    result.Add(id);
+                }
+            }
+            return result;
+        }
+
+        // 돌파 방식 하나의 "필요 재료" 칸에 넣을 재료. 게임의 돌파 정보 화면이 보여 주는 종류(itemShowA)에서 고른다.
+        // 한 개만 필요하면 가장 좋은 것(표의 마지막, 축기단은 1품), 여러 개면 서로 다른 종류를 앞에서부터 하나씩.
+        public static System.Collections.Generic.List<int> BreakthroughNeedItems(ConfRoleGradeItem row)
+        {
+            var kinds = ParseIds(row.itemShowA);
+            var result = new System.Collections.Generic.List<int>();
+            if (row.growItemNum <= 0 || kinds.Count == 0)
+            {
+                return result;
+            }
+            if (row.growItemNum == 1)
+            {
+                result.Add(kinds[kinds.Count - 1]);
+                return result;
+            }
+            for (int i = 0; i < row.growItemNum; i++)
+            {
+                result.Add(kinds[i % kinds.Count]);
+            }
+            return result;
+        }
+
+        // "천재지보" 칸에 넣을 것. 후보(itemShowB)에서 서로 다른 종류를 앞에서부터 필요한 수만큼.
+        public static System.Collections.Generic.List<int> BreakthroughTreasures(ConfRoleGradeItem row)
+        {
+            var kinds = ParseIds(row.itemShowB);
+            var result = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < row.materialsNum && kinds.Count > 0; i++)
+            {
+                result.Add(kinds[i % kinds.Count]);
+            }
+            return result;
+        }
+
+        // 돌파 방식 하나에 필요한 재료와 천재지보를 지급한다.
         public static string GiveBreakthroughMaterials(WorldUnitBase unit, ConfRoleGradeItem row)
         {
-            if (row.growItemRequire == null || row.growItemRequire.Length == 0 || row.growItemNum <= 0)
+            var items = BreakthroughNeedItems(row);
+            items.AddRange(BreakthroughTreasures(row));
+            if (items.Count == 0)
             {
                 return "이 돌파 방식에는 필요한 재료가 없습니다.";
             }
-            int propsId = row.growItemRequire[row.growItemRequire.Length - 1];
-            return GiveItem(unit, propsId, row.growItemNum);
+            var counts = new System.Collections.Generic.Dictionary<int, int>();
+            foreach (int id in items)
+            {
+                int n;
+                counts.TryGetValue(id, out n);
+                counts[id] = n + 1;
+            }
+            var names = new System.Collections.Generic.List<string>();
+            bool failed = false;
+            foreach (var pair in counts)
+            {
+                string result = GiveItem(unit, pair.Key, pair.Value);
+                int have = unit.data.unitData.propData.GetPropsNum(pair.Key);
+                failed |= have < pair.Value;
+                names.Add((ItemName(pair.Key) ?? pair.Key.ToString()) + " x" + pair.Value);
+            }
+            return (failed ? "일부가 지급되지 않았습니다: " : "지급: ") + string.Join(", ", names.ToArray());
         }
 
         // 게임의 돌파 화면을 연다. 재료 투입, 성공 확률 판정, 실패 시의 천겁은 게임이 처리한다.

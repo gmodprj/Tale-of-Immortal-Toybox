@@ -524,11 +524,15 @@ namespace MOD_sWP6UL
             {
                 ConfRoleGradeItem row = major[i];
                 float y = 334 + i * 44;
-                string need = row.growItemRequire == null || row.growItemRequire.Length == 0 ? "재료 없음"
-                    : (EditService.ItemName(row.growItemRequire[row.growItemRequire.Length - 1]) ?? "?") + " 등 " + row.growItemNum + "개";
-                Ui.Label(content, GameTool.LS(row.qualityName) + "  ·  필요 재료 " + need + "  ·  역천개명 " + row.fateNum + "개", 16, y, 660, 38, 18);
-                Ui.Button("MajorGive" + i, content, "재료 지급", 700, y + 2, 200, 36, new Action(() => Say(EditService.GiveBreakthroughMaterials(Player, row))),
-                    row.growItemRequire != null && row.growItemRequire.Length > 0 && row.growItemNum > 0);
+                List<int> needItems = EditService.BreakthroughNeedItems(row);
+                List<int> treasures = EditService.BreakthroughTreasures(row);
+                string need = needItems.Count == 0 ? "없음"
+                    : (EditService.ItemName(needItems[0]) ?? "?") + (needItems.Count > 1 ? " 등 " : " ") + needItems.Count + "개";
+                string treasure = treasures.Count == 0 ? "없음"
+                    : (EditService.ItemName(treasures[0]) ?? "?") + (treasures.Count > 1 ? " 등 " : " ") + treasures.Count + "개";
+                Ui.Label(content, GameTool.LS(row.qualityName) + "  ·  필요 재료 " + need + "  ·  천재지보 " + treasure + "  ·  역천개명 " + row.fateNum + "개", 16, y, 980, 38, 18);
+                Ui.Button("MajorGive" + i, content, "재료·천재지보 지급", 1010, y + 2, 280, 36, new Action(() => Say(EditService.GiveBreakthroughMaterials(Player, row))),
+                    needItems.Count + treasures.Count > 0);
             }
             float open = 334 + major.Count * 44 + 6;
             Ui.Button("MajorOpen", content, "게임의 돌파 화면 열기", 16, open, 300, 44, new Action(() =>
