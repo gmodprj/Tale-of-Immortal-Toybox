@@ -38,7 +38,9 @@ namespace MOD_sWP6UL
                             + " -> " + saved.exp + "; " + Date(me);
                     }
                 case "tdesc":
-                    return TimeService.Describe();
+                    return "frozen=" + TimeService.Frozen + " " + TimeService.Describe();
+                case "tfreeze":
+                    return TimeService.SetFrozen(p[1] == "on");
                 case "tadv":
                     return TimeService.Advance(int.Parse(p[1]));
                 case "tset":

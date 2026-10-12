@@ -1,4 +1,6 @@
 using System;
+using System.Reflection;
+using MelonLoader;
 
 namespace MOD_sWP6UL
 {
@@ -6,9 +8,95 @@ namespace MOD_sWP6UL
     // 구조와 쓰기 경로는 docs/superpowers/specs/2026-10-12-date-bag-design.md 3절에서 실측했다.
     //   누적 일수 g.data.world.worldDay, 달 안의 경과 g.world.run.roundDay, 플레이어의 남은 일수 unitData.residueDay.
     //   플레이어의 행동은 WorldUnitBase.AddResidueDay로 날짜를 쓴다. WorldRunMgr.AddDay를 직접 부르면 남은 일수가 어긋난다.
+    //   날짜 고정은 AddResidueDay에서 플레이어 행동분만 건너뛴다. 게임의 달 넘기기 버튼(OnSkipMonth)도 막는다.
     internal static class TimeService
     {
         public const int MaxYear = 9999;
+
+        private static HarmonyLib.Harmony harmony;
+
+        // 날짜 고정. 게임을 켤 때마다 꺼진 상태로 시작한다.
+        public static bool Frozen { get; private set; }
+
+        public static string SetFrozen(bool on)
+        {
+            if (on == Frozen)
+            {
+                return "날짜 고정: 이미 " + (on ? "켜짐" : "꺼짐") + "입니다.";
+            }
+            if (on)
+            {
+                string error = EnsurePatched();
+                if (error != null)
+                {
+                    return error;
+                }
+            }
+            Frozen = on;
+            ChangeLog.Add("세계", "날짜 고정(행동해도 날짜가 흐르지 않음)", on ? "꺼짐" : "켜짐", on ? "켜짐" : "꺼짐", true);
+            return "날짜 고정: " + (on ? "켜짐" : "꺼짐");
+        }
+
+        // 고정을 처음 켤 때 한 번 건다. 한 번도 켜지 않으면 게임에 아무것도 걸지 않는다. 건 뒤에는 떼지 않고 Frozen만 본다.
+        private static string EnsurePatched()
+        {
+            if (harmony != null)
+            {
+                return null;
+            }
+            var instance = new HarmonyLib.Harmony("TlToybox.time");
+            try
+            {
+                const BindingFlags flags = BindingFlags.Static | BindingFlags.Public;
+                instance.Patch(typeof(WorldUnitBase).GetMethod("AddResidueDay"),
+                    new HarmonyLib.HarmonyMethod(typeof(TimeService).GetMethod("ResiduePrefix", flags)));
+                instance.Patch(typeof(UIMapMainPlayerInfo).GetMethod("OnSkipMonth"),
+                    new HarmonyLib.HarmonyMethod(typeof(TimeService).GetMethod("SkipPrefix", flags)));
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 날짜 고정 패치 실패: " + e);
+                instance.UnpatchSelf();
+                return "날짜 고정: 게임에 연결하지 못해 켜지 않았습니다(" + e.GetType().Name + ").";
+            }
+            harmony = instance;
+            return null;
+        }
+
+        // 플레이어의 행동이 쓰는 날짜만 건너뛴다. NPC와 달 넘기기(isAutoRun)는 통과시킨다.
+        // 달 넘기기를 여기서 막으면 화면이 어긋난 채 남는다(스펙 3.2절).
+        public static bool ResiduePrefix(WorldUnitBase __instance, int day, bool isAutoRun, ref bool __result)
+        {
+            if (!Frozen || isAutoRun)
+            {
+                return true;
+            }
+            WorldUnitBase player = g.world == null ? null : g.world.playerUnit;
+            if (player == null || __instance == null || __instance.data.unitData.unitID != player.data.unitData.unitID)
+            {
+                return true;
+            }
+            __result = true;
+            return false;
+        }
+
+        // 고정 중에는 게임의 달 넘기기 버튼을 막고 이유를 알린다.
+        public static bool SkipPrefix()
+        {
+            if (!Frozen)
+            {
+                return true;
+            }
+            try
+            {
+                UITipItem.AddTip("날짜 고정 중에는 달을 넘길 수 없습니다. 편집기의 세계 탭에서 고정을 끄세요.", 3f);
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 날짜 고정 알림 실패: " + e.Message);
+            }
+            return false;
+        }
 
         private static WorldUnitBase Player
         {
@@ -105,6 +193,10 @@ namespace MOD_sWP6UL
             {
                 return "날짜: 1일 이상이어야 합니다.";
             }
+            if (Frozen)
+            {
+                return "날짜: 날짜 고정 중에는 진행할 수 없습니다. 먼저 고정을 끄세요.";
+            }
             if (Running)
             {
                 return RunningMessage;
@@ -139,6 +231,10 @@ namespace MOD_sWP6UL
         // 게임의 달 넘기기 확인 창을 연다. 진행은 게임의 절차다. 열었으면 null, 못 열면 이유를 돌려준다.
         public static string OpenSkipMonth()
         {
+            if (Frozen)
+            {
+                return "달 넘기기: 날짜 고정 중에는 할 수 없습니다. 먼저 고정을 끄세요.";
+            }
             if (Running)
             {
                 return RunningMessage;

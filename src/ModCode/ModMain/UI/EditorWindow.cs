@@ -1135,9 +1135,14 @@ namespace MOD_sWP6UL
             Ui.Label(content, "날짜", 16, top + 6, 80, 36, 21);
             Ui.Label(content, TimeService.Describe(), 100, top + 6, 1000, 36);
 
-            // 실제 진행: 게임의 날짜 진행을 그대로 실행한다.
+            // 날짜 고정
+            bool frozen = TimeService.Frozen;
+            Ui.Button("Freeze", content, "날짜 고정: " + (frozen ? "켜짐" : "꺼짐"), 16, top + 48, 220, 40, new Action(() => Say(TimeService.SetFrozen(!TimeService.Frozen))), true, frozen);
+            Ui.Label(content, "켜 두면 행동을 해도 날짜가 흐르지 않고, 게임의 달 넘기기도 막습니다. 게임을 다시 켜면 꺼진 상태로 시작합니다.", 250, top + 48, 1040, 40, 15).color = Ui.Dim;
+
+            // 실제 진행: 게임의 날짜 진행을 그대로 실행한다. 고정 중에는 쓸 수 없다.
             float y = top + 96;
-            bool canAdvance = TimeService.ResidueDay > 0;
+            bool canAdvance = !frozen && TimeService.ResidueDay > 0;
             Ui.Label(content, "실제 진행", 16, y, 110, 40, 18).color = Ui.Dim;
             int[] days = { 1, 5, 10 };
             for (int i = 0; i < days.Length; i++)
@@ -1154,8 +1159,9 @@ namespace MOD_sWP6UL
                     return;
                 }
                 Close();
-            }));
-            Text advanceNote = Ui.Label(content, "게임의 날짜 진행을 그대로 실행합니다. +N일은 이번 달 남은 날까지만 진행하고, 달은 게임의 확인 창에서 넘깁니다.", 620, y, 680, 40, 14);
+            }), !frozen);
+            Text advanceNote = Ui.Label(content, frozen ? "날짜 고정 중에는 진행할 수 없습니다. 달력의 직접 지정은 됩니다."
+                : "게임의 날짜 진행을 그대로 실행합니다. +N일은 이번 달 남은 날까지만 진행하고, 달은 게임의 확인 창에서 넘깁니다.", 620, y, 680, 40, 14);
             advanceNote.color = Ui.Dim;
             advanceNote.horizontalOverflow = HorizontalWrapMode.Wrap;
 

@@ -160,6 +160,56 @@ switch ($Part) {
     $s = State
     Check 'date survives save and restart' ($s.day -eq $want -and $s.m -eq 5 -and $s.d -eq 15 -and $s.round -eq 14 -and $s.res -eq 16) "day=$($s.day) want=$want"
   }
+  'freeze' {
+    $s0 = State
+    Cmd "tset $($s0.y) $($s0.m) 10" | Out-Null
+    $s0 = State
+    Check 'starts off' ((Cmd 'tdesc') -match 'frozen=False')
+    Check 'freeze on' ((Cmd 'tfreeze on') -match '날짜 고정: 켜짐' -and (Cmd 'tdesc') -match 'frozen=True')
+
+    # 고정 중의 행동: 날짜가 흐르지 않는다
+    Check 'walked 6 while frozen' ((Walk 6) -eq 6)
+    $s = State
+    Check 'frozen moves keep the date' ($s.day -eq $s0.day -and $s.round -eq $s0.round -and $s.res -eq $s0.res) "day=$($s.day) res=$($s.res)"
+
+    # 고정 중의 편집기 기능 (Review Focus 3)
+    Check 'tadv refused while frozen' ((Cmd 'tadv 1') -match '고정 중' -and (State).day -eq $s0.day)
+    Check 'tskip refused while frozen' ((Cmd 'tskip') -match '고정 중')
+    $o = Cmd "tset $($s0.y) $($s0.m) 12"; $s = State
+    Check 'tset works while frozen' ($s.d -eq 12 -and $s.round -eq 11 -and $s.res -eq 19) $o
+
+    # 고정 중의 게임 달 넘기기 버튼: 알림만 뜨고 넘어가지 않는다
+    Rc 'click 400 1000' 300 | Out-Null
+    Shot 'freeze-tip'
+    Check 'skip blocked: no confirm popup' ((Rc 'hit 884 531' 300) -notmatch 'CheckPopup')
+    Check 'skip blocked: no banner' ((Rc 'hit 1042 47' 300) -match 'no hit')
+    Check 'still can walk after the blocked skip' ((Walk 2) -eq 2)
+    $s1 = State
+    Check 'still the same date' ($s1.day -eq $s.day -and $s1.res -eq $s.res)
+
+    # 화면: 고정 버튼
+    Cmd 'editor' | Out-Null
+    Rc 'click 151 550' | Out-Null
+    Check 'Freeze button is where expected' ((Rc 'hit 366 494' 300) -match 'Freeze')
+    Shot 'freeze-editor'
+    Rc 'click 366 494' | Out-Null
+    Check 'Freeze button turns it off' ((Cmd 'tdesc') -match 'frozen=False')
+    Rc 'click 366 494' | Out-Null
+    Check 'Freeze button turns it on' ((Cmd 'tdesc') -match 'frozen=True')
+    Rc 'click 1502 90' | Out-Null
+
+    # 고정을 끄면 다시 흐르고, 달은 한 달만 넘어간다
+    Check 'freeze off' ((Cmd 'tfreeze off') -match '날짜 고정: 꺼짐')
+    $n = Walk 8; $s2 = State
+    Check 'unfrozen moves advance the date' ($n -eq 8 -and $s2.day -gt $s1.day -and ($s2.day - $s1.day) -eq ($s1.res - $s2.res)) "day $($s1.day) -> $($s2.day), res $($s1.res) -> $($s2.res)"
+    Rc 'click 400 1000' 1200 | Out-Null
+    Check 'confirm popup is shown when not frozen' ((Rc 'hit 884 531' 300) -match 'CheckPopup')
+    Rc 'click 884 531' 1500 | Out-Null
+    WaitRun
+    $s3 = State
+    Check 'exactly one month passed' ($s3.d -eq 1 -and $s3.round -eq 0 -and $s3.res -eq 30 -and $s3.day -eq ([math]::Floor($s2.day / 31) + 1) * 31) "day $($s2.day) -> $($s3.day)"
+    Check 'history has the toggles' ((ChangeHistory) -match '날짜 고정')
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 "FAILS=$script:fails"
