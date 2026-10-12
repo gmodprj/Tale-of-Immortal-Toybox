@@ -163,6 +163,32 @@ namespace MOD_sWP6UL
             }
         }
 
+        private static Dictionary<int, int> ownCombines;
+
+        // 무예·영술·절기·신통 가운데 "이 기술 하나만" 나오는 묶음의 번호. 없으면 0.
+        private static int OwnCombine(Kind kind, int baseId)
+        {
+            if (kind.Type == MartialType.Step || kind.Type == MartialType.Ability)
+            {
+                return 0;
+            }
+            if (ownCombines == null)
+            {
+                ownCombines = new Dictionary<int, int>();
+                var all = g.conf.battleSkillCombine._allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    int id;
+                    if (int.TryParse(all[i].baseID, out id) && id > 0 && !ownCombines.ContainsKey(id))
+                    {
+                        ownCombines[id] = all[i].id;
+                    }
+                }
+            }
+            int combine;
+            return ownCombines.TryGetValue(baseId, out combine) ? combine : 0;
+        }
+
         private enum Outcome { Rolled, Plain, Refused }
 
         // 기술 하나를 배운 상태로 넣는다. 옵션은 게임의 뽑기가 정한다: 원하는 기술이 나올 때까지 묶음에서 다시 뽑고,
@@ -170,7 +196,17 @@ namespace MOD_sWP6UL
         private static Outcome LearnNow(WorldUnitBase unit, Kind kind, Entry entry, int grade, bool roll)
         {
             Il2CppStructArray<int> values = null;
-            for (int tries = 0; roll && tries < RollMax; tries++)
+            // 그 기술 하나만 나오는 묶음이 있으면(입문 무예·영술 등) 그것을 먼저 쓴다.
+            int own = roll ? OwnCombine(kind, entry.BaseId) : 0;
+            if (own != 0)
+            {
+                Il2CppStructArray<int> fixedRoll = RewardTool.GetSkillReward(own, grade, null);
+                if (fixedRoll != null && Contains(fixedRoll, entry.BaseId))
+                {
+                    values = fixedRoll;
+                }
+            }
+            for (int tries = 0; roll && values == null && tries < RollMax; tries++)
             {
                 Il2CppStructArray<int> rolled = Roll(kind, grade);
                 if (rolled != null && Contains(rolled, entry.BaseId)
@@ -194,21 +230,31 @@ namespace MOD_sWP6UL
             var data = unit.data.unitData;
             int before = data.allActionMartial.Count;
             DataProps.PropsData props = DataProps.PropsData.NewMartial(kind.Type, values);
-            // 게임이 알아보지 못하는 조합이면 깨진 기술이 들어가므로, 배우게 하기 전에 확인한다.
-            DataProps.MartialData made = props.To<DataProps.MartialData>();
-            if (made == null || made.martialInfo == null || made.baseID != entry.BaseId || string.IsNullOrEmpty(made.martialInfo.name))
-            {
-                return Outcome.Refused;
-            }
+            // 게임이 알아보지 못하는 조합이면 이름 없는 깨진 기술이 들어간다. 배우게 한 뒤 정보를 읽어 보고,
+            // 읽히지 않으면(게임 쪽에서 예외가 난다) 바로 지운다. 배우기 전에는 정상 기술도 정보가 읽히지 않는다.
             data.StudyActionMartialProp(props);
             if (data.allActionMartial.Count != before + 1)
             {
                 return Outcome.Refused;
             }
-            return plain ? Outcome.Plain : Outcome.Rolled;
+            bool valid;
+            try
+            {
+                DataProps.MartialData made = data.GetActionMartial(props.soleID).data.To<DataProps.MartialData>();
+                valid = made.baseID == entry.BaseId && !string.IsNullOrEmpty(made.martialInfo.name);
+            }
+            catch (System.Exception)
+            {
+                valid = false;
+            }
+            if (!valid)
+            {
+                data.DelActionMartial(props.soleID);
+                return Outcome.Refused;
+            }            return plain ? Outcome.Plain : Outcome.Rolled;
         }
 
-        // force가 참이면 경지 범위 밖이어도 옵션 없는 기술로 만들어 넣는다.
+        // force가 참이면 경지 범위 밖이어도, 그 기술의 범위 안에서 가장 가까운 경지로 만들어 넣는다.
         public static string Learn(WorldUnitBase unit, int kindIndex, Entry entry, int grade, bool force)
         {
             Kind kind = Kinds[kindIndex];
@@ -222,7 +268,12 @@ namespace MOD_sWP6UL
             {
                 return backupError + " 변경을 중단했습니다.";
             }
-            Outcome outcome = LearnNow(unit, kind, entry, grade, blocked == null);
+            // 강제 추가: 게임은 경지 범위 밖의 기술을 만들지 못한다(실측). 범위 안에서 가장 가까운 경지로 만든다.
+            if (blocked != null)
+            {
+                grade = grade < entry.GradeMin ? entry.GradeMin : entry.GradeMax;
+            }
+            Outcome outcome = LearnNow(unit, kind, entry, grade, true);
             bool ok = outcome != Outcome.Refused;
             ChangeLog.Add(EditService.NameOf(unit), kind.Tab + " " + entry.Name + "(" + entry.BaseId + ", 경지 " + grade + ")" + (blocked != null ? " 강제" : ""), "없음", ok ? "익힘" : "없음", ok);
             if (!ok)
@@ -267,7 +318,7 @@ namespace MOD_sWP6UL
                     plain++;
                 }
             }
-            ChangeLog.Add(EditService.NameOf(unit), kind.Tab + " 모두 배우기(경지 " + grade + ")", "", learned + "개 익힘", refused == 0);
+            ChangeLog.Add(EditService.NameOf(unit), kind.Tab + " 모두 배우기(경지 " + grade + ")", "", learned + "개 익힘", learned > 0 || refused == 0);
             return kind.Tab + ": " + learned + "개를 익혔습니다(경지 " + grade + ")."
                 + (plain > 0 ? " 그중 " + plain + "개는 옵션 없이 만들었습니다." : "")
                 + (skipped > 0 ? " 경지 범위 밖 " + skipped + "개는 건너뛰었습니다." : "")

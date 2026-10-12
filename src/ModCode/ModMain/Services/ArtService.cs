@@ -176,7 +176,7 @@ namespace MOD_sWP6UL
                 }
             }
             int failed = books.Count - done.Count;
-            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), kind.Tab + " " + kind.Book + " 모두 배우기", "", learned + "개 배움", failed == 0);
+            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), kind.Tab + " " + kind.Book + " 모두 배우기", "", learned + "개 배움", learned > 0 || failed == 0);
             return kind.Tab + ": " + learned + "개를 배웠습니다." + (failed > 0 ? " " + failed + "개는 게임이 배우게 하지 않았습니다." : "");
         }
 

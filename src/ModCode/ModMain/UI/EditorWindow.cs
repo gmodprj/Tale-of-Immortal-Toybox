@@ -625,7 +625,7 @@ namespace MOD_sWP6UL
                     if (!confirming)
                     {
                         skillPending = entry.BaseId;
-                        Say(entry.Name + ": " + blocked + ". 그래도 넣으려면 \"정말 강제\"를 한 번 더 누르세요.");
+                        Say(entry.Name + ": " + blocked + ". \"정말 강제\"를 한 번 더 누르면 이 기술의 경지 범위 안에서 가장 가까운 경지로 만들어 넣습니다.");
                         return;
                     }
                     skillPending = 0;
