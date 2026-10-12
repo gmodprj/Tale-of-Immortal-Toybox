@@ -153,7 +153,7 @@ namespace MOD_sWP6UL
             return true;
         }
 
-        private const string RunningMessage = "날짜: 게임이 달을 넘기는 중입니다. 끝난 뒤에 다시 하세요.";
+        private const string RunningMessage = "날짜: 게임이 달을 넘기는 중입니다. 편집기를 닫고 게임 화면에 뜬 창이 있으면 먼저 처리한 뒤 다시 하세요.";
 
         // 달이 넘어가는 중(월말 처리)인지. 처리 도중에 NPC 대화가 떠서 대답을 기다리는 동안에도 참이다(실측).
         // 이때 날짜를 쓰면 처리 중인 달과 어긋난다.

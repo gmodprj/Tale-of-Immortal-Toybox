@@ -84,12 +84,21 @@ namespace MOD_sWP6UL
         private static string appliedNpcQuery = "";
         private static readonly string[] dateInput = { "", "", "" }; // 세계 탭의 직접 지정: 연, 월, 일
         private static bool datePending;                             // 직접 지정을 한 번 더 눌러야 하는 상태
+        private static bool dateEdited;                              // 입력 칸을 사용자가 고쳤는지. 고치지 않았으면 현재 날짜를 보여 준다
         private static string message = "";
         private static List<WorldUnitBase> npcCache;
 
         public static bool IsOpen
         {
             get { return root != null && root.activeSelf; }
+        }
+
+        // 직접 지정의 입력 칸을 현재 날짜로 되돌리고 확인 상태를 푼다. 편집기를 열 때, 탭을 바꿀 때, 날짜가 바뀌는 동작 뒤에 부른다.
+        // 그러지 않으면 예전 날짜가 입력 칸에 남아, 일부만 고쳐 적용했을 때 엉뚱한 날짜로 간다.
+        private static void ResetDateInput()
+        {
+            dateEdited = false;
+            datePending = false;
         }
 
         public static void Toggle()
@@ -105,6 +114,7 @@ namespace MOD_sWP6UL
             }
             root.SetActive(true);
             npcCache = null;
+            ResetDateInput();
             Render();
         }
 
@@ -178,7 +188,7 @@ namespace MOD_sWP6UL
             for (int i = 0; i < Tabs.Length; i++)
             {
                 int index = i;
-                Ui.Button("Tab" + i, tabBar, Tabs[i], 0, i * 52, 150, 44, new Action(() => { tab = index; message = ""; datePending = false; Render(); }), true, tab == i);
+                Ui.Button("Tab" + i, tabBar, Tabs[i], 0, i * 52, 150, 44, new Action(() => { tab = index; message = ""; ResetDateInput(); Render(); }), true, tab == i);
             }
             messageLabel.text = message;
             if (!EditService.WorldReady)
@@ -348,6 +358,12 @@ namespace MOD_sWP6UL
         public static string DevMessage
         {
             get { return message; }
+        }
+
+        // 개발 전용: 세계 탭의 직접 지정 입력 칸과 확인 상태를 읽는다.
+        public static string DevDateState
+        {
+            get { return "input=" + dateInput[0] + "-" + dateInput[1] + "-" + dateInput[2] + " pending=" + datePending; }
         }
 #endif
 
@@ -1141,7 +1157,7 @@ namespace MOD_sWP6UL
 
             // 날짜 고정
             bool frozen = TimeService.Frozen;
-            Ui.Button("Freeze", content, "날짜 고정: " + (frozen ? "켜짐" : "꺼짐"), 16, top + 48, 220, 40, new Action(() => Say(TimeService.SetFrozen(!TimeService.Frozen))), true, frozen);
+            Ui.Button("Freeze", content, "날짜 고정: " + (frozen ? "켜짐" : "꺼짐"), 16, top + 48, 220, 40, new Action(() => { ResetDateInput(); Say(TimeService.SetFrozen(!TimeService.Frozen)); }), true, frozen);
             Ui.Label(content, "켜 두면 행동을 해도 날짜가 흐르지 않고, 게임의 달 넘기기도 막습니다. 게임을 다시 켜면 꺼진 상태로 시작합니다.", 250, top + 48, 1040, 40, 15).color = Ui.Dim;
 
             // 실제 진행: 게임의 날짜 진행을 그대로 실행한다. 고정 중에는 쓸 수 없다.
@@ -1152,10 +1168,11 @@ namespace MOD_sWP6UL
             for (int i = 0; i < days.Length; i++)
             {
                 int amount = days[i];
-                Ui.Button("Day" + amount, content, "+ " + amount + "일", 130 + i * 96, y, 90, 40, new Action(() => Say(TimeService.Advance(amount))), canAdvance);
+                Ui.Button("Day" + amount, content, "+ " + amount + "일", 130 + i * 96, y, 90, 40, new Action(() => { ResetDateInput(); Say(TimeService.Advance(amount)); }), canAdvance);
             }
             Ui.Button("SkipMonth", content, "다음 달 1일로", 424, y, 180, 40, new Action(() =>
             {
+                ResetDateInput();
                 string error = TimeService.OpenSkipMonth();
                 if (error != null)
                 {
@@ -1171,7 +1188,7 @@ namespace MOD_sWP6UL
 
             // 직접 지정: 달력의 날짜만 바꾼다. 두 번 눌러 확인한다.
             y = top + 144;
-            if (dateInput[0].Length == 0 && dateInput[1].Length == 0 && dateInput[2].Length == 0)
+            if (!dateEdited)
             {
                 int[] now = TimeService.ToDate(TimeService.WorldDay);
                 for (int i = 0; i < 3; i++)
@@ -1187,7 +1204,7 @@ namespace MOD_sWP6UL
             for (int i = 0; i < 3; i++)
             {
                 int index = i;
-                Ui.Input(names[i], content, dateInput[i], units[i], xs[i], y, widths[i], 40, new Action<string>(v => { dateInput[index] = v; datePending = false; }), true);
+                Ui.Input(names[i], content, dateInput[i], units[i], xs[i], y, widths[i], 40, new Action<string>(v => { dateInput[index] = v; dateEdited = true; datePending = false; }), true);
                 Ui.Label(content, units[i], xs[i] + widths[i] + 4, y, 30, 40, 18);
             }
             Ui.Button("DateApply", content, datePending ? "정말 변경" : "적용", 494, y, 130, 40, new Action(() =>
@@ -1206,6 +1223,12 @@ namespace MOD_sWP6UL
                     Say(error);
                     return;
                 }
+                if (target == TimeService.WorldDay)
+                {
+                    datePending = false;
+                    Say("날짜: 이미 " + TimeService.DateText(target) + "입니다.");
+                    return;
+                }
                 if (!datePending)
                 {
                     datePending = true;
@@ -1213,11 +1236,8 @@ namespace MOD_sWP6UL
                         + ": 달력만 바뀌고 월말 처리와 날짜 기준 기록은 그대로입니다. \"정말 변경\"을 한 번 더 누르세요.");
                     return;
                 }
-                datePending = false;
                 string result = TimeService.SetDate(year, month, day);
-                dateInput[0] = "";
-                dateInput[1] = "";
-                dateInput[2] = "";
+                ResetDateInput();
                 Say(result);
             }), true, datePending);
             Text dateNote = Ui.Label(content, "달력의 날짜만 바꿉니다(앞·뒤 모두). 그 사이의 월말 처리는 일어나지 않고, 임무 기한 같은 날짜 기준 기록은 그대로입니다.", 640, y, 660, 40, 14);

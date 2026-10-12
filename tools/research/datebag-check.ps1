@@ -8,6 +8,7 @@ $work = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.devr
 $data = Join-Path $env:USERPROFILE 'AppData\LocalLow\guigugame\guigubahuang\TlToybox'
 $log = 'E:\Games\Tale of Immortal\MelonLoader\Latest.log'
 $script:fails = 0
+if (-not (Test-Path (Join-Path $work 'session.name'))) { throw 'session.ps1 -Begin으로 연 회차 안에서만 실행합니다(세이브와 bag-slots.txt를 바꾸는 시험이다).' }
 
 function Cmd([string]$c, [int]$wait = 600) { (& "$tools\mod.ps1" -Cmd $c -WaitMs $wait) -join "`n" }
 function Rc([string]$c, [int]$wait = 800) { (& "$tools\rc.ps1" -Cmd $c -NoShot -WaitMs $wait) -join "`n" }
@@ -63,8 +64,21 @@ function WaitRun {
     Start-Sleep -Milliseconds 400
   }
 }
-# 이름을 History로 하면 PowerShell의 별칭(Get-History)이 먼저 걸린다.
-function ChangeHistory([int]$tail = 80) { (Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail $tail -Encoding UTF8) -join "`n" }
+# 변경 이력(changes.log)과 게임 로그는 세이브 폴더 밖이라 회차를 되돌려도 쌓인다. 이 실행에서 새로 생긴 것만 본다.
+# 함수 이름을 History로 하면 PowerShell의 별칭(Get-History)이 먼저 걸린다.
+function HistoryLines {
+  $file = Join-Path $data 'changes.log'
+  if (Test-Path -LiteralPath $file) { @(Get-Content -LiteralPath $file -Encoding UTF8) } else { @() }
+}
+$script:hist0 = @(HistoryLines).Count
+function NewHistory { (@(HistoryLines) | Select-Object -Skip $script:hist0) -join "`n" }
+function SaveCount { @(Select-String -LiteralPath $log -Pattern 'SaveData callback ok=True').Count }
+# 세계 탭의 직접 지정 입력 칸과 확인 상태
+function DateInput {
+  $o = Cmd 'tin'
+  if ($o -notmatch 'input=(\S*) pending=(\w+)') { throw "tin 출력을 읽지 못했습니다: $o" }
+  [pscustomobject]@{ text = $Matches[1]; pending = ($Matches[2] -eq 'True'); raw = $o }
+}
 
 switch ($Part) {
   'base' {
@@ -124,41 +138,66 @@ switch ($Part) {
     Check 'tskip opens the confirm popup' ($o -match 'opened' -and (Rc 'hit 884 531' 300) -match 'CheckPopup') $o
     Rc 'click 884 531' 100 | Out-Null
     $o = Cmd 'tadv 1' 100
-    Check 'tadv is refused while the month is turning' ($o -match '넘기는 중') $o
+    Check 'tadv is refused while the month is turning' ($o -match '넘기는 중' -and $o -match '게임 화면') $o
     WaitRun
     $s = State
     Check 'one clean month after a past date' ($s.y -eq $s0.y -and $s.m -eq 3 -and $s.d -eq 1 -and $s.round -eq 0 -and $s.res -eq 30) "day=$($s.day)"
 
-    # 화면: 세계 탭
+    # 화면: 세계 탭. 직접 지정의 입력 칸은 고치지 않았으면 늘 현재 날짜를 보여 준다
     Cmd 'editor' | Out-Null
     Rc 'click 151 550' | Out-Null
+    $s = State; $in = DateInput
+    Check 'date inputs show the current date' ($in.text -eq "$($s.y)-$($s.m)-$($s.d)" -and -not $in.pending) $in.raw
     Check 'Day1 button is where expected' ((Rc 'hit 415 542' 300) -match 'Day1')
-    $before = (State).day
+    $before = $s.day
     Rc 'click 415 542' | Out-Null
-    Check 'Day1 button advances one day' ((State).day -eq $before + 1)
+    $s = State; $in = DateInput
+    Check 'Day1 button advances one day' ($s.day -eq $before + 1)
+    Check 'date inputs follow the date' ($in.text -eq "$($s.y)-$($s.m)-$($s.d)") $in.raw
     Cmd 'ui set DateDay' | Out-Null
     Rc 'click 799 590' | Out-Null
     Check 'empty day is rejected' ((Cmd 'tmsg') -match '숫자로 입력' -and (State).day -eq $before + 1)
-    $s = State
-    Cmd "ui set DateYear $($s.y)" | Out-Null; Cmd "ui set DateMonth $($s.m)" | Out-Null; Cmd 'ui set DateDay 25' | Out-Null
+
+    # 확인 상태는 날짜 상자의 다른 버튼을 누르거나 편집기를 닫으면 풀린다
+    Cmd 'ui set DateDay 25' | Out-Null
     Rc 'click 799 590' | Out-Null
-    Check 'first click only asks' ((Cmd 'tmsg') -match '정말 변경' -and (State).d -eq $s.d)
+    Check 'first click only asks' ((Cmd 'tmsg') -match '정말 변경' -and (DateInput).pending -and (State).day -eq $before + 1)
+    Rc 'click 415 542' | Out-Null
+    $s = State; $in = DateInput
+    Check 'another date button cancels the pending confirm' (-not $in.pending -and $s.day -eq $before + 2 -and $in.text -eq "$($s.y)-$($s.m)-$($s.d)") $in.raw
+    Cmd 'ui set DateDay 25' | Out-Null
     Rc 'click 799 590' | Out-Null
-    $s2 = State
+    Rc 'click 1502 90' | Out-Null
+    Cmd 'editor' | Out-Null
+    $in = DateInput
+    Check 'reopening the editor cancels the pending confirm' (-not $in.pending -and $in.text -eq "$($s.y)-$($s.m)-$($s.d)") $in.raw
+
+    # 지금과 같은 날짜는 묻지 않고 알린다
+    Cmd "ui set DateDay $($s.d)" | Out-Null
+    Rc 'click 799 590' | Out-Null
+    Check 'same date is reported, not asked' ((Cmd 'tmsg') -match '이미' -and -not (DateInput).pending)
+
+    # 두 번 눌러 적용
+    Cmd 'ui set DateDay 25' | Out-Null
+    Rc 'click 799 590' | Out-Null
+    Rc 'click 799 590' | Out-Null
+    $s2 = State; $in = DateInput
     Check 'second click applies' ($s2.y -eq $s.y -and $s2.m -eq $s.m -and $s2.d -eq 25 -and $s2.res -eq 6)
+    Check 'date inputs show the new date after applying' ($in.text -eq "$($s2.y)-$($s2.m)-25" -and -not $in.pending) $in.raw
     Shot 'time-editor'
     Rc 'click 754 542' | Out-Null
     $o = Rc 'hit 1037 531' 300   # 확인 창의 "아니오" 자리
     Check 'SkipMonth button closes the editor and opens the popup' ($o -match 'CheckPopup' -and $o -notmatch 'btn1') $o
     Rc 'click 1037 531' | Out-Null
     Check 'popup is closed by "no"' ((Rc 'hit 1037 531' 300) -notmatch 'CheckPopup')
-    Check 'history has both kinds of entry' ((ChangeHistory) -match '세계  날짜  ' -and (ChangeHistory) -match '날짜\(직접 지정\)')
+    Check 'history has both kinds of entry' ((NewHistory) -match '세계  날짜  ' -and (NewHistory) -match '날짜\(직접 지정\)')
 
     # 저장 후 재시작 확인의 준비: 알아보기 쉬운 날짜로 바꾸고 저장한다
     Cmd "tset $($s0.y + 2) 5 15" | Out-Null
     [IO.File]::WriteAllText((Join-Path $work 'check-expect.txt'), [string](State).day)
+    $saves = SaveCount
     Cmd 'save' 5000 | Out-Null
-    Check 'saved' ([bool](Select-String -LiteralPath $log -Pattern 'SaveData callback ok=True'))
+    Check 'saved' ((SaveCount) -gt $saves)
   }
   'time-restart' {
     $want = [int][IO.File]::ReadAllText((Join-Path $work 'check-expect.txt'))
@@ -176,7 +215,16 @@ switch ($Part) {
     Check 'walked 6 while frozen' ((Walk 6) -eq 6)
     $s = State
     Check 'frozen moves keep the date' ($s.day -eq $s0.day -and $s.round -eq $s0.round -and $s.res -eq $s0.res) "day=$($s.day) res=$($s.res)"
-
+    # 수련(5일짜리 행동)도 날짜를 쓰지 않는다. 수련할 수 있는 칸을 찾아 동쪽으로 최대 8칸 간다(고정 중이라 이동은 날짜를 쓰지 않는다).
+    $trained = $false
+    for ($i = 0; $i -lt 9 -and -not $trained; $i++) {
+      $o = Cmd 'wexp' 1500
+      if ($o -match 'IsCreateAction=0 day=(\d+) CreateAction=0 exp (\d+) -> (\d+)') {
+        $gained = [int]$Matches[3] -gt [int]$Matches[2]; $after = State; $trained = $true
+        Check 'frozen training gains exp without using days' ($gained -and $after.day -eq $s0.day -and $after.res -eq $s0.res) $o
+      } elseif ((Cmd 'wmove 1 0' 1500) -notmatch 'IsCreateAction=0 CreateAction=0') { break }
+    }
+    if (-not $trained) { "SKIP frozen training (no tile nearby where the game allows it): $o" }
     # 고정 중의 편집기 기능 (Review Focus 3)
     Check 'tadv refused while frozen' ((Cmd 'tadv 1') -match '고정 중' -and (State).day -eq $s0.day)
     Check 'tskip refused while frozen' ((Cmd 'tskip') -match '고정 중')
@@ -213,7 +261,7 @@ switch ($Part) {
     WaitRun
     $s3 = State
     Check 'exactly one month passed' ($s3.d -eq 1 -and $s3.round -eq 0 -and $s3.res -eq 30 -and $s3.day -eq ([math]::Floor($s2.day / 31) + 1) * 31) "day $($s2.day) -> $($s3.day)"
-    Check 'history has the toggles' ((ChangeHistory) -match '날짜 고정')
+    Check 'history has the toggles' ((NewHistory) -match '날짜 고정')
   }
   'bag' {
     # 주 화면에서부터 60프레임 점검이 돌았다. 경고가 없어야 한다 (Review Focus 5)
@@ -243,12 +291,13 @@ switch ($Part) {
     Check 'BagMinus removes 10' ((Grid).max -eq $g0.max + 20)
     Shot 'bag-editor'
     Rc 'click 1502 90' | Out-Null
-    Check 'history has the change' ((ChangeHistory) -match '가방 추가 칸')
+    Check 'history has the change' ((NewHistory) -match '가방 추가 칸')
 
     # 저장 후 재시작 확인의 준비
     [IO.File]::WriteAllText((Join-Path $work 'check-expect.txt'), [string]($g0.max + 20))
+    $saves = SaveCount
     Cmd 'save' 5000 | Out-Null
-    Check 'saved' ([bool](Select-String -LiteralPath $log -Pattern 'SaveData callback ok=True'))
+    Check 'saved' ((SaveCount) -gt $saves)
   }
   'bag-restart' {
     $want = [int][IO.File]::ReadAllText((Join-Path $work 'check-expect.txt'))

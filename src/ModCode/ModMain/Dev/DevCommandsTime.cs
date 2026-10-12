@@ -47,6 +47,8 @@ namespace MOD_sWP6UL
                     return TimeService.SetDate(int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]));
                 case "tskip":
                     return TimeService.OpenSkipMonth() ?? "opened";
+                case "tin":
+                    return EditorWindow.DevDateState;
                 case "tmsg":
                     return "message=" + EditorWindow.DevMessage;
                 case "bag":
