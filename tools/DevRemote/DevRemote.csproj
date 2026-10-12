@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 개발 전용 보조 도구. 게임의 Mods 폴더에 넣는 MelonMod이며 배포 대상이 아니다. -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>TlToyboxDevRemote</AssemblyName>
+    <RootNamespace>TlToyboxDevRemote</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>none</DebugType>
+    <GameDir Condition="'$(GameDir)' == ''">E:\Games\Tale of Immortal</GameDir>
+    <ManagedDir>$(GameDir)\MelonLoader\Managed</ManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MelonLoader"><HintPath>$(GameDir)\MelonLoader\MelonLoader.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="Il2Cppmscorlib"><HintPath>$(ManagedDir)\Il2Cppmscorlib.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnhollowerBaseLib"><HintPath>$(ManagedDir)\UnhollowerBaseLib.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(ManagedDir)\UnityEngine.UIModule.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+
+</Project>

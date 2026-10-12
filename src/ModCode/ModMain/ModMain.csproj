@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- 임시 모드 ID. 게임 내 모드 에디터가 발급한 ID로 바꿀 때 ModMain.cs의 네임스페이스도 함께 바꾼다. -->
-    <ModId Condition="'$(ModId)' == ''">TlTbx0</ModId>
+    <!-- 게임 내 모드 에디터가 발급한 모드 ID. 바꿀 때 .cs 파일의 네임스페이스도 함께 바꾼다. -->
+    <ModId Condition="'$(ModId)' == ''">sWP6UL</ModId>
+    <!-- 모드 에디터가 만든 프로젝트. "게임 디버깅 시작"이 이 폴더의 bin\Release에 있는 DLL을 게임으로 복사한다. -->
+    <EditorReleaseDir>$(MSBuildProjectDirectory)\..\..\..\ModProject_$(ModId)\ModProject\ModCode\ModMain\bin\Release</EditorReleaseDir>
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>MOD_$(ModId)</AssemblyName>
     <RootNamespace>MOD_$(ModId)</RootNamespace>
@@ -45,5 +47,10 @@
       <Private>False</Private>
     </Reference>
   </ItemGroup>
+
+  <Target Name="CopyToEditorProject" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' And Exists('$(EditorReleaseDir)')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(EditorReleaseDir)" />
+    <Message Importance="high" Text="copied $(TargetFileName) -> $(EditorReleaseDir)" />
+  </Target>
 
 </Project>

@@ -1,20 +1,75 @@
+using System;
 using MelonLoader;
 
 // 이 네임스페이스는 모드 ID(MOD_<ID>)이며 어셈블리 이름, 모드 에디터의 코드 네임스페이스와 같아야 한다.
 // 다르면 게임이 <네임스페이스>.ModMain 타입을 찾지 못해 DLL 로드가 실패한다.
-namespace MOD_TlTbx0
+namespace MOD_sWP6UL
 {
     public class ModMain
     {
-        // 세이브에 진입할 때 호출된다. 한 실행 중 여러 번 호출될 수 있다.
+        private const int PollFrames = 60;
+
+        private TimerCoroutine pollTimer;
+        private string lastState;
+
+        // 모드가 로드될 때 호출된다(실측: "게임 디버깅 시작" 직후, 세이브를 불러오기 전).
+        // 한 실행 중 여러 번 호출될 수 있다.
         public void Init()
         {
             MelonLogger.Msg("[TlToybox] Init");
+            StopPoll();
+            lastState = null;
+            pollTimer = g.timer.Frame(new Action(OnPoll), PollFrames, true);
         }
 
         // 주 화면으로 돌아갈 때 호출되며, 이후 Init이 다시 호출된다.
         public void Destroy()
         {
+            MelonLogger.Msg("[TlToybox] Destroy");
+            StopPoll();
+        }
+
+        // Init은 세계가 만들어지기 전에 불리므로, 세계에 들어갈 때까지 기다렸다가 탐침을 한 번 실행한다.
+        private void OnPoll()
+        {
+            string state = DescribeState();
+            if (state != lastState)
+            {
+                MelonLogger.Msg("[TlToybox] state: " + state);
+                lastState = state;
+            }
+            if (state != "ready")
+            {
+                return;
+            }
+            StopPoll();
+            ReadOnlyProbe.Run();
+        }
+
+        private static string DescribeState()
+        {
+            if (g.world == null)
+            {
+                return "g.world is null";
+            }
+            if (!g.world.isIntoWorld)
+            {
+                return "g.world.isIntoWorld is false";
+            }
+            if (g.world.playerUnit == null)
+            {
+                return "g.world.playerUnit is null";
+            }
+            return "ready";
+        }
+
+        private void StopPoll()
+        {
+            if (pollTimer != null)
+            {
+                g.timer.Stop(pollTimer);
+                pollTimer = null;
+            }
         }
     }
 }

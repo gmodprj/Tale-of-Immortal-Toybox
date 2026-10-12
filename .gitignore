@@ -3,3 +3,6 @@ bin/
 obj/
 .vs/
 *.user
+ModProject_*/
+.superpowers/
+.devremote/
