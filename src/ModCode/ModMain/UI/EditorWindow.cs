@@ -8,11 +8,11 @@ namespace MOD_sWP6UL
     // 편집기 창. 화면만 그리고, 게임 값의 읽기·쓰기는 EditService에 맡긴다.
     internal static class EditorWindow
     {
-        private const float Width = 1120;
+        private const float Width = 1500;
         private const float Height = 810;
         private const float ContentX = 180;
         private const float ContentY = 104;
-        private const float ContentW = 924;
+        private const float ContentW = 1304;
         private const int AttributeRows = 12;
         private const int NpcRows = 8;
         private const int HistoryRows = 14;
@@ -36,6 +36,10 @@ namespace MOD_sWP6UL
         private static string itemQuery = "";
         private static string appliedItemQuery = "";
         private static int itemPage;
+        private static int itemPageSizeIndex;
+        private static int itemMainType = -1;
+        private static int itemSubType = -1;
+        private static readonly int[] ItemPageSizes = { 10, 20, 50 };
         private static int selectedAttribute = -1;
         private static string attributeInput = "";
         private static string npcQuery = "";
@@ -276,49 +280,95 @@ namespace MOD_sWP6UL
 
         private static void RenderResources()
         {
-            const int rows = 8;
             WorldUnitBase player = Player;
-            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 60, Ui.Section);
-            Ui.Label(content, "영석: " + EditService.Money(player), 16, 10, 300, 40, 22);
-            Ui.Button("MoneyAdd", content, "+ " + Step, 330, 10, 140, 40, new Action(() => Say(EditService.AddMoney(Player, Step))));
-            StepButton(490, 10);
-            Ui.Label(content, "'단위'는 영석 추가량과 아이템 지급 수량에 함께 쓰입니다.", 656, 12, 270, 36, 14).color = Ui.Dim;
+            var props = player.data.unitData.propData;
 
-            // 아이템 지급: 이름으로 찾아서 고른다.
-            Ui.Label(content, "아이템 지급", 0, 70, 160, 40, 21);
-            Ui.Input("ItemQuery", content, itemQuery, "아이템 이름의 일부", 160, 70, 300, 40, new Action<string>(v => itemQuery = v));
-            Ui.Button("ItemSearch", content, "검색", 468, 70, 90, 40, new Action(() => { appliedItemQuery = itemQuery.Trim(); itemPage = 0; message = ""; Render(); }));
-            Ui.Button("ItemSearchClear", content, "지움", 564, 70, 90, 40, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemPage = 0; message = ""; Render(); }), itemQuery.Length > 0 || appliedItemQuery.Length > 0);
+            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 52, Ui.Section);
+            Ui.Label(content, "영석: " + EditService.Money(player), 16, 6, 260, 40, 22);
+            Ui.Button("MoneyAdd", content, "+ " + Step, 290, 6, 140, 40, new Action(() => Say(EditService.AddMoney(Player, Step))));
+            StepButton(440, 6);
+            Ui.Label(content, "'단위'는 영석 추가량과 아이템 지급 수량에 함께 쓰입니다.", 604, 8, 500, 36, 15).color = Ui.Dim;
 
-            List<ItemCatalog.Entry> found = ItemCatalog.Find(appliedItemQuery);
-            int pages = Math.Max(1, (found.Count + rows - 1) / rows);
+            // 필터: 아이템명
+            Ui.Label(content, "아이템명", 0, 62, 90, 38);
+            Ui.Input("ItemQuery", content, itemQuery, "이름의 일부 또는 번호", 90, 62, 280, 38, new Action<string>(v => itemQuery = v));
+            Ui.Button("ItemSearch", content, "검색", 378, 62, 84, 38, new Action(() => { appliedItemQuery = itemQuery.Trim(); itemPage = 0; message = ""; Render(); }));
+            Ui.Button("ItemSearchClear", content, "초기화", 468, 62, 96, 38, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemMainType = -1; itemSubType = -1; itemPage = 0; message = ""; Render(); }),
+                itemQuery.Length > 0 || appliedItemQuery.Length > 0 || itemMainType >= 0);
+            int pageSize = ItemPageSizes[itemPageSizeIndex];
+            Ui.Button("ItemPageSize", content, "페이지당 " + pageSize + "개", 1124, 62, 180, 38, new Action(() => { itemPageSizeIndex = (itemPageSizeIndex + 1) % ItemPageSizes.Length; itemPage = 0; Render(); }));
+
+            // 필터: 카테고리(게임의 분류표)
+            Ui.Label(content, "카테고리", 0, 106, 90, 38);
+            float cx = 90;
+            Ui.Button("ItemCatAll", content, "전체", cx, 106, 80, 38, new Action(() => { itemMainType = -1; itemSubType = -1; itemPage = 0; Render(); }), true, itemMainType < 0);
+            cx += 86;
+            foreach (ItemCatalog.Category category in ItemCatalog.MainCategories)
+            {
+                int type = category.Id;
+                float width = 46 + category.Name.Length * 20;
+                Ui.Button("ItemCat" + type, content, category.Name, cx, 106, width, 38, new Action(() => { itemMainType = type; itemSubType = -1; itemPage = 0; Render(); }), true, itemMainType == type);
+                cx += width + 6;
+            }
+            if (itemMainType >= 0)
+            {
+                List<ItemCatalog.Category> subs = ItemCatalog.SubCategories(itemMainType);
+                ItemCatalog.Category current = subs.Find(s => s.Id == itemSubType);
+                Ui.Button("ItemSubCat", content, "세부: " + (current == null ? "전체" : current.Name + " (" + current.Count + ")"), cx + 10, 106, 300, 38, new Action(() =>
+                {
+                    List<ItemCatalog.Category> list = ItemCatalog.SubCategories(itemMainType);
+                    int at = list.FindIndex(s => s.Id == itemSubType);
+                    itemSubType = at + 1 >= list.Count ? -1 : list[at + 1].Id;
+                    itemPage = 0;
+                    Render();
+                }), subs.Count > 1);
+            }
+
+            List<ItemCatalog.Entry> found = ItemCatalog.Find(appliedItemQuery, itemMainType, itemSubType);
+            int pages = Math.Max(1, (found.Count + pageSize - 1) / pageSize);
             itemPage = Mathf.Clamp(itemPage, 0, pages - 1);
-            Ui.Label(content, appliedItemQuery.Length > 0 ? "'" + appliedItemQuery + "' 검색 결과 " + found.Count + "개" : "전체 " + found.Count + "개", 664, 70, 260, 40, 16).color = Ui.Dim;
+
+            // 표 머리
+            const float colId = 8, colCat = 110, colName = 290, colLevel = 560, colOwned = 630, colDesc = 710, colGive = 1180;
+            Ui.Panel("ItemHead", content, 0, 150, ContentW, 30, Ui.Section);
+            Ui.Label(content, "번호", colId, 150, 100, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "카테고리", colCat, 150, 170, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "아이템명", colName, 150, 260, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "품질", colLevel, 150, 60, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "보유", colOwned, 150, 70, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "설명", colDesc, 150, 460, 30, 16).color = Ui.Dim;
+
+            // 표 본문: 한 페이지를 스크롤 영역에 그린다.
+            const float rowHeight = 34;
+            int first = itemPage * pageSize;
+            int shown = Math.Min(pageSize, found.Count - first);
+            RectTransform rowsRoot = Ui.Scroll("ItemTable", content, 0, 182, ContentW, 412, shown * rowHeight);
             if (found.Count == 0)
             {
-                Ui.Label(content, "그런 이름의 아이템이 없습니다. 이름의 일부만 넣어 보세요.", 0, 122, 880, 36, 18).color = Ui.Warn;
+                Ui.Label(rowsRoot, "조건에 맞는 아이템이 없습니다.", 16, 8, 800, 34, 18).color = Ui.Warn;
             }
-            var props = player.data.unitData.propData;
-            for (int row = 0; row < rows; row++)
+            for (int row = 0; row < shown; row++)
             {
-                int index = itemPage * rows + row;
-                if (index >= found.Count)
-                {
-                    break;
-                }
-                ItemCatalog.Entry entry = found[index];
-                float y = 118 + row * 52;
-                Ui.Label(content, entry.Name, 0, y, 330, 28, 19);
-                Ui.Label(content, "보유 " + props.GetPropsNum(entry.Id) + "  ·  품질 " + entry.Level, 340, y, 240, 28, 16).color = Ui.Dim;
-                Ui.Label(content, Shorten(entry.Desc, 50), 12, y + 26, 760, 22, 14).color = Ui.Dim;
-                Ui.Button("ItemGive" + index, content, "지급 x" + Step, 780, y + 6, 130, 38, new Action(() => Say(EditService.GiveItem(Player, entry.Id, Step))));
+                ItemCatalog.Entry entry = found[first + row];
+                float y = row * rowHeight;
+                Ui.Label(rowsRoot, entry.Id.ToString(), colId, y, 100, rowHeight, 16);
+                Ui.Label(rowsRoot, Shorten(entry.SubTypeName, 8), colCat, y, 175, rowHeight, 16);
+                Ui.Button("ItemName" + row, rowsRoot, Shorten(entry.Name, 12), colName, y + 2, 262, rowHeight - 4,
+                    new Action(() => Say(entry.Name + " — " + entry.TypeName + " / " + entry.SubTypeName + " — " + entry.Desc)));
+                Ui.Label(rowsRoot, entry.Level.ToString(), colLevel, y, 60, rowHeight, 16);
+                Ui.Label(rowsRoot, props.GetPropsNum(entry.Id).ToString(), colOwned, y, 70, rowHeight, 16);
+                Ui.Label(rowsRoot, Shorten(entry.Desc, 28), colDesc, y, 460, rowHeight, 15).color = Ui.Dim;
+                Ui.Button("ItemGive" + row, rowsRoot, "지급 x" + Step, colGive, y + 2, 116, rowHeight - 4, new Action(() => Say(EditService.GiveItem(Player, entry.Id, Step))));
             }
-            float footer = 118 + rows * 52 + 4;
-            Ui.Button("ItemPrev", content, "이전", 0, footer, 90, 38, new Action(() => { itemPage--; Render(); }), itemPage > 0);
-            Ui.Label(content, (itemPage + 1) + " / " + pages, 96, footer, 110, 38, 18, TextAnchor.MiddleCenter);
-            Ui.Button("ItemNext", content, "다음", 212, footer, 90, 38, new Action(() => { itemPage++; Render(); }), itemPage < pages - 1);
-            Ui.Button("ItemNext10", content, "10쪽 뒤로", 308, footer, 130, 38, new Action(() => { itemPage += 10; Render(); }), itemPage < pages - 1);
-            Ui.Label(content, "지급 대상은 플레이어입니다.", 456, footer, 400, 38, 15).color = Ui.Dim;
+
+            // 페이징
+            const float footer = 602;
+            Ui.Button("ItemFirst", content, "처음", 0, footer, 80, 38, new Action(() => { itemPage = 0; Render(); }), itemPage > 0);
+            Ui.Button("ItemPrev", content, "이전", 86, footer, 80, 38, new Action(() => { itemPage--; Render(); }), itemPage > 0);
+            Ui.Label(content, (itemPage + 1) + " / " + pages, 172, footer, 130, 38, 18, TextAnchor.MiddleCenter);
+            Ui.Button("ItemNext", content, "다음", 308, footer, 80, 38, new Action(() => { itemPage++; Render(); }), itemPage < pages - 1);
+            Ui.Button("ItemLast", content, "끝", 394, footer, 80, 38, new Action(() => { itemPage = pages - 1; Render(); }), itemPage < pages - 1);
+            Ui.Label(content, "조건에 맞는 아이템 " + found.Count + "개 (전체 " + ItemCatalog.Find("", -1, -1).Count + "개)  ·  목록은 마우스 휠로 스크롤  ·  아이템명을 누르면 전체 설명", 490, footer, 800, 38, 15).color = Ui.Dim;
         }
 
         private static void RenderGrade()

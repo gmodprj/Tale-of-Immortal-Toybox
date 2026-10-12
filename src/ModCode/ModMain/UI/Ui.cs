@@ -136,6 +136,24 @@ namespace MOD_sWP6UL
             return input;
         }
 
+        // 세로로 스크롤되는 영역. 돌려주는 RectTransform에 내용을 넣는다(좌표는 그 영역의 왼쪽 위 기준).
+        public static RectTransform Scroll(string name, Transform parent, float x, float y, float w, float h, float contentHeight)
+        {
+            RectTransform viewport = Rect(name, parent, x, y, w, h);
+            var image = viewport.gameObject.AddComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0.25f);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            RectTransform inner = Rect("Rows", viewport, 0, 0, w, Mathf.Max(h, contentHeight));
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport;
+            scroll.content = inner;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+            return inner;
+        }
+
         public static void Clear(Transform parent)
         {
             for (int i = parent.childCount - 1; i >= 0; i--)
