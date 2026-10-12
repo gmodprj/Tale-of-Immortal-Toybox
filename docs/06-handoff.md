@@ -1,7 +1,7 @@
 # 06. 작업 인계 (2026-10-12 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
-세부 실험 기록은 `docs/05-editor-v0.1.md`(1~24절)에 있고, 이 문서는 그 길잡이다.
+세부 실험 기록은 `docs/05-editor-v0.1.md`(1~25절)에 있고, 이 문서는 그 길잡이다.
 
 ## 1. 한눈에 보는 상태
 
@@ -19,18 +19,18 @@
 | 탭 | 기능 | 코드 | 실험 기록(05 문서) |
 |---|---|---|---|
 | 능력치 | 게임 인물 화면의 다섯 분류(개인·전투·공법 자질·영근 자질·기예)로 저장값 편집, 증감 단위 1/10/100/1000/직접 입력, 자원 회복 | `AttributeCatalog`, `EditService.SetAttribute` | 5, 14, 15절 |
-| 자원 | 영석 추가, 아이템 표(번호·카테고리·이름·품질·보유·설명), 이름·카테고리 필터, 페이지당 10/20/50, 지급 수량 | `ItemCatalog`, `EditService.GiveItem` | 14, 15절 |
+| 자원 | 영석 추가, 아이템 표(번호·카테고리·이름·품질·보유·설명), 이름·카테고리 필터, 페이지당 10/20/50, 지급 수량, 가방 칸 ±10 | `ItemCatalog`, `EditService.GiveItem`, `BagService` | 14, 15, 25절 |
 | 경지 | 수련치 채우기, 소경지 돌파, 대경지는 재료·천재지보 지급 후 게임의 돌파 화면 열기 | `EditService`(Breakthrough, GiveBreakthroughMaterials) | 8, 9, 20, 21절 |
 | 공법 | 익힌 공법 목록, 옵션 품질·교체, 숙련 경험치, 장착·해제·망각, 기술 추가(다섯 분류·경지·이름, 모두 배우기, 강제 추가) | `MartialService`, `SkillCatalog` | 7, 22, 23, 24절 |
 | 운명 | 선천운명 추가·교체·삭제, 후천운명 추가·삭제, 역천개명(경지별) 지정 | `LuckService`, `FateService` | 10, 15~19절 |
 | 기예 | 연단·연기·부적·풍수·약재·광재의 서적 배우기·잊기·모두 배우기·강제 추가 | `ArtService` | 22, 23, 24절 |
 | NPC | 가까운 NPC 목록·이름 검색, 호감도, 편집 대상으로 지정 | `EditService`(SetIntimBoth) | 5절 |
-| 세계 | 순간 이동, 날짜 진행, 전투 무적·피해 배율 | `WorldService`, `BattleService` | 13절 |
+| 세계 | 순간 이동, 날짜(고정·실제 진행·달력 직접 지정), 전투 무적·피해 배율 | `WorldService`, `TimeService`, `BattleService` | 13, 25절 |
 | 안전 | 세이브 백업, 변경 이력 | `Safety/SaveBackup`, `Safety/ChangeLog` | 3절 |
 
 공통 규칙:
 
-- 쓰기 전에 한 실행에 한 번 세이브 폴더를 백업한다(`SaveBackup.EnsureOnce`). 백업과 이력은 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox\`(`backups\`, `changes.log`, `config.txt`, `editor-lucks.txt`).
+- 쓰기 전에 한 실행에 한 번 세이브 폴더를 백업한다(`SaveBackup.EnsureOnce`). 백업과 이력은 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox\`(`backups\`, `changes.log`, `config.txt`, `editor-lucks.txt`, `bag-slots.txt`).
 - 쓰기 뒤에 값을 다시 읽어 이력에 남긴다. 다르면 "(재조회 불일치)"가 붙는다.
 - 되돌리기 어렵거나 게임이 붙인 것을 지우는 동작은 버튼을 두 번 눌러야 한다("정말 삭제", "정말 강제" 등).
 - 능력치·공법·운명은 편집 대상(플레이어 또는 NPC)에, 자원·경지·기예·세계는 플레이어에 적용된다.
@@ -41,7 +41,7 @@
 |---|---|
 | `docs/00-design-brief.md` | 기획서(기준 문서) |
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
-| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~24절) |
+| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~25절) |
 | `docs/06-handoff.md` | 이 문서 |
 | `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획 |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
@@ -68,6 +68,8 @@
 ## 5. 게임에서 검증하는 방법
 
 사용자의 화면·마우스·키보드를 건드리지 않고 한다. 사용자가 게임을 켜 둔 동안에는 시험할 수 없고, 사용자의 게임을 임의로 끄지 않는다(끄도록 알리고 기다린다).
+
+아래 1~4번과 6번은 `tools\DevRemote\session.ps1`이 한 번에 한다: `-Begin <이름>`(확인 → 빌드 → 세이브 복사 → 설치 → 실행), `-Restart`(저장 후 재시작 확인), `-End <이름>`(종료 → 세이브 복원과 일치 확인 → 설치돼 있던 DLL 되돌리기). 날짜·가방의 자동 검증은 `tools\research\datebag-check.ps1 -Part <이름>`이다.
 
 1. 게임이 꺼져 있는지 확인한다(`Get-Process guigubahuang`).
 2. 세이브 폴더를 `.devremote\save-backup-<날짜>-<이름>`으로 복사한다. 세이브는 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Steam\CacheData`. 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않는 시험이라도 복사해 둔다.
@@ -104,6 +106,11 @@
   - 게임 행동(`CreateAction`)의 반환값 0이 "효과가 났다"는 뜻이 아니다. 항상 데이터를 다시 읽어 확인한다.
 - 게임 화면의 표시 조건은 데이터 위치와 다를 수 있다(운명 17절, 역천개명 18절). "넣었다"와 "게임 화면에 나온다"는 따로 확인한다.
 - 편집기의 대상 식별: 저장값은 `unit.data.unitData.propertyData`, 화면 값은 `unit.data.dynUnitData`의 `DynInt.value`. 수명·나이는 개월로 저장되고 년으로 표시된다.
+- 날짜: 플레이어의 행동은 `WorldUnitBase.AddResidueDay`로 날짜를 쓴다. `WorldRunMgr.AddDay`를 직접 부르거나 막으면 플레이어의 `residueDay`와 어긋나 달을 넘길 때 날짜가 튄다(25절). 달 넘기기(`isAutoRun` = `true`)를 중간에서 막으면 HUD가 어긋난 채 남는다.
+- 달이 넘어가는 동안(`g.world.run.isRunning`)에는 NPC 대화가 떠서 처리가 멈춰 있을 수 있다. 자동 시험은 고정 시간만큼 기다리지 말고 `isRunning`이 꺼질 때까지 기다린다(`datebag-check.ps1`의 `WaitRun`).
+- 세이브 폴더 밖의 모드 파일(`TlToybox\bag-slots.txt` 등)은 세이브를 되돌려도 남는다. 시험이 만든 값은 시험이 지운다.
+- `MelonLoader\Latest.log`의 한글은 UTF-8이 아니라 CP949다. 로그에서 한글 문구를 찾는 검사는 아무것도 잡지 못한다.
+- PowerShell에서 함수 이름이 별칭과 겹치면 별칭이 먼저 실행된다(`R`은 `Invoke-History`, `History`는 `Get-History`).
 
 ## 7. 알려진 한계와 미확인 목록
 
@@ -121,13 +128,15 @@
 | 한글 입력기(IME)로 검색 칸 입력 | 미확인(개발 명령으로 값을 넣어 시험) | 14절 |
 | 실제 마우스 휠·막대 끌기 | 미확인(도구의 스크롤 이벤트로 시험) | 14절 |
 | 월말 처리, 이동 불가 칸, 보호막·지속 피해 | 미확인 | 13절 |
+| 날짜 고정·달력 지정 | 이동과 수련 밖의 행동의 날짜 소모, 달 넘기기 단축키, 날짜 기준 기록(임무 기한 등)에 주는 영향 미확인 | 25절 |
+| 가방 칸 | 수백 칸일 때의 가방 화면, 세이브가 여럿일 때 미확인 | 25절 |
 | 모드를 뺀 뒤의 세이브 동작 | 미확인 | — |
 
 기획서(`00-design-brief.md`)에 있으나 아직 만들지 않은 것: NPC 생성·삭제, 문파 직위 변경, 그 밖의 샌드박스 기능. 범위는 기획서와 05 문서 1절을 대조해 정한다.
 
 ## 8. 다음에 할 만한 일
 
-사용자가 정한 순서는 없다. 직전 대화의 흐름으로 보면:
+사용자가 2026-10-12에 추가 기능을 네 묶음으로 나누고 순서를 A → B → C → D로 정했다. A(날짜·가방)는 끝났다(25절). 남은 것은 B(화면 구조 정리와 탭별 UI/UX 개선), C(가방 내보내기·가져오기: JSON 파일, 이름 지정, 일괄·개별 가져오기), D(캐릭터 내보내기·가져오기: 능력치·경지·공법·기예)다. 묶음마다 스펙과 계획을 `docs/superpowers/`에 새로 쓴다. 그 밖에는:
 
 1. 사용자가 실제로 써 보며 알려 오는 문제의 수정(이 세션의 작업 대부분이 그렇게 시작됐다).
 2. 위 표의 미확인 항목 가운데 사용자가 곧 마주칠 것: 신법·심법·신통의 모두 배우기, 부적의 강제 추가, NPC에게 추가한 기술의 저장 후 유지.
