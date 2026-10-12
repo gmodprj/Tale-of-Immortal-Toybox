@@ -16,6 +16,11 @@ function Shot([string]$name) {
   & "$tools\win.ps1" -Do shot -Out $file -Scale 0.6 | Out-Null
   "SHOT $file"
 }
+# 모드가 로그에 남긴 경고·오류 줄. 로그의 한글은 UTF-8이 아니어서(CP949) 문구로 찾을 수 없다.
+# 정상 줄(Init, Destroy, state, 단축키 안내)이 아닌 "[TlToybox] " 줄을 고른다. 명령과 변경 이력은 "[TlToybox][...]"이라 걸리지 않는다.
+function ModWarnings {
+  Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] ' -and $_ -notmatch '\[TlToybox\] (Init|Destroy|state: )' -and $_ -notmatch ': (Insert|F2|F3)\s*$' }
+}
 function Check([string]$name, [bool]$ok, [string]$detail = '') {
   if ($ok) { "PASS $name" } else { $script:fails++; "FAIL $name  $detail" }
 }
@@ -212,7 +217,7 @@ switch ($Part) {
   }
   'bag' {
     # 주 화면에서부터 60프레임 점검이 돌았다. 경고가 없어야 한다 (Review Focus 5)
-    Check 'no warning from the background tick' (-not (Select-String -LiteralPath $log -Pattern '가방 추가 칸을 적용하지 못했습니다'))
+    Check 'no warning from the background tick' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
     Cmd 'gridfill 600 5' 4000 | Out-Null   # 재료로 가방을 가득 채워 기준을 만든다
     $g0 = Grid
     Check 'no editor slots at start' ($g0.add -notmatch 'TlToybox') $g0.add
@@ -266,7 +271,7 @@ switch ($Part) {
     Start-Sleep -Seconds 3
     $g = Grid
     Check 'out-of-range value is clamped to 500' ($g.add -match 'TlToybox=500') $g.add
-    Check 'no warning or error from the mod' (-not (Select-String -LiteralPath $log -Pattern 'TlToybox\].*(못했습니다|오류)'))
+    Check 'no warning or error from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
     Check 'plus at the limit is refused' ((Cmd 'bag 10') -match '0~500 사이')
     $o = Cmd 'bag -500'; $g1 = Grid
     Check 'back to zero from 500' ($g1.add -notmatch 'TlToybox' -and $g1.max -eq $g.max - 500) $o
