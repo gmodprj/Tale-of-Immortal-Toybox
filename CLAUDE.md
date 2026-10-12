@@ -20,7 +20,7 @@
 ## 모드 규약
 
 - 어셈블리 이름과 네임스페이스는 `MOD_<모드ID>`, 진입점은 `ModMain` 클래스의 `Init()`·`Destroy()`다(`docs/02-mod-dev-research.md` 3절).
-- 현재 모드 ID `TlTbx0`는 임시값이다. 게임 내 모드 에디터가 발급한 ID로 바꿀 때 `ModMain.csproj`의 `ModId`와 `ModMain.cs`의 네임스페이스를 함께 바꾼다.
+- 모드 ID는 게임 내 모드 에디터가 발급한 `sWP6UL`이다. 에디터 프로젝트는 `ModProject_sWP6UL/`에 있고 git에서 제외한다. Release 빌드가 DLL을 그 프로젝트의 `ModCode/ModMain/bin/Release`로 복사한다.
 - `bin\Release`에는 `MOD_<모드ID>.dll` 하나만 있어야 한다. 참조를 추가할 때 `<Private>False</Private>`를 지정한다.
 
 ## 문서 규칙

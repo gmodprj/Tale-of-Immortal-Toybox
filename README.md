@@ -25,4 +25,4 @@
 
     dotnet build src/ModCode/ModMain/ModMain.csproj -c Release
 
-산출물은 `src/ModCode/ModMain/bin/Release/MOD_TlTbx0.dll`이다. 모드 ID `TlTbx0`는 임시값이며, 게임 폴더로의 배포는 아직 하지 않는다.
+산출물은 `src/ModCode/ModMain/bin/Release/MOD_sWP6UL.dll`이다. Release 빌드는 DLL을 모드 에디터 프로젝트(`ModProject_sWP6UL/`)의 `bin/Release`로도 복사한다. 게임에는 에디터의 "게임 디버깅 시작"이 싣는다.

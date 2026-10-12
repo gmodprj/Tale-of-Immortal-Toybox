@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using MelonLoader;
 
-namespace MOD_TlTbx0
+namespace MOD_sWP6UL
 {
     // docs/04-ingame-state-analysis.md 15절 1단계의 읽기 전용 탐침.
     // 게임 상태를 읽어 로그로만 내보낸다. 어떤 값도 쓰지 않는다.

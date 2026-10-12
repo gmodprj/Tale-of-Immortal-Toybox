@@ -3,7 +3,7 @@ using MelonLoader;
 
 // 이 네임스페이스는 모드 ID(MOD_<ID>)이며 어셈블리 이름, 모드 에디터의 코드 네임스페이스와 같아야 한다.
 // 다르면 게임이 <네임스페이스>.ModMain 타입을 찾지 못해 DLL 로드가 실패한다.
-namespace MOD_TlTbx0
+namespace MOD_sWP6UL
 {
     public class ModMain
     {
