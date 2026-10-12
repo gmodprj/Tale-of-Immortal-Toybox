@@ -2,7 +2,7 @@
 
 귀곡팔황(Tale of Immortal) 통합 치트·샌드박스 모드 `GGBH Cheat Sandbox`.
 
-현재 단계: 편집기 v0.1 (능력치·자원·경지·NPC 호감도 편집). 사용법과 범위는 `docs/05-editor-v0.1.md`.
+현재 단계: 편집기 v0.1 — 능력치·자원·경지·공법·운명·기예·NPC·세계·안전의 아홉 탭. 처음 보는 사람은 `docs/06-handoff.md`부터 읽는다. 기능별 범위와 실험 기록은 `docs/05-editor-v0.1.md`.
 
 ## 구조
 
@@ -14,6 +14,8 @@
 | `docs/02a-workshop-survey.md` | 창작마당·모드 사이트 조사표 |
 | `docs/04-ingame-state-analysis.md` | 인게임 상태 구성 분석 |
 | `docs/05-editor-v0.1.md` | 편집기 v0.1의 범위, 사용법, 검증 결과 |
+| `docs/06-handoff.md` | 작업 인계: 현재 상태, 검증 방법, 남은 일 |
+| `tools/research/` | 게임 어셈블리 조사 스크립트 |
 | `src/ModCode/ModMain/` | 코드 모드 프로젝트(편집기) |
 | `tools/DevRemote/` | 개발용 게임 조작 도구 |
 | `src/ModExcel/` | 설정 테이블 |
@@ -27,4 +29,4 @@
 
     dotnet build src/ModCode/ModMain/ModMain.csproj -c Release
 
-산출물은 `src/ModCode/ModMain/bin/Release/MOD_sWP6UL.dll`이다. Release 빌드는 DLL을 모드 에디터 프로젝트(`ModProject_sWP6UL/`)의 `bin/Release`로도 복사한다. 게임에는 에디터의 "게임 디버깅 시작"이 싣는다.
+산출물은 `src/ModCode/ModMain/bin/Release/MOD_sWP6UL.dll`이다. Release 빌드는 DLL을 모드 에디터 프로젝트(`ModProject_sWP6UL/`)의 `bin/Release`로도 복사한다. 평소에는 `tools/install.ps1`이 배포 빌드를 게임의 로컬 모드 폴더에 설치한다.
