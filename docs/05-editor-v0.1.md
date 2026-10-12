@@ -600,3 +600,54 @@
 - 한 번은 돌파 화면을 거친 뒤 게임 메뉴(돌아가기·저장…)가 떠 있고 편집기 단축키가 듣지 않는 상태가 됐다. 게임을 다시 띄운 뒤 같은 순서로 시험했을 때는 단축키가 정상이었고, 재현하지 못했다.
 
 조사에 쓴 개발 명령: `editor`(단축키 없이 편집기 열기), `closeui`(돌파 화면 닫기).
+
+## 22. 기술·기예의 추가·삭제·수련 검토 (2026-10-12 조사)
+
+게임 인물 화면의 "기술"(무예/영술, 절기, 신법, 심법, 신통)과 "기예"(연단, 연기, 부적, 풍수, 약재, 광재)를 편집기로 다룰 수 있는지 조사했다. 구현은 하지 않았다.
+
+### 데이터
+
+| 화면 | 데이터 |
+|---|---|
+| 기술 — 배운 것 | `unitData.allActionMartial`(`Dictionary<string, DataUnit.ActionMartialData>`). 값의 `data`가 공법 아이템(`DataProps.MartialData`: `martialType`, `baseID`, `grade`), `exp`가 숙련 경험치 |
+| 기술 — 종류 | `MartialType`: `SkillLeft` 1, `SkillRight` 2, `Step` 3, `Ability` 4, `Ultimate` 5 |
+| 기술 — 장착 | `unitData.skillLeft`, `skillRight`, `ultimate`, `step`(각 soleID), `abilitys`(soleID 배열 8칸) |
+| 연단 | `g.data.world.pillFormulas`(`PillFormulaData`: `id`, `exp`, `maxExp`). 단방 번호는 단방 아이템 번호와 같다 |
+| 연기·부적·풍수·광재 | `g.data.world.allArtistrySkillID`(`List<int>`). 배운 서적 아이템의 번호가 들어간다 |
+
+화면의 탭과 `MartialType`의 대응은 무예/영술 = `SkillLeft`만 확인했다(추가한 무예가 그 탭에 나옴). 나머지 대응은 이름으로 미루어 본 것이다.
+
+### 실측
+
+| 기능 | 경로 | 결과 |
+|---|---|---|
+| 공법 만들기 | `RewardTool.GetSkillReward/GetStepReward/GetAbilityReward(조합 번호, 품질, null)` → `DataProps.PropsData.NewMartial(종류, 값)` | 값 `2,0,1,1,11443,1`(끝에서 세 칸이 종류·`baseID`·품질)의 공법 아이템이 만들어진다 |
+| 기술 추가 | `unitData.StudyActionMartialProp(공법 아이템)` | 배운 목록에 바로 들어간다. 무예(조합 10013 → 현령검), 신법(10008), 심법(10018)으로 확인. 게임 기술 화면의 무예/영술 탭에 표시됨 |
+| 기술 추가(게임 행동) | `UnitActionPropMartialStudy(공법 아이템)` | 반환 0이지만 목록이 늘지 않고 `allMartialStudy`(학습 진행도)만 늘었다. 게임의 "비급 학습"은 여러 번에 걸쳐 진행되는 절차로 보인다 |
+| 기술 삭제 | `UnitActionMartialDel(ActionMartialData)` | 목록에서 빠진다 |
+| 기술 삭제(데이터) | `unitData.DelActionMartial(soleID)` | 목록에서 빠진다 |
+| 기술 삭제(번호로) | `UnitActionMartialDel(string)` | NullReferenceException. 쓰지 않는다 |
+| 장착 | `UnitActionMartialEquip(ActionMartialData, 칸)` | 신법은 `step`에, 심법은 `abilitys[0]`에 들어감 |
+| 기술 수련 | `UnitActionMartialTrain(ActionMartialData, 일수)` | `IsCreateAction` 3(불가), `GetTrainMaxDay` 0. 조건을 찾지 못했다 |
+| 기술 참오 | `UnitActionMartialRealize(ActionMartialData)` | `IsCreateAction` 3(불가). 조건을 찾지 못했다 |
+| 단방 학습 | `UnitActionPropPillFormulaStudy(단방 아이템)` | `pillFormulas`에 `화어단 단방 0/100`이 들어가고 기예 화면 연단 탭에 표시됨 |
+| 기예 서적 학습 | `UnitUnitArtistrySkillStudy(서적 아이템)` | 풍수서(寻风 一), 감식서, 연기보, 부적 도보 각 1개가 `allArtistrySkillID`에 들어가고 풍수·광재·연기·부적 탭에 표시됨. 감식서와 연기보는 `IsCreateAction`이 3이었지만 `CreateAction`으로는 들어갔다 |
+| 저장 후 재시작 | | 추가한 신법 1개와 단방 1개가 유지됨(삭제한 것은 없는 상태 유지) |
+
+시험은 사용자의 세이브에서 했고 저장이 필요한 시험 뒤에 시험 전 복사본(`.devremote/save-backup-20261012-skill`)으로 되돌렸다.
+
+### 주의할 점
+
+- 조합 번호(`ConfBattleSkillCombine` 등)는 개별 기술이 아니라 뽑기 묶음이다(무예 4144개, 신법 1051개, 심법 2741개). 묶음에 이름이 없고, 같은 번호라도 뽑힐 때마다 결과가 달라질 수 있다. 편집기에서 "이름으로 골라 추가"하려면 `baseID`별 목록(이름을 가진 설정)을 따로 찾아야 한다. 아직 찾지 못했다.
+- 종류와 맞지 않는 조합을 주면 깨진 기술이 들어간다. `SkillRight`·`Ultimate`에 무예 조합을 주었을 때 이름 없는 항목이 생겼고(예외가 났는데도 목록에 남음), 그 항목은 번호로 지우는 행동에서 예외가 났다.
+- 수련과 참오는 편집기에 이미 대응 기능이 있다. 공법 탭의 "숙련 경험치 +"(`AddMartialExp`)가 수련의 결과에, 옵션 교체·품질 설정이 참오의 결과에 해당한다.
+
+### 확인하지 못한 것
+
+- 절기·신통에 맞는 조합 번호와 화면 탭 대응.
+- 약재 탭(약보)의 서적 아이템 분류와 학습.
+- 기예 항목의 삭제 경로(목록에서 번호를 빼면 되는지).
+- 수련·참오 행동이 불가(3)로 나오는 조건.
+- NPC 대상.
+
+조사에 쓴 개발 명령: `skconf`, `sklist`, `sknew`, `sklearn`, `sklearn2`, `skdel`, `skdel2`, `skdel3`, `sktrain`, `skrealize`, `skequip`, `skunequip`, `arts`, `pillstudy`, `artstudy`.
