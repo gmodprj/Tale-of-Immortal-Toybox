@@ -31,6 +31,9 @@ namespace MOD_sWP6UL
                     return Focus(p[1]);
                 case "uidrag":
                     return Drag(int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]), int.Parse(p[4]), p.Length > 5 ? int.Parse(p[5]) : 4);
+                case "uiraise":
+                    EditorWindow.Raise();
+                    return EditorWindow.DevState;
                 case "uistate":
                     return EditorWindow.DevState;
                 case "uitarget":

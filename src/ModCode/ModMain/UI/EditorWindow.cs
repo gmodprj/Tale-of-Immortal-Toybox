@@ -19,6 +19,8 @@ namespace MOD_sWP6UL
         public const float ContentH = Height - ContentY - MessageH - 8;
 
         private const int OverlayOrder = 30000;
+        // 게임 화면의 정렬은 20 간격이다(UIMgr.UIIntervalSorting). 그 사이에 끼운다.
+        private const int OrderAboveTop = 10;
         private const float FlashSeconds = 0.6f;
         private static readonly Color FlashColor = new Color(0.36f, 0.31f, 0.14f, 1f);
 
@@ -37,6 +39,8 @@ namespace MOD_sWP6UL
         private static string message = "";
         private static float flash;       // 결과 영역을 밝혀 둘 남은 시간(초)
         private static bool tickWarned;
+        private static bool cameraMode;   // 게임과 같은 카메라 방식으로 그리는 중인지
+        private static int raisedTop;     // 맨 앞으로 가져올 때의 UI 층 맨 위 정렬 값
 
         // NPC 탭에서 고른 NPC. 세계 탭의 "선택한 NPC에게 이동"이 쓴다.
         public static string SelectedNpcId;
@@ -84,6 +88,60 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 게임의 UI 카메라로 그릴 수 있는지. 주 화면이나 장면이 바뀌는 중에는 없을 수 있다.
+        private static bool CameraUsable(out Canvas game, out Camera cam)
+        {
+            game = null;
+            cam = null;
+            try
+            {
+                if (g.ui == null)
+                {
+                    return false;
+                }
+                game = g.ui.canvas;
+                cam = g.ui.uiCamera;
+                return game != null && cam != null && cam.isActiveAndEnabled && game.renderMode == RenderMode.ScreenSpaceCamera;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        // 편집기를 맨 앞으로 가져온다. 지금 열려 있는 게임 화면들 바로 위에 놓으므로, 이 뒤에 열리는 게임 화면은 편집기 위에 뜬다.
+        // 확인 창과 로딩 화면은 더 높은 층이라 항상 위다. UI 카메라를 쓸 수 없으면 예전처럼 무엇보다도 위에 덧그린다.
+        public static void Raise()
+        {
+            if (canvas == null)
+            {
+                return;
+            }
+            Canvas game;
+            Camera cam;
+            if (!CameraUsable(out game, out cam))
+            {
+                cameraMode = false;
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = OverlayOrder;
+                return;
+            }
+            cameraMode = true;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+            canvas.planeDistance = game.planeDistance;
+            canvas.sortingLayerID = game.sortingLayerID;
+            root.layer = game.gameObject.layer;   // 카메라가 이 층만 그린다. 뿌리의 층만 맞추면 자식도 그려진다(실측)
+            raisedTop = g.ui.GetLayerTopSort(UILayer.UI);
+            canvas.sortingOrder = raisedTop + OrderAboveTop;
+        }
+
+        // 나중에 열린 게임 화면이 편집기를 가리고 있는지.
+        public static bool IsCovered
+        {
+            get { return IsOpen && cameraMode && g.ui.GetLayerTopSort(UILayer.UI) > canvas.sortingOrder; }
+        }
+
         public static void SwitchTab(int index)
         {
             tabs[tab].OnHide();
@@ -93,14 +151,20 @@ namespace MOD_sWP6UL
             Render();
         }
 
+        // 단축키: 닫혀 있으면 열고, 게임 화면에 가려져 있으면 맨 앞으로 가져오고, 맨 앞이면 닫는다.
         public static void Toggle()
         {
-            if (IsOpen)
+            if (!IsOpen)
             {
-                Close();
+                Open();
                 return;
             }
-            Open();
+            if (IsCovered)
+            {
+                Raise();
+                return;
+            }
+            Close();
         }
 
         public static void Close()
@@ -137,12 +201,32 @@ namespace MOD_sWP6UL
         {
             try
             {
-                if (!IsOpen || flash <= 0f)
+                if (!IsOpen)
                 {
                     return;
                 }
-                flash = Mathf.Max(0f, flash - Time.unscaledDeltaTime);
-                messageBox.color = Color.Lerp(Ui.Section, FlashColor, flash / FlashSeconds);
+                if (flash > 0f)
+                {
+                    flash = Mathf.Max(0f, flash - Time.unscaledDeltaTime);
+                    messageBox.color = Color.Lerp(Ui.Section, FlashColor, flash / FlashSeconds);
+                }
+                if (!cameraMode)
+                {
+                    return;
+                }
+                if (canvas.worldCamera == null)
+                {
+                    // 장면이 바뀌어 카메라가 사라졌다. 방식을 다시 정한다.
+                    Raise();
+                    return;
+                }
+                int top = g.ui.GetLayerTopSort(UILayer.UI);
+                if (top < raisedTop)
+                {
+                    // 맨 앞으로 가져올 때 있던 게임 화면이 닫혔다. 내려 두지 않으면 다음에 열리는 화면이 편집기 뒤에 뜬다.
+                    raisedTop = top;
+                    canvas.sortingOrder = top + OrderAboveTop;
+                }
             }
             catch (Exception e)
             {
@@ -161,6 +245,7 @@ namespace MOD_sWP6UL
                 Build();
             }
             root.SetActive(true);
+            Raise();
             for (int i = 0; i < tabs.Length; i++)
             {
                 tabs[i].OnOpen();
@@ -299,6 +384,7 @@ namespace MOD_sWP6UL
             {
                 return "open=" + IsOpen + " tab=" + tab + " target=" + (targetId == null ? "player" : "npc")
                     + " mode=" + (canvas == null ? "none" : canvas.renderMode.ToString()) + " order=" + (canvas == null ? 0 : canvas.sortingOrder)
+                    + " covered=" + IsCovered + " top=" + g.ui.GetLayerTopSort(UILayer.UI)
                     + " message='" + message + "'";
             }
         }

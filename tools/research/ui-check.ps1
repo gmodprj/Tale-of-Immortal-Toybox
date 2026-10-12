@@ -90,6 +90,63 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'order' {
+    $traps = Traps
+    Cmd 'editor' | Out-Null
+    $s = Cmd 'uistate'
+    Check 'opens in camera mode just above the map' ($s -match 'mode=ScreenSpaceCamera order=10 covered=False top=0 ') $s
+
+    # 스펙 6절 2번: 나중에 연 게임 화면이 위에 뜨고, Insert가 편집기를 맨 앞으로 가져온다
+    Cmd 'uiopen PlayerInfo' 1500 | Out-Null
+    $s = Cmd 'uistate'
+    Check 'a game screen opened later covers the editor' ($s -match 'covered=True top=20 ' -and -not (IsAt 'Tab0')) $s
+    Key 0x2D
+    $s = Cmd 'uistate'
+    Check 'Insert brings a covered editor to the front' ($s -match 'open=True .*order=30 covered=False ' -and (IsAt 'Tab0')) $s
+
+    # 스펙 6절 3번: 아래의 게임 화면이 닫히면 정렬을 낮춘다
+    Cmd 'uiclose PlayerInfo' 1500 | Out-Null
+    $s = Cmd 'uistate'
+    Check 'order drops when the screen below closes' ($s -match 'order=10 covered=False top=0 ') $s
+    Cmd 'uiopen PlayerInfo' 1500 | Out-Null
+    Check 'the reopened screen is above the editor again' ((Cmd 'uistate') -match 'covered=True ' -and -not (IsAt 'Tab0'))
+    Cmd 'uiclose PlayerInfo' 1500 | Out-Null
+    Key 0x2D
+    Check 'Insert closes an editor that is in front' ((Cmd 'uistate') -match 'open=False ')
+
+    # 스펙 6절 4번: 확인 창은 더 높은 층이라 항상 위다. 가려진 것으로 치지 않는다
+    Cmd 'editor' | Out-Null
+    Cmd 'uiopen CheckPopup' 1200 | Out-Null
+    Check 'confirm popup is above the editor' ((Rc 'hit 1037 531' 300) -match 'CheckPopup' -and -not (IsAt 'Tab0') -and (Cmd 'uistate') -match 'covered=False ')
+    Cmd 'uiclose CheckPopup' 1000 | Out-Null
+    Check 'editor is usable again' (IsAt 'Tab0')
+
+    # Review Focus 4: Insert를 빠르게 여러 번, 가려진 상태와 섞어서
+    1..6 | ForEach-Object { Key 0x2D 150 }
+    Check 'six quick toggles end where they started' ((Cmd 'uistate') -match 'open=True ')
+    Cmd 'uiopen PlayerInfo' 1500 | Out-Null
+    1..3 | ForEach-Object { Key 0x2D 150 }   # 맨 앞으로 → 닫기 → 열기
+    $s = Cmd 'uistate'
+    Check 'toggles mixed with a covering screen stay consistent' ($s -match 'open=True .*order=30 covered=False ') $s
+    Cmd 'uiclose PlayerInfo' 1500 | Out-Null
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'battle' {
+    # 스펙 6절 21번, Review Focus 5. 전투에서 나오는 방법을 자동화하지 않았으므로 회차의 마지막에 돌리고 바로 -End 한다.
+    $traps = Traps
+    Cmd 'fight 1011 1' 8000 | Out-Null
+    Check 'editor opens in battle' ((Cmd 'editor') -match 'open=True')
+    "INFO battle state: $(Cmd 'uistate')"
+    Check 'tabs are clickable in battle' (IsAt 'Tab7')
+    Press 'Tab7' | Out-Null
+    Check 'world tab is drawn in battle' (IsAt 'God')
+    Shot 'battle'
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
