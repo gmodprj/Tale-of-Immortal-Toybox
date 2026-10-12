@@ -22,6 +22,16 @@ namespace MOD_sWP6UL
                         }
                         return "player upGrade " + GradeText(log);
                     }
+                case "editor":
+                    // 단축키 입력 없이 편집기 창을 연다(자동 검증용).
+                    if (!EditorWindow.IsOpen)
+                    {
+                        EditorWindow.Toggle();
+                    }
+                    return "editor open=" + EditorWindow.IsOpen;
+                case "closeui":
+                    g.ui.CloseUI(UIType.UpGrade, true);
+                    return "closed UpGrade";
                 case "findfated": return FindFated(p.Length > 1 ? int.Parse(p[1]) : 0);
                 default: return null;
             }
