@@ -223,6 +223,20 @@ IL2CPP 환경의 제약(MelonLoader 위키 "Il2Cpp differences"와 공식 예제
 
 아직 확인하지 못한 것: `Destroy`의 호출 시점, 주 화면으로 돌아갔다가 다시 들어갈 때의 `Init` 재호출, 키 입력, IMGUI, UI 프리팹 재사용, `ModExportData\` 설치 경로.
 
+### UI 방식 실측 (2026-10-12)
+
+`src/ModCode/ModMain/Features/UiSpike.cs`로 세계 화면에서 시험했다.
+
+| 항목 | 결과 |
+|---|---|
+| 커스텀 `MonoBehaviour` 주입 | `ClassInjector.RegisterTypeInIl2Cpp<T>()` 후 `AddComponent`한 컴포넌트의 `Update`와 `OnGUI`가 매 프레임 호출됐다 |
+| IMGUI | `GUI.Box`, `GUI.Label`, `GUI.Button`이 그려지고 한글이 표시된다. 기본 글꼴이 작고 흐리다. 버튼 클릭은 시험하지 못했다(실제 마우스 입력이 필요) |
+| 코드로 만든 uGUI | `Canvas`(`ScreenSpaceOverlay`, `sortingOrder` 30000) + `GraphicRaycaster` + `Image` + `Text` + `Button`을 코드로 만들어 표시했다. 게임의 글꼴(`Text`에서 얻은 `Font`)을 쓰면 한글이 게임 UI와 같은 품질로 나온다. `button.onClick.AddListener(new Action(...))`로 건 콜백이 호출됐다 |
+| 키 입력 | `Input.GetKeyDown(KeyCode.F8)`이 동작한다. 창에 보낸 키 메시지(`WM_KEYDOWN`)도 감지되므로 단축키는 백그라운드에서 시험할 수 있다 |
+| 게임의 글꼴 | 세계 화면에 `UnityEngine.UI.Text` 326개, `TextMeshProUGUI` 24개. 게임 UI는 주로 uGUI `Text`를 쓴다 |
+
+편집기 UI는 **코드로 만든 uGUI**로 정한다. 게임 글꼴을 그대로 쓸 수 있고, Unity 에디터와 AssetBundle 빌드가 필요 없으며, 게임 내부 클릭 도구로 자동 시험할 수 있다. IMGUI는 클릭을 자동으로 시험할 수 없고 글꼴 품질이 떨어진다.
+
 ### 개발용 조작 도구
 
 게임 UI는 실제 마우스 커서 위치를 읽기 때문에 창에 클릭 메시지(`WM_LBUTTONDOWN`)를 보내는 방식으로는 조작되지 않았다. 대신 게임 프로세스 안에서 UI 클릭을 수행하는 개발 전용 MelonMod(`tools/DevRemote`)를 만들었다. 명령 파일(`.devremote\cmd.txt`)의 `click x y`를 읽어 `EventSystem.RaycastAll`로 대상을 찾고 `Button.onClick`을 호출한다. 창 내용은 `PrintWindow`로 캡처한다. 게임 창이 다른 창 뒤에 있어도 동작하고 실제 마우스·키보드를 쓰지 않는다. 이 도구는 게임의 `Mods\TlToyboxDevRemote.dll`로 설치되어 있으며 배포 대상이 아니다.
