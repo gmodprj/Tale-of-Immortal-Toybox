@@ -33,7 +33,9 @@ namespace MOD_sWP6UL
         private static int npcPage;
         private static string targetId;    // 능력치 편집 대상. null이면 플레이어
         private static string selectedNpcId;
-        private static string itemIdText = "";
+        private static string itemQuery = "";
+        private static string appliedItemQuery = "";
+        private static int itemPage;
         private static int selectedAttribute = -1;
         private static string attributeInput = "";
         private static string npcQuery = "";
@@ -201,7 +203,7 @@ namespace MOD_sWP6UL
                 int max = def.Max(limit);
                 Ui.Label(content, def.Label, 0, y, 160, 36);
                 Ui.Button("Select" + index, content, value.ToString(), 166, y, 104, 34, new Action(() => { selectedAttribute = index; attributeInput = ""; message = ""; Render(); }), true, index == selectedAttribute);
-                Ui.Label(content, def.Dyn(dyn).value.ToString(), 290, y, 170, 36);
+                Ui.Label(content, def.DynValue(dyn).ToString(), 290, y, 170, 36);
                 Ui.Label(content, min + " ~ " + max + (def.OwnLimit ? " (자체 상한)" : ""), 470, y, 230, 36, 18).color = Ui.Dim;
                 Ui.Button("Minus" + index, content, "-", 700, y, 56, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Get(Target.data.unitData.propertyData) - Step))));
                 Ui.Button("Plus" + index, content, "+", 762, y, 56, 34, new Action(() => Say(EditService.SetAttribute(Target, def, def.Get(Target.data.unitData.propertyData) + Step))));
@@ -274,29 +276,49 @@ namespace MOD_sWP6UL
 
         private static void RenderResources()
         {
+            const int rows = 8;
             WorldUnitBase player = Player;
-            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 70, Ui.Section);
-            Ui.Label(content, "영석: " + EditService.Money(player), 16, 15, 300, 40, 22);
-            Ui.Button("MoneyAdd", content, "+ " + Step, 330, 15, 140, 40, new Action(() => Say(EditService.AddMoney(Player, Step))));
-            StepButton(490, 15);
+            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 60, Ui.Section);
+            Ui.Label(content, "영석: " + EditService.Money(player), 16, 10, 300, 40, 22);
+            Ui.Button("MoneyAdd", content, "+ " + Step, 330, 10, 140, 40, new Action(() => Say(EditService.AddMoney(Player, Step))));
+            StepButton(490, 10);
+            Ui.Label(content, "'단위'는 영석 추가량과 아이템 지급 수량에 함께 쓰입니다.", 656, 12, 270, 36, 14).color = Ui.Dim;
 
-            Ui.Panel("ItemBox", content, 0, 90, ContentW, 330, Ui.Section);
-            int itemId;
-            bool hasId = int.TryParse(itemIdText, out itemId);
-            string name = hasId ? EditService.ItemName(itemId) : null;
-            Ui.Label(content, "아이템 지급", 16, 100, 300, 36, 22);
-            Ui.Label(content, "아이템 ID: " + (itemIdText.Length == 0 ? "(아래 숫자판으로 입력)" : itemIdText), 16, 144, 500, 36);
-            Text nameLabel = Ui.Label(content, !hasId ? "" : name == null ? "게임에 없는 아이템 ID입니다." : "이름: " + name, 16, 184, 600, 36);
-            nameLabel.color = name == null ? Ui.Warn : Color.white;
-            for (int digit = 0; digit <= 9; digit++)
+            // 아이템 지급: 이름으로 찾아서 고른다.
+            Ui.Label(content, "아이템 지급", 0, 70, 160, 40, 21);
+            Ui.Input("ItemQuery", content, itemQuery, "아이템 이름의 일부", 160, 70, 300, 40, new Action<string>(v => itemQuery = v));
+            Ui.Button("ItemSearch", content, "검색", 468, 70, 90, 40, new Action(() => { appliedItemQuery = itemQuery.Trim(); itemPage = 0; message = ""; Render(); }));
+            Ui.Button("ItemSearchClear", content, "지움", 564, 70, 90, 40, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemPage = 0; message = ""; Render(); }), itemQuery.Length > 0 || appliedItemQuery.Length > 0);
+
+            List<ItemCatalog.Entry> found = ItemCatalog.Find(appliedItemQuery);
+            int pages = Math.Max(1, (found.Count + rows - 1) / rows);
+            itemPage = Mathf.Clamp(itemPage, 0, pages - 1);
+            Ui.Label(content, appliedItemQuery.Length > 0 ? "'" + appliedItemQuery + "' 검색 결과 " + found.Count + "개" : "전체 " + found.Count + "개", 664, 70, 260, 40, 16).color = Ui.Dim;
+            if (found.Count == 0)
             {
-                string d = digit.ToString();
-                Ui.Button("Digit" + d, content, d, 16 + digit * 62, 232, 56, 48, new Action(() => { if (itemIdText.Length < 9) { itemIdText += d; } Render(); }));
+                Ui.Label(content, "그런 이름의 아이템이 없습니다. 이름의 일부만 넣어 보세요.", 0, 122, 880, 36, 18).color = Ui.Warn;
             }
-            Ui.Button("Back", content, "한 글자 지움", 16, 292, 160, 44, new Action(() => { if (itemIdText.Length > 0) { itemIdText = itemIdText.Substring(0, itemIdText.Length - 1); } Render(); }));
-            Ui.Button("ClearId", content, "모두 지움", 190, 292, 140, 44, new Action(() => { itemIdText = ""; Render(); }));
-            Ui.Button("Give", content, "지급 x" + Step, 16, 352, 180, 48, new Action(() => Say(EditService.GiveItem(Player, int.Parse(itemIdText), Step))), name != null);
-            Ui.Label(content, "수량은 위의 '단위' 값을 씁니다. 지급 대상은 플레이어입니다.", 210, 356, 680, 40, 18).color = Ui.Dim;
+            var props = player.data.unitData.propData;
+            for (int row = 0; row < rows; row++)
+            {
+                int index = itemPage * rows + row;
+                if (index >= found.Count)
+                {
+                    break;
+                }
+                ItemCatalog.Entry entry = found[index];
+                float y = 118 + row * 52;
+                Ui.Label(content, entry.Name, 0, y, 330, 28, 19);
+                Ui.Label(content, "보유 " + props.GetPropsNum(entry.Id) + "  ·  품질 " + entry.Level, 340, y, 240, 28, 16).color = Ui.Dim;
+                Ui.Label(content, Shorten(entry.Desc, 50), 12, y + 26, 760, 22, 14).color = Ui.Dim;
+                Ui.Button("ItemGive" + index, content, "지급 x" + Step, 780, y + 6, 130, 38, new Action(() => Say(EditService.GiveItem(Player, entry.Id, Step))));
+            }
+            float footer = 118 + rows * 52 + 4;
+            Ui.Button("ItemPrev", content, "이전", 0, footer, 90, 38, new Action(() => { itemPage--; Render(); }), itemPage > 0);
+            Ui.Label(content, (itemPage + 1) + " / " + pages, 96, footer, 110, 38, 18, TextAnchor.MiddleCenter);
+            Ui.Button("ItemNext", content, "다음", 212, footer, 90, 38, new Action(() => { itemPage++; Render(); }), itemPage < pages - 1);
+            Ui.Button("ItemNext10", content, "10쪽 뒤로", 308, footer, 130, 38, new Action(() => { itemPage += 10; Render(); }), itemPage < pages - 1);
+            Ui.Label(content, "지급 대상은 플레이어입니다.", 456, footer, 400, 38, 15).color = Ui.Dim;
         }
 
         private static void RenderGrade()
