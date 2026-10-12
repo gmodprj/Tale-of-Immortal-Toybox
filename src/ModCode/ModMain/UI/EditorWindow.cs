@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using MelonLoader;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace MOD_sWP6UL
@@ -21,6 +24,12 @@ namespace MOD_sWP6UL
         private const int OverlayOrder = 30000;
         // 게임 화면의 정렬은 20 간격이다(UIMgr.UIIntervalSorting). 그 사이에 끼운다.
         private const int OrderAboveTop = 10;
+        // 창의 위치는 1920x1080 기준 좌표다(왼쪽 위가 원점, y는 아래로 증가). 제목 줄의 세로 전체와 가로 200 이상이 화면 안에 남아야 한다.
+        private const float ScreenW = 1920;
+        private const float ScreenH = 1080;
+        private const float MinVisible = 200;
+        private const float DefaultX = 60;
+        private const float DefaultY = 60;
         private const float FlashSeconds = 0.6f;
         private static readonly Color FlashColor = new Color(0.36f, 0.31f, 0.14f, 1f);
 
@@ -41,6 +50,11 @@ namespace MOD_sWP6UL
         private static bool tickWarned;
         private static bool cameraMode;   // 게임과 같은 카메라 방식으로 그리는 중인지
         private static int raisedTop;     // 맨 앞으로 가져올 때의 UI 층 맨 위 정렬 값
+        private static Vector2 position = new Vector2(DefaultX, DefaultY);
+        private static Vector2 dragStart;   // 끌기를 시작할 때의 창 위치
+        private static Vector2 dragMoved;   // 끌기를 시작한 뒤의 누적 이동량(화면 픽셀, y는 위로 증가)
+        private static bool collapsed;
+        private static Text collapseLabel;
 
         // NPC 탭에서 고른 NPC. 세계 탭의 "선택한 NPC에게 이동"이 쓴다.
         public static string SelectedNpcId;
@@ -107,6 +121,150 @@ namespace MOD_sWP6UL
             {
                 return false;
             }
+        }
+
+        private static string ConfigPath
+        {
+            get { return Path.Combine(ChangeLog.DataDir, "config.txt"); }
+        }
+
+        private static Vector2 Clamp(Vector2 p)
+        {
+            return new Vector2(
+                Mathf.Round(Mathf.Clamp(p.x, MinVisible - Width, ScreenW - MinVisible)),
+                Mathf.Round(Mathf.Clamp(p.y, 0f, ScreenH - TitleH)));
+        }
+
+        private static void MoveTo(float x, float y)
+        {
+            position = Clamp(new Vector2(x, y));
+            window.anchoredPosition = new Vector2(position.x, -position.y);
+        }
+
+        // config.txt의 "window=<x>,<y>"를 읽는다. 없거나 읽을 수 없으면 기본 위치, 화면 밖이면 범위 안의 가장 가까운 자리.
+        private static void LoadPosition()
+        {
+            position = new Vector2(DefaultX, DefaultY);
+            try
+            {
+                if (!File.Exists(ConfigPath))
+                {
+                    return;
+                }
+                foreach (string line in File.ReadAllLines(ConfigPath))
+                {
+                    string trimmed = line.Trim();
+                    if (!trimmed.StartsWith("window=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    string[] parts = trimmed.Substring(7).Split(',');
+                    int x, y;
+                    if (parts.Length == 2 && int.TryParse(parts[0].Trim(), out x) && int.TryParse(parts[1].Trim(), out y))
+                    {
+                        position = Clamp(new Vector2(x, y));
+                    }
+                }
+            }
+            catch (IOException e)
+            {
+                MelonLogger.Msg("[TlToybox] 창 위치를 읽지 못했습니다: " + e.Message);
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                MelonLogger.Msg("[TlToybox] 창 위치를 읽지 못했습니다: " + e.Message);
+            }
+        }
+
+        // 위치를 config.txt에 쓴다. 다른 줄(hotkey= 등)은 그대로 두고 window= 줄만 바꾼다. 쓰지 못해도 동작에는 영향이 없다.
+        private static void SavePosition()
+        {
+            try
+            {
+                Directory.CreateDirectory(ChangeLog.DataDir);
+                var lines = new List<string>();
+                if (File.Exists(ConfigPath))
+                {
+                    foreach (string line in File.ReadAllLines(ConfigPath))
+                    {
+                        if (!line.Trim().StartsWith("window=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            lines.Add(line);
+                        }
+                    }
+                }
+                lines.Add("window=" + (int)position.x + "," + (int)position.y);
+                File.WriteAllLines(ConfigPath, lines.ToArray());
+            }
+            catch (IOException e)
+            {
+                MelonLogger.Msg("[TlToybox] 창 위치를 저장하지 못했습니다: " + e.Message);
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                MelonLogger.Msg("[TlToybox] 창 위치를 저장하지 못했습니다: " + e.Message);
+            }
+        }
+
+        // 버튼 콜백 안의 예외는 화면에 나오지 않는다. 끌기는 초당 수십 번 불리므로 한 번만 로그에 남긴다.
+        private static void AddEntry(EventTrigger trigger, EventTriggerType type, Action<BaseEventData> call)
+        {
+            var entry = new EventTrigger.Entry();
+            entry.eventID = type;
+            if (entry.callback == null)
+            {
+                entry.callback = new EventTrigger.TriggerEvent();
+            }
+            entry.callback.AddListener(new Action<BaseEventData>(data =>
+            {
+                try
+                {
+                    call(data);
+                }
+                catch (Exception e)
+                {
+                    if (!tickWarned)
+                    {
+                        tickWarned = true;
+                        MelonLogger.Msg("[TlToybox] 창 끌기 오류: " + e.Message);
+                    }
+                }
+            }));
+            trigger.triggers.Add(entry);
+        }
+
+        // 제목 줄의 바탕을 끌기 손잡이로 만든다.
+        // 위치는 끌기 시작 위치 + 누적 이동량으로 계산한다. 매번 더해 가면 소수 오차가 쌓인다(실측: 10번에 59.99997).
+        private static void AddDrag(GameObject handle)
+        {
+            var trigger = handle.AddComponent<EventTrigger>();
+            AddEntry(trigger, EventTriggerType.BeginDrag, data =>
+            {
+                dragStart = position;
+                dragMoved = Vector2.zero;
+            });
+            AddEntry(trigger, EventTriggerType.Drag, data =>
+            {
+                dragMoved = dragMoved + data.Cast<PointerEventData>().delta;
+                float scale = canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
+                MoveTo(dragStart.x + dragMoved.x / scale, dragStart.y - dragMoved.y / scale);
+            });
+            AddEntry(trigger, EventTriggerType.EndDrag, data => SavePosition());
+        }
+
+        // 접으면 제목 줄만 남는다. 접힌 상태는 기억하지 않는다(다음에 열면 펼친 상태).
+        public static void SetCollapsed(bool value)
+        {
+            if (window == null)
+            {
+                return;
+            }
+            collapsed = value;
+            tabBar.gameObject.SetActive(!value);
+            content.gameObject.SetActive(!value);
+            messageBox.gameObject.SetActive(!value);
+            window.sizeDelta = new Vector2(Width, value ? TitleH : Height);
+            collapseLabel.text = value ? "펼침" : "접기";
         }
 
         // 편집기를 맨 앞으로 가져온다. 지금 열려 있는 게임 화면들 바로 위에 놓으므로, 이 뒤에 열리는 게임 화면은 편집기 위에 뜬다.
@@ -246,6 +404,7 @@ namespace MOD_sWP6UL
             }
             root.SetActive(true);
             Raise();
+            SetCollapsed(false);
             for (int i = 0; i < tabs.Length; i++)
             {
                 tabs[i].OnOpen();
@@ -265,11 +424,14 @@ namespace MOD_sWP6UL
             scaler.referenceResolution = new Vector2(1920, 1080);
             root.AddComponent<GraphicRaycaster>();
 
-            window = Ui.Panel("Window", root.transform, 60, 60, Width, Height, Ui.Background);
-            // 제목 줄의 바탕. 버튼보다 먼저 만들어 버튼 아래에 깔리게 한다.
-            Ui.Panel("TitleBar", window, 0, 0, Width, TitleH, Ui.Section);
+            LoadPosition();
+            window = Ui.Panel("Window", root.transform, position.x, position.y, Width, Height, Ui.Background);
+            // 제목 줄의 바탕이자 끌기 손잡이. 버튼보다 먼저 만들어 버튼 아래에 깔리게 한다.
+            AddDrag(Ui.Panel("TitleBar", window, 0, 0, Width, TitleH, Ui.Section).gameObject);
             Ui.Label(window, "TlToybox 편집기", 20, 8, 230, 36, 24);
             titleArea = Ui.Rect("Title", window, 260, 8, 790, 36);
+            Button collapse = Ui.Button("Collapse", window, "접기", Width - 196, 8, 90, 36, new Action(() => SetCollapsed(!collapsed)));
+            collapseLabel = collapse.GetComponentInChildren<Text>();
             Ui.Button("Close", window, "닫기", Width - 100, 8, 84, 36, new Action(Close));
             tabBar = Ui.Rect("Tabs", window, 16, ContentY, 150, 9 * 52);
             content = Ui.Rect("Content", window, ContentX, ContentY, ContentW, ContentH);
@@ -385,6 +547,7 @@ namespace MOD_sWP6UL
                 return "open=" + IsOpen + " tab=" + tab + " target=" + (targetId == null ? "player" : "npc")
                     + " mode=" + (canvas == null ? "none" : canvas.renderMode.ToString()) + " order=" + (canvas == null ? 0 : canvas.sortingOrder)
                     + " covered=" + IsCovered + " top=" + g.ui.GetLayerTopSort(UILayer.UI)
+                    + " pos=" + (int)position.x + "," + (int)position.y + " collapsed=" + collapsed
                     + " message='" + message + "'";
             }
         }

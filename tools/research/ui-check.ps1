@@ -5,6 +5,27 @@ param([Parameter(Mandatory)][string]$Part)
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
 $tabProbe = @('Restore', 'MoneyAdd', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
+# 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
+function GameScreen([string]$do) {
+  $want = if ($do -eq 'open') { 20 } else { 0 }
+  Cmd "ui$do PlayerInfo" 300 | Out-Null
+  for ($i = 0; $i -lt 25 -and (Cmd 'uistate' 100) -notmatch " top=$want "; $i++) { Start-Sleep -Milliseconds 200 }
+  Start-Sleep -Milliseconds 300   # 편집기의 주기 처리가 정렬을 맞출 틈
+}
+function WinState {
+  $o = Cmd 'uistate' 100
+  if ($o -notmatch ' pos=(-?\d+),(-?\d+) collapsed=(\w+) ') { throw "uistate 출력을 읽지 못했습니다: $o" }
+  [pscustomobject]@{ x = [int]$Matches[1]; y = [int]$Matches[2]; collapsed = ($Matches[3] -eq 'True'); raw = $o }
+}
+# 제목 줄의 보이는 빈 곳을 잡아 창의 왼쪽 위가 (x,y)에 오도록 끈다.
+# 잡는 곳은 닫기 버튼 오른쪽의 틈(창 안 x=1492)이고, 그곳이 화면 밖이면 제목 글자 자리(x=150)다. 글자는 클릭을 받지 않아 바탕이 잡힌다.
+function DragWindowTo([int]$x, [int]$y) {
+  $w = WinState
+  $gx = $w.x + 1492
+  if ($gx -gt 1917) { $gx = $w.x + 150 }
+  $gy = $w.y + 26
+  Cmd "uidrag $gx $gy $($gx + $x - $w.x) $($gy + $y - $w.y) 5" 300
+}
 
 switch ($Part) {
   'base' {
@@ -97,7 +118,7 @@ switch ($Part) {
     Check 'opens in camera mode just above the map' ($s -match 'mode=ScreenSpaceCamera order=10 covered=False top=0 ') $s
 
     # 스펙 6절 2번: 나중에 연 게임 화면이 위에 뜨고, Insert가 편집기를 맨 앞으로 가져온다
-    Cmd 'uiopen PlayerInfo' 1500 | Out-Null
+    GameScreen open
     $s = Cmd 'uistate'
     Check 'a game screen opened later covers the editor' ($s -match 'covered=True top=20 ' -and -not (IsAt 'Tab0')) $s
     Key 0x2D
@@ -105,13 +126,13 @@ switch ($Part) {
     Check 'Insert brings a covered editor to the front' ($s -match 'open=True .*order=30 covered=False ' -and (IsAt 'Tab0')) $s
 
     # 스펙 6절 3번: 아래의 게임 화면이 닫히면 정렬을 낮춘다
-    Cmd 'uiclose PlayerInfo' 1500 | Out-Null
+    GameScreen close
     $s = Cmd 'uistate'
     Check 'order drops when the screen below closes' ($s -match 'order=10 covered=False top=0 ') $s
-    Cmd 'uiopen PlayerInfo' 1500 | Out-Null
+    GameScreen open
     Check 'the reopened screen is above the editor again' ((Cmd 'uistate') -match 'covered=True ' -and -not (IsAt 'Tab0'))
-    Cmd 'uiclose PlayerInfo' 1500 | Out-Null
-    Key 0x2D
+    GameScreen close
+    Cmd 'uitoggle' | Out-Null   # 단축키와 같은 동작. 실제 키는 위에서 한 번 보냈다
     Check 'Insert closes an editor that is in front' ((Cmd 'uistate') -match 'open=False ')
 
     # 스펙 6절 4번: 확인 창은 더 높은 층이라 항상 위다. 가려진 것으로 치지 않는다
@@ -122,16 +143,97 @@ switch ($Part) {
     Check 'editor is usable again' (IsAt 'Tab0')
 
     # Review Focus 4: Insert를 빠르게 여러 번, 가려진 상태와 섞어서
-    1..6 | ForEach-Object { Key 0x2D 150 }
+    1..6 | ForEach-Object { Cmd 'uitoggle' 100 | Out-Null }
     Check 'six quick toggles end where they started' ((Cmd 'uistate') -match 'open=True ')
-    Cmd 'uiopen PlayerInfo' 1500 | Out-Null
-    1..3 | ForEach-Object { Key 0x2D 150 }   # 맨 앞으로 → 닫기 → 열기
+    GameScreen open
+    1..3 | ForEach-Object { Cmd 'uitoggle' 100 | Out-Null }   # 맨 앞으로 → 닫기 → 열기
     $s = Cmd 'uistate'
     Check 'toggles mixed with a covering screen stay consistent' ($s -match 'open=True .*order=30 covered=False ') $s
-    Cmd 'uiclose PlayerInfo' 1500 | Out-Null
+    GameScreen close
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'move' {
+    # 창 위치는 세이브 폴더 밖의 config.txt에 남는다(회차를 되돌려도 남는다). 시험 전의 파일을 떠 두고 move-corrupt에서 되돌린다.
+    $traps = Traps
+    Copy-Item -LiteralPath (Join-Path $data 'config.txt') -Destination (Join-Path $work 'check-config.txt') -Force
+    Cmd 'editor' | Out-Null
+    $o = DragWindowTo 60 60
+    Check 'the title bar takes the drag' ($o -match 'handler=TitleBar ') $o
+    $w = WinState
+    Check 'window is at the base position' ($w.x -eq 60 -and $w.y -eq 60) $w.raw
+    $t = Pos 'Tab0'
+
+    # 스펙 6절 5번: 끌면 따라 움직이고, 옮긴 자리에서 버튼이 눌린다
+    DragWindowTo 260 160 | Out-Null
+    $w = WinState; $t2 = Pos 'Tab0'
+    Check 'window follows the drag' ($w.x -eq 260 -and $w.y -eq 160) $w.raw
+    Check 'everything inside moved with it' ($t2.x -eq $t.x + 200 -and $t2.y -eq $t.y + 100 -and (IsAt 'Tab0')) "tab0 $($t.x),$($t.y) -> $($t2.x),$($t2.y)"
+    Press 'Tab1' | Out-Null
+    Check 'buttons work at the new place' ((Cmd 'uistate') -match 'tab=1 ')
+    Check 'position is written to config.txt' ([bool]((Get-Content -LiteralPath (Join-Path $data 'config.txt') -Encoding UTF8) -match '^window=260,160$'))
+    Check 'other config lines are kept' ([bool]((Get-Content -LiteralPath (Join-Path $data 'config.txt') -Encoding UTF8) -match '^hotkey='))
+
+    # 화면 밖으로는 나가지 않는다
+    DragWindowTo 5000 5000 | Out-Null
+    $w = WinState
+    Check 'stops at the right and bottom limits' ($w.x -eq 1720 -and $w.y -eq 1028) $w.raw
+    DragWindowTo -5000 -5000 | Out-Null
+    $w = WinState
+    Check 'stops at the left and top limits' ($w.x -eq -1300 -and $w.y -eq 0) $w.raw
+    DragWindowTo 260 160 | Out-Null
+
+    # 스펙 6절 6번: 접기와 펼침
+    Press 'Tab0' | Out-Null
+    $t = Pos 'Tab0'
+    Press 'Collapse' | Out-Null
+    $w = WinState
+    Check 'collapsed' ($w.collapsed -and (Cmd 'uitext Collapse') -match "text='펼침'") $w.raw
+    Check 'the folded area lets clicks through to the game' ((Rc "hit $($t.x) $($t.y)" 200) -notmatch 'TlToyboxEditor')
+    Check 'the title bar is still there' (IsAt 'Close')
+
+    # Review Focus 3: 접힌 상태에서 끌기, 접은 채 닫았다가 다시 열기
+    DragWindowTo 300 200 | Out-Null
+    $w = WinState
+    Check 'a collapsed window can be dragged' ($w.x -eq 300 -and $w.y -eq 200 -and $w.collapsed) $w.raw
+    Press 'Collapse' | Out-Null
+    $w = WinState; $t2 = Pos 'Tab0'
+    Check 'expands again where it was dragged, on the same tab' (-not $w.collapsed -and $w.raw -match ' tab=0 ' -and $t2.x -eq $t.x + 40 -and $t2.y -eq $t.y + 40 -and (IsAt 'Tab0')) $w.raw
+    Press 'Collapse' | Out-Null
+    Press 'Close' | Out-Null
+    Cmd 'editor' | Out-Null
+    $w = WinState
+    Check 'reopening shows it expanded at the same place' (-not $w.collapsed -and $w.x -eq 300 -and $w.y -eq 200 -and (IsAt 'Tab0')) $w.raw
+
+    DragWindowTo 260 160 | Out-Null   # move-restart가 확인할 위치
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'move-restart' {
+    Cmd 'editor' | Out-Null
+    $w = WinState
+    Check 'position survives a restart' ($w.x -eq 260 -and $w.y -eq 160) $w.raw
+    Press 'Close' | Out-Null
+    # Review Focus 1: 깨진 값과 화면 밖의 값으로 다시 시작할 준비
+    $lines = @(Get-Content -LiteralPath (Join-Path $work 'check-config.txt') -Encoding UTF8 | Where-Object { $_ -notmatch '^window=' })
+    [IO.File]::WriteAllLines((Join-Path $data 'config.txt'), [string[]]($lines + 'window=abc' + 'window=99999,-99999' + 'window=7'))
+    'corrupt config written'
+  }
+  'move-corrupt' {
+    Cmd 'editor' | Out-Null
+    $w = WinState
+    Check 'unreadable lines are skipped and an off-screen value is pulled inside' ($w.x -eq 1720 -and $w.y -eq 0) $w.raw
+    # 이 자리에서는 제목 줄의 왼쪽 200만 화면 안에 있다. 그 부분이 잡히는지 본다.
+    Check 'the visible part of the title bar can be grabbed' ((Rc 'hit 1870 26' 200) -match '/TitleBar\s*$')
+    DragWindowTo 60 60 | Out-Null
+    Check 'and dragged back' ((WinState).x -eq 60 -and (IsAt 'Close'))
+    Press 'Close' | Out-Null
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+    Copy-Item -LiteralPath (Join-Path $work 'check-config.txt') -Destination (Join-Path $data 'config.txt') -Force
+    [IO.File]::Delete((Join-Path $work 'check-config.txt'))
+    'config.txt restored'
   }
   'battle' {
     # 스펙 6절 21번, Review Focus 5. 전투에서 나오는 방법을 자동화하지 않았으므로 회차의 마지막에 돌리고 바로 -End 한다.

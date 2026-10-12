@@ -31,6 +31,13 @@ namespace MOD_sWP6UL
                     return Focus(p[1]);
                 case "uidrag":
                     return Drag(int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]), int.Parse(p[4]), p.Length > 5 ? int.Parse(p[5]) : 4);
+                case "uitoggle":
+                    // 단축키와 같은 동작. 화면 밖의 게임에 보낸 키는 가끔 빠지므로, 여닫기의 판정은 이 명령으로 시험한다.
+                    EditorWindow.Toggle();
+                    return EditorWindow.DevState;
+                case "uicollapse":
+                    EditorWindow.SetCollapsed(p[1] == "on");
+                    return EditorWindow.DevState;
                 case "uiraise":
                     EditorWindow.Raise();
                     return EditorWindow.DevState;
