@@ -58,6 +58,11 @@ namespace MOD_sWP6UL
         private static int pendingLuckRemove;
         private static int luckReplaceIndex = -1; // 교체할 선천운명 자리. -1이면 후천운명 추가
         private static bool luckPicking;
+        private static bool fateOpen;       // 운명 탭의 역천개명 화면
+        private static int fatePickGrade;   // 후보를 고르는 중인 대경지. 0이면 목록 화면
+        private static int fatePickPage;
+        private static string fateQuery = "";
+        private static string appliedFateQuery = "";
         private static int luckType = 1;
         private static int luckPickPage;
         private static string luckQuery = "";
@@ -661,9 +666,88 @@ namespace MOD_sWP6UL
             return text.Length <= max ? text : text.Substring(0, max) + "…";
         }
 
+        // 운명 탭의 역천개명 화면: 도달한 경지마다 한 줄. 변경을 누르면 그 경지의 후보 목록이 열린다.
+        private static void RenderFate(WorldUnitBase target)
+        {
+            if (fatePickGrade > 0)
+            {
+                RenderFatePicker(target, 12);
+                return;
+            }
+            Ui.Label(content, "역천개명 — " + EditService.NameOf(target), 0, 0, 600, 36, 21);
+            Ui.Button("FateBack", content, "돌아가기", ContentW - 130, 0, 130, 36, new Action(() => { fateOpen = false; message = ""; Render(); }));
+            Ui.Label(content, "경지", 0, 48, 200, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "역천개명", 210, 48, 240, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "효과", 460, 48, 600, 30, 18).color = Ui.Dim;
+            List<FateService.Slot> slots = FateService.Slots(target);
+            if (slots.Count == 0)
+            {
+                Ui.Label(content, "역천개명은 축기경부터 경지마다 하나씩 있습니다. 이 인물은 아직 축기경에 이르지 않았습니다.", 0, 84, ContentW, 36, 18).color = Ui.Warn;
+            }
+            for (int i = 0; i < slots.Count; i++)
+            {
+                FateService.Slot slot = slots[i];
+                float y = 82 + i * 40;
+                Ui.Label(content, slot.GradeName, 0, y, 200, 36);
+                Text name = Ui.Label(content, slot.LuckId == 0 ? "없음" : Shorten(slot.LuckName, 11), 210, y, 245, 36);
+                if (slot.LuckId == 0)
+                {
+                    name.color = Ui.Dim;
+                }
+                Ui.Label(content, Shorten(slot.Tips, 44), 460, y, 700, 36, 16);
+                Ui.Button("FateChange" + slot.Grade, content, slot.LuckId == 0 ? "정하기" : "변경", 1180, y + 1, 120, 34,
+                    new Action(() => { fatePickGrade = slot.Grade; fatePickPage = 0; message = ""; Render(); }));
+            }
+            Ui.Label(content, "게임의 경지 화면은 경지마다 역천개명 하나를 보여 줍니다. 여기서 정하면 효과와 그 화면의 표시가 함께 바뀝니다. 도달한 경지만 정할 수 있습니다.", 0, 82 + Math.Max(1, slots.Count) * 40 + 12, ContentW, 30, 15).color = Ui.Dim;
+        }
+
+        private static void RenderFatePicker(WorldUnitBase target, int rows)
+        {
+            int grade = fatePickGrade;
+            Ui.Label(content, "역천개명 고르기 — " + EditService.NameOf(target) + ", 대경지 " + grade, 0, 0, 700, 36, 21);
+            Ui.Button("FatePickBack", content, "돌아가기", ContentW - 130, 0, 130, 36, new Action(() => { fatePickGrade = 0; message = ""; Render(); }));
+            Ui.Input("FateQuery", content, fateQuery, "이름·효과의 일부", 0, 44, 250, 38, new Action<string>(v => fateQuery = v));
+            Ui.Button("FateSearch", content, "검색", 258, 44, 80, 38, new Action(() => { appliedFateQuery = fateQuery.Trim(); fatePickPage = 0; Render(); }));
+            Ui.Button("FateSearchClear", content, "지움", 344, 44, 80, 38, new Action(() => { fateQuery = ""; appliedFateQuery = ""; fatePickPage = 0; Render(); }), fateQuery.Length > 0 || appliedFateQuery.Length > 0);
+            Ui.Label(content, "이 경지에서 게임이 뽑을 수 있는 역천개명만 나옵니다.", 440, 44, 700, 38, 15).color = Ui.Dim;
+
+            List<LuckService.LuckView> candidates = FateService.Candidates(grade, appliedFateQuery);
+            int pages = Math.Max(1, (candidates.Count + rows - 1) / rows);
+            fatePickPage = Mathf.Clamp(fatePickPage, 0, pages - 1);
+            for (int row = 0; row < rows; row++)
+            {
+                int index = fatePickPage * rows + row;
+                if (index >= candidates.Count)
+                {
+                    break;
+                }
+                LuckService.LuckView view = candidates[index];
+                float y = 92 + row * 50;
+                bool has = LuckService.Has(target, view.Id);
+                Ui.Label(content, Shorten(view.Name, 14) + "  (품질 " + view.Level + ")", 0, y, 1000, 26, 18);
+                Ui.Label(content, Shorten(view.Tips, 76), 16, y + 24, 1080, 22, 15).color = Ui.Dim;
+                Ui.Button("FatePick" + index, content, has ? "보유 중" : "이것으로 정하기", ContentW - 190, y + 6, 190, 36, new Action(() =>
+                {
+                    string result = FateService.Set(Target, grade, view.Id);
+                    fatePickGrade = 0;
+                    Say(result);
+                }), !has);
+            }
+            float footer = 92 + rows * 50 + 4;
+            Ui.Button("FatePickPrev", content, "이전", 0, footer, 90, 38, new Action(() => { fatePickPage--; Render(); }), fatePickPage > 0);
+            Ui.Label(content, (fatePickPage + 1) + " / " + pages, 100, footer, 90, 38, 18, TextAnchor.MiddleCenter);
+            Ui.Button("FatePickNext", content, "다음", 200, footer, 90, 38, new Action(() => { fatePickPage++; Render(); }), fatePickPage < pages - 1);
+            Ui.Label(content, "후보 " + candidates.Count + "개", 310, footer, 600, 38, 16).color = Ui.Dim;
+        }
+
         private static void RenderLuck(WorldUnitBase target)
         {
             const int rows = 14;
+            if (fateOpen)
+            {
+                RenderFate(target);
+                return;
+            }
             if (luckPicking)
             {
                 RenderLuckPicker(target, 12);
@@ -721,6 +805,7 @@ namespace MOD_sWP6UL
             Ui.Button("LuckPrev", content, "이전", 0, footer, 90, 40, new Action(() => { luckPage--; pendingLuckRemove = 0; Render(); }), luckPage > 0);
             Ui.Label(content, (luckPage + 1) + " / " + pages, 100, footer, 80, 40, 18, TextAnchor.MiddleCenter);
             Ui.Button("LuckNext", content, "다음", 190, footer, 90, 40, new Action(() => { luckPage++; pendingLuckRemove = 0; Render(); }), luckPage < pages - 1);
+            Ui.Button("FateOpen", content, "역천개명 (경지별)", 470, footer, 220, 40, new Action(() => { fateOpen = true; fatePickGrade = 0; pendingLuckRemove = 0; message = ""; Render(); }));
             Ui.Button("LuckAddOpen", content, "운명 추가", 300, footer, 160, 40, new Action(() => { luckReplaceIndex = -1; luckPicking = true; luckPickPage = 0; pendingLuckRemove = 0; message = ""; Render(); }));
             Ui.Label(content, "게임의 인물 화면은 선천운명 칸과, 후천 분류의 후천운명만 보여 줍니다. \"표시 안 됨\"은 효과는 적용되지만 그 화면에 나오지 않는 운명입니다.", 0, footer + 48, ContentW, 30, 15).color = Ui.Dim;
         }
@@ -741,7 +826,7 @@ namespace MOD_sWP6UL
             Ui.Button("LuckSearchClear", content, "지움", 804, 44, 80, 38, new Action(() => { luckQuery = ""; appliedLuckQuery = ""; luckPickPage = 0; Render(); }), luckQuery.Length > 0 || appliedLuckQuery.Length > 0);
             string note = replacing ? "" : luckType == 1 ? "선천 분류는 선천운명 칸에 추가됩니다."
                 : luckType == 2 ? "후천 분류에는 게임이 진행 상태를 나타내려고 쓰는 운명이 섞여 있습니다."
-                : "역천개명 분류는 효과는 적용되지만 인물 화면의 운명 칸에 나오지 않습니다.";
+                : "역천개명 분류는 여기서 붙이면 효과만 적용됩니다. 경지 화면에 나오게 하려면 역천개명 (경지별)을 쓰세요.";
             Ui.Label(content, note, 900, 44, 400, 38, 14).color = Ui.Warn;
 
             List<LuckService.LuckView> candidates = LuckService.Candidates(luckType, appliedLuckQuery);
