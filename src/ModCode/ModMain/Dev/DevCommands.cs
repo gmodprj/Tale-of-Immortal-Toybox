@@ -60,6 +60,11 @@ namespace MOD_sWP6UL
             {
                 return ui;
             }
+            string skill = DevCommandsSkill.Execute(p);
+            if (skill != null)
+            {
+                return skill;
+            }
             string fate = DevCommandsFate.Execute(p);
             if (fate != null)
             {
