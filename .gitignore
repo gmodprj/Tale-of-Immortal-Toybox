@@ -5,3 +5,4 @@ obj/
 *.user
 ModProject_*/
 .superpowers/
+.devremote/

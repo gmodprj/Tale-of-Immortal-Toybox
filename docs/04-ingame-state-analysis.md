@@ -527,6 +527,28 @@ chm이 프록시보다 나은 점: 멤버마다 중국어 설명이 있고, 필�
 16. 시간 진행 `AddDay`, 순간 이동 `SetPoint`.
 17. 전투 이벤트 구독(`UnitHitDynIntHandler`)의 적용 범위 분리와 `Init` 재호출 시 중복 구독 방지.
 
+### 1단계 결과 (2026-10-12 실측)
+
+읽기 전용 탐침(`src/ModCode/ModMain/Features/ReadOnlyProbe.cs`)을 게임 v1.2.113.259에서 실행했다. 세이브는 연기 초기, 1년 1월의 캐릭터 하나다. 값은 쓰지 않았다. 근거는 `MelonLoader\Latest.log`의 `[TlToybox][probe]` 줄이다.
+
+| # | 항목 | 결과 | 판정 |
+|---|---|---|---|
+| 1 | `g.world.playerUnit.data.unitData.propertyData.GetName()` | 이름과 `unitID=kh3o73`이 읽혔다 | 읽기 확인됨 |
+| 2 | 저장값과 `DynInt.value` 비교 | 공격: 저장 20, `baseValue` 20, `value` 25. 행운: 저장 80, `value` 70. 방어·체력 상한·수명·경지는 세 값이 같다 | 읽기 확인됨. **저장값과 파생값이 실제로 다르다** |
+| 3 | `g.world.unit.GetUnits(false)` 순회 | 단위 1,511개, 이름까지 읽는 순회에 63ms | 읽기 확인됨. 매 프레임 전체 순회는 부담이지만 요청 시 한 번 순회는 문제없다 |
+| 4a | 가방 `propData.allProps` | 항목 4개, 칸 3/52. 영석은 `propsID=10001`, 수량 500인 아이템이고 `GetPropsNum(PropsIDType.Money)`도 500 | 읽기 확인됨. 영석이 아이템이라는 분석과 일치 |
+| 4b | 공법 `allActionMartial`, `To<DataProps.MartialData>()`, `GetPrefixs()` | 1개. `martialType=SkillLeft`, `baseID=11423`, `grade=1`, `exp=0`, 옵션 0개 | 읽기 확인됨. 옵션이 있는 공법은 이 세이브에 없어 `Prefix` 내용은 미확인 |
+| 5 | `g.data.world` | `worldDay=1`, `playerUnitID=kh3o73`(1번의 `unitID`와 같음), `gameLevel=Common`, `roundMonth=0` | 읽기 확인됨 |
+
+4~12절의 조사 기록에서 "읽기: 후보 확인(정적)"으로 적은 것 가운데 위 항목에 해당하는 것은 **읽기가 런타임에서 확인됐다.** 쓰기·저장 반영·연쇄 처리는 여전히 미확인이다.
+
+함께 확인된 사실:
+
+- 저장값을 그대로 `baseValue`로 쓰고, 그 위에 보정이 얹혀 `value`가 된다(공격 20 → 25). 화면의 수치는 `value` 쪽이다. 능력치 편집기는 저장값을 바꾸되 결과 확인은 `value`로 해야 한다.
+- 파생값이 저장값보다 작을 수도 있다(행운 80 → 70). 보정은 가산만이 아니다.
+- 프록시의 제네릭 메서드 `PropsData.To<T>()`와 IL2CPP `Dictionary`의 `foreach` 열거가 이 환경(MelonLoader 0.5.4)에서 동작한다.
+- 세계가 준비됐는지는 `g.world != null && g.world.isIntoWorld && g.world.playerUnit != null`로 판정할 수 있다. `Init` 직후에는 `g.world`는 있으나 `isIntoWorld`가 `false`였고, 세이브를 불러와 약 46초 뒤 준비됐다.
+
 **공통 확인 사항**
 
 - 세이브 시점(`DataMgr.SaveData(Action<T>)`, `isSaveData`)과 백업 대상 폴더(`01` 문서 9절의 `Steam\CacheData`).

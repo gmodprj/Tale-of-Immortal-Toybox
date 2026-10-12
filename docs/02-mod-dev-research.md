@@ -206,6 +206,27 @@ IL2CPP 환경의 제약(MelonLoader 위키 "Il2Cpp differences"와 공식 예제
 | `GameConfPack2/3.dll`의 역할 | 미확인 | 04 문서의 메타데이터 분석 |
 | 이 설치본에서의 창작마당 업로드 | 불가(01 문서 11절) | 정식 설치본 필요 |
 
+### 런타임 검증 결과 (2026-10-12)
+
+위 표의 일부를 게임에서 확인했다.
+
+| 항목 | 결과 |
+|---|---|
+| 모드 에디터가 만드는 프로젝트의 위치와 ID | 에디터에서 지정한 작업 폴더 아래 `ModProject_<ID>\`에 생긴다. 이 프로젝트는 `E:\TlToybox\ModProject_sWP6UL\`, ID는 `sWP6UL`. 작업 폴더는 레지스트리 `HKCU\Software\guigugame\guigubahuang`의 `ModTool_modProjectRootPath`에 저장된다 |
+| 에디터가 생성하는 코드 프로젝트 | `ModProject\ModCode\ModMain\`에 `ModMain.csproj`(`AssemblyName`·`RootNamespace`가 `MOD_sWP6UL`), `ModMain.cs`, `Example\`, 그리고 `dll\Assembly-CSharp.dll`(프록시 사본 45 MB)이 생긴다 |
+| SDK 형식 csproj 산출물의 디버그 로드 | **동작한다.** `bin\Release\MOD_sWP6UL.dll`을 "게임 디버깅 시작"이 `ModProject_sWP6UL\debug\Mod_sWP6UL\ModCode\dll\`로 복사해 로드했다. 로그에 `No Compatibility Layer for ...MOD_sWP6UL.dll` 경고가 한 줄 나오지만 로드와 실행에는 지장이 없었다 |
+| 게임 폴더로의 복사 | 디버그 로드는 게임 폴더에 아무것도 쓰지 않는다. 모드는 프로젝트의 `debug\` 폴더에서 직접 로드된다 |
+| `Init` 호출 시점 | "게임 디버깅 시작"을 누른 직후, **세이브를 불러오기 전**에 한 번 호출된다. 이때 `g.world`는 있지만 `g.world.isIntoWorld`가 `false`다. 세이브를 불러와 세계에 들어갈 때 `Init`이 다시 호출되지는 않았다 |
+| `g.timer.Frame` | `Init`에서 건 타이머가 세이브 로드를 거쳐 세계 진입 후까지 유지됐다 |
+| DLL 교체 | 한 번 로드된 DLL은 게임을 끄기 전에는 교체되지 않는다. 코드를 고치면 게임을 재시작해야 한다 |
+| 디버그 시작 후 안내 | "모드 가져오기 성공. '새 저장' 혹은 '예전 저장으로 진입'로 디버그를 진행해 주십시오." 알림이 뜨고 주 화면으로 돌아간다 |
+
+아직 확인하지 못한 것: `Destroy`의 호출 시점, 주 화면으로 돌아갔다가 다시 들어갈 때의 `Init` 재호출, 키 입력, IMGUI, UI 프리팹 재사용, `ModExportData\` 설치 경로.
+
+### 개발용 조작 도구
+
+게임 UI는 실제 마우스 커서 위치를 읽기 때문에 창에 클릭 메시지(`WM_LBUTTONDOWN`)를 보내는 방식으로는 조작되지 않았다. 대신 게임 프로세스 안에서 UI 클릭을 수행하는 개발 전용 MelonMod(`tools/DevRemote`)를 만들었다. 명령 파일(`.devremote\cmd.txt`)의 `click x y`를 읽어 `EventSystem.RaycastAll`로 대상을 찾고 `Button.onClick`을 호출한다. 창 내용은 `PrintWindow`로 캡처한다. 게임 창이 다른 창 뒤에 있어도 동작하고 실제 마우스·키보드를 쓰지 않는다. 이 도구는 게임의 `Mods\TlToyboxDevRemote.dll`로 설치되어 있으며 배포 대상이 아니다.
+
 ## 11. 출처
 
 로컬 자료(`E:\Games\Tale of Immortal\` 기준):
