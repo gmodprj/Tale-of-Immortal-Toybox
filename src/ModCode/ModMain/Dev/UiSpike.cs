@@ -46,6 +46,17 @@ namespace MOD_sWP6UL
                         canvasRoot = null;
                     }
                     return "ugui destroyed; clicks=" + clicks;
+                case "codes":
+                    {
+                        string raw = g.world.unit.GetUnits(false)[1].data.unitData.propertyData.GetName();
+                        var sb = new System.Text.StringBuilder();
+                        foreach (char c in raw) { sb.Append(((int)c).ToString("X4")).Append(' '); }
+                        var sq = new System.Text.StringBuilder();
+                        foreach (char c in (p.Length > 2 ? p[2] : "")) { sq.Append(((int)c).ToString("X4")).Append(' '); }
+                        return "name=" + sb + "| arg=" + sq;
+                    }
+                case "set":
+                    return EditorWindow.DevSetInput(p[2], p.Length > 3 ? p[3] : "");
                 case "clicks":
                     return "clicks=" + clicks;
                 default:
