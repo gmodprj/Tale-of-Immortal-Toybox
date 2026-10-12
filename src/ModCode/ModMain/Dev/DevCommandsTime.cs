@@ -49,6 +49,10 @@ namespace MOD_sWP6UL
                     return TimeService.OpenSkipMonth() ?? "opened";
                 case "tmsg":
                     return "message=" + EditorWindow.DevMessage;
+                case "bag":
+                    return BagService.Change(int.Parse(p[1]));
+                case "bagstat":
+                    return "id=" + g.data.world.playerUnitID + " extra=" + BagService.Extra + " " + BagService.Describe();
                 case "thud":
                     {
                         // HUD의 "이번 달의 시간을 전부 사용" 띠의 상태를 보고, 갱신 메서드를 하나씩 불러 본다.

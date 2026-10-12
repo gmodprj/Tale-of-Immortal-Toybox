@@ -210,6 +210,69 @@ switch ($Part) {
     Check 'exactly one month passed' ($s3.d -eq 1 -and $s3.round -eq 0 -and $s3.res -eq 30 -and $s3.day -eq ([math]::Floor($s2.day / 31) + 1) * 31) "day $($s2.day) -> $($s3.day)"
     Check 'history has the toggles' ((ChangeHistory) -match '날짜 고정')
   }
+  'bag' {
+    # 주 화면에서부터 60프레임 점검이 돌았다. 경고가 없어야 한다 (Review Focus 5)
+    Check 'no warning from the background tick' (-not (Select-String -LiteralPath $log -Pattern '가방 추가 칸을 적용하지 못했습니다'))
+    Cmd 'gridfill 600 5' 4000 | Out-Null   # 재료로 가방을 가득 채워 기준을 만든다
+    $g0 = Grid
+    Check 'no editor slots at start' ($g0.add -notmatch 'TlToybox') $g0.add
+    Check 'bag is full' ((Cmd 'gridfill 1 5' 1500) -match 'given=0 ')
+    Check 'minus at zero is refused' ((Cmd 'bag -10') -match '0~500 사이')
+
+    $o = (Cmd 'bag 10') + ' | ' + (Cmd 'bag 10'); $g = Grid
+    Check 'plus 20' ($g.max -eq $g0.max + 20 -and $g.add -match 'TlToybox=20') $o
+    Check 'file remembers 20' ([bool]((Get-Content -LiteralPath (Join-Path $data 'bag-slots.txt') -Encoding UTF8) -match '=20$'))
+    $o = Cmd 'gridfill 600 5' 4000; $g1 = Grid
+    Check 'exactly 20 more items fit' ($o -match 'given=20 ' -and $g1.cur -eq $g0.cur + 20) $o
+    Rc 'click 120 860' 2500 | Out-Null
+    Shot 'bag-screen'
+    Rc 'click 1722 160' 1200 | Out-Null
+
+    # 화면: 자원 탭
+    Cmd 'editor' | Out-Null
+    Rc 'click 151 238' | Out-Null
+    Check 'BagPlus button is where expected' ((Rc 'hit 1501 234' 300) -match 'BagPlus')
+    Rc 'click 1501 234' | Out-Null
+    Check 'BagPlus adds 10' ((Grid).max -eq $g0.max + 30)
+    Rc 'click 1425 234' | Out-Null
+    Check 'BagMinus removes 10' ((Grid).max -eq $g0.max + 20)
+    Shot 'bag-editor'
+    Rc 'click 1502 90' | Out-Null
+    Check 'history has the change' ((ChangeHistory) -match '가방 추가 칸')
+
+    # 저장 후 재시작 확인의 준비
+    [IO.File]::WriteAllText((Join-Path $work 'check-expect.txt'), [string]($g0.max + 20))
+    Cmd 'save' 5000 | Out-Null
+    Check 'saved' ([bool](Select-String -LiteralPath $log -Pattern 'SaveData callback ok=True'))
+  }
+  'bag-restart' {
+    $want = [int][IO.File]::ReadAllText((Join-Path $work 'check-expect.txt'))
+    Start-Sleep -Seconds 3
+    $g = Grid
+    Check 'slots are reapplied without opening the editor' ($g.max -eq $want -and $g.add -match 'TlToybox=20') "max=$($g.max) want=$want add=$($g.add)"
+    $o = Cmd 'bag -10'; $g1 = Grid
+    Check 'minus 10 keeps the items and warns' ($g1.max -eq $want - 10 -and $g1.cur -eq $g.cur -and $o -match '넘칩니다') $o
+    $o = Cmd 'bag -10'; $g2 = Grid
+    Check 'back to zero' ($g2.max -eq $want - 20 -and $g2.cur -eq $g.cur -and $g2.add -notmatch 'TlToybox') $o
+    Check 'file has no entry' (-not ((Get-Content -LiteralPath (Join-Path $data 'bag-slots.txt') -Encoding UTF8) -match '^[^#].*='))
+
+    # 깨진 파일로 다시 시작할 준비 (Review Focus 4)
+    if ((Cmd 'bagstat') -notmatch 'id=(\S+)') { throw 'bagstat 출력을 읽지 못했습니다.' }
+    $id = $Matches[1]
+    [IO.File]::WriteAllLines((Join-Path $data 'bag-slots.txt'), @('garbage', '=5', 'x=abc', "$id=9999", 'other=-30'))
+    'corrupt file written'
+  }
+  'bag-corrupt' {
+    Start-Sleep -Seconds 3
+    $g = Grid
+    Check 'out-of-range value is clamped to 500' ($g.add -match 'TlToybox=500') $g.add
+    Check 'no warning or error from the mod' (-not (Select-String -LiteralPath $log -Pattern 'TlToybox\].*(못했습니다|오류)'))
+    Check 'plus at the limit is refused' ((Cmd 'bag 10') -match '0~500 사이')
+    $o = Cmd 'bag -500'; $g1 = Grid
+    Check 'back to zero from 500' ($g1.add -notmatch 'TlToybox' -and $g1.max -eq $g.max - 500) $o
+    [IO.File]::Delete((Join-Path $data 'bag-slots.txt'))
+    'bag-slots.txt deleted'
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 "FAILS=$script:fails"

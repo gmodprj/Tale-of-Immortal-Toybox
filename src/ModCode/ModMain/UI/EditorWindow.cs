@@ -373,7 +373,11 @@ namespace MOD_sWP6UL
             Ui.Button("MoneyAdd", content, "영석 + " + moneyAmount, moneyRight + 20, 7, 200, 38, new Action(() => Say(EditService.AddMoney(Player, moneyAmount))));
             Ui.Label(content, "아이템 지급 수량", 16, 50, 250, 40, 20);
             AmountBar("ItemAmount", 340, 51, itemAmount, v => itemAmount = v);
-            Ui.Label(content, "아래 표의 지급 버튼 한 번에 이 수량만큼 지급합니다.", 840, 51, 460, 38, 15).color = Ui.Dim;
+            // 가방 칸. 편집기가 늘린 만큼만 되돌릴 수 있다.
+            int bagExtra = BagService.Extra;
+            Ui.Label(content, BagService.Describe(), 836, 50, 310, 40, 17);
+            Ui.Button("BagMinus", content, "-" + BagService.Step, 1150, 51, 70, 38, new Action(() => Say(BagService.Change(-BagService.Step))), bagExtra > 0);
+            Ui.Button("BagPlus", content, "+" + BagService.Step, 1226, 51, 70, 38, new Action(() => Say(BagService.Change(BagService.Step))), bagExtra < BagService.MaxExtra);
 
             // 필터: 아이템명
             Ui.Label(content, "아이템명", 0, 106, 90, 38);

@@ -38,10 +38,10 @@ function CloseGame {
     for ($i = 0; $i -lt 60 -and -not $game.HasExited; $i++) { Start-Sleep -Milliseconds 500; $game.Refresh() }
     if (-not $game.HasExited) { throw "게임이 닫히지 않았습니다(pid $id)." }
     $game.Dispose()
-    # 끝난 직후에는 프로세스 목록에 잠깐 남아 있다. 사라질 때까지 기다린다.
-    for ($i = 0; $i -lt 20 -and (Get-Process -Id $id -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
   }
   [IO.File]::Delete($pidFile)
+  # 창이 닫힌 뒤에도 같은 이름의 프로세스가 잠깐 목록에 남는다(두 번 관찰). 사라질 때까지 기다린다.
+  for ($i = 0; $i -lt 30 -and (Get-Process guigubahuang -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
 }
 
 function Snapshot([string]$root) {
