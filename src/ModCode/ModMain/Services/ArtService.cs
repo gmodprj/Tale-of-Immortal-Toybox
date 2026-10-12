@@ -88,7 +88,55 @@ namespace MOD_sWP6UL
             }
             bool ok = LearnNow(kind, book.Id);
             ChangeLog.Add(EditService.NameOf(g.world.playerUnit), kind.Tab + " " + book.Name + "(" + book.Id + ")", "안 배움", ok ? "배움" : "안 배움", ok);
-            return ok ? kind.Tab + " 배움: " + book.Name : book.Name + ": 게임이 배우게 하지 않았습니다.";
+            return ok ? kind.Tab + " 배움: " + book.Name : book.Name + ": 게임이 배우게 하지 않았습니다. 강제 추가로 넣을 수 있습니다.";
+        }
+
+        // 지금 게임의 방식으로 배울 수 없는 이유. 배울 수 있으면 null.
+        public static string BlockReason(Kind kind, int id)
+        {
+            WorldUnitBase player = g.world.playerUnit;
+            DataProps.PropsData props = DataProps.PropsData.NewProps(id, 1);
+            if (kind.ItemClass == PillFormulaClass)
+            {
+                int code = player.IsCreateAction(new UnitActionPropPillFormulaStudy(props), false);
+                return code == 0 ? null : "게임의 학습 조건을 채우지 못했습니다(코드 " + code + ")";
+            }
+            var errors = UnitUnitArtistrySkillStudy.GetStudyErrorTip(player, props);
+            if (errors == null || errors.Count == 0)
+            {
+                return null;
+            }
+            return MartialService.CleanDesc(errors[0]).Replace('\n', ' ');
+        }
+
+        // 게임의 조건을 건너뛰고 배운 기록에 직접 넣는다.
+        public static string ForceLearn(Kind kind, ItemCatalog.Entry book)
+        {
+            if (Learned(kind, book.Id))
+            {
+                return book.Name + ": 이미 배웠습니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            var world = g.data.world;
+            if (kind.ItemClass == PillFormulaClass)
+            {
+                var formula = new DataWorld.World.PillFormulaData();
+                formula.id = book.Id;
+                formula.exp = 0;
+                formula.maxExp = 100; // 게임이 새로 배운 단방에 넣는 값(실측)
+                world.pillFormulas.Add(formula);
+            }
+            else
+            {
+                world.allArtistrySkillID.Add(book.Id);
+            }
+            bool ok = Learned(kind, book.Id);
+            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), kind.Tab + " " + book.Name + "(" + book.Id + ") 강제", "안 배움", ok ? "배움" : "안 배움", ok);
+            return ok ? kind.Tab + " 강제 추가: " + book.Name : book.Name + ": 넣지 못했습니다.";
         }
 
         public static string LearnAll(Kind kind)
@@ -128,7 +176,7 @@ namespace MOD_sWP6UL
                 }
             }
             int failed = books.Count - done.Count;
-            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), kind.Tab + " " + kind.Book + " 모두 배우기", "", learned + "개 배움", failed == 0);
+            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), kind.Tab + " " + kind.Book + " 모두 배우기", "", learned + "개 배움", learned > 0 || failed == 0);
             return kind.Tab + ": " + learned + "개를 배웠습니다." + (failed > 0 ? " " + failed + "개는 게임이 배우게 하지 않았습니다." : "");
         }
 

@@ -69,6 +69,7 @@ namespace MOD_sWP6UL
         private static int skillKind;
         private static int skillPage;
         private static int skillGrade;
+        private static int skillPending;      // 강제 추가 확인 중인 기술 번호
         private static string skillQuery = "";
         private static string appliedSkillQuery = "";  // 망각 확인 중인 공법
         private static bool fateOpen;       // 운명 탭의 역천개명 화면
@@ -571,7 +572,7 @@ namespace MOD_sWP6UL
             for (int i = 0; i < SkillCatalog.Kinds.Length; i++)
             {
                 int index = i;
-                Ui.Button("SkillKind" + i, content, SkillCatalog.Kinds[i].Tab, i * 156, 44, 150, 38, new Action(() => { skillKind = index; skillPage = 0; message = ""; Render(); }), true, skillKind == i);
+                Ui.Button("SkillKind" + i, content, SkillCatalog.Kinds[i].Tab, i * 156, 44, 150, 38, new Action(() => { skillKind = index; skillPage = 0; skillPending = 0; message = ""; Render(); }), true, skillKind == i);
             }
             Ui.Input("SkillQuery", content, skillQuery, "이름의 일부 또는 번호", 800, 44, 250, 38, new Action<string>(v => skillQuery = v));
             Ui.Button("SkillSearch", content, "검색", 1058, 44, 80, 38, new Action(() => { appliedSkillQuery = skillQuery.Trim(); skillPage = 0; Render(); }));
@@ -588,9 +589,11 @@ namespace MOD_sWP6UL
                 int value = grade;
                 Ui.Button("SkillGrade" + grade, content, grade.ToString(), 60 + (grade - 1) * 50, 90, 46, 36, new Action(() => { skillGrade = value; message = ""; Render(); }), true, skillGrade == grade);
             }
-            Ui.Label(content, "기술의 경지(1 연기 ~ 10)입니다. 옵션은 게임의 뽑기로 정해지고, 추가한 뒤 이 탭에서 품질·교체로 고칠 수 있습니다.", 580, 90, 720, 36, 15).color = Ui.Dim;
+            Ui.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", 580, 90, 240, 36, new Action(() => { skillPending = 0; Say(SkillCatalog.LearnAll(Target, skillKind, skillGrade)); }));
+            Ui.Label(content, "선택한 경지에서 배울 수 있고 아직 익히지 않은 것만 넣습니다. 옵션은 게임의 뽑기로 정해집니다.", 834, 90, 470, 36, 13).color = Ui.Dim;
 
             List<SkillCatalog.Entry> found = SkillCatalog.Find(skillKind, appliedSkillQuery);
+            Dictionary<int, int> learnedCounts = SkillCatalog.LearnedCounts(target, skillKind);
             int pages = Math.Max(1, (found.Count + rows - 1) / rows);
             skillPage = Mathf.Clamp(skillPage, 0, pages - 1);
             for (int row = 0; row < rows; row++)
@@ -602,11 +605,32 @@ namespace MOD_sWP6UL
                 }
                 SkillCatalog.Entry entry = found[index];
                 float y = 136 + row * 50;
-                bool inRange = skillGrade >= entry.GradeMin && skillGrade <= entry.GradeMax;
-                Ui.Label(content, Shorten(entry.Name, 16) + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 0, y, 1000, 26, 18);
-                Ui.Label(content, Shorten(entry.Desc, 80), 16, y + 24, 1100, 22, 15).color = Ui.Dim;
-                Ui.Button("SkillAdd" + index, content, inRange ? "추가" : "경지 범위 밖", ContentW - 170, y + 6, 170, 36,
-                    new Action(() => Say(SkillCatalog.Learn(Target, skillKind, entry, skillGrade))), inRange);
+                string blocked = SkillCatalog.BlockReason(entry, skillGrade);
+                int have;
+                learnedCounts.TryGetValue(entry.BaseId, out have);
+                bool confirming = skillPending == entry.BaseId;
+                Ui.Label(content, Shorten(entry.Name, 16) + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 0, y, 800, 26, 18);
+                Text state = Ui.Label(content, have > 0 ? "배움" + (have > 1 ? " x" + have : "") : blocked != null ? "배울 수 없음" : "-", 820, y, 200, 26, 16);
+                state.color = have > 0 ? Ui.Warn : Ui.Dim;
+                Ui.Label(content, Shorten(entry.Desc, 76), 16, y + 24, 1080, 22, 15).color = Ui.Dim;
+                Ui.Button("SkillAdd" + index, content, blocked == null ? (have > 0 ? "한 개 더 추가" : "배우기") : confirming ? "정말 강제" : "강제 추가", ContentW - 170, y + 6, 170, 36, new Action(() =>
+                {
+                    if (blocked == null)
+                    {
+                        skillPending = 0;
+                        Say(SkillCatalog.Learn(Target, skillKind, entry, skillGrade, false));
+                        return;
+                    }
+                    // 지금 배울 수 없는 것: 이유를 보여 주고, 한 번 더 누르면 조건을 건너뛰고 넣는다.
+                    if (!confirming)
+                    {
+                        skillPending = entry.BaseId;
+                        Say(entry.Name + ": " + blocked + ". \"정말 강제\"를 한 번 더 누르면 이 기술의 경지 범위 안에서 가장 가까운 경지로 만들어 넣습니다.");
+                        return;
+                    }
+                    skillPending = 0;
+                    Say(SkillCatalog.Learn(Target, skillKind, entry, skillGrade, true));
+                }), true, confirming);
             }
             float footer = 136 + rows * 50 + 4;
             Ui.Button("SkillPrev", content, "이전", 0, footer, 90, 38, new Action(() => { skillPage--; Render(); }), skillPage > 0);
@@ -1024,16 +1048,32 @@ namespace MOD_sWP6UL
                 Ui.Label(rowsRoot, book.Id.ToString(), colId, y, 100, rowHeight, 16);
                 Ui.Label(rowsRoot, Shorten(book.Name, 15), colName, y, 305, rowHeight, 17);
                 Ui.Label(rowsRoot, book.Level.ToString(), colLevel, y, 60, rowHeight, 16);
-                Text state = Ui.Label(rowsRoot, learned ? "배움" : "-", colState, y, 100, rowHeight, 16);
+                // 배우지 않은 것은 지금 배울 수 있는지 게임에 물어 본다.
+                string blocked = learned ? null : ArtService.BlockReason(kind, book.Id);
+                Text state = Ui.Label(rowsRoot, learned ? "배움" : blocked != null ? "배울 수 없음" : "-", colState, y, 110, rowHeight, 15);
                 state.color = learned ? Ui.Warn : Ui.Dim;
                 Ui.Label(rowsRoot, Shorten(book.Desc, 32), colDesc, y, 560, rowHeight, 15).color = Ui.Dim;
-                Ui.Button("ArtAct" + row, rowsRoot, !learned ? "배우기" : confirming ? "정말 잊기" : "잊기", colAct, y + 2, 116, rowHeight - 4, new Action(() =>
+                string act = learned ? (confirming ? "정말 잊기" : "잊기") : blocked == null ? "배우기" : confirming ? "정말 강제" : "강제 추가";
+                Ui.Button("ArtAct" + row, rowsRoot, act, colAct, y + 2, 116, rowHeight - 4, new Action(() =>
                 {
                     ArtService.Kind current = ArtService.Kinds[artKind];
-                    if (!learned)
+                    if (!learned && blocked == null)
                     {
                         artPending = 0;
                         Say(ArtService.Learn(current, book));
+                        return;
+                    }
+                    if (!learned)
+                    {
+                        // 지금 배울 수 없는 것: 이유를 보여 주고, 한 번 더 누르면 조건을 건너뛰고 넣는다.
+                        if (!confirming)
+                        {
+                            artPending = book.Id;
+                            Say(book.Name + ": " + blocked + ". 그래도 넣으려면 \"정말 강제\"를 한 번 더 누르세요.");
+                            return;
+                        }
+                        artPending = 0;
+                        Say(ArtService.ForceLearn(current, book));
                         return;
                     }
                     if (!confirming)
