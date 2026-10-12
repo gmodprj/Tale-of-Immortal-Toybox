@@ -85,6 +85,14 @@ namespace MOD_sWP6UL
                 case "upgo":
                     return UpGrade(p[0] == "upgo", int.Parse(p[1]), p.Length > 2 ? int.Parse(p[2]) : 0, p.Length > 3 ? int.Parse(p[3]) : 0);
                 case "luckfind": return LuckFind(p[1]);
+                case "fatelist": return FateList(int.Parse(p[1]), p.Length > 2 ? int.Parse(p[2]) : 0);
+                case "fateadd":
+                    {
+                        var fate = new UnitActionLuckAdd(int.Parse(p[1]));
+                        fate.fateFeatureGrade = int.Parse(p[2]);
+                        int fateCode = Me().CreateAction(fate, false);
+                        return "UnitActionLuckAdd(fateFeatureGrade=" + p[2] + ") returned " + fateCode + "; " + Luck(Me());
+                    }
                 case "bornset":
                     Me().data.unitData.propertyData.bornLuck[int.Parse(p[1])].id = int.Parse(p[2]);
                     return "bornLuck[" + p[1] + "].id written; " + Luck(Me()) + " | " + Stats(Me());
@@ -273,6 +281,24 @@ namespace MOD_sWP6UL
                     .Append(',').Append(item.weight4).Append(',').Append(item.weight5)
                     .Append(" max=").Append(conf.GetPrefixMaxLevel(martial, item))
                     .Append(" desc=").Append(GameTool.LS(item.desc));
+            }
+            return sb.ToString();
+        }
+
+        private static string FateList(int grade, int skip)
+        {
+            var sb = new StringBuilder();
+            var all = g.conf.fateFeature._allConfList;
+            sb.Append("total=").Append(all.Count).Append(" ");
+            int seen = 0;
+            for (int i = 0; i < all.Count && sb.Length < 1600; i++)
+            {
+                if (all[i].gradeMin > grade || all[i].gradeMax < grade || seen++ < skip)
+                {
+                    continue;
+                }
+                ConfRoleCreateFeatureItem luck = g.conf.roleCreateFeature.GetItem(all[i].id);
+                sb.Append(all[i].id).Append(":").Append(luck == null ? "?" : GameTool.LS(luck.name) + "(type" + luck.type + " lv" + luck.level + ")").Append(" g").Append(all[i].gradeMin).Append("-").Append(all[i].gradeMax).Append(" grp").Append(all[i].group).Append("; ");
             }
             return sb.ToString();
         }

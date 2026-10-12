@@ -443,3 +443,37 @@
 - 운명 추가 화면의 "선천운명에 추가" 버튼(후천 목록에 없던 운명을 새로 추가하는 경로)은 눌러 보지 않았다. "선천으로 옮김"과 같은 함수의 다른 갈래다.
 - 역천개명 분류의 운명을 게임이 어디에 보여 주는지는 찾지 못했다.
 - 선천운명이 몇 개까지 화면에 들어가는지, 게임의 다른 기능이 늘어난 배열을 어떻게 다루는지는 시험하지 않았다.
+
+## 18. 역천개명 분류의 운명이 표시되는 곳 (2026-10-12 조사)
+
+역천개명 분류(`ConfRoleCreateFeatureItem.type` 3)의 운명은 인물 화면의 운명 칸이 아니라 **경지 화면(`UIType.FateFeature`)의 경지별 쪽**에 나온다. 축기경부터 각 경지 쪽에 "역천개명" 제목이 있고, 그 아래에 그 경지에서 얻은 역천개명 하나가 표시된다.
+
+표시는 운명 목록이 아니라 경지별 기록을 읽는다.
+
+| 대상 | 기록 위치 | 모양 |
+|---|---|---|
+| 플레이어 | `g.data.world.playerLog.upGrade` | `Dictionary<int, DataWorld.World.PlayerLogData.GradeData>` — 키는 대경지 번호(`ConfRoleGradeItem.grade`), 값은 `quality`와 `luck`(운명 번호) |
+| NPC | `unit.data.unitData.npcUpGrade` | 같은 모양 |
+
+역천개명으로 뽑을 수 있는 운명과 경지 범위는 `g.conf.fateFeature`(`ConfFateFeatureItem.gradeMin`·`gradeMax`·`group`·`mutexGroup`, 203개)에 있다. 번호는 `ConfRoleCreateFeatureItem`의 번호와 같다.
+
+실측:
+
+| 시험 | 경지 화면 |
+|---|---|
+| 대경지 28의 NPC 데이터 | `addLuck`에 역천개명 분류 6개, `npcUpGrade`에 `{2: luck=700164, 3: 700183, 4: 700026, 5: 700019, 6: 700040, 7: 700065}` — 경지마다 하나씩, `addLuck`의 것과 같은 번호 |
+| 플레이어(연기 후기)에 `UnitActionLuckAdd(700042)`만 | 연기경·축기경 쪽 어디에도 나오지 않음. `playerLog.upGrade`는 비어 있음 |
+| `UnitActionLuckAdd.fateFeatureGrade = 2`를 지정해 추가 | 변화 없음(기록이 생기지 않는다) |
+| 경지를 시험으로 축기 초기로 올림(`SetGradeID(4)`) | 축기경 쪽에 "역천개명" 제목만 나오고 비어 있음 |
+| `playerLog.upGrade[2] = { quality = 0, luck = 700042 }`를 직접 씀 | 축기경 쪽 "역천개명" 아래에 "투화중소"가 표시됨 |
+
+결론: 역천개명이 화면에 나오려면 (1) 그 운명이 `addLuck`에 있어 효과가 적용되고 (2) 경지별 기록의 `luck`에 번호가 있어야 하며 (3) 그 경지에 도달해 있어야 한다. 경지 하나에 하나만 기록된다. 편집기의 "역천개명 분류 추가"는 (1)만 하므로 효과만 적용되고 표시되지 않는다.
+
+확인하지 못한 것:
+
+- `GradeData.quality`의 뜻(NPC 기록에서 5와 0이 번갈아 나온다). 값을 잘못 쓰면 무엇이 달라지는지 시험하지 않았다.
+- 도달하지 않은 경지의 기록을 미리 써 두면 나중에 게임의 돌파 과정이 덮어쓰는지.
+- 기록만 있고 `addLuck`에는 없는 경우의 표시와 효과.
+- 저장 후 다시 불러와도 기록이 유지되는지(시험은 저장하지 않고 끝냈다).
+
+조사에 쓴 개발 명령: `fatelist <경지>`, `fateadd <번호> <경지>`, `luckdump <단위>`, `findfated`, `gradelog [경지 번호 품질]`.
