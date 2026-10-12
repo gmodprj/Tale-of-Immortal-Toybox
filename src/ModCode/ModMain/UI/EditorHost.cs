@@ -70,6 +70,7 @@ namespace MOD_sWP6UL
         {
             // 편집기를 열지 않아도 가방 추가 칸이 적용되게 한다. 예외를 던지지 않는다.
             BagService.Tick();
+            EditorWindow.Tick();
             if (Input.GetKeyDown(EditorHost.Hotkey))
             {
                 try

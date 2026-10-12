@@ -14,6 +14,7 @@ namespace MOD_sWP6UL
     //   uifocus <이름> : 그 이름의 입력 칸을 고르고 입력 상태로 만든다
     //   uidrag x1 y1 x2 y2 [steps] : 끌기 이벤트를 보낸다(실제 마우스가 만드는 것과 같은 이벤트 경로)
     //   uicanvas / uilist / uiopen <화면> / uiclose <화면> : 게임 화면의 정렬 값을 읽고, 화면을 열고 닫는다
+    //   uistate / uitarget <단위 ID|player> / uisay <횟수> : 편집기의 상태를 읽고, 편집 대상을 바꾸고, 긴 결과 문구를 띄운다
     internal static class DevCommandsUi
     {
         private const string EditorName = "TlToyboxEditor";
@@ -30,6 +31,24 @@ namespace MOD_sWP6UL
                     return Focus(p[1]);
                 case "uidrag":
                     return Drag(int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]), int.Parse(p[4]), p.Length > 5 ? int.Parse(p[5]) : 4);
+                case "uistate":
+                    return EditorWindow.DevState;
+                case "uitarget":
+                    // 편집 대상을 단위 ID로 바꾼다. 없는 ID를 주면 편집기가 플레이어로 돌아가는지 볼 수 있다.
+                    EditorWindow.SetTarget(p[1] == "player" ? null : p[1]);
+                    EditorWindow.Refresh();
+                    return EditorWindow.DevState;
+                case "uisay":
+                    {
+                        // 긴 결과 문구가 결과 영역 안에서 줄바꿈되는지 캡처로 보기 위한 것. 12글자를 주어진 횟수만큼 잇는다.
+                        var sb = new StringBuilder();
+                        for (int i = 0; i < int.Parse(p[1]); i++)
+                        {
+                            sb.Append("가나다라마 바사아자차 ");
+                        }
+                        EditorWindow.Say(sb.ToString());
+                        return "said " + sb.Length + " chars";
+                    }
                 case "uicanvas":
                     return CanvasInfo();
                 case "uilist":
