@@ -2,7 +2,7 @@
 
 귀곡팔황(Tale of Immortal) 통합 치트·샌드박스 모드 `GGBH Cheat Sandbox`.
 
-현재 단계: 사전 조사 완료, 기능 구현 전.
+현재 단계: 편집기 v0.1 (능력치·자원·경지·NPC 호감도 편집). 사용법과 범위는 `docs/05-editor-v0.1.md`.
 
 ## 구조
 
@@ -13,7 +13,9 @@
 | `docs/02-mod-dev-research.md` | 모드 개발 구성과 경로 판정 |
 | `docs/02a-workshop-survey.md` | 창작마당·모드 사이트 조사표 |
 | `docs/04-ingame-state-analysis.md` | 인게임 상태 구성 분석 |
-| `src/ModCode/ModMain/` | 코드 모드 프로젝트(현재 빈 진입점만 있음) |
+| `docs/05-editor-v0.1.md` | 편집기 v0.1의 범위, 사용법, 검증 결과 |
+| `src/ModCode/ModMain/` | 코드 모드 프로젝트(편집기) |
+| `tools/DevRemote/` | 개발용 게임 조작 도구 |
 | `src/ModExcel/` | 설정 테이블 |
 | `src/ModAssets/` | 리소스 |
 
