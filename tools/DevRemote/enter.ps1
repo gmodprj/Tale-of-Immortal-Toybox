@@ -1,6 +1,7 @@
 # 게임을 실행한 뒤 모드 에디터의 "게임 디버깅 시작"을 거쳐 첫 번째 세이브로 세계에 진입한다.
 # 각 단계는 클릭 전에 그 좌표의 UI 요소 이름을 확인하고, 기대한 버튼일 때만 누른다.
-param([string]$GameDir = 'E:\Games\Tale of Immortal', [switch]$Launch, [int]$BlindWaitSeconds = 0)
+# -Direct: 모드가 로컬 모드로 설치되어 있을 때 쓴다. 모드 에디터를 거치지 않고 바로 세이브에 진입한다.
+param([string]$GameDir = 'E:\Games\Tale of Immortal', [switch]$Launch, [int]$BlindWaitSeconds = 0, [switch]$Direct)
 $dir = 'E:\TlToybox\.devremote'
 $log = Join-Path $GameDir 'MelonLoader\Latest.log'
 
@@ -43,10 +44,24 @@ $steps = @(
   @(170, 636, 'Login/.*btnInto'),            # 팔황 진입하기
   @(520, 390, 'CacheItem.*btnRoot1')         # 첫 번째 세이브
 )
+if ($Direct) {
+  $steps = @(
+    @(960, 1002, 'StartGameTip/.*btnOK'),    # 공지: 확인
+    @(170, 636, 'Login/.*btnInto'),          # 팔황 진입하기
+    @(520, 390, 'CacheItem.*btnRoot1')       # 첫 번째 세이브
+  )
+}
 foreach ($s in $steps) {
   $ok = ClickWhen $s[0] $s[1] $s[2]
   $ok | Where-Object { $_ -is [string] }
   if (($ok | Select-Object -Last 1) -ne $true) { exit 1 }
+}
+# 로컬 모드가 있으면 세이브 진입 전에 "다음 모드를 불러왔습니다" 경고가 뜰 수 있다. 뜨면 확인을 누른다.
+if ($Direct) {
+  for ($t = 0; $t -lt 8; $t++) {
+    if ((Send 'hit 755 929') -match 'TextInfoLong/.*btnOK') { [void](Send 'click 755 929'); 'OK   mod warning'; break }
+    [Threading.Thread]::Sleep(1000)
+  }
 }
 # 배포 빌드에는 준비 상태 로그가 없으므로, 그때는 정해진 시간만큼 기다린다.
 if ($BlindWaitSeconds -gt 0) { [Threading.Thread]::Sleep($BlindWaitSeconds * 1000); "WAITED $BlindWaitSeconds s"; exit 0 }

@@ -17,7 +17,7 @@ namespace MOD_sWP6UL
         private const int NpcRows = 8;
         private const int HistoryRows = 14;
 
-        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "기운", "NPC", "안전" };
+        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "기운", "NPC", "세계", "안전" };
         private static readonly int[] Steps = { 1, 10, 100, 1000, 10000 };
 
         private static GameObject root;
@@ -162,6 +162,7 @@ namespace MOD_sWP6UL
                 case 3: RenderMartial(target); break;
                 case 4: RenderLuck(target); break;
                 case 5: RenderNpcs(); break;
+                case 6: RenderWorld(); break;
                 default: RenderSafety(); break;
             }
         }
@@ -543,6 +544,38 @@ namespace MOD_sWP6UL
             Ui.Label(content, (luckPickPage + 1) + " / " + pages, 100, footer, 90, 38, 18, TextAnchor.MiddleCenter);
             Ui.Button("LuckPickNext", content, "다음", 200, footer, 90, 38, new Action(() => { luckPickPage++; Render(); }), luckPickPage < pages - 1);
             Ui.Label(content, "후보 " + candidates.Count + "개" + (appliedLuckQuery.Length > 0 ? "  ('" + appliedLuckQuery + "' 포함)" : ""), 310, footer, 500, 38, 16).color = Ui.Dim;
+        }
+
+        private static void RenderWorld()
+        {
+            Vector2Int here = WorldService.PlayerPoint;
+            Ui.Panel("MoveBox", content, 0, 0, ContentW, 250, Ui.Section);
+            Ui.Label(content, "순간 이동", 16, 6, 300, 36, 21);
+            Ui.Label(content, "현재 위치: (" + here.x + ", " + here.y + ")", 16, 44, 400, 34);
+            StepButton(700, 8);
+            // 방향 버튼: 단위 값만큼의 칸을 이동한다. 대지도는 y가 커질수록 아래쪽이다(실측 전: 방향은 버튼 이름 기준).
+            Ui.Button("MoveUp", content, "y - " + Step, 150, 88, 120, 40, new Action(() => Say(WorldService.TeleportBy(0, -Step))));
+            Ui.Button("MoveLeft", content, "x - " + Step, 16, 136, 120, 40, new Action(() => Say(WorldService.TeleportBy(-Step, 0))));
+            Ui.Button("MoveRight", content, "x + " + Step, 284, 136, 120, 40, new Action(() => Say(WorldService.TeleportBy(Step, 0))));
+            Ui.Button("MoveDown", content, "y + " + Step, 150, 184, 120, 40, new Action(() => Say(WorldService.TeleportBy(0, Step))));
+            WorldUnitBase npc = selectedNpcId == null ? null : g.world.unit.GetUnit(selectedNpcId, true);
+            Ui.Button("MoveToNpc", content, npc == null ? "선택한 NPC에게 이동" : EditService.NameOf(npc) + "에게 이동", 450, 136, 300, 40,
+                new Action(() => Say(WorldService.TeleportToUnit(g.world.unit.GetUnit(selectedNpcId, true)))), npc != null);
+            Ui.Label(content, npc == null ? "NPC 탭에서 NPC를 선택하면 그 위치로 갈 수 있습니다." : "", 450, 184, 460, 34, 15).color = Ui.Dim;
+
+            Ui.Panel("TimeBox", content, 0, 262, ContentW, 110, Ui.Section);
+            Ui.Label(content, "날짜", 16, 268, 200, 36, 21);
+            Ui.Label(content, "누적 일수: " + WorldService.WorldDay, 16, 306, 300, 34);
+            Ui.Button("Day1", content, "+ 1일", 330, 306, 110, 40, new Action(() => Say(WorldService.AddDays(1))));
+            Ui.Button("Day5", content, "+ 5일", 450, 306, 110, 40, new Action(() => Say(WorldService.AddDays(5))));
+            Ui.Label(content, "달이 넘어가면 게임의 월말 처리가 실행됩니다.", 580, 308, 340, 36, 15).color = Ui.Dim;
+
+            Ui.Panel("BattleBox", content, 0, 384, ContentW, 150, Ui.Section);
+            Ui.Label(content, "전투 보조", 16, 390, 200, 36, 21);
+            Ui.Button("God", content, "무적: " + (BattleService.God ? "켜짐" : "꺼짐"), 16, 432, 200, 44, new Action(() => Say(BattleService.SetGod(!BattleService.God))), true, BattleService.God);
+            Ui.Button("Multiplier", content, "피해 배율: x" + BattleService.Multiplier, 232, 432, 230, 44, new Action(() => Say(BattleService.NextMultiplier())), true, BattleService.Multiplier > 1);
+            Ui.Label(content, "무적은 플레이어가 받는 피해를 0으로, 배율은 플레이어가 주는 피해를 곱합니다. 동료와 적끼리의 피해는 그대로입니다.", 16, 482, 890, 24, 15).color = Ui.Dim;
+            Ui.Label(content, "게임을 다시 켜면 둘 다 꺼진 상태로 시작합니다.", 16, 504, 890, 24, 15).color = Ui.Dim;
         }
 
         private static void BuildNpcCache()

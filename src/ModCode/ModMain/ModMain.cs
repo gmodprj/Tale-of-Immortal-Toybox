@@ -12,6 +12,7 @@ namespace MOD_sWP6UL
         {
             MelonLogger.Msg("[TlToybox] Init");
             EditorHost.Ensure();
+            BattleService.OnInit();
 #if DEVTOOLS
             StartDevPoll();
 #endif
@@ -22,6 +23,7 @@ namespace MOD_sWP6UL
         {
             MelonLogger.Msg("[TlToybox] Destroy");
             EditorWindow.Close();
+            BattleService.OnDestroy();
 #if DEVTOOLS
             StopDevPoll();
 #endif

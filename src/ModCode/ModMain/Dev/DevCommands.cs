@@ -60,6 +60,11 @@ namespace MOD_sWP6UL
             {
                 return ui;
             }
+            string stage4 = DevCommandsStage4.Execute(p);
+            if (stage4 != null)
+            {
+                return stage4;
+            }
             string stage3 = DevCommandsStage3.Execute(p);
             if (stage3 != null)
             {
