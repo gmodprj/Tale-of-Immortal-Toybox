@@ -45,6 +45,12 @@ namespace MOD_sWP6UL
                     MartialOf(p[1], p[2]).SetPrefixID(int.Parse(p[3]), int.Parse(p[4]));
                     return "SetPrefixID called; " + Martial(Unit(p[1]));
                 case "mdetail": return MartialDetail(p[1], p[2]);
+                case "upcomplete":
+                    UnitActionRoleUpGrade.ActionUpGradeComplete(Me(), g.conf.roleGrade.GetItem(int.Parse(p[1])), true);
+                    return "ActionUpGradeComplete called; " + Stats(Me()) + " | " + Luck(Me());
+                case "upcheck":
+                case "upgo":
+                    return UpGrade(p[0] == "upgo", int.Parse(p[1]), p.Length > 2 ? int.Parse(p[2]) : 0, p.Length > 3 ? int.Parse(p[3]) : 0);
                 case "luck": return Luck(Unit(p.Length > 1 ? p[1] : "me"));
                 case "luckadd":
                     int addCode = Me().CreateAction(new UnitActionLuckAdd(int.Parse(p[1])), false);
@@ -174,6 +180,32 @@ namespace MOD_sWP6UL
                 sb.Append("] values=").Append(Join(action.data.values));
             }
             return sb.ToString();
+        }
+
+        // 대경지 돌파 검증. requireId의 아이템을 count개 재료로 넣어 돌파 행동의 판정값을 보거나(upcheck) 실행한다(upgo).
+        private static string UpGrade(bool go, int gradeId, int requireId, int count)
+        {
+            WorldUnitBase me = Me();
+            var soles = new System.Collections.Generic.List<string>();
+            if (requireId != 0)
+            {
+                var owned = me.data.unitData.propData.GetProps(requireId);
+                for (int i = 0; owned != null && i < owned.Count && soles.Count < count; i++)
+                {
+                    soles.Add(owned[i].soleID);
+                }
+            }
+            var require = new Il2CppStringArray(soles.ToArray());
+            var rarity = new Il2CppStringArray(0);
+            var action = new UnitActionRoleUpGrade(gradeId, require, rarity);
+            string head = "materials=" + soles.Count + " completeRate=" + UnitActionRoleUpGrade.GetCompleteRate(me, require);
+            if (!go)
+            {
+                return head + " IsCreateAction=" + me.IsCreateAction(action, false) + " | " + Stats(me);
+            }
+            int code = me.CreateAction(action, false);
+            return head + " CreateAction=" + code + " state=" + action.state + " addLife=" + action.addLife
+                + " addAbilityPoint=" + action.addAbilityPoint + " | " + Stats(me) + " | " + Luck(me);
         }
 
         private static string MartialDetail(string unitId, string soleId)
