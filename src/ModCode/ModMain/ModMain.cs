@@ -7,18 +7,18 @@ namespace MOD_sWP6UL
 {
     public class ModMain
     {
-        private const int PollFrames = 30;
-        private const int MaxPolls = 600;
+        private const int PollFrames = 60;
 
         private TimerCoroutine pollTimer;
-        private int pollCount;
+        private string lastState;
 
-        // 세이브에 진입할 때 호출된다. 한 실행 중 여러 번 호출될 수 있다.
+        // 모드가 로드될 때 호출된다(실측: "게임 디버깅 시작" 직후, 세이브를 불러오기 전).
+        // 한 실행 중 여러 번 호출될 수 있다.
         public void Init()
         {
             MelonLogger.Msg("[TlToybox] Init");
             StopPoll();
-            pollCount = 0;
+            lastState = null;
             pollTimer = g.timer.Frame(new Action(OnPoll), PollFrames, true);
         }
 
@@ -29,23 +29,38 @@ namespace MOD_sWP6UL
             StopPoll();
         }
 
-        // Init 시점에 세계가 준비되어 있는지 알 수 없으므로, 준비될 때까지 기다렸다가 탐침을 한 번 실행한다.
+        // Init은 세계가 만들어지기 전에 불리므로, 세계에 들어갈 때까지 기다렸다가 탐침을 한 번 실행한다.
         private void OnPoll()
         {
-            pollCount++;
-            bool ready = g.world != null && g.world.isIntoWorld && g.world.playerUnit != null;
-            if (!ready && pollCount < MaxPolls)
+            string state = DescribeState();
+            if (state != lastState)
+            {
+                MelonLogger.Msg("[TlToybox] state: " + state);
+                lastState = state;
+            }
+            if (state != "ready")
             {
                 return;
             }
             StopPoll();
-            if (!ready)
-            {
-                MelonLogger.Msg("[TlToybox] world not ready after " + pollCount + " polls");
-                return;
-            }
-            MelonLogger.Msg("[TlToybox] world ready after " + pollCount + " polls");
             ReadOnlyProbe.Run();
+        }
+
+        private static string DescribeState()
+        {
+            if (g.world == null)
+            {
+                return "g.world is null";
+            }
+            if (!g.world.isIntoWorld)
+            {
+                return "g.world.isIntoWorld is false";
+            }
+            if (g.world.playerUnit == null)
+            {
+                return "g.world.playerUnit is null";
+            }
+            return "ready";
         }
 
         private void StopPoll()
