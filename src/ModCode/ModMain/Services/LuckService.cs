@@ -215,6 +215,105 @@ namespace MOD_sWP6UL
             return added ? "운명 추가: " + GameTool.LS(conf.name) : "운명 " + GameTool.LS(conf.name) + ": 게임이 추가하지 않았습니다.";
         }
 
+        private static DataUnit.LuckData FindAdd(DataUnit.PropertyData saved, int id)
+        {
+            for (int i = 0; i < saved.addLuck.Count; i++)
+            {
+                if (saved.addLuck[i].id == id)
+                {
+                    return saved.addLuck[i];
+                }
+            }
+            return null;
+        }
+
+        // 게임의 인물 화면은 선천운명 칸에 bornLuck를, 후천운명 칸에 addLuck 가운데 후천 분류만 보여 준다.
+        // 그래서 선천 분류의 운명은 bornLuck에 넣어야 화면에 나온다. 게임에는 이 기능이 없어 배열을 직접 늘린다.
+        // 이미 후천 목록에 붙어 있는 운명이면 그 항목을 선천으로 옮긴다.
+        public static string AddBorn(WorldUnitBase unit, int id)
+        {
+            var saved = unit.data.unitData.propertyData;
+            ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(id);
+            if (conf == null)
+            {
+                return "운명 " + id + ": 게임에 없는 운명이라 추가하지 않았습니다.";
+            }
+            string name = GameTool.LS(conf.name);
+            if (!Addable(conf))
+            {
+                return "운명 " + name + ": 편집기로 붙일 수 없는 종류입니다.";
+            }
+            for (int i = 0; i < saved.bornLuck.Length; i++)
+            {
+                if (saved.bornLuck[i].id == id)
+                {
+                    return "운명 " + name + ": 이미 선천운명입니다.";
+                }
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            // 게임이 만든 항목을 그대로 선천 배열로 옮겨 쓴다(효과는 추가 행동이 이미 켰다).
+            if (FindAdd(saved, id) == null)
+            {
+                unit.CreateAction(new UnitActionLuckAdd(id), false);
+            }
+            DataUnit.LuckData data = FindAdd(saved, id);
+            if (data == null)
+            {
+                ChangeLog.Add(EditService.NameOf(unit), "선천운명 추가 " + name + "(" + id + ")", "없음", "없음", false);
+                return "운명 " + name + ": 게임이 추가하지 않았습니다.";
+            }
+            var old = saved.bornLuck;
+            var grown = new UnhollowerBaseLib.Il2CppReferenceArray<DataUnit.LuckData>(old.Length + 1);
+            for (int i = 0; i < old.Length; i++)
+            {
+                grown[i] = old[i];
+            }
+            grown[old.Length] = data;
+            saved.bornLuck = grown;
+            saved.DelAddLuck(id);
+            SetTracked(unit, id, true);
+            bool ok = saved.bornLuck.Length == old.Length + 1 && FindAdd(saved, id) == null && Has(unit, id);
+            ChangeLog.Add(EditService.NameOf(unit), "선천운명 추가 " + name + "(" + id + ")", "없음", ok ? "있음" : "확인 필요", ok);
+            return ok ? "선천운명 추가: " + name : "선천운명 " + name + ": 썼지만 상태가 예상과 다릅니다. 저장하지 말고 확인하세요.";
+        }
+
+        // 선천운명 한 자리를 없앤다. 효과는 게임의 삭제 행동으로 끄고, 저장 배열에서 그 자리를 뺀다.
+        public static string RemoveBorn(WorldUnitBase unit, int index)
+        {
+            var saved = unit.data.unitData.propertyData;
+            if (index < 0 || index >= saved.bornLuck.Length)
+            {
+                return "선천운명 삭제: 대상을 찾지 못했습니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            int id = saved.bornLuck[index].id;
+            ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(id);
+            string name = conf == null ? id.ToString() : GameTool.LS(conf.name);
+            unit.CreateAction(new UnitActionLuckDel(id), false);
+            var old = saved.bornLuck;
+            var shrunk = new UnhollowerBaseLib.Il2CppReferenceArray<DataUnit.LuckData>(old.Length - 1);
+            for (int i = 0, k = 0; i < old.Length; i++)
+            {
+                if (i != index)
+                {
+                    shrunk[k++] = old[i];
+                }
+            }
+            saved.bornLuck = shrunk;
+            SetTracked(unit, id, false);
+            bool ok = !Has(unit, id);
+            ChangeLog.Add(EditService.NameOf(unit), "선천운명 삭제 " + name + "(" + id + ")", "있음", ok ? "없음" : "확인 필요", ok);
+            return ok ? "선천운명 삭제: " + name : "선천운명 " + name + ": 목록에서는 뺐지만 효과가 남아 있습니다. 저장 후 다시 불러오면 사라집니다.";
+        }
+
         // 선천운명 한 자리를 다른 운명으로 바꾼다. 게임에는 이 기능이 없어 저장 데이터(bornLuck)를 직접 고친다.
         // 적용 중인 효과는 게임의 삭제·추가 행동으로 맞추고, 추가 행동이 후천 목록에 넣은 항목은 다시 뺀다.
         public static string ReplaceBorn(WorldUnitBase unit, int index, int newId)
@@ -271,7 +370,11 @@ namespace MOD_sWP6UL
             {
                 return "운명을 찾지 못했습니다.";
             }
-            if (owned.Born || owned.Hidden)
+            if (owned.Born)
+            {
+                return RemoveBorn(unit, owned.BornIndex);
+            }
+            if (owned.Hidden)
             {
                 return "운명 " + owned.Name + ": 선천운명과 숨김 운명은 지울 수 없습니다.";
             }
