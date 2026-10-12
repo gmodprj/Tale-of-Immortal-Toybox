@@ -14,6 +14,7 @@
 
 - 게임 설치 경로: `E:\Games\Tale of Immortal`
 - 게임 폴더는 읽기 전용으로 다룬다. 빌드 산출물을 게임 폴더로 복사하는 일은 사용자 확인을 받은 뒤에만 한다.
+- 사용자 승인(2026-10-12)으로 편집기 모드를 게임의 `ModExportDataMod_sWP6UL`에 설치해 두었다. 갱신은 `tools/install.ps1`로 한다.
 - 예외: 개발용 조작 도구 `tools/DevRemote`의 DLL이 게임의 `ModsTlToyboxDevRemote.dll`로 설치되어 있다(2026-10-12 사용자 지시). 게임 창을 백그라운드에서 조작하는 용도이며 `tools/DevRemote/rc.ps1`로 쓴다. 지우면 원상태가 된다.
 - 게임 DLL을 저장소에 복사하지 않는다. 참조는 `$(GameDir)\MelonLoader`를 가리킨다.
 - 세이브 파일을 수정하는 실험은 별도 테스트 세이브에서만 한다.
