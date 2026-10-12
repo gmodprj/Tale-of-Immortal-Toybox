@@ -3,17 +3,12 @@ using UnityEngine;
 
 namespace MOD_sWP6UL
 {
-    // 세계(위치, 날짜)와 전투 보조. 쓰기 경로는 docs/04-ingame-state-analysis.md 15절 4단계에서 실측한 것이다.
+    // 세계(위치)와 전투 보조. 날짜는 TimeService에 있다. 쓰기 경로는 docs/04-ingame-state-analysis.md 15절 4단계에서 실측한 것이다.
     internal static class WorldService
     {
         public static Vector2Int PlayerPoint
         {
             get { return g.world.playerUnit.data.unitData.GetPoint(); }
-        }
-
-        public static int WorldDay
-        {
-            get { return g.data.world.worldDay; }
         }
 
         // 플레이어를 대지도의 다른 칸으로 옮긴다. 게임의 위치 설정 행동을 쓴다.
@@ -55,33 +50,6 @@ namespace MOD_sWP6UL
             return Teleport(unit.data.unitData.GetPoint(), EditService.NameOf(unit) + "에게");
         }
 
-        // 날짜를 하루씩 진행한다. 달이 넘어가면 게임의 월말 처리가 그대로 실행된다.
-        public static string AddDays(int days)
-        {
-            if (days < 1 || days > 30)
-            {
-                return "날짜: 한 번에 1~30일만 진행할 수 있습니다.";
-            }
-            string backupError = SaveBackup.EnsureOnce();
-            if (backupError != null)
-            {
-                return backupError + " 변경을 중단했습니다.";
-            }
-            int before = WorldDay;
-            int done = 0;
-            for (int i = 0; i < days; i++)
-            {
-                if (!g.world.run.AddDay(1, false))
-                {
-                    break;
-                }
-                done++;
-            }
-            int after = WorldDay;
-            ChangeLog.Add("세계", "날짜(누적 일수)", before.ToString(), after.ToString(), after == before + days);
-            return done == days ? "날짜: " + days + "일 진행 (누적 " + before + " -> " + after + ")"
-                : "날짜: " + done + "일만 진행됐습니다(게임이 더 진행하지 않음). 누적 " + before + " -> " + after;
-        }
     }
 
     // 전투 보조: 플레이어가 받는 피해를 0으로 하거나, 플레이어가 주는 피해에 배율을 건다.
