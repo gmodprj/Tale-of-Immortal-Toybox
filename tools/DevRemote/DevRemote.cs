@@ -125,7 +125,38 @@ namespace TlToyboxDevRemote
             {
                 return Pointer(int.Parse(parts[1]), int.Parse(parts[2]), parts[0] == "click");
             }
+            if (parts[0] == "scroll" && parts.Length == 4)
+            {
+                return Scroll(int.Parse(parts[1]), int.Parse(parts[2]), float.Parse(parts[3]));
+            }
             return "UNKNOWN " + string.Join(" ", parts);
+        }
+
+        // 좌표 아래의 스크롤 영역에 마우스 휠 입력을 보낸다. delta가 음수면 아래로 내린다.
+        private static string Scroll(int x, int y, float delta)
+        {
+            EventSystem eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                return "no EventSystem";
+            }
+            var pointer = new PointerEventData(eventSystem);
+            pointer.position = new Vector2(x, Screen.height - y);
+            pointer.scrollDelta = new Vector2(0, delta);
+            var results = new Il2CppSystem.Collections.Generic.List<RaycastResult>();
+            eventSystem.RaycastAll(pointer, results);
+            if (results.Count == 0)
+            {
+                return "no hit at " + x + "," + y;
+            }
+            GameObject hit = results[0].gameObject;
+            GameObject handler = ExecuteEvents.GetEventHandler<IScrollHandler>(hit);
+            if (handler == null)
+            {
+                return "hit=" + PathOf(hit.transform) + " -> no scroll handler";
+            }
+            ExecuteEvents.Execute(handler, pointer, ExecuteEvents.scrollHandler);
+            return "hit=" + PathOf(hit.transform) + " -> scroll " + delta + ": " + handler.name;
         }
 
         private static string Pointer(int x, int y, bool click)

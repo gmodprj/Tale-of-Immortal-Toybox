@@ -62,7 +62,8 @@ namespace MOD_sWP6UL
                 {
                     Id = item.id,
                     Name = name,
-                    Desc = MartialService.CleanDesc(GameTool.LS(item.desc)),
+                    // 표의 한 칸에 들어가도록 줄바꿈을 없앤다.
+                    Desc = MartialService.CleanDesc(GameTool.LS(item.desc)).Replace("\r", "").Replace('\n', ' '),
                     Level = item.level,
                     Type = item.type,
                     SubType = item.className,
@@ -126,6 +127,21 @@ namespace MOD_sWP6UL
             }
             var result = new List<Category>(counts.Values);
             result.Sort((a, b) => a.Id.CompareTo(b.Id));
+            // 게임의 분류표에는 이름이 같은 세부 분류가 여럿 있다. 번호를 붙여 구분한다.
+            var seen = new Dictionary<string, int>();
+            foreach (Category category in result)
+            {
+                int n;
+                seen.TryGetValue(category.Name, out n);
+                seen[category.Name] = n + 1;
+            }
+            foreach (Category category in result)
+            {
+                if (seen[category.Name] > 1)
+                {
+                    category.Name += "#" + category.Id;
+                }
+            }
             return result;
         }
 

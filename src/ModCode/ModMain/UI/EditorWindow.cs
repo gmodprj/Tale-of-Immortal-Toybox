@@ -9,7 +9,7 @@ namespace MOD_sWP6UL
     internal static class EditorWindow
     {
         private const float Width = 1500;
-        private const float Height = 810;
+        private const float Height = 1000;
         private const float ContentX = 180;
         private const float ContentY = 104;
         private const float ContentW = 1304;
@@ -37,6 +37,10 @@ namespace MOD_sWP6UL
         private static string appliedItemQuery = "";
         private static int itemPage;
         private static int itemPageSizeIndex;
+        private static float itemScrollY;
+        private static float itemSubScrollY;
+        private static string itemDetail = "";
+        private static Text itemDetailLabel;
         private static int itemMainType = -1;
         private static int itemSubType = -1;
         private static readonly int[] ItemPageSizes = { 10, 20, 50 };
@@ -278,10 +282,19 @@ namespace MOD_sWP6UL
         }
 #endif
 
+        private static void ResetItemList()
+        {
+            itemPage = 0;
+            itemDetail = "";
+            itemScrollY = 0;
+            message = "";
+        }
+
         private static void RenderResources()
         {
             WorldUnitBase player = Player;
             var props = player.data.unitData.propData;
+            float contentH = Height - ContentY - 56;
 
             Ui.Panel("MoneyBox", content, 0, 0, ContentW, 52, Ui.Section);
             Ui.Label(content, "영석: " + EditService.Money(player), 16, 6, 260, 40, 22);
@@ -292,36 +305,67 @@ namespace MOD_sWP6UL
             // 필터: 아이템명
             Ui.Label(content, "아이템명", 0, 62, 90, 38);
             Ui.Input("ItemQuery", content, itemQuery, "이름의 일부 또는 번호", 90, 62, 280, 38, new Action<string>(v => itemQuery = v));
-            Ui.Button("ItemSearch", content, "검색", 378, 62, 84, 38, new Action(() => { appliedItemQuery = itemQuery.Trim(); itemPage = 0; message = ""; Render(); }));
-            Ui.Button("ItemSearchClear", content, "초기화", 468, 62, 96, 38, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemMainType = -1; itemSubType = -1; itemPage = 0; message = ""; Render(); }),
+            Ui.Button("ItemSearch", content, "검색", 378, 62, 84, 38, new Action(() => { appliedItemQuery = itemQuery.Trim(); ResetItemList(); Render(); }));
+            Ui.Button("ItemSearchClear", content, "초기화", 468, 62, 96, 38, new Action(() => { itemQuery = ""; appliedItemQuery = ""; itemMainType = -1; itemSubType = -1; ResetItemList(); Render(); }),
                 itemQuery.Length > 0 || appliedItemQuery.Length > 0 || itemMainType >= 0);
-            int pageSize = ItemPageSizes[itemPageSizeIndex];
-            Ui.Button("ItemPageSize", content, "페이지당 " + pageSize + "개", 1124, 62, 180, 38, new Action(() => { itemPageSizeIndex = (itemPageSizeIndex + 1) % ItemPageSizes.Length; itemPage = 0; Render(); }));
 
-            // 필터: 카테고리(게임의 분류표)
+            // 페이지당 개수
+            Ui.Label(content, "페이지당", 1010, 62, 90, 38, 18).color = Ui.Dim;
+            for (int i = 0; i < ItemPageSizes.Length; i++)
+            {
+                int index = i;
+                Ui.Button("ItemPageSize" + ItemPageSizes[i], content, ItemPageSizes[i] + "개", 1100 + i * 70, 62, 64, 38,
+                    new Action(() => { itemPageSizeIndex = index; ResetItemList(); Render(); }), true, itemPageSizeIndex == i);
+            }
+            int pageSize = ItemPageSizes[itemPageSizeIndex];
+
+            // 필터: 카테고리(게임의 분류표). 첫 줄은 대분류, 대분류를 고르면 아래에 세부 분류가 나온다.
             Ui.Label(content, "카테고리", 0, 106, 90, 38);
             float cx = 90;
-            Ui.Button("ItemCatAll", content, "전체", cx, 106, 80, 38, new Action(() => { itemMainType = -1; itemSubType = -1; itemPage = 0; Render(); }), true, itemMainType < 0);
+            Ui.Button("ItemCatAll", content, "전체", cx, 106, 80, 38, new Action(() => { itemMainType = -1; itemSubType = -1; ResetItemList(); Render(); }), true, itemMainType < 0);
             cx += 86;
             foreach (ItemCatalog.Category category in ItemCatalog.MainCategories)
             {
                 int type = category.Id;
-                float width = 46 + category.Name.Length * 20;
-                Ui.Button("ItemCat" + type, content, category.Name, cx, 106, width, 38, new Action(() => { itemMainType = type; itemSubType = -1; itemPage = 0; Render(); }), true, itemMainType == type);
-                cx += width + 6;
+                string label = category.Name + " (" + category.Count + ")";
+                float width = 24 + label.Length * 15;
+                Ui.Button("ItemCat" + type, content, label, cx, 106, width, 38, new Action(() => { itemMainType = type; itemSubType = -1; itemSubScrollY = 0; ResetItemList(); Render(); }), true, itemMainType == type);
+                cx += width + 4;
             }
+            float top = 150;
             if (itemMainType >= 0)
             {
+                // 세부 분류가 많은 대분류(도구는 50종 이상)는 두 줄만 보이게 하고 그 안에서 스크롤한다.
+                const float subRow = 38;
+                float subW = ContentW - 90;
                 List<ItemCatalog.Category> subs = ItemCatalog.SubCategories(itemMainType);
-                ItemCatalog.Category current = subs.Find(s => s.Id == itemSubType);
-                Ui.Button("ItemSubCat", content, "세부: " + (current == null ? "전체" : current.Name + " (" + current.Count + ")"), cx + 10, 106, 300, 38, new Action(() =>
+                var places = new List<Vector2>();
+                float sx = 76, sy = 0;
+                foreach (ItemCatalog.Category category in subs)
                 {
-                    List<ItemCatalog.Category> list = ItemCatalog.SubCategories(itemMainType);
-                    int at = list.FindIndex(s => s.Id == itemSubType);
-                    itemSubType = at + 1 >= list.Count ? -1 : list[at + 1].Id;
-                    itemPage = 0;
-                    Render();
-                }), subs.Count > 1);
+                    float width = SubWidth(category);
+                    if (sx + width > subW - Ui.ScrollBarWidth)
+                    {
+                        sx = 0;
+                        sy += subRow;
+                    }
+                    places.Add(new Vector2(sx, sy));
+                    sx += width + 6;
+                }
+                float subsH = sy + subRow;
+                float shownH = Math.Min(subsH, subRow * 2);
+                Ui.Label(content, "세부", 0, top, 90, 34, 18).color = Ui.Dim;
+                Transform subRoot = subsH > shownH
+                    ? Ui.Scroll("ItemSubs", content, 90, top, subW, shownH, subsH, itemSubScrollY, new Action<float>(v => itemSubScrollY = v))
+                    : Ui.Rect("ItemSubs", content, 90, top, subW, shownH);
+                Ui.Button("ItemSubAll", subRoot, "전체", 0, 0, 70, 34, new Action(() => { itemSubType = -1; ResetItemList(); Render(); }), true, itemSubType < 0);
+                for (int i = 0; i < subs.Count; i++)
+                {
+                    int sub = subs[i].Id;
+                    Ui.Button("ItemSub" + sub, subRoot, subs[i].Name + " (" + subs[i].Count + ")", places[i].x, places[i].y, SubWidth(subs[i]), 34,
+                        new Action(() => { itemSubType = sub; ResetItemList(); Render(); }), true, itemSubType == sub);
+                }
+                top += shownH + 4;
             }
 
             List<ItemCatalog.Entry> found = ItemCatalog.Find(appliedItemQuery, itemMainType, itemSubType);
@@ -329,20 +373,25 @@ namespace MOD_sWP6UL
             itemPage = Mathf.Clamp(itemPage, 0, pages - 1);
 
             // 표 머리
-            const float colId = 8, colCat = 110, colName = 290, colLevel = 560, colOwned = 630, colDesc = 710, colGive = 1180;
-            Ui.Panel("ItemHead", content, 0, 150, ContentW, 30, Ui.Section);
-            Ui.Label(content, "번호", colId, 150, 100, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "카테고리", colCat, 150, 170, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "아이템명", colName, 150, 260, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "품질", colLevel, 150, 60, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "보유", colOwned, 150, 70, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "설명", colDesc, 150, 460, 30, 16).color = Ui.Dim;
+            const float colId = 8, colCat = 110, colName = 290, colLevel = 560, colOwned = 630, colDesc = 710, colGive = 1166;
+            Ui.Panel("ItemHead", content, 0, top, ContentW, 30, Ui.Section);
+            Ui.Label(content, "번호", colId, top, 100, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "카테고리", colCat, top, 170, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "아이템명", colName, top, 260, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "품질", colLevel, top, 60, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "보유", colOwned, top, 70, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "설명", colDesc, top, 440, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "지급", colGive, top, 116, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+            top += 32;
 
-            // 표 본문: 한 페이지를 스크롤 영역에 그린다.
-            const float rowHeight = 34;
+            // 아래에서부터: 선택한 아이템의 전체 설명, 그 위에 페이징 줄, 남은 높이가 표 본문이다.
+            const float detailH = 92;
+            float footer = contentH - detailH - 46;
+            const float rowHeight = 32;
             int first = itemPage * pageSize;
-            int shown = Math.Min(pageSize, found.Count - first);
-            RectTransform rowsRoot = Ui.Scroll("ItemTable", content, 0, 182, ContentW, 412, shown * rowHeight);
+            int shown = Math.Max(0, Math.Min(pageSize, found.Count - first));
+            RectTransform rowsRoot = Ui.Scroll("ItemTable", content, 0, top, ContentW, footer - 8 - top, shown * rowHeight, itemScrollY,
+                new Action<float>(v => itemScrollY = v));
             if (found.Count == 0)
             {
                 Ui.Label(rowsRoot, "조건에 맞는 아이템이 없습니다.", 16, 8, 800, 34, 18).color = Ui.Warn;
@@ -351,24 +400,48 @@ namespace MOD_sWP6UL
             {
                 ItemCatalog.Entry entry = found[first + row];
                 float y = row * rowHeight;
+                if (row % 2 == 1)
+                {
+                    Ui.Panel("Stripe", rowsRoot, 0, y, ContentW - Ui.ScrollBarWidth, rowHeight, new Color(1f, 1f, 1f, 0.04f)).GetComponent<Image>().raycastTarget = false;
+                }
                 Ui.Label(rowsRoot, entry.Id.ToString(), colId, y, 100, rowHeight, 16);
                 Ui.Label(rowsRoot, Shorten(entry.SubTypeName, 8), colCat, y, 175, rowHeight, 16);
                 Ui.Button("ItemName" + row, rowsRoot, Shorten(entry.Name, 12), colName, y + 2, 262, rowHeight - 4,
-                    new Action(() => Say(entry.Name + " — " + entry.TypeName + " / " + entry.SubTypeName + " — " + entry.Desc)));
+                    new Action(() => { itemDetail = Detail(entry); if (itemDetailLabel != null) { itemDetailLabel.text = itemDetail; } }));
                 Ui.Label(rowsRoot, entry.Level.ToString(), colLevel, y, 60, rowHeight, 16);
                 Ui.Label(rowsRoot, props.GetPropsNum(entry.Id).ToString(), colOwned, y, 70, rowHeight, 16);
-                Ui.Label(rowsRoot, Shorten(entry.Desc, 28), colDesc, y, 460, rowHeight, 15).color = Ui.Dim;
+                Ui.Label(rowsRoot, Shorten(entry.Desc, 27), colDesc, y, 440, rowHeight, 15).color = Ui.Dim;
                 Ui.Button("ItemGive" + row, rowsRoot, "지급 x" + Step, colGive, y + 2, 116, rowHeight - 4, new Action(() => Say(EditService.GiveItem(Player, entry.Id, Step))));
             }
 
             // 페이징
-            const float footer = 602;
-            Ui.Button("ItemFirst", content, "처음", 0, footer, 80, 38, new Action(() => { itemPage = 0; Render(); }), itemPage > 0);
-            Ui.Button("ItemPrev", content, "이전", 86, footer, 80, 38, new Action(() => { itemPage--; Render(); }), itemPage > 0);
+            Ui.Button("ItemFirst", content, "처음", 0, footer, 80, 38, new Action(() => { itemPage = 0; itemScrollY = 0; Render(); }), itemPage > 0);
+            Ui.Button("ItemPrev", content, "이전", 86, footer, 80, 38, new Action(() => { itemPage--; itemScrollY = 0; Render(); }), itemPage > 0);
             Ui.Label(content, (itemPage + 1) + " / " + pages, 172, footer, 130, 38, 18, TextAnchor.MiddleCenter);
-            Ui.Button("ItemNext", content, "다음", 308, footer, 80, 38, new Action(() => { itemPage++; Render(); }), itemPage < pages - 1);
-            Ui.Button("ItemLast", content, "끝", 394, footer, 80, 38, new Action(() => { itemPage = pages - 1; Render(); }), itemPage < pages - 1);
-            Ui.Label(content, "조건에 맞는 아이템 " + found.Count + "개 (전체 " + ItemCatalog.Find("", -1, -1).Count + "개)  ·  목록은 마우스 휠로 스크롤  ·  아이템명을 누르면 전체 설명", 490, footer, 800, 38, 15).color = Ui.Dim;
+            Ui.Button("ItemNext", content, "다음", 308, footer, 80, 38, new Action(() => { itemPage++; itemScrollY = 0; Render(); }), itemPage < pages - 1);
+            Ui.Button("ItemLast", content, "끝", 394, footer, 80, 38, new Action(() => { itemPage = pages - 1; itemScrollY = 0; Render(); }), itemPage < pages - 1);
+            string range = found.Count == 0 ? "0개" : (first + 1) + "~" + (first + shown) + "번째 / 조건에 맞는 아이템 " + found.Count + "개";
+            Ui.Label(content, range + "  ·  목록은 마우스 휠이나 오른쪽 막대로 스크롤", 490, footer, 800, 38, 15).color = Ui.Dim;
+
+            // 선택한 아이템의 전체 설명
+            Ui.Panel("ItemDetail", content, 0, contentH - detailH, ContentW, detailH, Ui.Section);
+            itemDetailLabel = Ui.Label(content, itemDetail.Length > 0 ? itemDetail : "아이템명을 누르면 여기에 전체 설명이 나옵니다.", 12, contentH - detailH + 4, ContentW - 24, detailH - 8, 16, TextAnchor.UpperLeft);
+            itemDetailLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            itemDetailLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            if (itemDetail.Length == 0)
+            {
+                itemDetailLabel.color = Ui.Dim;
+            }
+        }
+
+        private static float SubWidth(ItemCatalog.Category category)
+        {
+            return 46 + (category.Name.Length + category.Count.ToString().Length) * 16;
+        }
+
+        private static string Detail(ItemCatalog.Entry entry)
+        {
+            return "[" + entry.Id + "] " + entry.Name + "  (" + entry.TypeName + " / " + entry.SubTypeName + ", 품질 " + entry.Level + ")\n" + entry.Desc;
         }
 
         private static void RenderGrade()

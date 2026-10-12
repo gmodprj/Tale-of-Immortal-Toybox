@@ -137,20 +137,43 @@ namespace MOD_sWP6UL
         }
 
         // 세로로 스크롤되는 영역. 돌려주는 RectTransform에 내용을 넣는다(좌표는 그 영역의 왼쪽 위 기준).
-        public static RectTransform Scroll(string name, Transform parent, float x, float y, float w, float h, float contentHeight)
+        // offset은 처음에 내려 둘 거리, onScroll은 스크롤할 때마다 현재 내려간 거리를 받는다.
+        public const float ScrollBarWidth = 14;
+
+        public static RectTransform Scroll(string name, Transform parent, float x, float y, float w, float h, float contentHeight,
+            float offset = 0, Action<float> onScroll = null)
         {
-            RectTransform viewport = Rect(name, parent, x, y, w, h);
+            float innerHeight = Mathf.Max(h, contentHeight);
+            RectTransform viewport = Rect(name, parent, x, y, w - ScrollBarWidth, h);
             var image = viewport.gameObject.AddComponent<Image>();
             image.color = new Color(0f, 0f, 0f, 0.25f);
             viewport.gameObject.AddComponent<RectMask2D>();
-            RectTransform inner = Rect("Rows", viewport, 0, 0, w, Mathf.Max(h, contentHeight));
+            RectTransform inner = Rect("Rows", viewport, 0, 0, w - ScrollBarWidth, innerHeight);
+            inner.anchoredPosition = new Vector2(0, Mathf.Clamp(offset, 0, innerHeight - h));
+
+            // 오른쪽 막대: 목록이 더 있다는 것을 보여 주고, 끌어서 움직일 수도 있다.
+            RectTransform bar = Panel(name + "Bar", parent, x + w - ScrollBarWidth, y, ScrollBarWidth, h, new Color(0f, 0f, 0f, 0.45f));
+            RectTransform handle = Panel("Handle", bar, 0, 0, ScrollBarWidth, h, innerHeight > h ? ButtonColor : ButtonDisabled);
+            handle.offsetMin = Vector2.zero;
+            handle.offsetMax = Vector2.zero;
+            var scrollbar = bar.gameObject.AddComponent<Scrollbar>();
+            scrollbar.handleRect = handle;
+            scrollbar.targetGraphic = handle.GetComponent<Image>();
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+
             var scroll = viewport.gameObject.AddComponent<ScrollRect>();
             scroll.viewport = viewport;
             scroll.content = inner;
             scroll.horizontal = false;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.inertia = false;
             scroll.scrollSensitivity = 40f;
+            scroll.verticalScrollbar = scrollbar;
+            if (onScroll != null)
+            {
+                scroll.onValueChanged.AddListener(new Action<Vector2>(v => onScroll(inner.anchoredPosition.y)));
+            }
             return inner;
         }
 
