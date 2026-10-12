@@ -153,6 +153,21 @@ namespace MOD_sWP6UL
                 : name + ": 지급을 요청했지만 수량이 " + before + " -> " + after + "입니다(가방 공간을 확인하세요).";
         }
 
+        // 현재 경지에 들어오기 위한 "난관 봉착" 기운이 남아 있으면 지운다.
+        // 게임에서는 난관을 돌파하는 과정에서 이 기운이 사라지는데, 편집기의 돌파는 그 과정을 거치지 않아 기운이 남는다.
+        // 남아 있으면 수련치가 더 오르지 않는다(실측).
+        private static void RemoveStaleBottleneck(WorldUnitBase unit)
+        {
+            ConfRoleGradeItem current = g.conf.roleGrade.GetItem(unit.data.unitData.propertyData.gradeID);
+            if (current == null || current.lockFeature == 0 || unit.GetLuck(current.lockFeature) == null)
+            {
+                return;
+            }
+            unit.CreateAction(new UnitActionLuckDel(current.lockFeature), false);
+            bool removed = unit.GetLuck(current.lockFeature) == null;
+            ChangeLog.Add(NameOf(unit), "난관 봉착 기운(" + current.lockFeature + ")", "있음", removed ? "없음" : "있음", removed);
+        }
+
         // 수련치를 다음 단계 요구량까지 채운다.
         public static string FillExp(WorldUnitBase unit)
         {
@@ -172,6 +187,7 @@ namespace MOD_sWP6UL
             {
                 return backupError + " 변경을 중단했습니다.";
             }
+            RemoveStaleBottleneck(unit);
             saved.AddExp(next.exp - before);
             int after = saved.exp;
             ChangeLog.Add(NameOf(unit), "수련치", before.ToString(), after.ToString(), after == next.exp);
@@ -217,6 +233,7 @@ namespace MOD_sWP6UL
             ConfRoleGradeItem next = g.conf.roleGrade.GetNextGradeItem(beforeId);
             unit.CreateAction(new UnitActionRoleUpGrade(next.id, new Il2CppStringArray(0), new Il2CppStringArray(0)), false);
             int afterId = saved.gradeID;
+            RemoveStaleBottleneck(unit);
             ChangeLog.Add(NameOf(unit), "경지", GradeName(beforeId), GradeName(afterId), afterId == next.id);
             return afterId == next.id
                 ? "돌파: " + GradeName(beforeId) + " -> " + GradeName(afterId)
