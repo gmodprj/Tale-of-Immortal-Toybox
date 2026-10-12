@@ -55,6 +55,12 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string stage3 = DevCommandsStage3.Execute(p);
+            if (stage3 != null)
+            {
+                return stage3;
+            }
+
             var unit = g.world.playerUnit;
             var saved = unit.data.unitData.propertyData;
             var dyn = unit.data.dynUnitData;
