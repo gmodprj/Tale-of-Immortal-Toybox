@@ -114,6 +114,33 @@ namespace MOD_sWP6UL
             return result;
         }
 
+        // 대상이 이 기술을 몇 개 익혔는지(같은 기술을 옵션만 달리해 여러 개 가질 수 있다).
+        public static Dictionary<int, int> LearnedCounts(WorldUnitBase unit, int kindIndex)
+        {
+            var counts = new Dictionary<int, int>();
+            MartialType type = Kinds[kindIndex].Type;
+            foreach (var pair in unit.data.unitData.allActionMartial)
+            {
+                DataProps.MartialData martial = pair.Value.data.To<DataProps.MartialData>();
+                if (martial == null || martial.martialType != type)
+                {
+                    continue;
+                }
+                int n;
+                counts.TryGetValue(martial.baseID, out n);
+                counts[martial.baseID] = n + 1;
+            }
+            return counts;
+        }
+
+        // 지금 배울 수 없는 이유. 배울 수 있으면 null.
+        public static string BlockReason(Entry entry, int grade)
+        {
+            return grade < entry.GradeMin || grade > entry.GradeMax
+                ? "경지 " + entry.GradeMin + "~" + entry.GradeMax + "의 기술이라 경지 " + grade + "로는 만들 수 없습니다"
+                : null;
+        }
+
         private static bool Contains(Il2CppStructArray<int> values, int id)
         {
             for (int i = 0; i < values.Length; i++)
@@ -136,23 +163,14 @@ namespace MOD_sWP6UL
             }
         }
 
-        // 기술을 배운 상태로 넣는다. 옵션은 게임의 뽑기가 정한다: 원하는 기술이 나올 때까지 묶음에서 다시 뽑고,
-        // 끝내 나오지 않으면 옵션 없는 기술로 만든다.
-        public static string Learn(WorldUnitBase unit, int kindIndex, Entry entry, int grade)
+        private enum Outcome { Rolled, Plain, Refused }
+
+        // 기술 하나를 배운 상태로 넣는다. 옵션은 게임의 뽑기가 정한다: 원하는 기술이 나올 때까지 묶음에서 다시 뽑고,
+        // 끝내 나오지 않거나(강제 추가처럼) 뽑기 대상이 아니면 옵션 없는 기술로 만든다.
+        private static Outcome LearnNow(WorldUnitBase unit, Kind kind, Entry entry, int grade, bool roll)
         {
-            Kind kind = Kinds[kindIndex];
-            if (grade < entry.GradeMin || grade > entry.GradeMax)
-            {
-                return entry.Name + ": 이 기술은 경지 " + entry.GradeMin + "~" + entry.GradeMax + "에서만 만들 수 있습니다.";
-            }
-            string backupError = SaveBackup.EnsureOnce();
-            if (backupError != null)
-            {
-                return backupError + " 변경을 중단했습니다.";
-            }
             Il2CppStructArray<int> values = null;
-            int tries = 0;
-            for (; tries < RollMax; tries++)
+            for (int tries = 0; roll && tries < RollMax; tries++)
             {
                 Il2CppStructArray<int> rolled = Roll(kind, grade);
                 if (rolled != null && Contains(rolled, entry.BaseId)
@@ -180,16 +198,80 @@ namespace MOD_sWP6UL
             DataProps.MartialData made = props.To<DataProps.MartialData>();
             if (made == null || made.martialInfo == null || made.baseID != entry.BaseId || string.IsNullOrEmpty(made.martialInfo.name))
             {
-                return entry.Name + ": 게임이 이 기술을 만들지 못했습니다. 추가하지 않았습니다.";
+                return Outcome.Refused;
             }
             data.StudyActionMartialProp(props);
-            bool ok = data.allActionMartial.Count == before + 1;
-            ChangeLog.Add(EditService.NameOf(unit), kind.Tab + " " + entry.Name + "(" + entry.BaseId + ", 경지 " + grade + ")", "없음", ok ? "익힘" : "없음", ok);
+            if (data.allActionMartial.Count != before + 1)
+            {
+                return Outcome.Refused;
+            }
+            return plain ? Outcome.Plain : Outcome.Rolled;
+        }
+
+        // force가 참이면 경지 범위 밖이어도 옵션 없는 기술로 만들어 넣는다.
+        public static string Learn(WorldUnitBase unit, int kindIndex, Entry entry, int grade, bool force)
+        {
+            Kind kind = Kinds[kindIndex];
+            string blocked = BlockReason(entry, grade);
+            if (blocked != null && !force)
+            {
+                return entry.Name + ": " + blocked + ".";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            Outcome outcome = LearnNow(unit, kind, entry, grade, blocked == null);
+            bool ok = outcome != Outcome.Refused;
+            ChangeLog.Add(EditService.NameOf(unit), kind.Tab + " " + entry.Name + "(" + entry.BaseId + ", 경지 " + grade + ")" + (blocked != null ? " 강제" : ""), "없음", ok ? "익힘" : "없음", ok);
             if (!ok)
             {
-                return entry.Name + ": 게임이 추가하지 않았습니다.";
+                return entry.Name + ": 게임이 이 기술을 만들지 못했습니다. 추가하지 않았습니다.";
             }
-            return kind.Tab + " 추가: " + entry.Name + " (경지 " + grade + ")" + (plain ? " — 뽑기에서 나오지 않아 옵션 없이 만들었습니다." : "");
+            return kind.Tab + (blocked != null ? " 강제 추가: " : " 추가: ") + entry.Name + " (경지 " + grade + ")"
+                + (outcome == Outcome.Plain ? " — 옵션 없이 만들었습니다." : "");
+        }
+
+        // 이 분류에서 지금 배울 수 있고 아직 익히지 않은 기술을 모두 넣는다.
+        public static string LearnAll(WorldUnitBase unit, int kindIndex, int grade)
+        {
+            Kind kind = Kinds[kindIndex];
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            Dictionary<int, int> have = LearnedCounts(unit, kindIndex);
+            int learned = 0, plain = 0, refused = 0, skipped = 0;
+            foreach (Entry entry in All(kindIndex))
+            {
+                if (have.ContainsKey(entry.BaseId))
+                {
+                    continue;
+                }
+                if (BlockReason(entry, grade) != null)
+                {
+                    skipped++;
+                    continue;
+                }
+                Outcome outcome = LearnNow(unit, kind, entry, grade, true);
+                if (outcome == Outcome.Refused)
+                {
+                    refused++;
+                    continue;
+                }
+                learned++;
+                if (outcome == Outcome.Plain)
+                {
+                    plain++;
+                }
+            }
+            ChangeLog.Add(EditService.NameOf(unit), kind.Tab + " 모두 배우기(경지 " + grade + ")", "", learned + "개 익힘", refused == 0);
+            return kind.Tab + ": " + learned + "개를 익혔습니다(경지 " + grade + ")."
+                + (plain > 0 ? " 그중 " + plain + "개는 옵션 없이 만들었습니다." : "")
+                + (skipped > 0 ? " 경지 범위 밖 " + skipped + "개는 건너뛰었습니다." : "")
+                + (refused > 0 ? " " + refused + "개는 게임이 만들지 못했습니다." : "");
         }
     }
 }
