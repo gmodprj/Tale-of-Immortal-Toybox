@@ -44,6 +44,7 @@ namespace MOD_sWP6UL
                 case "pid":
                     MartialOf(p[1], p[2]).SetPrefixID(int.Parse(p[3]), int.Parse(p[4]));
                     return "SetPrefixID called; " + Martial(Unit(p[1]));
+                case "mdetail": return MartialDetail(p[1], p[2]);
                 case "luck": return Luck(Unit(p.Length > 1 ? p[1] : "me"));
                 case "luckadd":
                     int addCode = Me().CreateAction(new UnitActionLuckAdd(int.Parse(p[1])), false);
@@ -171,6 +172,38 @@ namespace MOD_sWP6UL
                         .Append(":lv").Append(prefix.prefixLevel);
                 }
                 sb.Append("] values=").Append(Join(action.data.values));
+            }
+            return sb.ToString();
+        }
+
+        private static string MartialDetail(string unitId, string soleId)
+        {
+            DataProps.MartialData martial = MartialOf(unitId, soleId);
+            var conf = g.conf.battleSkillPrefixValue;
+            var sb = new StringBuilder("name=" + martial.martialInfo.name + " level=" + martial.martialInfo.level
+                + " type=" + (int)martial.martialType + " baseID=" + martial.baseID + " grade=" + martial.grade);
+            var shown = conf.GetPrefix(martial);
+            for (int i = 0; i < shown.Count; i++)
+            {
+                var d = shown[i];
+                sb.Append("\n  [").Append(d.index).Append("] num=").Append(d.prefixValueItem.number)
+                    .Append(" prefixLevel=").Append(d.prefixLevel).Append(" level=").Append(d.level)
+                    .Append(" max=").Append(conf.GetPrefixMaxLevel(martial, d.prefixValueItem))
+                    .Append(" multi=").Append(d.prefixValueItem.multi).Append(" require=").Append(d.prefixValueItem.require)
+                    .Append(" select=").Append(d.prefixValueItem.selectType)
+                    .Append(" desc=").Append(d.prefixValueItemDesc);
+            }
+            var valid = conf.GetItems((int)martial.martialType, martial.baseID);
+            sb.Append("\n  validItems=").Append(valid == null ? -1 : valid.Count);
+            for (int i = 0; valid != null && i < valid.Count; i++)
+            {
+                var item = valid[i];
+                sb.Append("\n    num=").Append(item.number).Append(" id=").Append(item.id).Append(" multi=").Append(item.multi)
+                    .Append(" require=").Append(item.require).Append(" select=").Append(item.selectType)
+                    .Append(" w=").Append(item.weight1).Append(',').Append(item.weight2).Append(',').Append(item.weight3)
+                    .Append(',').Append(item.weight4).Append(',').Append(item.weight5)
+                    .Append(" max=").Append(conf.GetPrefixMaxLevel(martial, item))
+                    .Append(" desc=").Append(GameTool.LS(item.desc));
             }
             return sb.ToString();
         }

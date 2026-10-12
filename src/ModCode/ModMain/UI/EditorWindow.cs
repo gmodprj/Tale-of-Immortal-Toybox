@@ -17,7 +17,7 @@ namespace MOD_sWP6UL
         private const int NpcRows = 8;
         private const int HistoryRows = 14;
 
-        private static readonly string[] Tabs = { "능력치", "자원", "경지", "NPC", "안전" };
+        private static readonly string[] Tabs = { "능력치", "자원", "경지", "공법", "NPC", "안전" };
         private static readonly int[] Steps = { 1, 10, 100, 1000, 10000 };
 
         private static GameObject root;
@@ -37,6 +37,10 @@ namespace MOD_sWP6UL
         private static int selectedAttribute = -1;
         private static string attributeInput = "";
         private static string npcQuery = "";
+        private static string martialId;      // 공법 탭에서 선택한 공법
+        private static int martialPage;
+        private static int replaceIndex = -1; // 옵션 교체 중인 자리. -1이면 교체 화면이 아니다
+        private static int replacePage;
         private static string appliedNpcQuery = "";
         private static string message = "";
         private static List<WorldUnitBase> npcCache;
@@ -149,7 +153,8 @@ namespace MOD_sWP6UL
                 case 0: RenderAttributes(target); break;
                 case 1: RenderResources(); break;
                 case 2: RenderGrade(); break;
-                case 3: RenderNpcs(); break;
+                case 3: RenderMartial(target); break;
+                case 4: RenderNpcs(); break;
                 default: RenderSafety(); break;
             }
         }
@@ -201,7 +206,7 @@ namespace MOD_sWP6UL
             Ui.Button("Next", content, "다음", 190, footer, 90, 40, new Action(() => { attributePage++; Render(); }), attributePage < pages - 1);
             StepButton(300, footer);
             Ui.Button("Restore", content, "자원 회복", 470, footer, 140, 40, new Action(() => Say(EditService.RestoreResources(Target))));
-            Ui.Button("ToPlayer", content, "대상: 플레이어로", 630, footer, 200, 40, new Action(() => { targetId = null; Say("편집 대상을 플레이어로 바꿨습니다."); }), targetId != null);
+            Ui.Button("ToPlayer", content, "대상: 플레이어로", 630, footer, 200, 40, new Action(() => { targetId = null; martialId = null; replaceIndex = -1; Say("편집 대상을 플레이어로 바꿨습니다."); }), targetId != null);
             RenderAttributeInput(footer + 52);
         }
 
@@ -306,6 +311,128 @@ namespace MOD_sWP6UL
             Ui.Label(content, "대상은 플레이어입니다. 대경지 돌파는 이 버전에서 지원하지 않습니다.", 0, 296, 900, 32, 18).color = Ui.Dim;
         }
 
+        private static void RenderMartial(WorldUnitBase target)
+        {
+            const int listRows = 5;
+            const int pickRows = 9;
+            var all = new List<KeyValuePair<string, DataUnit.ActionMartialData>>();
+            foreach (var pair in target.data.unitData.allActionMartial)
+            {
+                all.Add(new KeyValuePair<string, DataUnit.ActionMartialData>(pair.Key, pair.Value));
+            }
+            DataProps.MartialData selected = martialId == null ? null : MartialService.Martial(target, martialId);
+            if (selected == null)
+            {
+                martialId = null;
+                replaceIndex = -1;
+            }
+
+            if (selected != null && replaceIndex >= 0)
+            {
+                RenderPrefixPicker(target, selected, pickRows);
+                return;
+            }
+
+            int pages = Math.Max(1, (all.Count + listRows - 1) / listRows);
+            martialPage = Mathf.Clamp(martialPage, 0, pages - 1);
+            Ui.Label(content, "공법", 0, 0, 300, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "종류", 330, 0, 120, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "경지", 460, 0, 80, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "숙련 경험치", 550, 0, 150, 30, 18).color = Ui.Dim;
+            for (int row = 0; row < listRows; row++)
+            {
+                int index = martialPage * listRows + row;
+                if (index >= all.Count)
+                {
+                    break;
+                }
+                string id = all[index].Key;
+                DataProps.MartialData martial = all[index].Value.data.To<DataProps.MartialData>();
+                float y = 32 + row * 38;
+                Ui.Label(content, MartialService.Name(martial), 0, y, 320, 34);
+                Ui.Label(content, MartialService.TypeLabel(martial.martialType), 330, y, 120, 34);
+                Ui.Label(content, martial.grade.ToString(), 460, y, 80, 34);
+                Ui.Label(content, all[index].Value.exp.ToString(), 550, y, 150, 34);
+                Ui.Button("PickMartial" + index, content, id == martialId ? "선택됨" : "선택", 720, y, 110, 32, new Action(() => { martialId = id; replaceIndex = -1; message = ""; Render(); }), true, id == martialId);
+            }
+            float listEnd = 32 + listRows * 38;
+            Ui.Button("MartialPrev", content, "이전", 0, listEnd, 80, 34, new Action(() => { martialPage--; Render(); }), martialPage > 0);
+            Ui.Label(content, (martialPage + 1) + " / " + pages, 86, listEnd, 80, 34, 18, TextAnchor.MiddleCenter);
+            Ui.Button("MartialNext", content, "다음", 172, listEnd, 80, 34, new Action(() => { martialPage++; Render(); }), martialPage < pages - 1);
+            Ui.Label(content, all.Count == 0 ? "익힌 공법이 없습니다." : "대상이 익힌 공법 " + all.Count + "개", 270, listEnd, 400, 34, 18).color = Ui.Dim;
+
+            float box = listEnd + 46;
+            Ui.Panel("MartialBox", content, 0, box, ContentW, 330, Ui.Section);
+            if (selected == null)
+            {
+                Ui.Label(content, "위에서 공법을 선택하면 옵션을 편집할 수 있습니다.", 16, box + 10, 880, 36);
+                return;
+            }
+            Ui.Label(content, MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")", 16, box + 6, 420, 36, 21);
+            Ui.Button("MartialExp", content, "숙련 경험치 + " + Step, 450, box + 8, 230, 34, new Action(() => Say(MartialService.AddExp(Target, martialId, Step))));
+            StepButton(700, box + 6);
+            List<MartialService.PrefixView> prefixes = MartialService.Prefixes(selected);
+            if (prefixes.Count == 0)
+            {
+                Ui.Label(content, "이 공법에는 옵션이 없습니다.", 16, box + 52, 880, 34, 18).color = Ui.Dim;
+            }
+            for (int i = 0; i < prefixes.Count && i < 7; i++)
+            {
+                MartialService.PrefixView view = prefixes[i];
+                int slot = view.Index;
+                float y = box + 50 + i * 38;
+                Ui.Label(content, (slot + 1) + ". " + Shorten(view.Desc, 34), 16, y, 520, 34, 17);
+                Ui.Label(content, "품질 " + view.Level + "/" + view.MaxLevel, 545, y, 110, 34, 18);
+                Ui.Button("QualityMinus" + slot, content, "-", 660, y, 44, 32, new Action(() => Say(MartialService.SetQuality(Target, martialId, slot, view.Level - 1))), view.Level > 1);
+                Ui.Button("QualityPlus" + slot, content, "+", 708, y, 44, 32, new Action(() => Say(MartialService.SetQuality(Target, martialId, slot, view.Level + 1))), view.Level < view.MaxLevel);
+                Ui.Button("QualityMax" + slot, content, "최고", 756, y, 66, 32, new Action(() => Say(MartialService.SetQuality(Target, martialId, slot, view.MaxLevel))), view.Level != view.MaxLevel);
+                Ui.Button("Replace" + slot, content, "교체", 826, y, 80, 32, new Action(() => { replaceIndex = slot; replacePage = 0; message = ""; Render(); }));
+            }
+        }
+
+        // 옵션 교체 화면. 이 공법에 붙을 수 있는 옵션을 모두 보여 주고, 규칙에 걸리는 것은 사유와 함께 막는다.
+        private static void RenderPrefixPicker(WorldUnitBase target, DataProps.MartialData martial, int rows)
+        {
+            List<ConfBattleSkillPrefixValueItem> items = MartialService.ValidItems(martial);
+            int pages = Math.Max(1, (items.Count + rows - 1) / rows);
+            replacePage = Mathf.Clamp(replacePage, 0, pages - 1);
+            Ui.Label(content, MartialService.Name(martial) + " — 옵션 " + (replaceIndex + 1) + " 교체", 0, 0, 640, 36, 21);
+            Ui.Button("ReplaceCancel", content, "돌아가기", 780, 0, 130, 36, new Action(() => { replaceIndex = -1; message = ""; Render(); }));
+            for (int row = 0; row < rows; row++)
+            {
+                int index = replacePage * rows + row;
+                if (index >= items.Count)
+                {
+                    break;
+                }
+                ConfBattleSkillPrefixValueItem item = items[index];
+                string blocked = MartialService.ReplaceBlockReason(martial, replaceIndex, item);
+                float y = 44 + row * 50;
+                Ui.Label(content, item.number + "번  " + Shorten(MartialService.CleanDesc(GameTool.LS(item.desc)), 40), 0, y, 760, 28, 17);
+                if (blocked != null)
+                {
+                    Ui.Label(content, "불가: " + blocked, 30, y + 24, 730, 22, 15).color = Ui.Warn;
+                }
+                int slot = replaceIndex;
+                Ui.Button("ReplacePick" + index, content, "이걸로", 800, y + 4, 110, 36, new Action(() =>
+                {
+                    string result = MartialService.ReplacePrefix(Target, martialId, slot, item);
+                    replaceIndex = -1;
+                    Say(result);
+                }), blocked == null);
+            }
+            float footer = 44 + rows * 50 + 4;
+            Ui.Button("ReplacePrev", content, "이전", 0, footer, 90, 38, new Action(() => { replacePage--; Render(); }), replacePage > 0);
+            Ui.Label(content, (replacePage + 1) + " / " + pages, 100, footer, 80, 38, 18, TextAnchor.MiddleCenter);
+            Ui.Button("ReplaceNext", content, "다음", 190, footer, 90, 38, new Action(() => { replacePage++; Render(); }), replacePage < pages - 1);
+            Ui.Label(content, "붙을 수 있는 옵션 " + items.Count + "개. 교체하면 품질은 이전 값을 유지합니다(새 옵션의 한도 안에서).", 300, footer, 620, 38, 16).color = Ui.Dim;
+        }
+
+        private static string Shorten(string text, int max)
+        {
+            return text.Length <= max ? text : text.Substring(0, max) + "…";
+        }
+
         private static void BuildNpcCache()
         {
             npcCache = new List<WorldUnitBase>();
@@ -353,7 +480,7 @@ namespace MOD_sWP6UL
                 Ui.Button("IntimMinus", content, "- " + Step, 400, 54, 100, 38, new Action(() => ChangeIntim(-Step)));
                 Ui.Button("IntimPlus", content, "+ " + Step, 506, 54, 100, 38, new Action(() => ChangeIntim(Step)));
                 Ui.Button("IntimZero", content, "0으로", 612, 54, 90, 38, new Action(() => Say(EditService.SetIntimBoth(Player, g.world.unit.GetUnit(selectedNpcId, true), 0))));
-                Ui.Button("EditNpc", content, "능력치 편집", 716, 54, 190, 38, new Action(() => { targetId = selectedNpcId; tab = 0; attributePage = 0; Say("편집 대상을 NPC로 바꿨습니다."); }));
+                Ui.Button("EditNpc", content, "능력치 편집", 716, 54, 190, 38, new Action(() => { targetId = selectedNpcId; tab = 0; attributePage = 0; martialId = null; replaceIndex = -1; Say("편집 대상을 NPC로 바꿨습니다."); }));
                 StepButton(716, 8);
             }
 
