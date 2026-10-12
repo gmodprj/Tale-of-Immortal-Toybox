@@ -11,6 +11,7 @@ namespace MOD_sWP6UL
 
         private TimerCoroutine pollTimer;
         private string lastState;
+        private bool probed;
 
         // 모드가 로드될 때 호출된다(실측: "게임 디버깅 시작" 직후, 세이브를 불러오기 전).
         // 한 실행 중 여러 번 호출될 수 있다.
@@ -40,10 +41,15 @@ namespace MOD_sWP6UL
             }
             if (state != "ready")
             {
+                probed = false;
                 return;
             }
-            StopPoll();
-            ReadOnlyProbe.Run();
+            if (!probed)
+            {
+                probed = true;
+                ReadOnlyProbe.Run();
+            }
+            DevCommands.Poll();
         }
 
         private static string DescribeState()
