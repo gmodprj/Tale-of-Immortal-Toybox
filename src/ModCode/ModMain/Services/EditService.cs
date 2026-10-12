@@ -64,7 +64,7 @@ namespace MOD_sWP6UL
             }
             def.Set(saved, newValue);
             int after = def.Get(saved);
-            int baseValue = def.Dyn(unit.data.dynUnitData).baseValue;
+            int baseValue = def.DynBase(unit.data.dynUnitData);
             bool verified = after == newValue && baseValue == newValue;
             ChangeLog.Add(NameOf(unit), def.Label, before.ToString(), after.ToString(), verified);
             return verified
