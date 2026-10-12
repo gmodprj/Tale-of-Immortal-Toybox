@@ -1,6 +1,6 @@
 # 게임을 실행한 뒤 모드 에디터의 "게임 디버깅 시작"을 거쳐 첫 번째 세이브로 세계에 진입한다.
 # 각 단계는 클릭 전에 그 좌표의 UI 요소 이름을 확인하고, 기대한 버튼일 때만 누른다.
-param([string]$GameDir = 'E:\Games\Tale of Immortal', [switch]$Launch)
+param([string]$GameDir = 'E:\Games\Tale of Immortal', [switch]$Launch, [int]$BlindWaitSeconds = 0)
 $dir = 'E:\TlToybox\.devremote'
 $log = Join-Path $GameDir 'MelonLoader\Latest.log'
 
@@ -48,5 +48,7 @@ foreach ($s in $steps) {
   $ok | Where-Object { $_ -is [string] }
   if (($ok | Select-Object -Last 1) -ne $true) { exit 1 }
 }
-for ($t = 0; $t -lt 180 -and -not ((ReadLog) -match 'TlToybox\] state: ready'); $t++) { [Threading.Thread]::Sleep(1000) }
+# 배포 빌드에는 준비 상태 로그가 없으므로, 그때는 정해진 시간만큼 기다린다.
+if ($BlindWaitSeconds -gt 0) { [Threading.Thread]::Sleep($BlindWaitSeconds * 1000); "WAITED $BlindWaitSeconds s"; exit 0 }
+for ($t = 0; $t -lt 180 -and -not ((ReadLog) -match 'TlToybox] state: ready'); $t++) { [Threading.Thread]::Sleep(1000) }
 if ((ReadLog) -match 'TlToybox\] state: ready') { 'WORLD READY' } else { 'WORLD NOT READY'; exit 1 }
