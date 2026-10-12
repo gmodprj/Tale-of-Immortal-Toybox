@@ -42,7 +42,7 @@ namespace MOD_sWP6UL
                     EditorWindow.Raise();
                     return EditorWindow.DevState;
                 case "uistate":
-                    return EditorWindow.DevState;
+                    return "status=[" + StatusOverlay.DevState + "] " + EditorWindow.DevState;
                 case "uitarget":
                     // 편집 대상을 단위 ID로 바꾼다. 없는 ID를 주면 편집기가 플레이어로 돌아가는지 볼 수 있다.
                     EditorWindow.SetTarget(p[1] == "player" ? null : p[1]);

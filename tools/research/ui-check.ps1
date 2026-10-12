@@ -12,6 +12,14 @@ function GameScreen([string]$do) {
   for ($i = 0; $i -lt 25 -and (Cmd 'uistate' 100) -notmatch " top=$want "; $i++) { Start-Sleep -Milliseconds 200 }
   Start-Sleep -Milliseconds 300   # 편집기의 주기 처리가 정렬을 맞출 틈
 }
+# 전투에 들어간다. fight 명령은 "전투 진입" 확인 화면까지만 열므로 그 버튼을 누르고 장면이 바뀔 때까지 기다린다.
+# 전투에서 나오는 방법은 자동화하지 않았다. 이 함수를 쓰는 부분은 회차의 마지막에 돌리고 바로 -End 한다.
+function EnterBattle {
+  Cmd 'fight 1011 1' 6000 | Out-Null
+  $o = Rc 'click 960 684' 12000
+  "INFO battle entry: $o"
+  "INFO open game screens: $((Cmd 'uilist' 100) -replace "`n", ' |')"
+}
 function WinState {
   $o = Cmd 'uistate' 100
   if ($o -notmatch ' pos=(-?\d+),(-?\d+) collapsed=(\w+) ') { throw "uistate 출력을 읽지 못했습니다: $o" }
@@ -235,10 +243,47 @@ switch ($Part) {
     [IO.File]::Delete((Join-Path $work 'check-config.txt'))
     'config.txt restored'
   }
+  'status' {
+    # 스펙 6절 19번. 표시는 30프레임마다 맞춰지므로 켜고 끈 뒤 조금 기다린다.
+    $traps = Traps
+    Check 'hidden when nothing is on' ((Cmd 'uistate') -match 'status=\[hidden\] ')
+    Cmd 'tfreeze on' | Out-Null
+    Start-Sleep -Milliseconds 900
+    Check 'shown without ever opening the editor' ((Cmd 'uistate') -match 'status=\[날짜 고정\] ')
+    Cmd 'editor' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
+    Start-Sleep -Milliseconds 900
+    Check 'all three are listed' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] ')
+    Press 'Close' | Out-Null
+    Start-Sleep -Milliseconds 900
+    Check 'stays when the editor is closed' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] open=False ')
+    Check 'the overlay does not take clicks' ((Rc 'hit 960 23' 200) -notmatch 'TlToybox')
+    Shot 'status'
+    # 끈다. 배율은 x2 → x5 → x10 → x100 → x1로 돈다.
+    Cmd 'editor' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'God' | Out-Null; Press 'Freeze' | Out-Null
+    1..4 | ForEach-Object { Press 'Multiplier' | Out-Null }
+    Press 'Close' | Out-Null
+    Start-Sleep -Milliseconds 900
+    Check 'hidden again when everything is off' ((Cmd 'uistate') -match 'status=\[hidden\] ')
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'status-battle' {
+    # Review Focus 5. 회차의 마지막에 돌리고 바로 -End 한다(전투에서 나오지 않는다).
+    Cmd 'editor' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'God' | Out-Null
+    Press 'Close' | Out-Null
+    EnterBattle
+    Start-Sleep -Milliseconds 900
+    Check 'shown in battle' ((Cmd 'uistate') -match 'status=\[무적\] ')
+    Shot 'status-battle'
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'battle' {
     # 스펙 6절 21번, Review Focus 5. 전투에서 나오는 방법을 자동화하지 않았으므로 회차의 마지막에 돌리고 바로 -End 한다.
     $traps = Traps
-    Cmd 'fight 1011 1' 8000 | Out-Null
+    EnterBattle
     Check 'editor opens in battle' ((Cmd 'editor') -match 'open=True')
     "INFO battle state: $(Cmd 'uistate')"
     Check 'tabs are clickable in battle' (IsAt 'Tab7')
