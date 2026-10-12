@@ -24,10 +24,24 @@ namespace MOD_sWP6UL
             {
                 if (font == null)
                 {
+                    // 붓글씨체는 작은 글자에서 비슷한 글자를 구분하기 어려우므로 고딕체("heiti")를 우선한다.
                     var texts = Resources.FindObjectsOfTypeAll<Text>();
-                    for (int i = 0; i < texts.Length && font == null; i++)
+                    for (int i = 0; i < texts.Length; i++)
                     {
-                        font = texts[i].font;
+                        Font candidate = texts[i].font;
+                        if (candidate == null)
+                        {
+                            continue;
+                        }
+                        if (candidate.name == "heiti")
+                        {
+                            font = candidate;
+                            break;
+                        }
+                        if (font == null)
+                        {
+                            font = candidate;
+                        }
                     }
                     if (font == null)
                     {
@@ -93,6 +107,33 @@ namespace MOD_sWP6UL
                 text.color = Dim;
             }
             return button;
+        }
+
+        // 글자를 입력하는 칸. 내용이 바뀔 때마다 onChanged가 호출된다.
+        public static InputField Input(string name, Transform parent, string value, string placeholder, float x, float y, float w, float h,
+            Action<string> onChanged, bool integerOnly = false)
+        {
+            RectTransform rect = Rect(name, parent, x, y, w, h);
+            var image = rect.gameObject.AddComponent<Image>();
+            image.color = new Color(0.02f, 0.02f, 0.03f, 1f);
+            Text text = Label(rect, "", 8, 0, w - 16, h);
+            text.supportRichText = false;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            Text hint = Label(rect, placeholder, 8, 0, w - 16, h, 18);
+            hint.color = Dim;
+            var input = rect.gameObject.AddComponent<InputField>();
+            input.targetGraphic = image;
+            input.textComponent = text;
+            input.placeholder = hint;
+            input.lineType = InputField.LineType.SingleLine;
+            input.contentType = integerOnly ? InputField.ContentType.IntegerNumber : InputField.ContentType.Standard;
+            input.characterLimit = integerOnly ? 10 : 20;
+            input.text = value;
+            if (onChanged != null)
+            {
+                input.onValueChanged.AddListener(onChanged);
+            }
+            return input;
         }
 
         public static void Clear(Transform parent)

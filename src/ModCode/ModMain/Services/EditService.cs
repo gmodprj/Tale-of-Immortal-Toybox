@@ -18,7 +18,21 @@ namespace MOD_sWP6UL
 
         public static string NameOf(WorldUnitBase unit)
         {
-            return unit.data.unitData.propertyData.GetName().Replace(" ", "");
+            return Compact(unit.data.unitData.propertyData.GetName());
+        }
+
+        // 이름에서 글자와 숫자만 남긴다. 게임의 이름에는 성과 이름 사이에 공백류 문자가 들어 있다.
+        public static string Compact(string text)
+        {
+            var sb = new System.Text.StringBuilder(text.Length);
+            foreach (char c in text)
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
         }
 
         public static string GradeName(int gradeId)
