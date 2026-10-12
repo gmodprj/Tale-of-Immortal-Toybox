@@ -35,6 +35,7 @@ namespace TlToyboxDevRemote
             {
                 return;
             }
+            Park();
             string cmdPath = Path.Combine(CommandDir, "cmd.txt");
             if (!File.Exists(cmdPath))
             {
@@ -68,6 +69,54 @@ namespace TlToyboxDevRemote
                 }
             }
             File.WriteAllText(Path.Combine(CommandDir, "out.txt"), output.ToString(), Encoding.UTF8);
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int cmd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out WinRect rect);
+
+        private struct WinRect { public int Left, Top, Right, Bottom; }
+
+        private const int ParkX = 30000;
+        private const int ParkY = 0;
+
+        // <CommandDir>\park.flag 파일이 있는 동안 게임을 창 모드로 바꾸고 화면 밖에 세워 둔다.
+        // 사용자의 화면을 가리지 않으면서 창 내용 캡처와 조작이 가능하게 하기 위한 것이다.
+        // 파일이 없으면 아무것도 하지 않으므로 평소 플레이에는 영향이 없다.
+        private static void Park()
+        {
+            if (!File.Exists(Path.Combine(CommandDir, "park.flag")))
+            {
+                return;
+            }
+            if (Screen.fullScreen || Screen.width != 1920 || Screen.height != 1080)
+            {
+                Screen.SetResolution(1920, 1080, FullScreenMode.Windowed);
+                return;
+            }
+            IntPtr window = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            if (window == IntPtr.Zero)
+            {
+                return;
+            }
+            if (IsIconic(window))
+            {
+                ShowWindow(window, 4); // SW_SHOWNOACTIVATE
+                return;
+            }
+            WinRect rect;
+            if (GetWindowRect(window, out rect) && (rect.Left != ParkX || rect.Top != ParkY))
+            {
+                SetWindowPos(window, IntPtr.Zero, ParkX, ParkY, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
+            }
         }
 
         private static string Handle(string[] parts)
