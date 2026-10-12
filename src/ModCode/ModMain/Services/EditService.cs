@@ -207,12 +207,64 @@ namespace MOD_sWP6UL
             }
             if (next.grade != current.grade)
             {
-                return "다음은 대경지 돌파입니다. 이 버전에서는 지원하지 않습니다.";
+                return "다음은 대경지 돌파입니다. 아래에서 재료를 받고 게임의 돌파 화면에서 진행하세요.";
             }
             if (saved.exp < next.exp)
             {
                 return "수련치가 부족합니다(" + saved.exp + "/" + next.exp + ").";
             }
+            return null;
+        }
+
+        // 다음이 대경지 돌파일 때 고를 수 있는 돌파 방식(품질별 행). 대경지가 아니면 빈 목록.
+        public static System.Collections.Generic.List<ConfRoleGradeItem> MajorBreakthroughRows(WorldUnitBase unit)
+        {
+            var result = new System.Collections.Generic.List<ConfRoleGradeItem>();
+            var saved = unit.data.unitData.propertyData;
+            ConfRoleGradeItem current = g.conf.roleGrade.GetItem(saved.gradeID);
+            ConfRoleGradeItem next = g.conf.roleGrade.GetNextGradeItem(saved.gradeID);
+            if (current == null || next == null || next.grade == current.grade)
+            {
+                return result;
+            }
+            var rows = g.conf.roleGrade.GetGradeUpQuality(next.grade);
+            for (int i = 0; rows != null && i < rows.Count; i++)
+            {
+                result.Add(rows[i]);
+            }
+            if (result.Count == 0)
+            {
+                result.Add(next);
+            }
+            return result;
+        }
+
+        // 돌파 방식 하나에 필요한 재료를 지급한다. 후보 중 표의 마지막 것(실측: 축기단은 1품)을 필요한 개수만큼 준다.
+        public static string GiveBreakthroughMaterials(WorldUnitBase unit, ConfRoleGradeItem row)
+        {
+            if (row.growItemRequire == null || row.growItemRequire.Length == 0 || row.growItemNum <= 0)
+            {
+                return "이 돌파 방식에는 필요한 재료가 없습니다.";
+            }
+            int propsId = row.growItemRequire[row.growItemRequire.Length - 1];
+            return GiveItem(unit, propsId, row.growItemNum);
+        }
+
+        // 게임의 돌파 화면을 연다. 재료 투입, 성공 확률 판정, 실패 시의 천겁은 게임이 처리한다.
+        public static string OpenGameBreakthroughScreen(WorldUnitBase unit)
+        {
+            var saved = unit.data.unitData.propertyData;
+            ConfRoleGradeItem next = g.conf.roleGrade.GetNextGradeItem(saved.gradeID);
+            if (next == null)
+            {
+                return "다음 단계가 없습니다.";
+            }
+            if (saved.exp < next.exp)
+            {
+                return "수련치가 부족합니다(" + saved.exp + "/" + next.exp + "). 먼저 수련치를 채우세요.";
+            }
+            RemoveStaleBottleneck(unit);
+            g.ui.OpenUI(UIType.UpGrade);
             return null;
         }
 
