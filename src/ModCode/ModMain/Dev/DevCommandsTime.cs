@@ -37,6 +37,31 @@ namespace MOD_sWP6UL
                         return "IsCreateAction=" + can + " day=" + probe.day + " CreateAction=" + code + " exp " + before
                             + " -> " + saved.exp + "; " + Date(me);
                     }
+                case "tdesc":
+                    return TimeService.Describe();
+                case "tadv":
+                    return TimeService.Advance(int.Parse(p[1]));
+                case "tset":
+                    return TimeService.SetDate(int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]));
+                case "tskip":
+                    return TimeService.OpenSkipMonth() ?? "opened";
+                case "tmsg":
+                    return "message=" + EditorWindow.DevMessage;
+                case "thud":
+                    {
+                        // HUD의 "이번 달의 시간을 전부 사용" 띠의 상태를 보고, 갱신 메서드를 하나씩 불러 본다.
+                        UIMapMain map = g.ui.GetUI<UIMapMain>(UIType.MapMain);
+                        if (map == null || map.uiPlayerInfo == null)
+                        {
+                            return "MapMain is not open";
+                        }
+                        UIMapMainPlayerInfo info = map.uiPlayerInfo;
+                        string called = p.Length > 1 ? p[1] : "none";
+                        if (called == "skip") { info.UpdateSkipMonth(); }
+                        if (called == "info") { info.UpdatePlayerInfo(); }
+                        if (called == "ui") { info.UpdateUI(); }
+                        return "called=" + called + " goSkipMonth=" + info.goSkipMonth.activeSelf + " goSkipMonth_En=" + info.goSkipMonth_En.activeSelf;
+                    }
                 case "gridfill":
                     return Fill(me, int.Parse(p[1]), p.Length > 2 ? int.Parse(p[2]) : -1);
                 default:
@@ -52,7 +77,8 @@ namespace MOD_sWP6UL
                 + " roundDay=" + run.roundDay + "/" + run.roundDayMax
                 + " residueDay=" + me.data.unitData.residueDay
                 + " age=" + me.data.unitData.propertyData.age
-                + " moveDay=" + UnitActionMovePlayer.GetCurDay(me);
+                + " moveDay=" + UnitActionMovePlayer.GetCurDay(me)
+                + " running=" + run.isRunning + " canRun=" + run.IsCanRun();
         }
 
         private static string Grid(WorldUnitBase me)

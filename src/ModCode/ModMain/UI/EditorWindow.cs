@@ -82,6 +82,8 @@ namespace MOD_sWP6UL
         private static string luckQuery = "";
         private static string appliedLuckQuery = "";
         private static string appliedNpcQuery = "";
+        private static readonly string[] dateInput = { "", "", "" }; // 세계 탭의 직접 지정: 연, 월, 일
+        private static bool datePending;                             // 직접 지정을 한 번 더 눌러야 하는 상태
         private static string message = "";
         private static List<WorldUnitBase> npcCache;
 
@@ -176,7 +178,7 @@ namespace MOD_sWP6UL
             for (int i = 0; i < Tabs.Length; i++)
             {
                 int index = i;
-                Ui.Button("Tab" + i, tabBar, Tabs[i], 0, i * 52, 150, 44, new Action(() => { tab = index; message = ""; Render(); }), true, tab == i);
+                Ui.Button("Tab" + i, tabBar, Tabs[i], 0, i * 52, 150, 44, new Action(() => { tab = index; message = ""; datePending = false; Render(); }), true, tab == i);
             }
             messageLabel.text = message;
             if (!EditService.WorldReady)
@@ -340,6 +342,12 @@ namespace MOD_sWP6UL
             }
             field.gameObject.GetComponent<InputField>().text = value;
             return name + " = '" + value + "' (attributeInput='" + attributeInput + "' npcQuery='" + npcQuery + "')";
+        }
+
+        // 개발 전용: 자동 시험에서 메시지 줄의 문구를 읽는다.
+        public static string DevMessage
+        {
+            get { return message; }
         }
 #endif
 
@@ -1110,19 +1118,102 @@ namespace MOD_sWP6UL
                 new Action(() => Say(WorldService.TeleportToUnit(g.world.unit.GetUnit(selectedNpcId, true)))), npc != null);
             Ui.Label(content, npc == null ? "NPC 탭에서 NPC를 선택하면 그 위치로 갈 수 있습니다." : "", 450, 184, 460, 34, 15).color = Ui.Dim;
 
-            Ui.Panel("TimeBox", content, 0, 262, ContentW, 110, Ui.Section);
-            Ui.Label(content, "날짜", 16, 268, 200, 36, 21);
-            Ui.Label(content, "누적 일수: " + WorldService.WorldDay, 16, 306, 300, 34);
-            Ui.Button("Day1", content, "+ 1일", 330, 306, 110, 40, new Action(() => Say(WorldService.AddDays(1))));
-            Ui.Button("Day5", content, "+ 5일", 450, 306, 110, 40, new Action(() => Say(WorldService.AddDays(5))));
-            Ui.Label(content, "달이 넘어가면 게임의 월말 처리가 실행됩니다.", 580, 308, 340, 36, 15).color = Ui.Dim;
+            float battle = RenderTimeBox(262) + 12;
+            Ui.Panel("BattleBox", content, 0, battle, ContentW, 150, Ui.Section);
+            Ui.Label(content, "전투 보조", 16, battle + 6, 200, 36, 21);
+            Ui.Button("God", content, "무적: " + (BattleService.God ? "켜짐" : "꺼짐"), 16, battle + 48, 200, 44, new Action(() => Say(BattleService.SetGod(!BattleService.God))), true, BattleService.God);
+            Ui.Button("Multiplier", content, "피해 배율: x" + BattleService.Multiplier, 232, battle + 48, 230, 44, new Action(() => Say(BattleService.NextMultiplier())), true, BattleService.Multiplier > 1);
+            Ui.Label(content, "무적은 플레이어가 받는 피해를 0으로, 배율은 플레이어가 주는 피해를 곱합니다. 동료와 적끼리의 피해는 그대로입니다.", 16, battle + 98, 890, 24, 15).color = Ui.Dim;
+            Ui.Label(content, "게임을 다시 켜면 둘 다 꺼진 상태로 시작합니다.", 16, battle + 120, 890, 24, 15).color = Ui.Dim;
+        }
 
-            Ui.Panel("BattleBox", content, 0, 384, ContentW, 150, Ui.Section);
-            Ui.Label(content, "전투 보조", 16, 390, 200, 36, 21);
-            Ui.Button("God", content, "무적: " + (BattleService.God ? "켜짐" : "꺼짐"), 16, 432, 200, 44, new Action(() => Say(BattleService.SetGod(!BattleService.God))), true, BattleService.God);
-            Ui.Button("Multiplier", content, "피해 배율: x" + BattleService.Multiplier, 232, 432, 230, 44, new Action(() => Say(BattleService.NextMultiplier())), true, BattleService.Multiplier > 1);
-            Ui.Label(content, "무적은 플레이어가 받는 피해를 0으로, 배율은 플레이어가 주는 피해를 곱합니다. 동료와 적끼리의 피해는 그대로입니다.", 16, 482, 890, 24, 15).color = Ui.Dim;
-            Ui.Label(content, "게임을 다시 켜면 둘 다 꺼진 상태로 시작합니다.", 16, 504, 890, 24, 15).color = Ui.Dim;
+        // 세계 탭의 날짜 상자: 표기, 실제 진행, 직접 지정. 아래쪽 끝의 y를 돌려준다.
+        private static float RenderTimeBox(float top)
+        {
+            const float height = 196;
+            Ui.Panel("TimeBox", content, 0, top, ContentW, height, Ui.Section);
+            Ui.Label(content, "날짜", 16, top + 6, 80, 36, 21);
+            Ui.Label(content, TimeService.Describe(), 100, top + 6, 1000, 36);
+
+            // 실제 진행: 게임의 날짜 진행을 그대로 실행한다.
+            float y = top + 96;
+            bool canAdvance = TimeService.ResidueDay > 0;
+            Ui.Label(content, "실제 진행", 16, y, 110, 40, 18).color = Ui.Dim;
+            int[] days = { 1, 5, 10 };
+            for (int i = 0; i < days.Length; i++)
+            {
+                int amount = days[i];
+                Ui.Button("Day" + amount, content, "+ " + amount + "일", 130 + i * 96, y, 90, 40, new Action(() => Say(TimeService.Advance(amount))), canAdvance);
+            }
+            Ui.Button("SkipMonth", content, "다음 달 1일로", 424, y, 180, 40, new Action(() =>
+            {
+                string error = TimeService.OpenSkipMonth();
+                if (error != null)
+                {
+                    Say(error);
+                    return;
+                }
+                Close();
+            }));
+            Text advanceNote = Ui.Label(content, "게임의 날짜 진행을 그대로 실행합니다. +N일은 이번 달 남은 날까지만 진행하고, 달은 게임의 확인 창에서 넘깁니다.", 620, y, 680, 40, 14);
+            advanceNote.color = Ui.Dim;
+            advanceNote.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            // 직접 지정: 달력의 날짜만 바꾼다. 두 번 눌러 확인한다.
+            y = top + 144;
+            if (dateInput[0].Length == 0 && dateInput[1].Length == 0 && dateInput[2].Length == 0)
+            {
+                int[] now = TimeService.ToDate(TimeService.WorldDay);
+                for (int i = 0; i < 3; i++)
+                {
+                    dateInput[i] = now[i].ToString();
+                }
+            }
+            Ui.Label(content, "직접 지정", 16, y, 110, 40, 18).color = Ui.Dim;
+            string[] names = { "DateYear", "DateMonth", "DateDay" };
+            string[] units = { "년", "월", "일" };
+            float[] xs = { 130, 270, 380 };
+            float[] widths = { 100, 70, 70 };
+            for (int i = 0; i < 3; i++)
+            {
+                int index = i;
+                Ui.Input(names[i], content, dateInput[i], units[i], xs[i], y, widths[i], 40, new Action<string>(v => { dateInput[index] = v; datePending = false; }), true);
+                Ui.Label(content, units[i], xs[i] + widths[i] + 4, y, 30, 40, 18);
+            }
+            Ui.Button("DateApply", content, datePending ? "정말 변경" : "적용", 494, y, 130, 40, new Action(() =>
+            {
+                int year, month, day, target;
+                string error;
+                if (!int.TryParse(dateInput[0], out year) || !int.TryParse(dateInput[1], out month) || !int.TryParse(dateInput[2], out day))
+                {
+                    datePending = false;
+                    Say("날짜: 연·월·일을 모두 숫자로 입력하세요.");
+                    return;
+                }
+                if (!TimeService.TryToWorldDay(year, month, day, out target, out error))
+                {
+                    datePending = false;
+                    Say(error);
+                    return;
+                }
+                if (!datePending)
+                {
+                    datePending = true;
+                    Say(TimeService.DateText(TimeService.WorldDay) + " -> " + TimeService.DateText(target)
+                        + ": 달력만 바뀌고 월말 처리와 날짜 기준 기록은 그대로입니다. \"정말 변경\"을 한 번 더 누르세요.");
+                    return;
+                }
+                datePending = false;
+                string result = TimeService.SetDate(year, month, day);
+                dateInput[0] = "";
+                dateInput[1] = "";
+                dateInput[2] = "";
+                Say(result);
+            }), true, datePending);
+            Text dateNote = Ui.Label(content, "달력의 날짜만 바꿉니다(앞·뒤 모두). 그 사이의 월말 처리는 일어나지 않고, 임무 기한 같은 날짜 기준 기록은 그대로입니다.", 640, y, 660, 40, 14);
+            dateNote.color = Ui.Warn;
+            dateNote.horizontalOverflow = HorizontalWrapMode.Wrap;
+            return top + height;
         }
 
         private static void BuildNpcCache()
