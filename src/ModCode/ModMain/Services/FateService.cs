@@ -138,6 +138,16 @@ namespace MOD_sWP6UL
                 return backupError + " 변경을 중단했습니다.";
             }
             int oldId = log.ContainsKey(grade) ? log[grade].luck : 0;
+            // 게임의 운명 추가 행동은 역천개명 분류의 운명을 "지금 대경지"의 기록에도 적는다(실측: 대경지 3인 인물의 2번 기록을 바꾸자
+            // 3번 기록의 번호도 같은 것이 됐고, 3번의 원래 운명은 효과만 남았다). 다른 경지의 기록을 떠 두었다가 되돌린다.
+            var others = new Dictionary<int, int>();
+            foreach (var pair in log)
+            {
+                if (pair.Key != grade)
+                {
+                    others[pair.Key] = pair.Value.luck;
+                }
+            }
             string oldName = "없음";
             if (oldId != 0)
             {
@@ -149,6 +159,13 @@ namespace MOD_sWP6UL
                 }
             }
             unit.CreateAction(new UnitActionLuckAdd(newId), false);
+            foreach (var pair in others)
+            {
+                if (log.ContainsKey(pair.Key) && log[pair.Key].luck != pair.Value)
+                {
+                    log[pair.Key].luck = pair.Value;
+                }
+            }
             if (!LuckService.Has(unit, newId))
             {
                 ChangeLog.Add(EditService.NameOf(unit), gradeName + " 역천개명", oldName, oldName, false);

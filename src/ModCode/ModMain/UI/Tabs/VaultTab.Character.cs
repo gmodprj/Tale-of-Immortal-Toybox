@@ -13,6 +13,19 @@ namespace MOD_sWP6UL
         private string charName = "";
         private string charQuery = "";
 
+        private sealed class CharLine
+        {
+            public CharacterExportService.Section Section;
+            public int Index;       // 그 구역의 목록 안의 순번
+            public bool Born;       // 운명 구역: 선천인지
+            public string Search = "";
+        }
+
+        private readonly ListView<CharLine> charDetail = new ListView<CharLine>("CharItems", 38);
+        private CharacterExportService.Pack charOpened;
+        private CharacterExportService.Section charSection = CharacterExportService.Section.Grade;
+        private string charItemQuery = "";
+
         private List<CharacterExportService.Pack> FoundCharacters()
         {
             if (charQuery.Length == 0)
@@ -95,9 +108,257 @@ namespace MOD_sWP6UL
                 }));
         }
 
-        // 읽힌 묶음의 줄에 붙는 버튼(세부, 모두 가져오기). 가져오기가 생기기 전에는 비어 있다.
+        // 읽힌 묶음의 줄에 붙는 버튼.
         private void DrawCharacterActions(RectTransform row, CharacterExportService.Pack pack, int index, float right)
         {
+            Ui.Button("CharOpen" + index, row, "세부", right - 380, 3, 90, 34, new Action(() =>
+            {
+                charOpened = pack;
+                charSection = CharacterExportService.Section.Grade;
+                charItemQuery = "";
+                charDetail.Reset();
+                Push(() => charOpened.Name + " — " + charOpened.Character + ", " + charOpened.Date, DrawCharacterDetail);
+            }));
+            Confirm.Button("CharAll" + index, row, "모두 가져오기", "정말 가져오기", right - 284, 3, 170, 34, "char-all:" + pack.File,
+                pack.Name + ": 경지와 능력치가 파일의 값으로 바뀌고, 공법·기예·운명은 없는 것이 더해집니다. \"정말 가져오기\"를 한 번 더 누르세요.",
+                new Action(() => Say(CharacterExportService.ImportAll(pack))));
+        }
+
+        private static string SectionLabel(CharacterExportService.Section section, CharacterExportService.Pack pack)
+        {
+            switch (section)
+            {
+                case CharacterExportService.Section.Grade: return "경지";
+                case CharacterExportService.Section.Attributes: return "능력치 " + pack.Attributes.Count;
+                case CharacterExportService.Section.Martials: return "공법 " + pack.Martials.Count;
+                case CharacterExportService.Section.Arts: return "기예 " + pack.Arts.Count;
+                case CharacterExportService.Section.Lucks: return "운명 " + (pack.BornLucks.Count + pack.AddLucks.Count);
+                default: return "역천개명 " + pack.Fates.Count;
+            }
+        }
+
+        private static string LuckTips(int id)
+        {
+            ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(id);
+            return conf == null ? "" : MartialService.CleanDesc(GameTool.LS(conf.tips)).Replace('\n', ' ');
+        }
+
+        private List<CharLine> CharLines()
+        {
+            CharacterExportService.Pack pack = charOpened;
+            var lines = new List<CharLine>();
+            switch (charSection)
+            {
+                case CharacterExportService.Section.Grade:
+                    lines.Add(new CharLine { Section = charSection, Search = pack.GradeName + " " + pack.GradeId });
+                    break;
+                case CharacterExportService.Section.Attributes:
+                    for (int i = 0; i < pack.Attributes.Count; i++)
+                    {
+                        lines.Add(new CharLine { Section = charSection, Index = i, Search = pack.Attributes[i].Name + " " + pack.Attributes[i].Key });
+                    }
+                    break;
+                case CharacterExportService.Section.Martials:
+                    for (int i = 0; i < pack.Martials.Count; i++)
+                    {
+                        lines.Add(new CharLine { Section = charSection, Index = i, Search = pack.Martials[i].Name + " " + pack.Martials[i].BaseId });
+                    }
+                    break;
+                case CharacterExportService.Section.Arts:
+                    for (int i = 0; i < pack.Arts.Count; i++)
+                    {
+                        lines.Add(new CharLine { Section = charSection, Index = i, Search = pack.Arts[i].Name + " " + pack.Arts[i].Id + " " + pack.Arts[i].KindName });
+                    }
+                    break;
+                case CharacterExportService.Section.Lucks:
+                    for (int i = 0; i < pack.BornLucks.Count; i++)
+                    {
+                        lines.Add(new CharLine { Section = charSection, Index = i, Born = true, Search = pack.BornLucks[i].Name + " " + pack.BornLucks[i].Id });
+                    }
+                    for (int i = 0; i < pack.AddLucks.Count; i++)
+                    {
+                        lines.Add(new CharLine { Section = charSection, Index = i, Search = pack.AddLucks[i].Name + " " + pack.AddLucks[i].Id });
+                    }
+                    break;
+                default:
+                    for (int i = 0; i < pack.Fates.Count; i++)
+                    {
+                        lines.Add(new CharLine { Section = charSection, Index = i, Search = pack.Fates[i].Name + " " + pack.Fates[i].Id });
+                    }
+                    break;
+            }
+            return charItemQuery.Length == 0 ? lines : lines.FindAll(l => l.Search.Contains(charItemQuery));
+        }
+
+        // 줄에서 가장 긴 글(이름이나 효과)의 높이로 줄 높이를 정한다.
+        private float CharLineHeight(CharLine line)
+        {
+            CharacterExportService.Pack pack = charOpened;
+            switch (line.Section)
+            {
+                case CharacterExportService.Section.Martials:
+                    return RowFor(38, Ui.TextHeight(pack.Martials[line.Index].Name, 330, 17));
+                case CharacterExportService.Section.Arts:
+                    return RowFor(38, Ui.TextHeight(pack.Arts[line.Index].Name, 400, 17));
+                case CharacterExportService.Section.Lucks:
+                    {
+                        CharacterExportService.LuckLine luck = line.Born ? pack.BornLucks[line.Index] : pack.AddLucks[line.Index];
+                        return RowFor(38, Ui.TextHeight(luck.Name, 240, 17), Ui.TextHeight(LuckTips(luck.Id), 560, 15));
+                    }
+                case CharacterExportService.Section.Fates:
+                    return RowFor(38, Ui.TextHeight(pack.Fates[line.Index].Name, 240, 17), Ui.TextHeight(LuckTips(pack.Fates[line.Index].Id), 480, 15));
+                default:
+                    return 38;
+            }
+        }
+
+        // 하위 화면: 한 묶음의 구역들. 구역을 고르면 그 줄들이 나오고, 줄마다 또는 구역 전체를 가져온다.
+        private void DrawCharacterDetail()
+        {
+            CharacterExportService.Pack pack = charOpened;
+            float y = SubTop;
+            var sections = (CharacterExportService.Section[])Enum.GetValues(typeof(CharacterExportService.Section));
+            for (int i = 0; i < sections.Length; i++)
+            {
+                CharacterExportService.Section section = sections[i];
+                Ui.Button("CharSec" + section, content, SectionLabel(section, pack), i * 156, y, 150, 38, new Action(() =>
+                {
+                    charSection = section;
+                    charItemQuery = "";
+                    charDetail.Reset();
+                    Redraw();
+                }), true, charSection == section);
+            }
+            SearchBox.Build(content, "CharItemQuery", 0, y + 46, 330, charItemQuery, "이름의 일부 또는 번호", new Action<string>(v =>
+            {
+                charItemQuery = v;
+                charDetail.SetItems(CharLines());
+            }));
+            bool rewrites = charSection == CharacterExportService.Section.Grade || charSection == CharacterExportService.Section.Attributes;
+            CharacterExportService.Section current = charSection;
+            Action importSection = new Action(() => Say(CharacterExportService.ImportSection(pack, current)));
+            if (rewrites)
+            {
+                // 값이 파일의 값으로 바뀌는 구역은 한 번 더 확인한다.
+                Confirm.Button("CharImportSection", content, "이 항목 모두 가져오기", "정말 가져오기", 350, y + 46, 240, 38, "char-sec:" + current + pack.File,
+                    current == CharacterExportService.Section.Grade
+                        ? "경지를 파일의 값으로 바꿉니다. 능력치는 따라오지 않습니다(능력치도 가져와야 원래 인물과 같아집니다). \"정말 가져오기\"를 한 번 더 누르세요."
+                        : "능력치를 모두 파일의 값으로 바꿉니다. \"정말 가져오기\"를 한 번 더 누르세요.", importSection);
+            }
+            else
+            {
+                Ui.Button("CharImportSection", content, "이 항목 모두 가져오기", 350, y + 46, 240, 38, importSection);
+            }
+            Ui.Wrapped(content, rewrites ? "값은 파일의 값으로 바뀝니다. 대상은 플레이어입니다." : "지금 것에 더합니다(이미 있는 것은 건너뜁니다). 가져온 공법은 자동으로 장착하지 않습니다.",
+                606, y + 46, ContentW - 606, 38, 14).color = Ui.Dim;
+            float top = y + 94;
+            charDetail.EmptyText = "이 항목에는 줄이 없습니다.";
+            charDetail.HeightOf = CharLineHeight;
+            charDetail.Build(content, 0, top, ContentW, ContentH - top, CharLines(), DrawCharLine);
+        }
+
+        // 상태 글과 가져오기 버튼. 줄을 쓸 수 없으면 이유를 보이고 버튼을 끈다.
+        private void LineEnd(RectTransform row, string name, string state, string problem, string label, bool enabled, Action action, bool confirm = false, string key = null, string message = null)
+        {
+            float right = ContentW - Ui.ScrollBarWidth;
+            Text text = Ui.Wrapped(row, problem ?? state, right - 330, 0, 190, row.sizeDelta.y, 15);
+            text.color = problem != null ? Ui.Warn : Ui.Dim;
+            if (confirm)
+            {
+                Confirm.Button(name, row, label, "정말 가져오기", right - 138, 3, 130, 32, key, message, action, enabled && problem == null);
+            }
+            else
+            {
+                Ui.Button(name, row, label, right - 138, 3, 130, 32, action, enabled && problem == null);
+            }
+        }
+
+        private void DrawCharLine(RectTransform row, CharLine line, int index)
+        {
+            CharacterExportService.Pack pack = charOpened;
+            float h = row.sizeDelta.y;
+            int at = line.Index;
+            switch (line.Section)
+            {
+                case CharacterExportService.Section.Grade:
+                    {
+                        var saved = Player.data.unitData.propertyData;
+                        Ui.Label(row, "파일", 8, 0, 60, h, 16).color = Ui.Dim;
+                        Ui.Label(row, pack.HasGrade ? EditService.GradeName(pack.GradeId) + " (번호 " + pack.GradeId + ", 수련치 " + pack.GradeExp + ")" : "경지 없음", 70, 0, 420, h, 17);
+                        Ui.Label(row, "지금", 500, 0, 60, h, 16).color = Ui.Dim;
+                        Ui.Label(row, EditService.GradeName(saved.gradeID) + " (번호 " + saved.gradeID + ", 수련치 " + saved.exp + ")", 562, 0, 380, h, 17);
+                        bool same = pack.HasGrade && saved.gradeID == pack.GradeId;
+                        LineEnd(row, "CharGetGrade", same ? "같은 경지" : "", pack.HasGrade ? null : "파일에 경지가 없습니다", "가져오기", true,
+                            new Action(() => Say(CharacterExportService.ImportGrade(pack))), true, "char-grade:" + pack.File,
+                            "경지를 " + EditService.GradeName(pack.GradeId) + "(으)로 바꿉니다. 능력치는 따라오지 않습니다(능력치도 가져와야 원래 인물과 같아집니다). \"정말 가져오기\"를 한 번 더 누르세요.");
+                        break;
+                    }
+                case CharacterExportService.Section.Attributes:
+                    {
+                        CharacterExportService.Attr attr = pack.Attributes[at];
+                        AttributeDef def = AttributeCatalog.All.Find(d => d.Key == attr.Key);
+                        int now;
+                        bool known = CharacterExportService.AttrNow(attr, out now);
+                        Ui.Label(row, def == null ? "-" : AttributeCatalog.Categories[def.Category], 8, 0, 130, h, 16).color = Ui.Dim;
+                        Ui.Label(row, def == null ? (attr.Name.Length > 0 ? attr.Name : attr.Key) : def.Label, 145, 0, 240, h, 17);
+                        Ui.Label(row, "파일 " + attr.Value, 400, 0, 180, h, 17);
+                        Ui.Label(row, known ? "지금 " + now : "", 590, 0, 180, h, 17);
+                        bool same = known && now == attr.Value;
+                        LineEnd(row, "CharGetAttr_" + attr.Key, same ? "같음" : "", attr.Problem ?? (known ? null : "모르는 능력치입니다"), same ? "같음" : "가져오기", !same,
+                            new Action(() => Say(CharacterExportService.ImportAttribute(pack, at))));
+                        break;
+                    }
+                case CharacterExportService.Section.Martials:
+                    {
+                        CharacterExportService.MartialLine martial = pack.Martials[at];
+                        bool known = CharacterExportService.HasMartial(martial.BaseId);
+                        Ui.Label(row, MartialService.TypeLabel((MartialType)martial.Type), 8, 0, 110, h, 16).color = Ui.Dim;
+                        Ui.Wrapped(row, martial.Name, 125, 0, 330, h, 17);
+                        Ui.Label(row, "경지 " + martial.Grade, 465, 0, 70, h, 16);
+                        Ui.Label(row, "숙련 " + martial.Exp, 540, 0, 110, h, 16);
+                        Ui.Label(row, "옵션 " + CharacterExportService.OptionCount(martial), 655, 0, 80, h, 16);
+                        Ui.Label(row, martial.Equipped ? "장착했던 것" : "", 740, 0, 110, h, 15).color = Ui.Warn;
+                        LineEnd(row, "CharGetMartial" + at, known ? "있음" : "없음", martial.Problem, known ? "하나 더" : "가져오기", true,
+                            new Action(() => Say(CharacterExportService.ImportMartial(pack, at))));
+                        break;
+                    }
+                case CharacterExportService.Section.Arts:
+                    {
+                        CharacterExportService.ArtLine art = pack.Arts[at];
+                        bool learned = CharacterExportService.ArtLearned(art);
+                        Ui.Label(row, art.KindName, 8, 0, 110, h, 16).color = Ui.Dim;
+                        Ui.Wrapped(row, art.Name, 125, 0, 400, h, 17);
+                        Ui.Label(row, art.Id.ToString(), 540, 0, 120, h, 16).color = Ui.Dim;
+                        LineEnd(row, "CharGetArt" + at, learned ? "배움" : "-", art.Problem, learned ? "배움" : "가져오기", !learned,
+                            new Action(() => Say(CharacterExportService.ImportArt(pack, at))));
+                        break;
+                    }
+                case CharacterExportService.Section.Lucks:
+                    {
+                        CharacterExportService.LuckLine luck = line.Born ? pack.BornLucks[at] : pack.AddLucks[at];
+                        bool has = LuckService.Has(Player, luck.Id);
+                        Ui.Label(row, line.Born ? "선천" : "후천", 8, 0, 70, h, 16).color = Ui.Dim;
+                        Ui.Wrapped(row, luck.Name, 85, 0, 240, h, 17);
+                        Ui.Wrapped(row, LuckTips(luck.Id), 335, 0, 560, h, 15).color = Ui.Dim;
+                        bool born = line.Born;
+                        LineEnd(row, (born ? "CharGetBorn" : "CharGetAdd") + at, has ? "보유" : "-", luck.Problem, has ? "보유" : "가져오기", !has,
+                            new Action(() => Say(born ? CharacterExportService.ImportBornLuck(pack, at) : CharacterExportService.ImportAddLuck(pack, at))));
+                        break;
+                    }
+                default:
+                    {
+                        CharacterExportService.FateLine fate = pack.Fates[at];
+                        string state = CharacterExportService.FateState(fate);
+                        Ui.Label(row, "대경지 " + fate.Grade, 8, 0, 150, h, 16).color = Ui.Dim;
+                        Ui.Wrapped(row, fate.Name, 165, 0, 240, h, 17);
+                        Ui.Wrapped(row, LuckTips(fate.Id), 415, 0, 480, h, 15).color = Ui.Dim;
+                        LineEnd(row, "CharGetFate" + at, state, fate.Problem, state == "같음" ? "같음" : "가져오기", state == "다름",
+                            new Action(() => Say(CharacterExportService.ImportFate(pack, at))));
+                        // 검사가 줄의 상태를 읽을 수 있게 이름을 붙인다.
+                        row.GetChild(row.childCount - 2).gameObject.name = "CharFateState" + at;
+                        break;
+                    }
+            }
         }
     }
 }

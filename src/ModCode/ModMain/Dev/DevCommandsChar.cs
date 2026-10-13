@@ -47,6 +47,18 @@ namespace MOD_sWP6UL
                         }
                         return "no born luck " + id;
                     }
+                case "cfatelog":
+                    {
+                        // 경지별 역천개명 기록의 항목마다: 대경지, 객체의 주소, 운명 번호, 품질. 두 경지가 같은 객체를 가리키는지 본다.
+                        var log = g.data.world.playerLog.upGrade;
+                        var sb = new StringBuilder("entries=" + log.Count);
+                        foreach (var pair in log)
+                        {
+                            sb.Append(" [").Append(pair.Key).Append(" @").Append(pair.Value.Pointer.ToInt64().ToString("X"))
+                                .Append(" luck=").Append(pair.Value.luck).Append(" q=").Append(pair.Value.quality).Append("]");
+                        }
+                        return sb.ToString();
+                    }
                 case "cfatealt":
                     {
                         // 그 경지의 역천개명을 지금 것과 다른 첫 후보로 바꾼다.

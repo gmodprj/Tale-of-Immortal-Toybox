@@ -751,13 +751,195 @@ switch ($Part) {
       Press 'CharDelete0' | Out-Null
       Check 'the second press deletes the file' (-not (Test-Path -LiteralPath (Join-Path $dir 'uicheck-b_c_d_.json'))) (Msg)
       Press 'CharQueryClear' | Out-Null
-      #CHARVAULT-IMPORT#
+      # ---- 가져오기 (7절 4~16번) ----
+      function Row([string]$needle) { Cmd "ui set CharItemQuery $needle" | Out-Null }
+      function IndexOfMartial($list, $one) { for ($i = 0; $i -lt @($list).Count; $i++) { if ([object]::ReferenceEquals(@($list)[$i], $one)) { return $i } }; -1 }
+      Cmd 'ui set CharQuery uicheck-C' | Out-Null
+      # 줄 0은 "uicheck-C (2)"(나중에 쓴 것), 줄 1이 uicheck-C다. 내용은 같다.
+      Press 'CharOpen0' | Out-Null
+      Check 'the detail screen opens on the grade' ((IsAt 'Back') -and (IsAt 'CharGetGrade'))
+
+      # 4~5번: 능력치
+      Press 'CharSecAttributes' | Out-Null
+      $atk = [int]$s0.attack; $def = [int]$s0.defense
+      Cmd "cattr attack $($atk + 5)" | Out-Null; Press 'CharSecAttributes' | Out-Null; Row 'attack'
+      Press 'CharGetAttr_attack' | Out-Null
+      Check 'one attribute returns to the file value' ((State).attack -eq "$atk") (Msg)
+      Check 'an attribute that matches cannot be imported again' (-not (IsAt 'CharGetAttr_attack') -or (Cmd 'uitext CharGetAttr_attack') -match '같음')
+      Press 'CharItemQueryClear' | Out-Null
+      Cmd "cattr attack $($atk + 5)" | Out-Null; Cmd "cattr defense $($def + 5)" | Out-Null
+      Press 'CharSecAttributes' | Out-Null; Press 'CharImportSection' | Out-Null; Press 'CharImportSection' | Out-Null
+      $s = State; $m = Msg
+      Check 'the attribute section restores every changed value' ($s.attack -eq "$atk" -and $s.defense -eq "$def" -and $m -match '능력치: 변경 2') $m
+
+      # 6번: 경지
+      Cmd 'setgrade 5' | Out-Null
+      Press 'CharSecGrade' | Out-Null; Press 'CharGetGrade' | Out-Null
+      Check 'the grade import asks first' ((State).grade -eq '5' -and (Msg) -match '능력치는 따라오지')
+      Press 'CharGetGrade' | Out-Null
+      $s = State
+      Check 'the second press writes the grade and its exp' ($s.grade -eq $s0.grade -and $s.exp -eq $s0.exp) $s.raw
+
+      # 7~9번: 공법
+      $mar = @($pack.martials | Where-Object { -not $_.equipped -and @($_.values).Count -gt 6 })[0]
+      $mi = IndexOfMartial $pack.martials $mar
+      $want = "values=\[$(@($mar.values) -join ',')\]"
+      $o = Cmd "cmartial $($mar.baseId)" 200
+      $sole = if ($o -match 'sole=(\S+)') { $Matches[1] } else { '' }
+      Cmd "mdel $sole" | Out-Null
+      Press 'CharSecMartials' | Out-Null; Row "$($mar.baseId)"
+      Press "CharGetMartial$mi" | Out-Null
+      $o = Cmd "cmartial $($mar.baseId)" 200
+      Check 'a forgotten martial comes back with the same options' ($o -match '^.*n=1 ' -and $o -match $want -and (State).martials -eq $s0.martials) "$o | $(Msg)"
+      Press 'CharItemQueryClear' | Out-Null
+      Press 'CharImportSection' | Out-Null
+      Check 'the martial section adds nothing that is already known' ((State).martials -eq $s0.martials -and (Msg) -match '공법: 추가 0') (Msg)
+      Row "$($mar.baseId)"
+      Press "CharGetMartial$mi" | Out-Null
+      $o = Cmd "cmartial $($mar.baseId)" 200
+      Check 'the row button adds one more of a known martial' ($o -match 'n=2 ') $o
+      $extra = @([regex]::Matches($o, 'sole=(\S+)') | ForEach-Object { $_.Groups[1].Value })[-1]
+      Cmd "mdel $extra" | Out-Null
+      Press 'CharItemQueryClear' | Out-Null
+
+      # 10번: 기예
+      $art = @($pack.arts)[0]
+      if ($art) {
+        Cmd "cartdel $($art.id)" | Out-Null
+        Check 'the art was forgotten for the test' ((State).arts -eq "$([int]$s0.arts - 1)")
+        Press 'CharSecArts' | Out-Null; Row "$($art.id)"
+        Press 'CharGetArt0' | Out-Null
+        Check 'a forgotten art book comes back' ((State).arts -eq $s0.arts) (Msg)
+        Press 'CharItemQueryClear' | Out-Null
+      } else { 'INFO no learned art in this save; art import not exercised' }
+
+      # 11번: 운명
+      Press 'CharSecLucks' | Out-Null
+      $bornId = @($pack.bornLucks)[0].id
+      Cmd "cborndel $bornId" | Out-Null
+      Check 'the born luck was removed for the test' (-not (Has 'luck' "born=\[[^\]]*\b$bornId\b"))
+      Press 'CharSecLucks' | Out-Null; Row "$bornId"
+      Press 'CharGetBorn0' | Out-Null
+      Check 'a removed born luck comes back as a born luck' (Has 'luck' "born=\[[^\]]*\b$bornId\b") (Msg)
+      Press 'CharItemQueryClear' | Out-Null
+      $add = @($pack.addLucks)[0]
+      if ($add) {
+        Cmd "luckdel $($add.id)" | Out-Null
+        Press 'CharSecLucks' | Out-Null; Row "$($add.id)"
+        Press 'CharGetAdd0' | Out-Null
+        Check 'a removed acquired luck comes back' (Has 'luck' "add=\[[^\]]*\b$($add.id)\(") (Msg)
+        Press 'CharItemQueryClear' | Out-Null
+      } else { 'INFO no exportable acquired luck in this save; not exercised' }
+
+      # 12번: 역천개명
+      $fate = @($pack.fates)[0]
+      if ($fate) {
+        $o = Cmd "cfatealt $($fate.grade)" 300
+        Check 'the fate was changed for the test' ((State).fates -notmatch "$($fate.grade):$($fate.id)") $o
+        # 한 경지의 역천개명을 바꿔도 다른 경지의 기록은 그대로여야 한다(게임의 추가 행동이 지금 경지의 기록을 덮어쓴다)
+        $now = (State).fates; $kept = @($s0.fates -split ',' | Where-Object { $_ -notmatch "^$($fate.grade):" } | Where-Object { ",$now," -notmatch ",$_," })
+        Check 'changing one grade leaves the other grades alone' ($kept.Count -eq 0) "before=$($s0.fates) now=$now"
+        Press 'CharSecFates' | Out-Null
+        Press 'CharGetFate0' | Out-Null
+        Check 'the fate returns to the one in the file' ((State).fates -match "$($fate.grade):$($fate.id)") (Msg)
+        Cmd 'setgrade 1' | Out-Null
+        Press 'CharSecFates' | Out-Null
+        Check 'a fate above the current grade is shown as out of reach' ((Cmd 'uidescs CharFateState' 200) -match '경지 미달')
+        Press 'CharSecGrade' | Out-Null; Press 'CharGetGrade' | Out-Null; Press 'CharGetGrade' | Out-Null
+      } else { 'INFO no fate recorded in this save; fate import not exercised' }
+
+      # Review Focus 5: 세부 화면을 연 채 떠나면 닫힌다
+      Press 'Tab1' | Out-Null; Press 'Tab3' | Out-Null
+      Check 'leaving closes the detail screen' ((IsAt 'CharExport') -and -not (IsAt 'CharGetGrade'))
+
+      # 13번, Review Focus 2: 여러 가지를 바꾼 뒤 모두 가져오기
+      Cmd 'setgrade 5' | Out-Null; Cmd "cattr attack $($atk + 5)" | Out-Null
+      $o = Cmd "cmartial $($mar.baseId)" 200; if ($o -match 'sole=(\S+)') { Cmd "mdel $($Matches[1])" | Out-Null }
+      if ($art) { Cmd "cartdel $($art.id)" | Out-Null }
+      Cmd 'ui set CharQuery uicheck-C' | Out-Null
+      Press 'CharAll0' | Out-Null
+      Check 'import-all asks first' ((State).grade -eq '5' -and (Cmd 'uitext CharAll0') -match "text='정말 가져오기'")
+      Press 'CharAll0' | Out-Null
+      $s = State; $m = Msg
+      Check 'import-all restores the character' ($s.grade -eq $s0.grade -and $s.exp -eq $s0.exp -and $s.attack -eq $s0.attack -and $s.martials -eq $s0.martials -and $s.arts -eq $s0.arts -and $s.born -eq $s0.born -and $s.fates -eq $s0.fates) "$($s.raw) | $m"
+      Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
+      $s = State; $m = Msg
+      Check 'importing twice adds nothing' ($s.martials -eq $s0.martials -and $s.arts -eq $s0.arts -and $s.born -eq $s0.born -and $m -match '공법: 추가 0' -and $m -match '기예: 추가 0') $m
+
+      # 14~15번, Review Focus 1·3·4: 손으로 고친 파일
+      $bad = [ordered]@{ format = 1; kind = 'character'; name = 'uicheck-H'; exportedAt = '2026-10-13 00:00:00'; character = 'test'
+        grade = [ordered]@{ id = 9999; name = 'no such grade'; exp = 1 }
+        attributes = @([ordered]@{ key = 'nope'; name = 'unknown'; value = 1 }, [ordered]@{ key = 'attack'; name = 'too big'; value = 999999999 }, [ordered]@{ key = 'defense'; name = 'text'; value = 'many' })
+        martials = @([ordered]@{ type = $mar.type; baseId = $mar.baseId; name = 'short'; grade = 1; exp = 0; equipped = $false; values = @(2) },
+          [ordered]@{ type = 2; baseId = 2; name = 'nonsense'; grade = 0; exp = 0; equipped = $false; values = @(2, 2, 0, 1, 2, 3) },
+          [ordered]@{ type = $mar.type; baseId = 987654321; name = 'unknown skill'; grade = 1; exp = 0; equipped = $false; values = @($mar.type, 987654321, 1) })
+        arts = @([ordered]@{ kind = '연단'; id = 999999999; name = 'no book' }, [ordered]@{ kind = '없는 분류'; id = 1; name = 'no kind' })
+        bornLucks = @([ordered]@{ id = 999999999; name = 'no luck' }); addLucks = @([ordered]@{ id = 999999999; name = 'no luck' })
+        fates = @([ordered]@{ grade = 2; id = 999999999; name = 'no fate' }) }
+      $capped = [ordered]@{ format = 1; kind = 'character'; name = 'uicheck-X'; exportedAt = '2026-10-13 00:00:01'; character = 'test'
+        grade = [ordered]@{ id = [int]$s0.grade; name = 'same grade'; exp = 999999999 } }
+      Start-Sleep -Milliseconds 1100
+      [IO.File]::WriteAllText((Join-Path $dir 'uicheck-H.json'), ($bad | ConvertTo-Json -Depth 6))
+      [IO.File]::WriteAllText((Join-Path $dir 'uicheck-X.json'), ($capped | ConvertTo-Json -Depth 6))
+      [IO.File]::WriteAllText((Join-Path $dir 'uicheck-broken.json'), '{ "format": 1, "kind": "character" "grade": ')
+      Copy-Item -LiteralPath (Join-Path $bagDir 'uicheck-bagside.json') -Destination (Join-Path $dir 'uicheck-bagfile.json')
+      Press 'Tab3' | Out-Null
+      Cmd 'ui set CharQuery uicheck-H' | Out-Null
+      $before = State
+      Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
+      $s = State; $m = Msg
+      Check 'bad lines are refused one by one' ($s.grade -eq $before.grade -and $s.attack -eq $before.attack -and $s.defense -eq $before.defense -and $m -match '못 넣음') $m
+      Check 'a broken martial line leaves nothing behind' ($s.martials -eq $before.martials -and (Cmd 'cmartial 2' 200) -match 'n=0' -and (Cmd 'cmartial 987654321' 200) -match 'n=0') $s.raw
+      Cmd 'ui set CharQuery uicheck-X' | Out-Null
+      Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
+      $s = State
+      Check 'exp is capped at the next step' ($s.grade -eq $s0.grade -and [int]$s.exp -le [int]$s.nextexp -and [int]$s.exp -ge [int]$s0.exp) $s.raw
+      Cmd 'ui set CharQuery uicheck-b' | Out-Null
+      $unreadable = 0; for ($i = 0; $i -lt 3; $i++) { if ((Cmd "uitext Row$i" 100) -match '읽을 수 없음') { $unreadable++ } }
+      Check 'a bag file in the character folder is unreadable' ($unreadable -eq 2 -and (Cmd 'uipos CharAll0') -match 'no element named') "unreadable=$unreadable"
+
+      # 16번: 목록을 본 뒤 지워진 파일
+      Cmd 'ui set CharQuery uicheck-X' | Out-Null
+      [IO.File]::Delete((Join-Path $dir 'uicheck-X.json'))
+      Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
+      Check 'a file removed behind the list is reported' ((Msg) -match '파일이 없습니다') (Msg)
+      Press 'CharQueryClear' | Out-Null
+
+      # 18번: 변경 이력
+      $hist = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Select-Object -Last 120) -join "`n"
+      Check 'imports are in the change log' ($hist -match '캐릭터 가져오기')
+
+      # 17번의 준비: 경지와 능력치와 공법을 바꾼 채 가져오고 저장한다. 다시 시작한 뒤에도 파일의 상태여야 한다
+      Cmd 'setgrade 5' | Out-Null; Cmd "cattr attack $($atk + 5)" | Out-Null
+      $o = Cmd "cmartial $($mar.baseId)" 200; if ($o -match 'sole=(\S+)') { Cmd "mdel $($Matches[1])" | Out-Null }
+      Cmd 'ui set CharQuery uicheck-C' | Out-Null
+      Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
+      $s = State
+      [IO.File]::WriteAllText((Join-Path $work 'check-expect.txt'), "$($s.grade) $($s.exp) $($s.attack) $($s.martials) $($mar.baseId) $(@($mar.values) -join ',')")
+      Press 'CharQueryClear' | Out-Null
+      Shot 'charvault-list'
+      Cmd 'ui set CharQuery uicheck-C' | Out-Null; Press 'CharOpen0' | Out-Null; Press 'CharSecMartials' | Out-Null; Shot 'charvault-martials'
+      Press 'CharSecAttributes' | Out-Null; Shot 'charvault-attributes'
+      Press 'Back' | Out-Null; Press 'CharQueryClear' | Out-Null
+      Cmd 'uiopen PlayerInfo' 1500 | Out-Null; Shot 'charvault-playerinfo'; Cmd 'uiclose PlayerInfo' 1000 | Out-Null
+      Cmd 'save' 5000 | Out-Null
 
       Press 'VaultModeBag' | Out-Null   # 다른 검사가 가방 쪽에서 시작하도록 돌려 둔다
       Press 'Close' | Out-Null
       Check 'no exception in button callbacks' ((Traps) -eq $traps)
       Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
     } finally { CleanChar }
+  }
+  'charvault-restart' {
+    $want = ([IO.File]::ReadAllText((Join-Path $work 'check-expect.txt'))) -split ' '
+    $o = Cmd 'cstate' 200
+    Check 'the imported grade, exp and attribute survive save and restart' ($o -match "grade=$($want[0]) exp=$($want[1]) " -and $o -match " attack=$($want[2]) " -and $o -match " martials=$($want[3]) ") $o
+    $o = Cmd "cmartial $($want[4])" 200
+    Check 'the imported martial survives with its options' ($o -match 'n=1 ' -and $o -match "values=\[$($want[5])\]") $o
+    Cmd 'editor' | Out-Null; Press 'Tab3' | Out-Null; Press 'VaultModeChar' | Out-Null
+    Cmd 'ui set CharQuery uicheck-' | Out-Null
+    Check 'no test files are left' ((Cmd 'uitext CharListRange') -match "text='0개'")
+    Press 'CharQueryClear' | Out-Null; Press 'Close' | Out-Null
   }
   'order' {
     $traps = Traps
