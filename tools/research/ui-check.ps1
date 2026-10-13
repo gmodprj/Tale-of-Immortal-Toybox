@@ -83,14 +83,14 @@ switch ($Part) {
 
     # 탭 안의 하위 화면
     Press 'Tab3' | Out-Null; Press 'SkillAddOpen' | Out-Null
-    Check 'skill add screen opens' (IsAt 'SkillBack')
-    Press 'SkillBack' | Out-Null
+    Check 'skill add screen opens' (IsAt 'Back')
+    Press 'Back' | Out-Null
     Check 'skill add screen closes' (IsAt 'SkillAddOpen')
     Press 'Tab4' | Out-Null; Press 'LuckAddOpen' | Out-Null
-    Check 'luck picker opens' (IsAt 'LuckBack')
-    Press 'LuckBack' | Out-Null; Press 'FateOpen' | Out-Null
-    Check 'fate screen opens' (IsAt 'FateBack')
-    Press 'FateBack' | Out-Null
+    Check 'luck picker opens' (IsAt 'Back')
+    Press 'Back' | Out-Null; Press 'FateOpen' | Out-Null
+    Check 'fate screen opens' (IsAt 'Back')
+    Press 'Back' | Out-Null
     Check 'luck list is back' (IsAt 'LuckAddOpen')
 
     # 수량은 쓰는 곳마다 따로 기억한다 (스펙 6절 10번)
@@ -125,11 +125,11 @@ switch ($Part) {
 
     # 삭제 확인 대기는 편집 대상을 바꾸면 풀린다. 제목 줄의 버튼으로 어느 탭에서나 대상을 바꿀 수 있기 때문이다.
     Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
-    Press 'LuckRemove0' | Out-Null
-    Check 'removing an NPC luck asks first' ((Cmd 'uitext LuckRemove0') -match "text='정말 삭제'")
+    $rm = (Pos 'LuckRemove*').name; Press $rm | Out-Null
+    Check 'removing an NPC luck asks first' ((Cmd "uitext $rm") -match "text='정말 삭제'")
     Press 'ToPlayer' | Out-Null
     Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
-    Check 'the pending confirm is gone after the target changed' ((Cmd 'uitext LuckRemove0') -match "text='삭제'")
+    Check 'the pending confirm is gone after the target changed' ((Cmd "uitext $rm") -match "text='삭제'")
     Press 'ToPlayer' | Out-Null
 
     # Review Focus 2: 대상으로 잡은 NPC가 없어지면 플레이어로 돌아간다
@@ -269,6 +269,14 @@ switch ($Part) {
     Cmd 'uifocus attrInput' | Out-Null; Cmd 'ui set attrInput 0' | Out-Null; Key 0x0D
     Check 'a step of zero is refused' ((Cmd 'uitext Plus*') -match "text='\+ 7'" -and (Cmd 'uistate') -match "message='수량은")
     Press 'attr10' | Out-Null
+    # 세계 탭: 날짜 칸에서 Enter를 누르면 적용 버튼과 같다(확인은 그대로 두 번)
+    Press 'Tab7' | Out-Null
+    if ((Cmd 'tin') -notmatch 'input=(\d+)-(\d+)-(\d+) pending=False') { throw '날짜 입력 상태를 읽지 못했습니다.' }
+    $day = [int]$Matches[3]; $other = if ($day -eq 12) { 13 } else { 12 }
+    Cmd 'uifocus DateDay' | Out-Null; Cmd "ui set DateDay $other" | Out-Null; Key 0x0D
+    Check 'Enter in a date box asks like the apply button' ((Cmd 'tin') -match "-$other pending=True" -and (Cmd 'uitext DateApply') -match "text='정말 변경'")
+    Press 'Tab7' | Out-Null
+    Check 'coming back to the tab cancels the date change' ((Cmd 'tin') -match "-$day pending=False")
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
@@ -281,6 +289,7 @@ switch ($Part) {
     if ($o -notmatch '전체 (\d+)개') { throw "NPC 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]
     Check 'the NPC list is a scrolling list' ($total -gt 8 -and (Cmd 'uipos NpcNext10') -match 'no element named' -and (Cmd 'uipos NpcSearch') -match 'no element named')
+    Press 'NpcRefresh' | Out-Null
     $pick = Pos 'Pick*'
     Press $pick.name | Out-Null
     Check 'picking an NPC shows the favour buttons' (IsAt 'IntimPlus')
