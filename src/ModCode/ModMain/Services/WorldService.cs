@@ -100,6 +100,22 @@ namespace MOD_sWP6UL
             return "피해 배율: x" + Multiplier;
         }
 
+        // 무적을 끄고 피해 배율을 1로 되돌린다(배율 탭의 "모두 1배로").
+        public static void Reset()
+        {
+            if (God)
+            {
+                SetGod(false);
+            }
+            if (Multiplier != 1)
+            {
+                int before = Multiplier;
+                Multiplier = 1;
+                Sync();
+                ChangeLog.Add("전투", "피해 배율(플레이어가 주는 피해)", "x" + before, "x1", true);
+            }
+        }
+
         private static void Sync()
         {
             if (Wanted && !subscribed)

@@ -72,6 +72,7 @@ namespace MOD_sWP6UL
             BagService.Tick();
             EditorWindow.Tick();
             StatusOverlay.Tick();
+            RateService.Tick();
             if (Input.GetKeyDown(EditorHost.Hotkey))
             {
                 try

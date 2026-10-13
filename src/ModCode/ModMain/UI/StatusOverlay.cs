@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 켜 둔 기능(무적, 피해 배율, 날짜 고정)을 화면 위쪽 가운데에 보인다.
+    // 켜 둔 기능(무적, 피해 배율, 날짜 고정, 배율)을 화면 위쪽 가운데에 보인다.
     // 편집기와 별개의 캔버스에 덧그린다. 편집기를 닫았거나 게임 창이 편집기를 가렸을 때도 보여야 하기 때문이다.
     // 클릭은 받지 않는다(캔버스에 GraphicRaycaster를 붙이지 않는다).
     internal static class StatusOverlay
@@ -40,6 +40,13 @@ namespace MOD_sWP6UL
             if (TimeService.Frozen)
             {
                 parts.Add("날짜 고정");
+            }
+            foreach (RateService.Rate rate in RateService.All)
+            {
+                if (rate.On)
+                {
+                    parts.Add(rate.Short + " " + rate.Text);
+                }
             }
             return string.Join(" · ", parts.ToArray());
         }

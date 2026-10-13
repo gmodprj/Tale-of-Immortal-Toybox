@@ -24,6 +24,7 @@ namespace MOD_sWP6UL
             MelonLogger.Msg("[TlToybox] Destroy");
             EditorWindow.Close();
             BattleService.OnDestroy();
+            RateService.OnDestroy();
 #if DEVTOOLS
             StopDevPoll();
 #endif

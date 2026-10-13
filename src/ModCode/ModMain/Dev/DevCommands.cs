@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string rate = DevCommandsRate.Execute(p);
+            if (rate != null)
+            {
+                return rate;
+            }
             string character = DevCommandsChar.Execute(p);
             if (character != null)
             {

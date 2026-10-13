@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'BackupNow')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -54,7 +54,7 @@ switch ($Part) {
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
-    for ($i = 0; $i -lt 11; $i++) {
+    for ($i = 0; $i -lt 12; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
@@ -71,15 +71,17 @@ switch ($Part) {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     $s = Cmd 'uistate'
-    Check 'state is readable' ($s -match 'open=True tab=\d target=player ') $s
+    Check 'state is readable' ($s -match 'open=True tab=\d+ target=player ') $s
     Check 'title shows the target' ((Cmd 'uitext Title') -match '편집 대상: .+\(플레이어\)')
     $p = Pos 'ToPlayer'
     Check 'ToPlayer is off while the target is the player' ((Rc "click $($p.x) $($p.y)" 300) -match 'not interactable')
-    for ($i = 0; $i -lt 11; $i++) {
+    for ($i = 0; $i -lt 12; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i is selected" ((Cmd 'uistate') -match "tab=$i ")
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
+    Press 'Tab9' | Out-Null
+    Check 'world tab no longer has the battle helpers' (-not (IsAt 'God'))
 
     # 탭 안의 하위 화면
     Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null
@@ -322,7 +324,7 @@ switch ($Part) {
     # 스펙 6절 18번. 안전 탭의 변경 이력 전체 보기. 방금 한 변경이 맨 위에 오는지 보려고 먼저 하나를 만든다.
     $traps = Traps
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null; Press 'Restore' | Out-Null
-    Press 'Tab10' | Out-Null
+    Press 'Tab11' | Out-Null
     $o = Cmd 'uitext HistoryRange'
     if ($o -notmatch '전체 (\d+)개') { throw "이력 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]
@@ -681,10 +683,11 @@ switch ($Part) {
     Check 'first returns to the top' ((Cmd 'uitext ItemTableRange') -match '중 1~')
 
     # 다른 탭의 목록도 말줄임이 없다(기예, 운명 고르기, 기술 추가, 변경 이력)
-    Press 'Tab7' | Out-Null
+    # 검색 칸은 앞선 검사(confirm)가 적은 글을 기억한다. 비우고 읽는다.
+    Press 'Tab7' | Out-Null; Cmd 'ui set ArtQuery' | Out-Null
     $n = @((Cmd 'uidescs ArtDesc' 300) -split "`n" | Where-Object { $_ -match '^ArtDesc' })
     Check 'art book descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
-    Press 'Tab6' | Out-Null; Press 'LuckAddOpen' | Out-Null
+    Press 'Tab6' | Out-Null; Press 'LuckAddOpen' | Out-Null; Cmd 'ui set LuckQuery' | Out-Null
     $n = @((Cmd 'uidescs LuckTips' 300) -split "`n" | Where-Object { $_ -match '^LuckTips' })
     Check 'luck effects are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Press 'Back' | Out-Null
@@ -698,11 +701,11 @@ switch ($Part) {
     $equip = Box 'MartialEquip'
     Check 'martial options are whole and above the equip button' ($opts -ge 1 -and $cut -eq 0 -and $equip -and $bottom -le $equip.top) "options=$opts cut=$cut bottom=$bottom equip=$($equip.top)"
     Shot 'wrap-martial'
-    Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null; Cmd 'ui set SkillQuery' | Out-Null
     $n = @((Cmd 'uidescs SkillDesc' 300) -split "`n" | Where-Object { $_ -match '^SkillDesc' })
     Check 'skill descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Press 'Back' | Out-Null
-    Press 'Tab10' | Out-Null
+    Press 'Tab11' | Out-Null
     $n = @((Cmd 'uidescs HistoryLine' 300) -split "`n" | Where-Object { $_ -match '^HistoryLine' })
     Check 'history lines are whole' ($n.Count -ge 1 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Shot 'wrap-history'
@@ -1099,6 +1102,153 @@ switch ($Part) {
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
     RestoreConfig
   }
+  'rates' {
+    # 배율 탭: 수련치와 이동. 스펙 2026-10-13-rate-tab-design.md 5절.
+    # 깨끗한 회차에서 시작한다(패치가 하나도 걸려 있지 않은 것을 본다).
+    $traps = Traps
+    function RateState { Cmd 'rstate' 200 }
+    function MoveDay { if ((Cmd 'wdate' 200) -match 'moveDay=([\d.]+)') { [double]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
+    function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab10' | Out-Null
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateSpeed', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    $s = RateState
+    Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 speed=1 ' -and $s -notmatch 'patched') $s
+
+    # 이동: x1의 한 칸을 재고, x0.5에서 절반인지 본다.
+    $d0 = MoveDay; Cmd 'wmove 1 0' 900 | Out-Null; $plain = (MoveDay) - $d0
+    Check 'a plain step costs something' ($plain -gt 0) "cost=$plain"
+    Press 'RateMove' | Out-Null
+    Check 'move shows x0.5' ((Cmd 'uitext RateMove') -match "text='x0.5'")
+    $s = RateState
+    Check 'only move is patched' ($s -match 'move=0.5\(patched\)' -and $s -match 'exp=1 martial=1 ') $s
+    $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null; $half = (MoveDay) - $d0
+    $s = RateState
+    Check 'a half step is recorded' ($s -match 'lastMove=([\d.]+)->([\d.]+)' -and [math]::Abs([double]$Matches[2] - [double]$Matches[1] * 0.5) -lt 0.0001) $s
+    Check 'the half step costs half' ([math]::Abs($half - [double]$Matches[2]) -lt 0.0001) "half=$half"
+    Start-Sleep -Milliseconds 900
+    Check 'move is on the overlay' ((Cmd 'uistate') -match 'status=\[이동 x0.5\] ')
+
+    # x0: 여러 칸을 걸어도 날짜와 쌓인 값이 그대로다. 걸으면서 수련할 수 있는 칸을 찾는다.
+    1..3 | ForEach-Object { Press 'RateMove' | Out-Null }
+    Check 'move shows x0' ((Cmd 'uitext RateMove') -match "text='x0'")
+    Cmd 'setgrade 8' | Out-Null
+    Press 'RateExp' | Out-Null; Press 'RateExp' | Out-Null
+    Check 'exp shows x5' ((Cmd 'uitext RateExp') -match "text='x5'")
+    $day0 = WorldDayNow; $d0 = MoveDay; $trained = $false
+    for ($i = 0; $i -lt 10 -and -not $trained; $i++) {
+      $o = Cmd 'wexp' 1500
+      if ($o -match 'IsCreateAction=0 day=\d+ CreateAction=0 exp (\d+) -> (\d+)') {
+        $trained = $true; $gain = [int]$Matches[2] - [int]$Matches[1]
+        $s = RateState
+        Check 'training is scaled by 5' ($s -match 'lastExp=(\d+)->(\d+)' -and [int]$Matches[2] -eq [int]$Matches[1] * 5) $s
+        Check 'the scaled amount is what was gained' ($gain -eq [int]$Matches[2]) "gain=$gain"
+      } elseif ((Cmd 'wmove 1 0' 900) -notmatch 'IsCreateAction=0 CreateAction=0') { break }
+      else { Check "free step $i keeps the date" ((WorldDayNow) -eq $day0 -and [math]::Abs((MoveDay) - $d0) -lt 0.0001) }
+    }
+    Check 'a trainable tile was found' $trained
+
+    # 플레이어가 아닌 단위와 음수.
+    $o = Cmd 'rnpc' 300
+    Check 'an NPC gains the plain amount' ($o -match 'npc exp (\d+) -> (\d+)' -and [int]$Matches[2] - [int]$Matches[1] -eq 10) $o
+    $o = Cmd 'rneg' 300
+    Check 'a negative amount is not scaled' ($o -match 'player AddExp\(-7\) exp (\d+) -> (\d+)' -and [int]$Matches[1] - [int]$Matches[2] -eq 7) $o
+
+    # 날짜 고정과 함께.
+    Check 'no freeze note while not frozen' ((Cmd 'uitext RateNoteMove') -notmatch '날짜 고정 중')
+    Cmd 'tfreeze on' | Out-Null; Press 'Tab10' | Out-Null
+    Check 'the freeze note is shown' ((Cmd 'uitext RateNoteMove') -match '날짜 고정 중')
+    Cmd 'tfreeze off' | Out-Null; Press 'Tab10' | Out-Null
+
+    # 한 바퀴와 되돌리기, 표시와 이력.
+    Start-Sleep -Milliseconds 900
+    Check 'both are on the overlay' ((Cmd 'uistate') -match 'status=\[수련 x5 · 이동 x0\] ')
+    Press 'RateMove' | Out-Null
+    Check 'move wraps to x1' ((Cmd 'uitext RateMove') -match "text='x1'")
+    Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
+    Press 'RateReset' | Out-Null
+    $s = RateState
+    Check 'reset puts everything back' ($s -match 'exp=1\(patched\) martial=1 move=1\(patched\) speed=1 ' -and $s -match 'god=False damage=1') $s
+    Start-Sleep -Milliseconds 900
+    Check 'overlay is hidden after reset' ((Cmd 'uistate') -match 'status=\[hidden\] ')
+    $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null
+    Check 'steps cost again after reset' ((MoveDay) -ne $d0 -or (WorldDayNow) -gt $day0)
+    Press 'Tab11' | Out-Null
+    $lines = (Cmd 'uidescs HistoryLine' 300)
+    Check 'changes are in the history' ($lines -match '배율' -and $lines -match '수련치 획득')
+    Shot 'rates'
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'rates-battle' {
+    # 배율 탭: 전투 중 공법 숙련과 전투 속도. 전투에 들어갔다가 끝내고 지도로 나온다.
+    $traps = Traps
+    function StepExp { if ((Cmd 'rmart' 200) -match 'step=(-?\d+)') { [int]$Matches[1] } else { throw 'rmart 출력을 읽지 못했습니다' } }
+    function Scale { if ((Cmd 'rstate' 200) -match 'timeScale=([\d.]+)') { [double]$Matches[1] } else { throw 'rstate 출력을 읽지 못했습니다' } }
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null
+    Check 'speed shows x2' ((Cmd 'uitext RateSpeed') -match "text='x2'")
+    Start-Sleep -Milliseconds 500
+    Check 'speed is not applied outside battle' ((Scale) -eq 1) (Cmd 'rstate')
+    Press 'Close' | Out-Null
+    EnterBattle
+    Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
+    Start-Sleep -Milliseconds 800
+    Check 'speed is applied in battle' ((Scale) -eq 2) (Cmd 'rstate')
+    Start-Sleep -Seconds 3
+    Check 'speed holds after a few seconds' ((Scale) -eq 2) (Cmd 'rstate')
+
+    # 숙련: 신법을 x1로 한 번, x5로 한 번 써서 오른 양을 견준다. 인자는 rstate의 lastMartial로 본다.
+    $e0 = StepExp; Cmd 'bcast 3' 2500 | Out-Null; $plain = (StepExp) - $e0
+    Check 'a plain use raises the mastery' ($plain -gt 0) "gain=$plain"
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null
+    Check 'rate tab is drawn in battle' (IsAt 'RateMartial')
+    Press 'RateMartial' | Out-Null; Press 'RateMartial' | Out-Null
+    Check 'martial shows x5' ((Cmd 'uitext RateMartial') -match "text='x5'")
+    Press 'Close' | Out-Null
+    $e0 = StepExp; Cmd 'bcast 3' 2500 | Out-Null; $gain = (StepExp) - $e0
+    $s = Cmd 'rstate' 200
+    Check 'the use is scaled by 5' ($s -match 'lastMartial=(\d+)->(\d+)' -and [int]$Matches[2] -eq [int]$Matches[1] * 5) $s
+    Check 'the mastery rose by a multiple of 5' ($gain -gt $plain -and $gain % 5 -eq 0) "plain=$plain gain=$gain"
+    # AddMartialExpInBattle이 안에서 AddMartialExp를 부른다. 둘 다에 걸리면 오른 양이 제곱(25배)이 된다.
+    Check 'the mastery rose by the scaled amount, not its square' ($s -match 'lastMartial=(\d+)->(\d+)' -and $gain -eq [int]$Matches[2]) "gain=$gain $s"
+
+    # 일시 정지와 되돌리기.
+    Cmd 'rpause on' 200 | Out-Null; Start-Sleep -Milliseconds 800
+    Check 'a paused game stays paused' ((Scale) -eq 0) (Cmd 'rstate')
+    Cmd 'rpause off' 200 | Out-Null; Start-Sleep -Milliseconds 800
+    Check 'speed comes back after the pause' ((Scale) -eq 2) (Cmd 'rstate')
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null
+    Check 'speed shows x1' ((Cmd 'uitext RateSpeed') -match "text='x1'")
+    Start-Sleep -Milliseconds 500
+    Check 'speed returns to 1 when set back' ((Scale) -eq 1) (Cmd 'rstate')
+    # 정지 중에 속도를 끄면, 정지가 풀리며 게임이 정지 전의 값을 되살려도 1이 된다(rpause off가 그 값을 되살린다).
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null
+    Start-Sleep -Milliseconds 500
+    Cmd 'rpause on' 200 | Out-Null
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null
+    Check 'speed is turned off while paused' ((Cmd 'uitext RateSpeed') -match "text='x1'" -and (Scale) -eq 0) (Cmd 'rstate')
+    Cmd 'rpause off' 200 | Out-Null; Start-Sleep -Milliseconds 800
+    Check 'speed is 1 after resuming with speed off' ((Scale) -eq 1) (Cmd 'rstate')
+    Press 'God' | Out-Null
+    Check 'god is pressed in the rate tab' ((Cmd 'rstate' 200) -match 'god=True')
+    # 전투를 끝내고 지도로 나온다(bend는 게임의 종료 절차를 부르고, 결과 창의 확인은 (959, 831)이다). 켜 둔 속도는 지도에서 걸리지 않는다.
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null; Press 'Close' | Out-Null
+    Cmd 'bend' 3000 | Out-Null
+    Check 'the result screen opens' ((Cmd 'uilist' 100) -match 'BattleEnd')
+    Check 'speed holds on the result screen' ((Scale) -eq 2) (Cmd 'rstate')
+    Rc 'click 959 831' 2000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    Check 'back on the map' ((Cmd 'uilist' 100) -match 'MapMain')
+    Start-Sleep -Milliseconds 500
+    Check 'speed is 1 after the battle' ((Scale) -eq 1 -and (Cmd 'rstate' 200) -match 'speed=2 ') (Cmd 'rstate')
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null
+    Press 'RateReset' | Out-Null
+    Shot 'rates-battle'
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'status' {
     # 스펙 6절 19번. 표시는 30프레임마다 맞춰지므로 켜고 끈 뒤 조금 기다린다.
     $traps = Traps
@@ -1107,7 +1257,7 @@ switch ($Part) {
     Start-Sleep -Milliseconds 900
     Check 'shown without ever opening the editor' ((Cmd 'uistate') -match 'status=\[날짜 고정\] ')
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
     Start-Sleep -Milliseconds 900
     Check 'all three are listed' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] ')
     Press 'Close' | Out-Null
@@ -1117,8 +1267,9 @@ switch ($Part) {
     Shot 'status'
     # 끈다. 배율은 x2 → x5 → x10 → x100 → x1로 돈다.
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null; Press 'God' | Out-Null; Press 'Freeze' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'God' | Out-Null
     1..4 | ForEach-Object { Press 'Multiplier' | Out-Null }
+    Press 'Tab9' | Out-Null; Press 'Freeze' | Out-Null
     Press 'Close' | Out-Null
     Start-Sleep -Milliseconds 900
     Check 'hidden again when everything is off' ((Cmd 'uistate') -match 'status=\[hidden\] ')
@@ -1128,7 +1279,7 @@ switch ($Part) {
   'status-battle' {
     # Review Focus 5. 회차의 마지막에 돌리고 바로 -End 한다(전투에서 나오지 않는다).
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null; Press 'God' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'God' | Out-Null
     Press 'Close' | Out-Null
     EnterBattle
     Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
@@ -1144,9 +1295,9 @@ switch ($Part) {
     Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
     Check 'editor opens in battle' ((Cmd 'editor') -match 'open=True')
     "INFO battle state: $(Cmd 'uistate')"
-    Check 'tabs are clickable in battle' (IsAt 'Tab9')
-    Press 'Tab9' | Out-Null
-    Check 'world tab is drawn in battle' (IsAt 'God')
+    Check 'tabs are clickable in battle' (IsAt 'Tab10')
+    Press 'Tab10' | Out-Null
+    Check 'rate tab is drawn in battle' (IsAt 'God')
     Shot 'battle'
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
