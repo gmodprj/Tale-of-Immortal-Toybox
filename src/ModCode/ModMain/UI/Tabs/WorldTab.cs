@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 세계 탭: 순간 이동, 날짜(고정·실제 진행·직접 지정), 전투 보조.
+    // 세계 탭: 순간 이동, 날짜(고정·실제 진행·직접 지정). 전투 보조와 배율은 배율 탭에 있다.
     internal sealed class WorldTab : EditorTab
     {
         private const string DateKey = "date";
@@ -58,13 +58,7 @@ namespace MOD_sWP6UL
                 new Action(() => Say(WorldService.TeleportToUnit(g.world.unit.GetUnit(EditorWindow.SelectedNpcId, true)))), npc != null);
             Ui.Label(content, npc == null ? "NPC 탭에서 NPC를 선택하면 그 위치로 갈 수 있습니다." : "", 450, 184, 460, 34, 15).color = Ui.Dim;
 
-            float battle = DrawTimeBox(262) + 12;
-            Ui.Panel("BattleBox", content, 0, battle, ContentW, 150, Ui.Section);
-            Ui.Label(content, "전투 보조", 16, battle + 6, 200, 36, 21);
-            Ui.Button("God", content, "무적: " + (BattleService.God ? "켜짐" : "꺼짐"), 16, battle + 48, 200, 44, new Action(() => Say(BattleService.SetGod(!BattleService.God))), true, BattleService.God);
-            Ui.Button("Multiplier", content, "피해 배율: x" + BattleService.Multiplier, 232, battle + 48, 230, 44, new Action(() => Say(BattleService.NextMultiplier())), true, BattleService.Multiplier > 1);
-            Ui.Label(content, "무적은 플레이어가 받는 피해를 0으로, 배율은 플레이어가 주는 피해를 곱합니다. 동료와 적끼리의 피해는 그대로입니다.", 16, battle + 98, 890, 24, 15).color = Ui.Dim;
-            Ui.Label(content, "게임을 다시 켜면 둘 다 꺼진 상태로 시작합니다. 켜 둔 것은 화면 위쪽 가운데에 표시됩니다.", 16, battle + 120, 890, 24, 15).color = Ui.Dim;
+            DrawTimeBox(262);
         }
 
         // 날짜 상자: 표기, 고정, 실제 진행, 직접 지정. 아래쪽 끝의 y를 돌려준다.

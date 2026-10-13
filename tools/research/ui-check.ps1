@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'BackupNow')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -54,7 +54,7 @@ switch ($Part) {
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
-    for ($i = 0; $i -lt 11; $i++) {
+    for ($i = 0; $i -lt 12; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
@@ -71,15 +71,17 @@ switch ($Part) {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     $s = Cmd 'uistate'
-    Check 'state is readable' ($s -match 'open=True tab=\d target=player ') $s
+    Check 'state is readable' ($s -match 'open=True tab=\d+ target=player ') $s
     Check 'title shows the target' ((Cmd 'uitext Title') -match '편집 대상: .+\(플레이어\)')
     $p = Pos 'ToPlayer'
     Check 'ToPlayer is off while the target is the player' ((Rc "click $($p.x) $($p.y)" 300) -match 'not interactable')
-    for ($i = 0; $i -lt 11; $i++) {
+    for ($i = 0; $i -lt 12; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i is selected" ((Cmd 'uistate') -match "tab=$i ")
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
+    Press 'Tab9' | Out-Null
+    Check 'world tab no longer has the battle helpers' (-not (IsAt 'God'))
 
     # 탭 안의 하위 화면
     Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null
@@ -322,7 +324,7 @@ switch ($Part) {
     # 스펙 6절 18번. 안전 탭의 변경 이력 전체 보기. 방금 한 변경이 맨 위에 오는지 보려고 먼저 하나를 만든다.
     $traps = Traps
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null; Press 'Restore' | Out-Null
-    Press 'Tab10' | Out-Null
+    Press 'Tab11' | Out-Null
     $o = Cmd 'uitext HistoryRange'
     if ($o -notmatch '전체 (\d+)개') { throw "이력 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]
@@ -702,7 +704,7 @@ switch ($Part) {
     $n = @((Cmd 'uidescs SkillDesc' 300) -split "`n" | Where-Object { $_ -match '^SkillDesc' })
     Check 'skill descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Press 'Back' | Out-Null
-    Press 'Tab10' | Out-Null
+    Press 'Tab11' | Out-Null
     $n = @((Cmd 'uidescs HistoryLine' 300) -split "`n" | Where-Object { $_ -match '^HistoryLine' })
     Check 'history lines are whole' ($n.Count -ge 1 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Shot 'wrap-history'
@@ -1107,7 +1109,7 @@ switch ($Part) {
     Start-Sleep -Milliseconds 900
     Check 'shown without ever opening the editor' ((Cmd 'uistate') -match 'status=\[날짜 고정\] ')
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
     Start-Sleep -Milliseconds 900
     Check 'all three are listed' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] ')
     Press 'Close' | Out-Null
@@ -1117,8 +1119,9 @@ switch ($Part) {
     Shot 'status'
     # 끈다. 배율은 x2 → x5 → x10 → x100 → x1로 돈다.
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null; Press 'God' | Out-Null; Press 'Freeze' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'God' | Out-Null
     1..4 | ForEach-Object { Press 'Multiplier' | Out-Null }
+    Press 'Tab9' | Out-Null; Press 'Freeze' | Out-Null
     Press 'Close' | Out-Null
     Start-Sleep -Milliseconds 900
     Check 'hidden again when everything is off' ((Cmd 'uistate') -match 'status=\[hidden\] ')
@@ -1128,7 +1131,7 @@ switch ($Part) {
   'status-battle' {
     # Review Focus 5. 회차의 마지막에 돌리고 바로 -End 한다(전투에서 나오지 않는다).
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null; Press 'God' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'God' | Out-Null
     Press 'Close' | Out-Null
     EnterBattle
     Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
@@ -1144,9 +1147,9 @@ switch ($Part) {
     Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
     Check 'editor opens in battle' ((Cmd 'editor') -match 'open=True')
     "INFO battle state: $(Cmd 'uistate')"
-    Check 'tabs are clickable in battle' (IsAt 'Tab9')
-    Press 'Tab9' | Out-Null
-    Check 'world tab is drawn in battle' (IsAt 'God')
+    Check 'tabs are clickable in battle' (IsAt 'Tab10')
+    Press 'Tab10' | Out-Null
+    Check 'rate tab is drawn in battle' (IsAt 'God')
     Shot 'battle'
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
