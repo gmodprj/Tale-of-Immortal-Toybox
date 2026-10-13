@@ -889,6 +889,9 @@ switch ($Part) {
       Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
       $s = State; $m = Msg
       Check 'bad lines are refused one by one' ($s.grade -eq $before.grade -and $s.attack -eq $before.attack -and $s.defense -eq $before.defense -and $m -match '못 넣음') $m
+      Check 'the result says why lines were refused' ($m -match '모르는 능력치' -and $m -match '게임에 없는') $m
+      $last = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '가져오기 전부\(uicheck-H\)' })[-1]
+      Check 'a failed import is marked in the change log' ($last -match '재조회 불일치') "$last"
       Check 'a broken martial line leaves nothing behind' ($s.martials -eq $before.martials -and (Cmd 'cmartial 2' 200) -match 'n=0' -and (Cmd 'cmartial 987654321' 200) -match 'n=0') $s.raw
       Cmd 'ui set CharQuery uicheck-X' | Out-Null
       Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
@@ -915,6 +918,7 @@ switch ($Part) {
       Cmd 'ui set CharQuery uicheck-C' | Out-Null
       Press 'CharAll0' | Out-Null; Press 'CharAll0' | Out-Null
       $s = State
+      Check 'the last import restores the exp too' ($s.exp -eq $s0.exp -and $s.grade -eq $s0.grade) $s.raw
       [IO.File]::WriteAllText((Join-Path $work 'check-expect.txt'), "$($s.grade) $($s.exp) $($s.attack) $($s.martials) $($mar.baseId) $(@($mar.values) -join ',')")
       Press 'CharQueryClear' | Out-Null
       Shot 'charvault-list'

@@ -82,7 +82,8 @@ namespace MOD_sWP6UL
             {
                 if (slot.Grade == line.Grade)
                 {
-                    return slot.LuckId == line.Id ? "같음" : "다름";
+                    // 기록에는 있는데 운명의 효과가 없으면(다른 경로로 지워진 것) 다시 정해야 한다.
+                    return slot.LuckId == line.Id && LuckService.Has(Me, line.Id) ? "같음" : "다름";
                 }
             }
             return "다름";
@@ -133,14 +134,26 @@ namespace MOD_sWP6UL
             }
             if (wantExp > saved.exp)
             {
+                // 이전 경지의 "난관 봉착" 기운이 남아 있으면 수련치가 오르지 않는다(05 문서 8절). 수련치 채우기와 같이 먼저 지운다.
+                EditService.RemoveStaleBottleneck(me);
                 saved.AddExp(wantExp - saved.exp);
             }
-            bool ok = saved.gradeID == pack.GradeId;
+            bool gradeOk = saved.gradeID == pack.GradeId;
+            bool expOk = saved.exp >= wantExp;
             string after = EditService.GradeName(saved.gradeID) + "(" + saved.gradeID + ", 수련치 " + saved.exp + ")";
-            ChangeLog.Add(EditService.NameOf(me), "캐릭터 가져오기 경지", before, after, ok);
-            text = ok ? "경지: " + EditService.GradeName(saved.gradeID) + "(수련치 " + saved.exp + ")로 바꿨습니다. 능력치는 따라오지 않으니 능력치도 가져오세요"
-                : "경지: 썼지만 번호가 예상과 다릅니다(" + saved.gradeID + ")";
-            return ok ? Outcome.Done : Outcome.Failed;
+            ChangeLog.Add(EditService.NameOf(me), "캐릭터 가져오기 경지", before, after, gradeOk && expOk);
+            if (!gradeOk)
+            {
+                text = "경지: 썼지만 번호가 예상과 다릅니다(" + saved.gradeID + ")";
+                return Outcome.Failed;
+            }
+            if (!expOk)
+            {
+                text = "경지: " + EditService.GradeName(saved.gradeID) + "(으)로 바꿨지만 수련치는 " + saved.exp + "까지만 올랐습니다(파일 " + wantExp + ")";
+                return Outcome.Failed;
+            }
+            text = "경지: " + EditService.GradeName(saved.gradeID) + "(수련치 " + saved.exp + ")로 바꿨습니다. 능력치는 따라오지 않으니 능력치도 가져오세요";
+            return Outcome.Done;
         }
 
         private static Outcome PutAttr(Attr line, out string text)
@@ -165,7 +178,8 @@ namespace MOD_sWP6UL
             }
             // 범위 검사·백업·변경 이력은 능력치 탭과 같은 경로가 한다.
             text = EditService.SetAttribute(me, def, line.Value);
-            return def.Get(me.data.unitData.propertyData) == line.Value ? Outcome.Done : Outcome.Failed;
+            // 능력치 탭과 같은 기준으로 판정한다: 저장값과 게임의 기준값이 모두 파일의 값이어야 한다.
+            return def.Get(me.data.unitData.propertyData) == line.Value && def.DynBase(me.data.dynUnitData) == line.Value ? Outcome.Done : Outcome.Failed;
         }
 
         private static Outcome PutMartial(MartialLine line, bool evenIfKnown, out string text)
@@ -232,9 +246,21 @@ namespace MOD_sWP6UL
                 return Outcome.Failed;
             }
             WorldUnitBase me = Me;
-            if (g.conf.roleCreateFeature.GetItem(line.Id) == null)
+            ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(line.Id);
+            if (conf == null)
             {
                 text = label + ": 게임에 없는 운명입니다";
+                return Outcome.Failed;
+            }
+            // 내보내기가 빼는 것은 가져오기도 받지 않는다(손으로 적은 줄). 역천개명 분류를 여기서 붙이면 게임이 지금 경지의 역천개명 기록을 덮어쓴다.
+            if (conf.type == 3)
+            {
+                text = label + ": 역천개명은 역천개명 항목에서 가져옵니다";
+                return Outcome.Failed;
+            }
+            if (LuckService.IsSystem(line.Id))
+            {
+                text = label + ": 경지의 진행 표식이라 가져오지 않습니다";
                 return Outcome.Failed;
             }
             // 가진 운명은 건드리지 않는다(후천 목록에 있는 것을 선천으로 옮기지도 않는다).
@@ -244,7 +270,24 @@ namespace MOD_sWP6UL
                 return Outcome.Skipped;
             }
             text = born ? LuckService.AddBorn(me, line.Id) : LuckService.Add(me, line.Id);
-            return LuckService.Has(me, line.Id) ? Outcome.Done : Outcome.Failed;
+            if (!LuckService.Has(me, line.Id))
+            {
+                return Outcome.Failed;
+            }
+            if (!born)
+            {
+                return Outcome.Done;
+            }
+            // 선천은 효과뿐 아니라 선천운명 배열에 들어갔는지도 본다(AddBorn이 "상태가 예상과 다릅니다"를 돌려주는 경우).
+            var bornLuck = me.data.unitData.propertyData.bornLuck;
+            for (int i = 0; i < bornLuck.Length; i++)
+            {
+                if (bornLuck[i].id == line.Id)
+                {
+                    return Outcome.Done;
+                }
+            }
+            return Outcome.Failed;
         }
 
         private static Outcome PutFate(FateLine line, out string text)
@@ -360,7 +403,8 @@ namespace MOD_sWP6UL
                 }
                 else
                 {
-                    Failed.Add(label);
+                    // 줄이 돌려준 문장에 이유가 들어 있다("이름: 이유").
+                    Failed.Add(string.IsNullOrEmpty(text) ? label : text.TrimEnd('.'));
                 }
             }
 
@@ -372,7 +416,7 @@ namespace MOD_sWP6UL
                     sb.Append(", 못 넣음 ").Append(Failed.Count).Append("(");
                     for (int i = 0; i < Failed.Count && i < 5; i++)
                     {
-                        sb.Append(i == 0 ? "" : ", ").Append(Failed[i]);
+                        sb.Append(i == 0 ? "" : " / ").Append(Failed[i]);
                     }
                     sb.Append(Failed.Count > 5 ? " 외 " + (Failed.Count - 5) + "개)" : ")");
                 }
@@ -385,9 +429,18 @@ namespace MOD_sWP6UL
             return name.Length > 0 ? name : fallback;
         }
 
-        private static string Run(Pack pack, Section section)
+        // 한 구역을 가져온다. failed는 못 넣은 줄이 하나라도 있었는지다(변경 이력의 성공 표시에 쓴다).
+        private static string Run(Pack pack, Section section, out bool failed)
         {
             var tally = new Tally();
+            string sentence = RunInto(pack, section, tally, out failed);
+            failed = failed || tally.Failed.Count > 0;
+            return sentence;
+        }
+
+        private static string RunInto(Pack pack, Section section, Tally tally, out bool failed)
+        {
+            failed = false;
             switch (section)
             {
                 case Section.Grade:
@@ -395,10 +448,11 @@ namespace MOD_sWP6UL
                         string text;
                         try
                         {
-                            PutGrade(pack, out text);
+                            failed = PutGrade(pack, out text) == Outcome.Failed;
                         }
                         catch (Exception e)
                         {
+                            failed = true;
                             text = "경지: 게임이 받지 않았습니다(" + e.GetType().Name + ")";
                         }
                         return text + ".";
@@ -453,8 +507,13 @@ namespace MOD_sWP6UL
             {
                 return gone;
             }
-            string result = Run(pack, section);
-            ChangeLog.Add(EditService.NameOf(Me), "캐릭터 가져오기(" + pack.Name + ") 구역", "-", result, !result.Contains("못 넣음"));
+            bool failed;
+            string result = Run(pack, section, out failed);
+            // 경지와 능력치는 줄마다 이력이 남는다(PutGrade, SetAttribute). 나머지 구역은 구역의 결과를 한 줄 남긴다.
+            if (section != Section.Grade && section != Section.Attributes)
+            {
+                ChangeLog.Add(EditService.NameOf(Me), "캐릭터 가져오기(" + pack.Name + ") 구역", "-", result, !failed);
+            }
             return result;
         }
 
@@ -468,12 +527,15 @@ namespace MOD_sWP6UL
             }
             var sb = new StringBuilder(pack.Name + " — ");
             Section[] order = { Section.Grade, Section.Attributes, Section.Lucks, Section.Fates, Section.Martials, Section.Arts };
+            bool anyFailed = false;
             foreach (Section section in order)
             {
-                sb.Append(Run(pack, section)).Append(" ");
+                bool failed;
+                sb.Append(Run(pack, section, out failed)).Append(" ");
+                anyFailed = anyFailed || failed;
             }
             string result = sb.ToString().TrimEnd();
-            ChangeLog.Add(EditService.NameOf(Me), "캐릭터 가져오기 전부(" + pack.Name + ")", "-", result, !result.Contains("못 넣음") && !result.Contains("없는 경지"));
+            ChangeLog.Add(EditService.NameOf(Me), "캐릭터 가져오기 전부(" + pack.Name + ")", "-", result, !anyFailed);
             return result;
         }
     }

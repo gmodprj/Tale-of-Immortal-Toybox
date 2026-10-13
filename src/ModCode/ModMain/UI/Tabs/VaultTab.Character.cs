@@ -258,7 +258,7 @@ namespace MOD_sWP6UL
         }
 
         // 상태 글과 가져오기 버튼. 줄을 쓸 수 없으면 이유를 보이고 버튼을 끈다.
-        private void LineEnd(RectTransform row, string name, string state, string problem, string label, bool enabled, Action action, bool confirm = false, string key = null, string message = null)
+        private Text LineEnd(RectTransform row, string name, string state, string problem, string label, bool enabled, Action action, bool confirm = false, string key = null, string message = null)
         {
             float right = ContentW - Ui.ScrollBarWidth;
             Text text = Ui.Wrapped(row, problem ?? state, right - 330, 0, 190, row.sizeDelta.y, 15);
@@ -271,6 +271,7 @@ namespace MOD_sWP6UL
             {
                 Ui.Button(name, row, label, right - 138, 3, 130, 32, action, enabled && problem == null);
             }
+            return text;
         }
 
         private void DrawCharLine(RectTransform row, CharLine line, int index)
@@ -352,10 +353,9 @@ namespace MOD_sWP6UL
                         Ui.Label(row, "대경지 " + fate.Grade, 8, 0, 150, h, 16).color = Ui.Dim;
                         Ui.Wrapped(row, fate.Name, 165, 0, 240, h, 17);
                         Ui.Wrapped(row, LuckTips(fate.Id), 415, 0, 480, h, 15).color = Ui.Dim;
+                        // 상태 글에는 이름을 붙인다(검사가 "경지 미달"을 읽는다).
                         LineEnd(row, "CharGetFate" + at, state, fate.Problem, state == "같음" ? "같음" : "가져오기", state == "다름",
-                            new Action(() => Say(CharacterExportService.ImportFate(pack, at))));
-                        // 검사가 줄의 상태를 읽을 수 있게 이름을 붙인다.
-                        row.GetChild(row.childCount - 2).gameObject.name = "CharFateState" + at;
+                            new Action(() => Say(CharacterExportService.ImportFate(pack, at)))).gameObject.name = "CharFateState" + at;
                         break;
                     }
             }

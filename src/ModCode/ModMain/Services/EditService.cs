@@ -156,7 +156,7 @@ namespace MOD_sWP6UL
         // 현재 경지에 들어오기 위한 "난관 봉착" 기운이 남아 있으면 지운다.
         // 게임에서는 난관을 돌파하는 과정에서 이 기운이 사라지는데, 편집기의 돌파는 그 과정을 거치지 않아 기운이 남는다.
         // 남아 있으면 수련치가 더 오르지 않는다(실측).
-        private static void RemoveStaleBottleneck(WorldUnitBase unit)
+        internal static void RemoveStaleBottleneck(WorldUnitBase unit)
         {
             ConfRoleGradeItem current = g.conf.roleGrade.GetItem(unit.data.unitData.propertyData.gradeID);
             if (current == null || current.lockFeature == 0 || unit.GetLuck(current.lockFeature) == null)

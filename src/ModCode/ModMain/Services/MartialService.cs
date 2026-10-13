@@ -372,48 +372,55 @@ namespace MOD_sWP6UL
             {
                 return "값이 모자랍니다";
             }
+            var data = unit.data.unitData;
+            int before = data.allActionMartial.Count;
+            string soleId = null;
+            string error;
             try
             {
-                var data = unit.data.unitData;
-                int before = data.allActionMartial.Count;
                 var values = new Il2CppStructArray<int>(tail.Length);
                 for (int i = 0; i < tail.Length; i++)
                 {
                     values[i] = tail[i];
                 }
                 DataProps.PropsData made = DataProps.PropsData.New(0, 1, DataProps.PropsDataType.Martial, values);
+                soleId = made.soleID;
                 data.StudyActionMartialProp(made);
                 if (data.allActionMartial.Count != before + 1)
                 {
-                    return "게임이 배우게 하지 않았습니다";
+                    error = "게임이 배우게 하지 않았습니다";
                 }
-                bool valid;
-                try
+                else
                 {
-                    DataProps.MartialData martial = data.GetActionMartial(made.soleID).data.To<DataProps.MartialData>();
-                    valid = martial.baseID == expectBaseId && !string.IsNullOrEmpty(martial.martialInfo.name);
+                    DataProps.MartialData martial = data.GetActionMartial(soleId).data.To<DataProps.MartialData>();
+                    if (martial.baseID == expectBaseId && !string.IsNullOrEmpty(martial.martialInfo.name))
+                    {
+                        if (exp > 0)
+                        {
+                            data.GetActionMartial(soleId).exp = exp;
+                        }
+                        return null;
+                    }
+                    error = "게임이 알아보지 못하는 공법이라 넣지 않았습니다";
                 }
-                catch (Exception)
-                {
-                    valid = false;
-                }
-                if (!valid)
-                {
-                    data.DelActionMartial(made.soleID);
-                    return "게임이 알아보지 못하는 공법이라 넣지 않았습니다";
-                }
-                if (exp > 0)
-                {
-                    data.GetActionMartial(made.soleID).exp = exp;
-                }
-                return null;
             }
             catch (Exception e)
             {
-                return "게임이 받지 않았습니다(" + e.GetType().Name + ")";
+                error = "게임이 받지 않았습니다(" + e.GetType().Name + ")";
             }
+            // 실패한 경로는 어느 것이든, 만들던 공법이 목록에 들어가 있으면 지운다(게임이 넣은 뒤에 예외를 던졌을 수도 있다).
+            try
+            {
+                if (soleId != null && data.allActionMartial.Count != before)
+                {
+                    data.DelActionMartial(soleId);
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return data.allActionMartial.Count == before ? error : error + ". 깨진 공법이 남았을 수 있습니다. 저장하지 말고 공법 탭을 확인하세요";
         }
-
         // 익힌 공법을 지운다(게임의 기술 망각 행동).
         public static string Forget(WorldUnitBase unit, string soleId)
         {
