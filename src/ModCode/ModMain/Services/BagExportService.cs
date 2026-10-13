@@ -46,7 +46,7 @@ namespace MOD_sWP6UL
 
         public static string Dir
         {
-            get { return Path.Combine(Path.Combine(ChangeLog.DataDir, "exports"), "bag"); }
+            get { return ExportFiles.Dir("bag"); }
         }
 
         private static DataProps Bag
@@ -109,24 +109,13 @@ namespace MOD_sWP6UL
 
         // ---- 내보내기 ----
 
-        private static string FileNameFor(string name)
-        {
-            var sb = new StringBuilder();
-            char[] bad = Path.GetInvalidFileNameChars();
-            foreach (char c in name)
-            {
-                sb.Append(Array.IndexOf(bad, c) >= 0 ? '_' : c);
-            }
-            return sb.ToString().Trim().TrimEnd('.');
-        }
-
         public static string Export(string name)
         {
             if (!EditService.WorldReady)
             {
                 return "내보내기: 세이브에 진입한 뒤에 사용할 수 있습니다.";
             }
-            string stem = FileNameFor((name ?? "").Trim());
+            string stem = ExportFiles.FileNameFor(name);
             if (stem.Length == 0)
             {
                 return "내보내기: 이름을 입력하세요.";
@@ -189,13 +178,7 @@ namespace MOD_sWP6UL
                 .Append(string.Join(",\n", moneyLines.ToArray())).Append("\n  ]\n}\n");
             try
             {
-                Directory.CreateDirectory(Dir);
-                string path = Path.Combine(Dir, stem + ".json");
-                for (int n = 2; File.Exists(path); n++)
-                {
-                    path = Path.Combine(Dir, stem + " (" + n + ").json");
-                }
-                File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
+                string path = ExportFiles.Write("bag", stem, sb.ToString());
                 return "내보냈습니다: " + Path.GetFileName(path) + " (아이템 " + items + "줄, 화폐 " + currencies + "종"
                     + (skipped > 0 ? ", 이 세이브에 묶인 아이템 " + skipped + "개는 뺐습니다" : "") + ")";
             }
@@ -211,30 +194,6 @@ namespace MOD_sWP6UL
 
         // ---- 읽기 ----
 
-        private static string Text(Dictionary<string, object> o, string key)
-        {
-            object v;
-            return o.TryGetValue(key, out v) && v is string ? (string)v : "";
-        }
-
-        // 정수로 읽는다. 없거나 정수가 아니거나 int 범위를 넘으면 false.
-        private static bool Whole(Dictionary<string, object> o, string key, out int value)
-        {
-            value = 0;
-            object v;
-            if (!o.TryGetValue(key, out v) || !(v is long))
-            {
-                return false;
-            }
-            long n = (long)v;
-            if (n < int.MinValue || n > int.MaxValue)
-            {
-                return false;
-            }
-            value = (int)n;
-            return true;
-        }
-
         private static Pack Read(string file)
         {
             var pack = new Pack { File = file, Name = Path.GetFileNameWithoutExtension(file) };
@@ -242,19 +201,19 @@ namespace MOD_sWP6UL
             {
                 var root = Json.Parse(File.ReadAllText(file, Encoding.UTF8)) as Dictionary<string, object>;
                 int format;
-                if (root == null || !Whole(root, "format", out format) || format != 1 || Text(root, "kind") != "bag")
+                if (root == null || !ExportFiles.Whole(root, "format", out format) || format != 1 || ExportFiles.Text(root, "kind") != "bag")
                 {
                     pack.Error = "이 편집기의 가방 내보내기 파일(format 1)이 아닙니다";
                     return pack;
                 }
-                string name = Text(root, "name");
+                string name = ExportFiles.Text(root, "name");
                 if (name.Length > 0)
                 {
                     pack.Name = name;
                 }
-                pack.Date = Text(root, "exportedAt");
-                pack.Character = Text(root, "character");
-                Whole(root, "skipped", out pack.Skipped);
+                pack.Date = ExportFiles.Text(root, "exportedAt");
+                pack.Character = ExportFiles.Text(root, "character");
+                ExportFiles.Whole(root, "skipped", out pack.Skipped);
                 object list;
                 if (root.TryGetValue("items", out list) && list is List<object>)
                 {
@@ -294,11 +253,11 @@ namespace MOD_sWP6UL
                 item.Problem = "줄의 모양이 틀립니다";
                 return item;
             }
-            item.Name = Text(o, "name");
-            item.Martial = Text(o, "type") == "Martial";
+            item.Name = ExportFiles.Text(o, "name");
+            item.Martial = ExportFiles.Text(o, "type") == "Martial";
             object flag;
             item.Equipped = o.TryGetValue("equipped", out flag) && flag is bool && (bool)flag;
-            if (!Whole(o, "id", out item.Id) || !Whole(o, "count", out item.Count))
+            if (!ExportFiles.Whole(o, "id", out item.Id) || !ExportFiles.Whole(o, "count", out item.Count))
             {
                 item.Problem = "번호나 수량이 숫자가 아닙니다";
                 return item;
@@ -329,8 +288,8 @@ namespace MOD_sWP6UL
                 money.Problem = "줄의 모양이 틀립니다";
                 return money;
             }
-            money.Name = Text(o, "name");
-            if (!Whole(o, "id", out money.Id) || !Whole(o, "count", out money.Count))
+            money.Name = ExportFiles.Text(o, "name");
+            if (!ExportFiles.Whole(o, "id", out money.Id) || !ExportFiles.Whole(o, "count", out money.Count))
             {
                 money.Problem = "번호나 수량이 숫자가 아닙니다";
             }
@@ -341,28 +300,12 @@ namespace MOD_sWP6UL
         public static List<Pack> List()
         {
             var result = new List<Pack>();
-            try
+            foreach (string file in ExportFiles.Files("bag"))
             {
-                if (!Directory.Exists(Dir))
-                {
-                    return result;
-                }
-                var files = new List<string>(Directory.GetFiles(Dir, "*.json"));
-                files.Sort((a, b) => File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)));
-                foreach (string file in files)
-                {
-                    result.Add(Read(file));
-                }
-            }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
+                result.Add(Read(file));
             }
             return result;
         }
-
         // ---- 가져오기 ----
 
         // 이 줄을 넣을 수 없는 이유. null이면 넣을 수 있다.
@@ -657,29 +600,7 @@ namespace MOD_sWP6UL
         // 내보내기 파일을 지운다. 내보내기 폴더 안의 .json만 지운다.
         public static string Delete(Pack pack)
         {
-            try
-            {
-                string full = Path.GetFullPath(pack.File);
-                if (!full.StartsWith(Path.GetFullPath(Dir) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                    || !full.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "삭제: 내보내기 폴더의 파일이 아니라 지우지 않았습니다.";
-                }
-                if (!File.Exists(full))
-                {
-                    return "삭제: 파일이 이미 없습니다(" + Path.GetFileName(full) + ").";
-                }
-                File.Delete(full);
-                return "지웠습니다: " + Path.GetFileName(full);
-            }
-            catch (IOException e)
-            {
-                return "삭제: 지우지 못했습니다(" + e.Message + ").";
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                return "삭제: 지우지 못했습니다(" + e.Message + ").";
-            }
+            return ExportFiles.Delete("bag", pack.File);
         }
     }
 }
