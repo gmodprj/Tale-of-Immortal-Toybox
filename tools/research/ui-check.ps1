@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultExport', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -460,9 +460,10 @@ switch ($Part) {
     function Msg { if ((Cmd 'uistate' 100) -match "message='(.*)'\s*$") { $Matches[1] } else { '' } }
     CleanVault
     try {
-      Cmd 'editor' | Out-Null; Press 'Tab3' | Out-Null
+      Cmd 'editor' | Out-Null; Press 'Tab3' | Out-Null; Press 'VaultModeBag' | Out-Null   # 보관함은 마지막에 본 쪽(가방/캐릭터)을 기억한다
 
       # 6절 1~3번, Review Focus 2: 이름과 파일. 영석과 화폐는 가방의 아이템 목록에도 들어 있어(한 종에 한 줄) 아이템 줄에서는 빠진다
+      Cmd 'ui set VaultName' | Out-Null   # 이름 칸은 앞서 적은 것을 기억한다. 비우고 시작한다
       Press 'VaultExport' | Out-Null
       Check 'an empty name is refused' ((Msg) -match '이름을' -and -not (Test-Path -LiteralPath (Join-Path $dir '.json')))
       Cmd 'ui set VaultName uicheck-A' | Out-Null; Press 'VaultExport' | Out-Null
@@ -694,6 +695,69 @@ switch ($Part) {
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'charvault' {
+    # 묶음 D(docs/superpowers/specs/2026-10-13-character-export-design.md 7절). 내보내기 폴더는 세이브 밖이라 회차가 되돌리지 않는다.
+    # 이 검사가 만든 파일(uicheck-로 시작)은 끝날 때와 멈췄을 때 지운다.
+    $traps = Traps
+    $dir = Join-Path $data 'exports\character'
+    $bagDir = Join-Path $data 'exports\bag'
+    function CleanChar { foreach ($d in $dir, $bagDir) { if (Test-Path -LiteralPath $d) { Get-ChildItem -LiteralPath $d -Filter 'uicheck-*' | ForEach-Object { [IO.File]::Delete($_.FullName) } } } }
+    function Msg { if ((Cmd 'uistate' 100) -match "message='(.*)'\s*$") { $Matches[1] } else { '' } }
+    function State { $o = Cmd 'cstate' 200; $h = @{ raw = $o }; foreach ($m in [regex]::Matches($o, '(\w+)=(\S+)')) { $h[$m.Groups[1].Value] = $m.Groups[2].Value }; $h }
+    function Has([string]$cmd, [string]$pattern) { (Cmd $cmd 200) -match $pattern }
+    CleanChar
+    try {
+      Cmd 'editor' | Out-Null; Press 'Tab3' | Out-Null; Press 'VaultModeChar' | Out-Null
+      $s0 = State
+
+      # 7절 1~2번: 내보내기와 파일
+      Cmd 'ui set CharName' | Out-Null   # 이름 칸은 앞서 적은 것을 기억한다. 비우고 시작한다
+      Press 'CharExport' | Out-Null
+      Check 'an empty name is refused' ((Msg) -match '이름을')
+      Cmd 'ui set CharName uicheck-C' | Out-Null; Press 'CharExport' | Out-Null
+      $fileC = Join-Path $dir 'uicheck-C.json'
+      Check 'export writes a file' ((Test-Path -LiteralPath $fileC) -and (Msg) -match '내보냈습니다') (Msg)
+      $pack = Get-Content -LiteralPath $fileC -Raw -Encoding UTF8 | ConvertFrom-Json
+      Check 'the file names its kind' ($pack.format -eq 1 -and $pack.kind -eq 'character' -and $pack.character.Length -gt 0)
+      Check 'the grade is in the file' ("$($pack.grade.id)" -eq $s0.grade -and "$($pack.grade.exp)" -eq $s0.exp) "file=$($pack.grade.id)/$($pack.grade.exp) game=$($s0.grade)/$($s0.exp)"
+      Check 'every attribute is in the file' ("$(@($pack.attributes).Count)" -eq $s0.attrs -and @($pack.attributes | Where-Object { $_.key -eq 'attack' -and "$($_.value)" -eq $s0.attack }).Count -eq 1) "file=$(@($pack.attributes).Count) game=$($s0.attrs)"
+      Check 'attribute keys are unique' (@($pack.attributes | ForEach-Object { $_.key } | Sort-Object -Unique).Count -eq @($pack.attributes).Count)
+      Check 'every learned martial is in the file' ("$(@($pack.martials).Count)" -eq $s0.martials -and @($pack.martials | Where-Object { @($_.values).Count -lt 3 }).Count -eq 0) "file=$(@($pack.martials).Count) game=$($s0.martials)"
+      Check 'learned arts are in the file' ("$(@($pack.arts).Count)" -eq $s0.arts) "file=$(@($pack.arts).Count) game=$($s0.arts)"
+      Check 'born lucks are in the file' ("$(@($pack.bornLucks).Count)" -eq $s0.born)
+      Check 'progress markers and timed lucks are left out' (@($pack.addLucks).Count -le [int]$s0.add)
+      Cmd 'ui set CharName uicheck-C' | Out-Null; Press 'CharExport' | Out-Null
+      Check 'the same name gets a number' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-C (2).json'))
+      Cmd 'ui set CharName uicheck-b:c*d?' | Out-Null; Press 'CharExport' | Out-Null
+      Check 'characters a file name cannot hold become underscores' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-b_c_d_.json'))
+      Cmd 'ui set CharQuery uicheck-' | Out-Null
+      Check 'the list shows three exports' ((Cmd 'uitext CharListRange') -match '전체 3개')
+
+      # 7절 3번, Review Focus 4: 가방 목록과 섞이지 않는다
+      Press 'VaultModeBag' | Out-Null
+      Cmd 'ui set VaultName uicheck-bagside' | Out-Null; Press 'VaultExport' | Out-Null
+      Cmd 'ui set VaultQuery uicheck-' | Out-Null
+      Check 'the bag list shows only the bag export' ((Cmd 'uitext VaultListRange') -match '전체 1개' -and (Cmd 'uitext Row0') -match 'uicheck-bagside')
+      Press 'VaultQueryClear' | Out-Null
+      Press 'VaultModeChar' | Out-Null
+      Check 'lists do not mix' ((Cmd 'uitext CharListRange') -match '전체 3개' -and (IsAt 'CharExport') -and -not (IsAt 'VaultExport'))
+      Check 'the mode is kept when the tab is left' ((Press 'Tab1') -and (Press 'Tab3') -and (IsAt 'CharExport'))
+
+      # 7절 16번의 삭제
+      Cmd 'ui set CharQuery uicheck-b' | Out-Null
+      Press 'CharDelete0' | Out-Null
+      Check 'delete asks first' ((Cmd 'uitext CharDelete0') -match "text='정말 삭제'" -and (Test-Path -LiteralPath (Join-Path $dir 'uicheck-b_c_d_.json')))
+      Press 'CharDelete0' | Out-Null
+      Check 'the second press deletes the file' (-not (Test-Path -LiteralPath (Join-Path $dir 'uicheck-b_c_d_.json'))) (Msg)
+      Press 'CharQueryClear' | Out-Null
+      #CHARVAULT-IMPORT#
+
+      Press 'VaultModeBag' | Out-Null   # 다른 검사가 가방 쪽에서 시작하도록 돌려 둔다
+      Press 'Close' | Out-Null
+      Check 'no exception in button callbacks' ((Traps) -eq $traps)
+      Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+    } finally { CleanChar }
   }
   'order' {
     $traps = Traps

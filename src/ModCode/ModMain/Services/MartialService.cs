@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using UnhollowerBaseLib;
 
 namespace MOD_sWP6UL
 {
@@ -360,6 +361,57 @@ namespace MOD_sWP6UL
             bool ok = !IsEquipped(unit, soleId);
             ChangeLog.Add(EditService.NameOf(unit), Name(martial) + " 해제", "장착", ok ? "해제" : "장착", ok);
             return ok ? "해제: " + Name(martial) : Name(martial) + ": 게임이 해제하지 않았습니다(코드 " + code + ").";
+        }
+
+        // 값 배열(머리 세 칸 뒤: 종류, 기술 번호, 경지, 옵션 번호들, -1, 옵션 품질들)로 공법을 만들어 배운 상태로 넣는다.
+        // 실측: 이렇게 만든 공법은 값·옵션·품질이 원본과 같다(docs/superpowers/specs/2026-10-13-character-export-design.md 3절).
+        // 실패하면 이유를, 넣었으면 null을 돌려준다. 게임이 알아보지 못해 깨진 것은 바로 지운다(읽는 것만으로 예외가 난다).
+        public static string AddFromValues(WorldUnitBase unit, int[] tail, int exp, int expectBaseId)
+        {
+            if (tail == null || tail.Length < 3)
+            {
+                return "값이 모자랍니다";
+            }
+            try
+            {
+                var data = unit.data.unitData;
+                int before = data.allActionMartial.Count;
+                var values = new Il2CppStructArray<int>(tail.Length);
+                for (int i = 0; i < tail.Length; i++)
+                {
+                    values[i] = tail[i];
+                }
+                DataProps.PropsData made = DataProps.PropsData.New(0, 1, DataProps.PropsDataType.Martial, values);
+                data.StudyActionMartialProp(made);
+                if (data.allActionMartial.Count != before + 1)
+                {
+                    return "게임이 배우게 하지 않았습니다";
+                }
+                bool valid;
+                try
+                {
+                    DataProps.MartialData martial = data.GetActionMartial(made.soleID).data.To<DataProps.MartialData>();
+                    valid = martial.baseID == expectBaseId && !string.IsNullOrEmpty(martial.martialInfo.name);
+                }
+                catch (Exception)
+                {
+                    valid = false;
+                }
+                if (!valid)
+                {
+                    data.DelActionMartial(made.soleID);
+                    return "게임이 알아보지 못하는 공법이라 넣지 않았습니다";
+                }
+                if (exp > 0)
+                {
+                    data.GetActionMartial(made.soleID).exp = exp;
+                }
+                return null;
+            }
+            catch (Exception e)
+            {
+                return "게임이 받지 않았습니다(" + e.GetType().Name + ")";
+            }
         }
 
         // 익힌 공법을 지운다(게임의 기술 망각 행동).

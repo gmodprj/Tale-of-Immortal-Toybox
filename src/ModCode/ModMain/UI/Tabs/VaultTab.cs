@@ -5,8 +5,8 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 보관함 탭: 가방을 파일로 내보내고, 내보낸 것을 골라 지금 가방에 더한다. 하위 화면: 한 묶음의 세부 목록.
-    internal sealed class VaultTab : EditorTab
+    // 보관함 탭: 가방(이 파일)과 캐릭터(VaultTab.Character.cs)를 파일로 내보내고, 내보낸 것을 골라 가져온다.
+    internal sealed partial class VaultTab : EditorTab
     {
         private sealed class Line
         {
@@ -22,6 +22,8 @@ namespace MOD_sWP6UL
         private string query = "";
         private BagExportService.Pack opened;
         private string detailQuery = "";
+        private const float ModeH = 44;
+        private bool character;      // 캐릭터 쪽을 보고 있는지
 
         public override string Title
         {
@@ -38,11 +40,13 @@ namespace MOD_sWP6UL
         public override void OnShow()
         {
             packs = null;
+            charPacks = null;
         }
 
         public override void OnOpen()
         {
             packs = null;
+            charPacks = null;
         }
 
         private List<BagExportService.Pack> Found()
@@ -55,6 +59,24 @@ namespace MOD_sWP6UL
         }
 
         protected override void Draw()
+        {
+            Ui.Button("VaultModeBag", content, "가방", 0, 0, 130, 36, new Action(() => { character = false; Redraw(); }), true, !character);
+            Ui.Button("VaultModeChar", content, "캐릭터", 136, 0, 130, 36, new Action(() => { character = true; Redraw(); }), true, character);
+            // 아래 화면은 전환 줄만큼 내려 그린다. 가방과 캐릭터의 그리기 코드는 자기 영역의 왼쪽 위를 원점으로 쓴다.
+            RectTransform whole = content;
+            content = Ui.Rect("VaultArea", whole, 0, ModeH, ContentW, ContentH - ModeH);
+            if (character)
+            {
+                DrawCharacters();
+            }
+            else
+            {
+                DrawBag();
+            }
+            content = whole;
+        }
+
+        private void DrawBag()
         {
             if (packs == null)
             {
@@ -92,7 +114,7 @@ namespace MOD_sWP6UL
             list.HeightOf = pack => pack.Error != null
                 ? RowFor(40, Ui.TextHeight(Unreadable(pack), ContentW - Ui.ScrollBarWidth - 158, 16))
                 : RowFor(40, Ui.TextHeight(pack.Name, 290, 20), Ui.TextHeight(pack.Character, 110, 16));
-            list.Build(content, 0, 128, ContentW, ContentH - 128, Found(), DrawRow);
+            list.Build(content, 0, 128, ContentW, ContentH - ModeH - 128, Found(), DrawRow);
         }
 
         private static string Unreadable(BagExportService.Pack pack)
