@@ -1,4 +1,4 @@
-# 06. 작업 인계 (2026-10-13 저녁 기준)
+# 06. 작업 인계 (2026-10-13 밤 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
 세부 실험 기록은 `docs/05-editor-v0.1.md`(1~32절)에 있고, 이 문서는 그 길잡이다.
@@ -10,7 +10,7 @@
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
 - 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 여섯(`feat/*-research`)뿐이다.
-- 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-13 18:05 설치, 안정화 묶음 E까지).
+- 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-13 밤 설치, 배율 탭까지).
 - **직전 작업**: 2026-10-13에 사용자가 새로 요청한 둘(프리셋 탭, 배율 탭) 가운데 **배율 탭(묶음 F1)을 끝냈다**(05 문서 32절). **다음은 프리셋 탭이다**(8.3절. 사전 실험까지 했고 스펙은 아직 쓰지 않았다).
 - 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02. `changes.log`에 남아 있다). 지금 세이브는 **달의 첫날(2년 3월 1일)에 멈춰 있어** 세계에 들어오면 월말 기록 창이 뜬다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
@@ -129,7 +129,7 @@
   - 화면: `uipos <이름>`(가운데의 게임 좌표. 이름 끝의 `*`는 "이 글자로 시작"), `uitext <이름>`, `uidescs <이름의 앞머리>`(그 이름으로 시작하는 글들을 한 번에), `uistate`(창의 상태와 결과 문구), `uitoggle`, `ui set <입력 칸> <값>`, `uifocus`, `uidrag`, `uiopen`·`uiclose <게임 화면>`, `uilist`(열려 있는 게임 화면), `uitarget`, `uiraise`, `uicollapse`.
   - 값: `read`, `count <아이템 번호>`, `stats`, `luck`, `cstate`(경지·수련치·능력치·공법 수 등을 한 줄에), `cmartial <기술 번호>`, `cfatelog`.
   - 일부러 바꾸기: `setgrade <번호>`, `addexp`, `cattr <key> <값>`, `mdel <공법 고유 번호>`, `cartdel <서적 번호>`, `cborndel <운명 번호>`, `luckdel`, `cfatealt <대경지>`, `cluck3`, `gridfill`, `bag <증감>`, `save`.
-  - 배율·전투: `rstate`(배율의 값과 패치 여부, `Time.timeScale`), `rnpc`, `rneg`, `bcast <1|2|3>`(전투에서 무예·절기·신법 발동), `rmart`(장착 기술의 숙련), `bend`(전투를 승리로 끝냄. 결과 창은 따로 닫는다), `rpause on|off`.
+  - 배율·전투: `rstate`(배율의 값과 패치 여부, `Time.timeScale`), `rnpc`, `rneg`, `bcast <1|2|3>`(전투에서 무예·절기·신법 발동), `rmart`(장착 기술의 숙련), `bend [lose]`(전투를 승리나 패배로 끝냄. 결과 창은 따로 닫는다), `rpath <dx> <dy>`(게임의 경로 이동으로 여러 칸), `rpause on|off`.
   - 날짜·가방: `wdate`, `grid`, `wmove`, `wexp`, `tdesc`, `tadv`, `tset`, `tskip`, `tfreeze`, `tin`, `tmsg`, `thud`, `bagstat`.
 - `rc.ps1 -Cmd "click x y" -NoShot` / `"hit x y"` / `"scroll x y delta"` — 게임 좌표(1920x1080)의 UI 요소를 누르거나 이름을 확인한다.
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
