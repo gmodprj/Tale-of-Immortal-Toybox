@@ -133,9 +133,36 @@ namespace MOD_sWP6UL
             EditorWindow.Refresh();
         }
 
-        protected static string Shorten(string text, int max)
+        // 줄의 높이: 가장 높은 글에 위아래 여백을 더한 값. 글이 한 줄이면 min 그대로다.
+        // 목록의 글은 자르지 않고 줄바꿈해 전부 보인다(사용자 지시, 2026-10-13).
+        protected static float RowFor(float min, params float[] textHeights)
         {
-            return text.Length <= max ? text : text.Substring(0, max) + "…";
+            float tallest = 0f;
+            foreach (float each in textHeights)
+            {
+                tallest = Math.Max(tallest, each);
+            }
+            return Math.Max(min, (float)Math.Ceiling(tallest) + 10f);
+        }
+
+        // 위에 이름 한 줄(26)이 있고 그 아래에 설명이 오는 줄의 높이.
+        protected const float SecondLineY = 26;
+
+        protected static float RowWithSecondLine(float min, float textHeight)
+        {
+            return Math.Max(min, SecondLineY + (float)Math.Ceiling(textHeight) + 6f);
+        }
+
+        // 버튼의 글을 버튼 너비 안에서 줄바꿈한다.
+        protected static UnityEngine.UI.Button WrapLabel(UnityEngine.UI.Button button, int size = 0)
+        {
+            UnityEngine.UI.Text text = button.GetComponentInChildren<UnityEngine.UI.Text>();
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            if (size > 0)
+            {
+                text.fontSize = size;
+            }
+            return button;
         }
     }
 }

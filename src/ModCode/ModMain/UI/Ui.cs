@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -86,6 +87,51 @@ namespace MOD_sWP6UL
             text.raycastTarget = false;
             text.text = value;
             return text;
+        }
+
+        // 너비 안에서 줄바꿈되는 글. 높이는 TextHeight로 잰 값에 맞춰 준다.
+        public static Text Wrapped(Transform parent, string value, float x, float y, float w, float h, int size = 20,
+            TextAnchor anchor = TextAnchor.MiddleLeft)
+        {
+            Text text = Label(parent, value, x, y, w, h, size, anchor);
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            return text;
+        }
+
+        private static Text ruler;
+        private static readonly Dictionary<string, float> heights = new Dictionary<string, float>();
+
+        // 그 글을 너비 w 안에서 줄바꿈했을 때의 높이. 목록의 줄 높이를 글에 맞추는 데 쓴다.
+        // 아이템 3천여 개를 매번 재면 느리므로 결과를 기억한다(글·너비·크기가 같으면 높이도 같다).
+        public static float TextHeight(string value, float w, int size)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 0f;
+            }
+            string key = size + "|" + (int)w + "|" + value;
+            float height;
+            if (heights.TryGetValue(key, out height))
+            {
+                return height;
+            }
+            if (ruler == null)
+            {
+                // 화면에 나오지 않는 자: 캔버스 밖에 두어 그려지지 않고, 장면이 바뀌어도 남는다.
+                var go = new GameObject("TlToyboxRuler");
+                UnityEngine.Object.DontDestroyOnLoad(go);
+                go.hideFlags = HideFlags.HideAndDontSave;
+                ruler = go.AddComponent<Text>();
+                ruler.font = Font;
+                ruler.horizontalOverflow = HorizontalWrapMode.Wrap;
+                ruler.verticalOverflow = VerticalWrapMode.Overflow;
+            }
+            ruler.fontSize = size;
+            // 화면의 배율에 따라 줄이 바뀌는 자리가 한두 글자 달라질 수 있어 조금 좁게 잰다.
+            TextGenerationSettings settings = ruler.GetGenerationSettings(new Vector2(w - 6f, 0f));
+            height = ruler.cachedTextGeneratorForLayout.GetPreferredHeight(value, settings) / ruler.pixelsPerUnit;
+            heights[key] = height;
+            return height;
         }
 
         public static Button Button(string name, Transform parent, string label, float x, float y, float w, float h,

@@ -64,6 +64,7 @@ namespace MOD_sWP6UL
             Ui.Label(content, "운명", 8, 44, 240, 30, 18).color = Ui.Dim;
             Ui.Label(content, "게임 화면의 위치", 258, 44, 200, 30, 18).color = Ui.Dim;
             Ui.Label(content, "효과", 458, 44, 500, 30, 18).color = Ui.Dim;
+            ownedList.HeightOf = view => RowFor(40, Ui.TextHeight(view.Tips, 520, 16), Ui.TextHeight(view.Name, 245, 20));
             ownedList.Build(content, 0, 76, ContentW, ContentH - 76 - DetailH - 44, owned, DrawOwnedRow);
             Ui.Label(content, "게임의 인물 화면은 선천운명 칸과, 후천 분류의 후천운명만 보여 줍니다. \"표시 안 됨\"은 효과는 적용되지만 그 화면에 나오지 않는 운명입니다.", 0, ContentH - DetailH - 38, ContentW, 30, 15).color = Ui.Dim;
             ownedDetail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
@@ -82,13 +83,14 @@ namespace MOD_sWP6UL
             WorldUnitBase target = Target;
             // 게임의 인물 화면은 후천 목록 가운데 후천 분류만 후천운명 칸에 보여 준다.
             bool shown = view.Born || view.Type == 2;
-            Ui.Label(row, Shorten(view.Name, 11), 8, 0, 245, 40);
-            Text place = Ui.Label(row, view.Born ? "선천운명" : shown ? "후천운명" : "표시 안 됨(효과만)", 258, 0, 200, 40, 17);
+            float h = row.sizeDelta.y;
+            Ui.Wrapped(row, view.Name, 8, 0, 245, h);
+            Text place = Ui.Label(row, view.Born ? "선천운명" : shown ? "후천운명" : "표시 안 됨(효과만)", 258, 0, 200, h, 17);
             if (!shown)
             {
                 place.color = Ui.Warn;
             }
-            Ui.Label(row, Shorten(view.Tips, 34), 458, 0, 560, 40, 16);
+            Ui.Wrapped(row, view.Tips, 458, 0, 520, h, 16).gameObject.name = "LuckOwnedTips" + view.Id;
             float right = ContentW - Ui.ScrollBarWidth;
             if (view.Born)
             {
@@ -142,6 +144,7 @@ namespace MOD_sWP6UL
             noteLabel.color = Ui.Warn;
             noteLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             float top = y + 46;
+            pickList.HeightOf = view => RowWithSecondLine(50, Ui.TextHeight(view.Tips, 1050, 15));
             pickList.Build(content, 0, top, ContentW, ContentH - top - DetailH - 8, LuckService.Candidates(luckType, luckQuery), DrawPickRow);
             pickDetail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
@@ -150,12 +153,14 @@ namespace MOD_sWP6UL
         {
             bool replacing = replaceIndex >= 0;
             bool has = LuckService.Has(Target, view.Id);
-            Text name = Ui.Label(row, Shorten(view.Name, 14) + "  (품질 " + view.Level + ")" + (view.IsSystem ? "  — 경지 진행 표식" : ""), 8, 0, 1000, 26, 18);
+            Text name = Ui.Label(row, view.Name + "  (품질 " + view.Level + ")" + (view.IsSystem ? "  — 경지 진행 표식" : ""), 8, 0, 1000, 26, 18);
             if (view.IsSystem)
             {
                 name.color = Ui.Warn;
             }
-            Ui.Label(row, Shorten(view.Tips, 76), 24, 24, 1080, 22, 15).color = Ui.Dim;
+            Text tips = Ui.Wrapped(row, view.Tips, 24, SecondLineY, 1050, row.sizeDelta.y - SecondLineY - 4, 15, TextAnchor.UpperLeft);
+            tips.color = Ui.Dim;
+            tips.gameObject.name = "LuckTips" + view.Id;
             string label = has ? "보유 중" : replacing ? "이것으로 교체" : view.Type == 1 ? "선천운명에 추가" : view.Type == 2 ? "후천운명에 추가" : "추가";
             Ui.Button("LuckAdd" + view.Id, row, label, ContentW - Ui.ScrollBarWidth - 198, 7, 190, 36, new Action(() =>
             {
@@ -179,21 +184,27 @@ namespace MOD_sWP6UL
             Ui.Label(content, "역천개명", 210, y, 240, 30, 18).color = Ui.Dim;
             Ui.Label(content, "효과", 460, y, 600, 30, 18).color = Ui.Dim;
             List<FateService.Slot> slots = FateService.Slots(target);
+            float rowH = 40;
             if (slots.Count == 0)
             {
                 Ui.Label(content, "역천개명은 축기경부터 경지마다 하나씩 있습니다. 이 인물은 아직 축기경에 이르지 않았습니다.", 0, y + 36, ContentW, 36, 18).color = Ui.Warn;
             }
+            float rowY = y + 34;
             for (int i = 0; i < slots.Count; i++)
             {
                 FateService.Slot slot = slots[i];
-                float rowY = y + 34 + i * 40;
-                Ui.Label(content, slot.GradeName, 0, rowY, 200, 36);
-                Text name = Ui.Label(content, slot.LuckId == 0 ? "없음" : Shorten(slot.LuckName, 11), 210, rowY, 245, 36);
+                if (i > 0)
+                {
+                    rowY += rowH;
+                }
+                rowH = RowFor(40, Ui.TextHeight(slot.Tips, 700, 16), Ui.TextHeight(slot.LuckName, 245, 20));
+                Ui.Label(content, slot.GradeName, 0, rowY, 200, rowH - 4);
+                Text name = Ui.Wrapped(content, slot.LuckId == 0 ? "없음" : slot.LuckName, 210, rowY, 245, rowH - 4);
                 if (slot.LuckId == 0)
                 {
                     name.color = Ui.Dim;
                 }
-                Ui.Label(content, Shorten(slot.Tips, 44), 460, rowY, 700, 36, 16);
+                Ui.Wrapped(content, slot.Tips, 460, rowY, 700, rowH - 4, 16);
                 Ui.Button("FateChange" + slot.Grade, content, slot.LuckId == 0 ? "정하기" : "변경", 1180, rowY + 1, 120, 34, new Action(() =>
                 {
                     fateGrade = slot.Grade;
@@ -202,7 +213,7 @@ namespace MOD_sWP6UL
                     Push(() => "역천개명 고르기 — " + EditService.NameOf(Target) + ", 대경지 " + fateGrade, DrawFatePicker);
                 }));
             }
-            Ui.Label(content, "게임의 경지 화면은 경지마다 역천개명 하나를 보여 줍니다. 여기서 정하면 효과와 그 화면의 표시가 함께 바뀝니다. 도달한 경지만 정할 수 있습니다.", 0, y + 34 + Math.Max(1, slots.Count) * 40 + 12, ContentW, 30, 15).color = Ui.Dim;
+            Ui.Label(content, "게임의 경지 화면은 경지마다 역천개명 하나를 보여 줍니다. 여기서 정하면 효과와 그 화면의 표시가 함께 바뀝니다. 도달한 경지만 정할 수 있습니다.", 0, (slots.Count == 0 ? y + 34 + 40 : rowY + rowH) + 12, ContentW, 30, 15).color = Ui.Dim;
         }
 
         // 하위 화면: 그 경지에서 게임이 뽑을 수 있는 역천개명
@@ -217,6 +228,7 @@ namespace MOD_sWP6UL
             }));
             Ui.Label(content, "이 경지에서 게임이 뽑을 수 있는 역천개명만 나옵니다.", 350, y, 700, 38, 15).color = Ui.Dim;
             float top = y + 46;
+            fateList.HeightOf = view => RowWithSecondLine(50, Ui.TextHeight(view.Tips, 1050, 15));
             fateList.Build(content, 0, top, ContentW, ContentH - top - DetailH - 8, FateService.Candidates(fateGrade, fateQuery), DrawFateRow);
             fateDetail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
@@ -224,8 +236,10 @@ namespace MOD_sWP6UL
         private void DrawFateRow(RectTransform row, LuckService.LuckView view, int index)
         {
             bool has = LuckService.Has(Target, view.Id);
-            Ui.Label(row, Shorten(view.Name, 14) + "  (품질 " + view.Level + ")", 8, 0, 1000, 26, 18);
-            Ui.Label(row, Shorten(view.Tips, 76), 24, 24, 1080, 22, 15).color = Ui.Dim;
+            Ui.Label(row, view.Name + "  (품질 " + view.Level + ")", 8, 0, 1000, 26, 18);
+            Text tips = Ui.Wrapped(row, view.Tips, 24, SecondLineY, 1050, row.sizeDelta.y - SecondLineY - 4, 15, TextAnchor.UpperLeft);
+            tips.color = Ui.Dim;
+            tips.gameObject.name = "FateTips" + view.Id;
             int grade = fateGrade;
             Ui.Button("FatePick" + view.Id, row, has ? "보유 중" : "이것으로 정하기", ContentW - Ui.ScrollBarWidth - 198, 7, 190, 36, new Action(() =>
             {

@@ -86,11 +86,19 @@ namespace MOD_sWP6UL
                 skillDetail.Clear();
                 Push(() => "기술 추가 — " + EditService.NameOf(Target), DrawSkillAdd);
             }));
-            float listH = ContentH - 32 - BoxH - 10;
+            // 옵션의 글은 줄바꿈해 전부 보인다. 두 줄 넘는 옵션이 있으면 그만큼 아래 상자를 키우고 위의 목록을 줄인다.
+            List<MartialService.PrefixView> prefixes = selected == null ? new List<MartialService.PrefixView>() : MartialService.Prefixes(selected);
+            float grown = 0;
+            for (int i = 0; i < prefixes.Count && i < 6; i++)
+            {
+                grown += OptionHeight(prefixes[i]) - 32;
+            }
+            float boxH = BoxH + grown;
+            float listH = ContentH - 32 - boxH - 10;
             martialList.Build(content, 0, 32, ContentW, listH, all, DrawMartialRow);
 
             float box = 32 + listH + 10;
-            Ui.Panel("MartialBox", content, 0, box, ContentW, BoxH, Ui.Section);
+            Ui.Panel("MartialBox", content, 0, box, ContentW, boxH, Ui.Section);
             if (selected == null)
             {
                 Ui.Label(content, "위에서 공법을 선택하면 옵션을 편집할 수 있습니다.", 16, box + 10, 880, 36);
@@ -100,17 +108,21 @@ namespace MOD_sWP6UL
             Ui.Button("MartialExp", content, "숙련 경험치 + " + Step, 450, box + 8, 230, 34, new Action(() => Say(MartialService.AddExp(Target, martialId, Step))));
             AmountBar.Build(content, "martialExp", 700, box + 6);
 
-            List<MartialService.PrefixView> prefixes = MartialService.Prefixes(selected);
             if (prefixes.Count == 0)
             {
                 Ui.Label(content, "이 공법에는 옵션이 없습니다.", 16, box + 52, 880, 34, 18).color = Ui.Dim;
             }
+            float y = box + 50;
+            float optionH = 0;
             for (int i = 0; i < prefixes.Count && i < 6; i++)
             {
                 MartialService.PrefixView view = prefixes[i];
                 int slot = view.Index;
-                float y = box + 50 + i * 38;
-                Ui.Button("OptionText" + slot, content, (slot + 1) + ". " + Shorten(view.Desc, 28), 16, y, 520, 32, new Action(() => optionDetail.Show((slot + 1) + ". " + view.Desc)));
+                y += optionH;
+                string optionText = OptionText(view);
+                float buttonH = OptionHeight(view);
+                optionH = buttonH + 6;
+                WrapLabel(Ui.Button("OptionText" + slot, content, optionText, 16, y, 520, buttonH, new Action(() => optionDetail.Show(optionText))), 15);
                 Ui.Label(content, "품질 " + view.Level + "/" + view.MaxLevel, 545, y, 110, 34, 18);
                 Ui.Button("QualityMinus" + slot, content, "-", 660, y, 44, 32, new Action(() => Say(MartialService.SetQuality(Target, martialId, slot, view.Level - 1))), view.Level > 1);
                 Ui.Button("QualityPlus" + slot, content, "+", 708, y, 44, 32, new Action(() => Say(MartialService.SetQuality(Target, martialId, slot, view.Level + 1))), view.Level < view.MaxLevel);
@@ -127,13 +139,13 @@ namespace MOD_sWP6UL
                     }, DrawPrefixPicker);
                 }));
             }
-            optionDetail.Build(content, 920, box + 50, ContentW - 936, 228);
+            optionDetail.Build(content, 920, box + 50, ContentW - 936, 228 + grown);
 
             // 장착·해제와 망각. 망각은 한 번 더 확인한다.
             bool equipped = MartialService.IsEquipped(target, martialId);
-            Ui.Button("MartialEquip", content, equipped ? "장착 해제" : "장착", 16, box + 286, 150, 34,
+            Ui.Button("MartialEquip", content, equipped ? "장착 해제" : "장착", 16, box + 286 + grown, 150, 34,
                 new Action(() => Say(equipped ? MartialService.Unequip(Target, martialId) : MartialService.Equip(Target, martialId))));
-            Confirm.Button("MartialForget", content, "기술 망각", "정말 망각", 176, box + 286, 150, 34, "forget:" + martialId,
+            Confirm.Button("MartialForget", content, "기술 망각", "정말 망각", 176, box + 286 + grown, 150, 34, "forget:" + martialId,
                 "이 공법을 익힌 목록에서 지웁니다. 계속하려면 \"정말 망각\"을 한 번 더 누르세요.", new Action(() =>
                 {
                     string result = MartialService.Forget(Target, martialId);
@@ -141,7 +153,7 @@ namespace MOD_sWP6UL
                     optionDetail.Clear();
                     Say(result);
                 }));
-            Ui.Label(content, "수련은 위의 숙련 경험치로, 참오는 위 옵션의 품질·교체로 대신합니다.", 340, box + 286, 570, 34, 15).color = Ui.Dim;
+            Ui.Label(content, "수련은 위의 숙련 경험치로, 참오는 위 옵션의 품질·교체로 대신합니다.", 340, box + 286 + grown, 570, 34, 15).color = Ui.Dim;
         }
 
         private void DrawMartialRow(RectTransform row, Learned learned, int index)
@@ -200,8 +212,20 @@ namespace MOD_sWP6UL
 
             learnedCounts = SkillCatalog.LearnedCounts(target, skillKind);
             float top = y + 92;
+            skillList.HeightOf = entry => RowWithSecondLine(50, Ui.TextHeight(entry.Desc, 1050, 15));
             skillList.Build(content, 0, top, ContentW, ContentH - top - 78, SkillCatalog.Find(skillKind, skillQuery), DrawSkillRow);
             skillDetail.Build(content, 0, ContentH - 70, ContentW, 70);
+        }
+
+        private static string OptionText(MartialService.PrefixView view)
+        {
+            return (view.Index + 1) + ". " + view.Desc;
+        }
+
+        // 옵션 버튼의 높이: 글이 버튼 안에서 줄바꿈된 높이. 한 줄이면 32.
+        private static float OptionHeight(MartialService.PrefixView view)
+        {
+            return Math.Max(32, (float)Math.Ceiling(Ui.TextHeight(OptionText(view), 520, 15)) + 6);
         }
 
         private Dictionary<int, int> learnedCounts = new Dictionary<int, int>();
@@ -211,10 +235,12 @@ namespace MOD_sWP6UL
             string blocked = SkillCatalog.BlockReason(entry, skillGrade);
             int have;
             learnedCounts.TryGetValue(entry.BaseId, out have);
-            Ui.Label(row, Shorten(entry.Name, 16) + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 8, 0, 800, 26, 18);
+            Ui.Label(row, entry.Name + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 8, 0, 800, 26, 18);
             Text state = Ui.Label(row, have > 0 ? "배움" + (have > 1 ? " x" + have : "") : blocked != null ? "배울 수 없음" : "-", 820, 0, 200, 26, 16);
             state.color = have > 0 ? Ui.Warn : Ui.Dim;
-            Ui.Label(row, Shorten(entry.Desc, 76), 24, 24, 1080, 22, 15).color = Ui.Dim;
+            Text desc = Ui.Wrapped(row, entry.Desc, 24, SecondLineY, 1050, row.sizeDelta.y - SecondLineY - 4, 15, TextAnchor.UpperLeft);
+            desc.color = Ui.Dim;
+            desc.gameObject.name = "SkillDesc" + entry.BaseId;
             float x = ContentW - Ui.ScrollBarWidth - 178;
             if (blocked == null)
             {
@@ -241,19 +267,28 @@ namespace MOD_sWP6UL
             List<ConfBattleSkillPrefixValueItem> items = MartialService.ValidItems(martial);
             Ui.Label(content, "붙을 수 있는 옵션 " + items.Count + "개. 교체하면 품질은 이전 값을 유지합니다(새 옵션의 한도 안에서).", 0, SubTop, 900, 30, 16).color = Ui.Dim;
             float top = SubTop + 36;
+            // 글 아래에 "불가" 사유 한 줄의 자리를 늘 남긴다(사유를 줄마다 미리 묻지 않으려고).
+            prefixList.HeightOf = item => Math.Max(50, (float)Math.Ceiling(Ui.TextHeight(PrefixText(item), 1060, 17)) + 30);
             prefixList.Build(content, 0, top, ContentW, ContentH - top - 78, items, DrawPrefixRow);
             prefixDetail.Build(content, 0, ContentH - 70, ContentW, 70);
         }
 
         private DataProps.MartialData pickerMartial;
 
+        private static string PrefixText(ConfBattleSkillPrefixValueItem item)
+        {
+            return item.number + "번  " + MartialService.CleanDesc(GameTool.LS(item.desc));
+        }
+
         private void DrawPrefixRow(RectTransform row, ConfBattleSkillPrefixValueItem item, int index)
         {
             string blocked = MartialService.ReplaceBlockReason(pickerMartial, replaceIndex, item);
-            Ui.Label(row, item.number + "번  " + Shorten(MartialService.CleanDesc(GameTool.LS(item.desc)), 60), 8, 0, 1080, 28, 17);
+            string text = PrefixText(item);
+            float textH = (float)Math.Ceiling(Ui.TextHeight(text, 1060, 17));
+            Ui.Wrapped(row, text, 8, 3, 1060, textH, 17, TextAnchor.UpperLeft).gameObject.name = "PrefixDesc" + item.number;
             if (blocked != null)
             {
-                Ui.Label(row, "불가: " + blocked, 38, 24, 1050, 22, 15).color = Ui.Warn;
+                Ui.Label(row, "불가: " + blocked, 38, textH + 3, 1050, 22, 15).color = Ui.Warn;
             }
             int slot = replaceIndex;
             Ui.Button("ReplacePick" + item.number, row, "이걸로", ContentW - Ui.ScrollBarWidth - 118, 7, 110, 36, new Action(() =>

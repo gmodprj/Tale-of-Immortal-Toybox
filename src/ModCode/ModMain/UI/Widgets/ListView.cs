@@ -6,7 +6,8 @@ using UnityEngine.UI;
 namespace MOD_sWP6UL
 {
     // 세로로 스크롤되는 목록. 전체 높이만큼의 영역에 화면에 걸친 줄만 만든다(아이템 3천여 개를 줄마다 만들면 너무 느리다).
-    // 스크롤해서 첫 줄의 번호가 바뀌면 그때 줄을 다시 만든다. 목록 위치는 이 객체가 기억하므로 탭이 내용을 다시 그려도 유지된다.
+    // 스크롤해서 보이는 줄이 바뀌면 그때 줄을 다시 만든다. 목록 위치는 이 객체가 기억하므로 탭이 내용을 다시 그려도 유지된다.
+    // 줄의 높이는 기본이 같은 값이고, HeightOf를 주면 항목마다 다르다(긴 글을 줄바꿈해 전부 보이는 줄).
     // 아래에 이동 줄이 붙는다: 처음·이전·다음·끝과 "전체 N개 중 a~b번째". 전체가 한 화면에 들어오면 버튼을 숨긴다.
     internal sealed class ListView<T>
     {
@@ -18,6 +19,7 @@ namespace MOD_sWP6UL
         private readonly string name;
         private readonly float rowHeight;
         private IList<T> items = new List<T>();
+        private float[] tops = new float[1];    // tops[i]는 i번째 줄의 위쪽, tops[Count]는 전체 높이
         private Action<RectTransform, T, int> drawRow;
         private RectTransform inner;
         private RectTransform nav;
@@ -25,9 +27,13 @@ namespace MOD_sWP6UL
         private float innerW;
         private float scrollY;
         private int first = -1;
+        private int drawnEnd;                   // 만들어 둔 줄의 끝(이 번호 앞까지)
 
         // 줄을 눌렀을 때 부를 것. 있으면 줄 전체가 눌린다(줄 위의 버튼은 따로 눌린다).
         public Action<T> OnSelect { get; set; }
+
+        // 항목마다의 줄 높이. 없으면 모든 줄이 생성자에 준 높이다.
+        public Func<T, float> HeightOf { get; set; }
 
         public string EmptyText = "조건에 맞는 것이 없습니다.";
 
@@ -42,15 +48,66 @@ namespace MOD_sWP6UL
             get { return items.Count; }
         }
 
+        private float Total
+        {
+            get { return tops[items.Count]; }
+        }
+
         // 다음에 그릴 때 맨 위에서 시작한다(분류를 바꿨을 때).
         public void Reset()
         {
             scrollY = 0;
         }
 
+        private void Measure()
+        {
+            tops = new float[items.Count + 1];
+            for (int i = 0; i < items.Count; i++)
+            {
+                tops[i + 1] = tops[i] + (HeightOf != null ? HeightOf(items[i]) : rowHeight);
+            }
+        }
+
+        // y가 걸친 줄의 번호.
+        private int RowAt(float y)
+        {
+            int low = 0, high = items.Count - 1;
+            while (low < high)
+            {
+                int mid = (low + high + 1) / 2;
+                if (tops[mid] <= y)
+                {
+                    low = mid;
+                }
+                else
+                {
+                    high = mid - 1;
+                }
+            }
+            return Mathf.Max(0, low);
+        }
+
+        // 위쪽이 y보다 위에 있지 않은 첫 줄(잘리지 않고 보이는 첫 줄).
+        private int FirstWholeFrom(float y)
+        {
+            int row = RowAt(y);
+            return row < items.Count && tops[row] < y - 0.5f ? row + 1 : row;
+        }
+
+        // 아래쪽이 y보다 아래에 있지 않은 마지막 줄(잘리지 않고 보이는 마지막 줄). 없으면 from.
+        private int LastWholeUntil(float y, int from)
+        {
+            int row = from;
+            while (row + 1 < items.Count && tops[row + 2] <= y + 0.5f)
+            {
+                row++;
+            }
+            return row;
+        }
+
         private float Clamp(float y)
         {
-            return Mathf.Clamp(y, 0f, Mathf.Max(0f, items.Count * rowHeight - viewH));
+            return Mathf.Clamp(y, 0f, Mathf.Max(0f, Total - viewH));
         }
 
         // (x, y, w, h) 안에 목록과 이동 줄을 그린다. h에는 이동 줄의 높이가 들어 있다.
@@ -60,8 +117,9 @@ namespace MOD_sWP6UL
             drawRow = draw;
             viewH = h - NavH - Gap;
             innerW = w - Ui.ScrollBarWidth;
+            Measure();
             scrollY = Clamp(scrollY);
-            inner = Ui.Scroll(name, parent, x, y, w, viewH, items.Count * rowHeight, scrollY, new Action<float>(OnScroll));
+            inner = Ui.Scroll(name, parent, x, y, w, viewH, Total, scrollY, new Action<float>(OnScroll));
             nav = Ui.Rect(name + "Nav", parent, x, y + viewH + Gap, w, NavH);
             DrawRows();
         }
@@ -71,11 +129,12 @@ namespace MOD_sWP6UL
         {
             items = list;
             scrollY = 0;
+            Measure();
             if (inner == null)
             {
                 return;
             }
-            inner.sizeDelta = new Vector2(innerW, Mathf.Max(viewH, items.Count * rowHeight));
+            inner.sizeDelta = new Vector2(innerW, Mathf.Max(viewH, Total));
             inner.anchoredPosition = Vector2.zero;
             DrawRows();
         }
@@ -92,12 +151,13 @@ namespace MOD_sWP6UL
         private void OnScroll(float y)
         {
             scrollY = y;
-            if ((int)(y / rowHeight) != first)
+            // 첫 줄이 바뀌었거나, 만들어 둔 줄보다 아래가 보이게 됐으면 줄을 다시 만든다.
+            if (RowAt(y) != first || (drawnEnd < items.Count && tops[drawnEnd] < y + viewH))
             {
                 DrawRows();
                 return;
             }
-            // 첫 줄 번호가 그대로여도 맨 위·맨 아래를 벗어났는지는 달라졌을 수 있다. 이동 줄만 다시 그린다.
+            // 줄이 그대로여도 맨 위·맨 아래를 벗어났는지는 달라졌을 수 있다. 이동 줄만 다시 그린다.
             DrawNav();
         }
 
@@ -111,16 +171,17 @@ namespace MOD_sWP6UL
         private void DrawRows()
         {
             Ui.Clear(inner);
-            first = Mathf.Max(0, (int)(scrollY / rowHeight));
-            int perScreen = Mathf.Max(1, (int)(viewH / rowHeight));
-            int last = Mathf.Min(items.Count, first + perScreen + 1);
+            first = RowAt(scrollY);
             if (items.Count == 0)
             {
                 Ui.Label(inner, EmptyText, 16, 8, innerW - 32, 34, 18).color = Ui.Warn;
             }
-            for (int i = first; i < last; i++)
+            // 화면에 걸친 줄과 그 아래 한 줄까지 만든다.
+            int i = first;
+            for (; i < items.Count; i++)
             {
-                RectTransform row = Ui.Rect("Row" + i, inner, 0, i * rowHeight, innerW, rowHeight);
+                float height = tops[i + 1] - tops[i];
+                RectTransform row = Ui.Rect("Row" + i, inner, 0, tops[i], innerW, height);
                 if (OnSelect != null || i % 2 == 1)
                 {
                     var image = row.gameObject.AddComponent<Image>();
@@ -139,31 +200,39 @@ namespace MOD_sWP6UL
                     }
                 }
                 drawRow(row, items[i], i);
+                if (tops[i] >= scrollY + viewH)
+                {
+                    i++;
+                    break;
+                }
             }
+            drawnEnd = i;
             DrawNav();
         }
 
         private void DrawNav()
         {
             Ui.Clear(nav);
-            int perScreen = Mathf.Max(1, (int)(viewH / rowHeight));
-            bool fits = items.Count * rowHeight <= viewH;
+            bool fits = Total <= viewH;
+            float max = Clamp(float.MaxValue);
+            bool atEnd = !fits && scrollY >= max - 0.5f;
+            // 범위는 다 보이는 줄로 센다. 다만 맨 아래가 아니면 위가 잘린 첫 줄부터 센다(조금만 내렸을 때 번호가 건너뛰지 않게).
+            int from = items.Count == 0 ? 0 : atEnd ? FirstWholeFrom(scrollY) : first;
+            int to = items.Count == 0 ? 0 : LastWholeUntil(scrollY + viewH, from);
             float labelX = 0;
             if (!fits)
             {
-                float page = perScreen * rowHeight;
-                float max = Clamp(float.MaxValue);
+                // 이전: 한 화면 위에서, 잘리지 않는 첫 줄에 맞춘다. 다음: 지금 다 보이지 않는 첫 줄에서 시작한다.
+                float prev = tops[Mathf.Min(items.Count - 1, FirstWholeFrom(Mathf.Max(0f, scrollY - viewH)))];
+                float next = tops[Mathf.Min(items.Count - 1, to + 1)];
                 Ui.Button(name + "First", nav, "처음", 0, 0, 80, NavH, new Action(() => ScrollTo(0f)), scrollY > 0f);
-                Ui.Button(name + "Prev", nav, "이전", 86, 0, 80, NavH, new Action(() => ScrollTo(scrollY - page)), scrollY > 0f);
-                Ui.Button(name + "Next", nav, "다음", 172, 0, 80, NavH, new Action(() => ScrollTo(scrollY + page)), scrollY < max);
+                Ui.Button(name + "Prev", nav, "이전", 86, 0, 80, NavH, new Action(() => ScrollTo(prev)), scrollY > 0f);
+                Ui.Button(name + "Next", nav, "다음", 172, 0, 80, NavH, new Action(() => ScrollTo(next)), scrollY < max);
                 Ui.Button(name + "Last", nav, "끝", 258, 0, 80, NavH, new Action(() => ScrollTo(max)), scrollY < max);
                 labelX = 350;
             }
-            // 맨 아래에서는 첫 줄이 반쯤 잘려 있고 마지막 줄이 다 보인다. 범위는 다 보이는 줄로 센다.
-            bool atEnd = !fits && scrollY >= Clamp(float.MaxValue) - 0.5f;
-            int from = atEnd ? items.Count - perScreen + 1 : first + 1;
             string range = items.Count == 0 ? "0개"
-                : "전체 " + items.Count + "개 중 " + from + "~" + Mathf.Min(items.Count, from + perScreen - 1) + "번째";
+                : "전체 " + items.Count + "개 중 " + (from + 1) + "~" + (to + 1) + "번째";
             RectTransform holder = Ui.Rect(name + "Range", nav, labelX, 0, 600, NavH);
             Ui.Label(holder, range, 0, 0, 600, NavH, 16).color = Ui.Dim;
         }

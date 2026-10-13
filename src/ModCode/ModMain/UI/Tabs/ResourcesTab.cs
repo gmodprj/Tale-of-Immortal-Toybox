@@ -171,18 +171,22 @@ namespace MOD_sWP6UL
             top += 32;
 
             // 표 본문과 이동 줄, 그 아래에 고른 아이템의 전체 설명
+            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Desc, 440, 15), Ui.TextHeight(entry.Name, 262, 19), Ui.TextHeight(entry.SubTypeName, 175, 16));
             list.Build(content, 0, top, ContentW, ContentH - DetailH - 8 - top, Found(), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
 
         private void DrawRow(RectTransform row, ItemCatalog.Entry entry, int index)
         {
-            Ui.Label(row, entry.Id.ToString(), ColId, 0, 100, RowH, 16);
-            Ui.Label(row, Shorten(entry.SubTypeName, 8), ColCat, 0, 175, RowH, 16);
-            Ui.Button("ItemName" + entry.Id, row, Shorten(entry.Name, 14), ColName, 2, 262, RowH - 4, new Action(() => detail.Show(Detail(entry))));
-            Ui.Label(row, entry.Level.ToString(), ColLevel, 0, 60, RowH, 16);
-            Ui.Label(row, Player.data.unitData.propData.GetPropsNum(entry.Id).ToString(), ColOwned, 0, 70, RowH, 16);
-            Ui.Label(row, Shorten(entry.Desc, 27), ColDesc, 0, 440, RowH, 15).color = Ui.Dim;
+            float h = row.sizeDelta.y;
+            Ui.Label(row, entry.Id.ToString(), ColId, 0, 100, h, 16);
+            Ui.Wrapped(row, entry.SubTypeName, ColCat, 0, 175, h, 16);
+            WrapLabel(Ui.Button("ItemName" + entry.Id, row, entry.Name, ColName, 2, 262, h - 4, new Action(() => detail.Show(Detail(entry)))));
+            Ui.Label(row, entry.Level.ToString(), ColLevel, 0, 60, h, 16);
+            Ui.Label(row, Player.data.unitData.propData.GetPropsNum(entry.Id).ToString(), ColOwned, 0, 70, h, 16);
+            Text desc = Ui.Wrapped(row, entry.Desc, ColDesc, 0, 440, h, 15);
+            desc.color = Ui.Dim;
+            desc.gameObject.name = "ItemDesc" + entry.Id;
             int amount = AmountBar.Get("item");
             Ui.Button("ItemGive" + entry.Id, row, "지급 x" + amount, ColGive, 2, 116, RowH - 4, new Action(() => Say(EditService.GiveItem(Player, entry.Id, amount))));
         }

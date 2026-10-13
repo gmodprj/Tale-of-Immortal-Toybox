@@ -27,6 +27,8 @@ namespace MOD_sWP6UL
                     return Pos(p[1]);
                 case "uitext":
                     return TextOf(p[1]);
+                case "uidescs":
+                    return TextsOf(p[1]);
                 case "uifocus":
                     return Focus(p[1]);
                 case "uidrag":
@@ -140,6 +142,24 @@ namespace MOD_sWP6UL
             return found.name + " text='" + (text == null ? "" : text.text) + "'";
         }
 
+        // 이름이 그 글자로 시작하는 요소들의 글을 한 줄에 하나씩. 목록의 줄마다 있는 글(설명 등)을 한 번에 본다.
+        private static string TextsOf(string prefix)
+        {
+            GameObject root = GameObject.Find(EditorName);
+            if (root == null)
+            {
+                return "editor is not open";
+            }
+            var sb = new StringBuilder();
+            foreach (Text text in root.GetComponentsInChildren<Text>(false))
+            {
+                if (text.gameObject.name.StartsWith(prefix))
+                {
+                    sb.Append(text.gameObject.name).Append(" text='").Append(text.text.Replace("\n", " ")).Append("'\n");
+                }
+            }
+            return sb.Length == 0 ? "no element starting with " + prefix : sb.ToString();
+        }
         private static string Focus(string name)
         {
             Transform found = Find(name);
