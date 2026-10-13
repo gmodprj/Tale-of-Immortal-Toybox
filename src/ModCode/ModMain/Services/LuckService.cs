@@ -92,6 +92,11 @@ namespace MOD_sWP6UL
             }
         }
 
+        public static bool IsSystem(int id)
+        {
+            return SystemIds.Contains(id);
+        }
+
         private static bool Addable(ConfRoleCreateFeatureItem conf)
         {
             // 숨김 운명만 뺀다. 후천(2) 분류에는 게임의 상태 표식이 섞여 있으므로 화면에서 경고한다.

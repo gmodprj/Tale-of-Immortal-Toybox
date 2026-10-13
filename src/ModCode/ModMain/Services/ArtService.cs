@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace MOD_sWP6UL
@@ -110,7 +111,7 @@ namespace MOD_sWP6UL
         }
 
         // 게임의 조건을 건너뛰고 배운 기록에 직접 넣는다.
-        public static string ForceLearn(Kind kind, ItemCatalog.Entry book)
+        public static string ForceLearn(Kind kind, ItemCatalog.Entry book, int exp = 0, int maxExp = 100)
         {
             if (Learned(kind, book.Id))
             {
@@ -126,8 +127,9 @@ namespace MOD_sWP6UL
             {
                 var formula = new DataWorld.World.PillFormulaData();
                 formula.id = book.Id;
-                formula.exp = 0;
-                formula.maxExp = 100; // 게임이 새로 배운 단방에 넣는 값(실측)
+                // 새로 배운 단방은 exp 0, maxExp 100이다(실측). 내보낸 값을 받으면 그 값으로 넣는다.
+                formula.maxExp = Math.Max(1, maxExp);
+                formula.exp = Math.Max(0, Math.Min(exp, formula.maxExp));
                 world.pillFormulas.Add(formula);
             }
             else

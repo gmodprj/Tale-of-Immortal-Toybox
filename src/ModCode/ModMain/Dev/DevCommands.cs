@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string character = DevCommandsChar.Execute(p);
+            if (character != null)
+            {
+                return character;
+            }
             string ui = UiSpike.Execute(p);
             if (ui != null)
             {
