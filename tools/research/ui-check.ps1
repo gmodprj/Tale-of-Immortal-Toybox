@@ -1223,6 +1223,14 @@ switch ($Part) {
     Check 'speed shows x1' ((Cmd 'uitext RateSpeed') -match "text='x1'")
     Start-Sleep -Milliseconds 500
     Check 'speed returns to 1 when set back' ((Scale) -eq 1) (Cmd 'rstate')
+    # 정지 중에 속도를 끄면, 정지가 풀리며 게임이 정지 전의 값을 되살려도 1이 된다(rpause off가 그 값을 되살린다).
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null
+    Start-Sleep -Milliseconds 500
+    Cmd 'rpause on' 200 | Out-Null
+    Press 'RateSpeed' | Out-Null; Press 'RateSpeed' | Out-Null
+    Check 'speed is turned off while paused' ((Cmd 'uitext RateSpeed') -match "text='x1'" -and (Scale) -eq 0) (Cmd 'rstate')
+    Cmd 'rpause off' 200 | Out-Null; Start-Sleep -Milliseconds 800
+    Check 'speed is 1 after resuming with speed off' ((Scale) -eq 1) (Cmd 'rstate')
     Press 'God' | Out-Null
     Check 'god is pressed in the rate tab' ((Cmd 'rstate' 200) -match 'god=True')
     # 전투를 끝내고 지도로 나온다(bend는 게임의 종료 절차를 부르고, 결과 창의 확인은 (959, 831)이다). 켜 둔 속도는 지도에서 걸리지 않는다.

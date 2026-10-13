@@ -302,19 +302,27 @@ namespace MOD_sWP6UL
             catch (Exception e)
             {
                 Warn(Speed, e);
+                // 전투 장면을 판정하지 못하면 걸지 않는다.
+                try
+                {
+                    RestoreSpeed();
+                }
+                catch (Exception)
+                {
+                }
             }
         }
 
+        // 걸어 둔 속도를 1로 되돌린다. 게임이 정지(0)한 동안에는 쓰지 않고 걸었다는 기억을 남겨,
+        // 정지가 풀린 프레임에 Tick이 되돌리게 한다(게임이 정지 전의 값을 되살려도 남지 않는다).
         private static void RestoreSpeed()
         {
-            if (speedApplied)
+            if (!speedApplied || Time.timeScale == 0f)
             {
-                speedApplied = false;
-                if (Time.timeScale != 0f)
-                {
-                    Time.timeScale = 1f;
-                }
+                return;
             }
+            Time.timeScale = 1f;
+            speedApplied = false;
         }
     }
 }
