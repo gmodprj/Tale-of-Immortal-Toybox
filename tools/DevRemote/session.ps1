@@ -4,6 +4,9 @@
 #   -Restart        이 스크립트가 띄운 게임을 닫고 다시 띄운다(세이브와 설치된 DLL은 그대로). 저장 후 재시작 확인용
 #   -End <이름>     이 스크립트가 띄운 게임을 닫고 → 세이브를 복사본으로 되돌려 일치를 확인
 #                   → bag-slots.txt와 설치돼 있던 DLL을 되돌린다
+#   -Fixture <이름> -Begin과 함께 쓴다. 사용자의 세이브를 복사해 둔 뒤, 회차 동안만 세이브 폴더를 고정본(.devremote\fixtures\<이름>)으로
+#                   바꿔 띄운다. 검사가 사용자의 지금 세이브 상태(떠 있는 창, 진행 중인 사건)에 흔들리지 않게 한다. -End는 똑같이 사용자의 세이브를 되돌린다
+#   -MakeFixture <이름> -From <폴더>   세이브 폴더의 복사본(예: .devremote\save-backup-<회차>)으로 고정본을 만든다
 #   -ReleaseBuild   -Begin과 함께 쓴다. 개발 도구를 뺀 배포 구성으로 빌드해 설치한다. 준비 로그가 없으므로 30초를 기다린다
 # 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않은 회차도 -End로 되돌린다.
 #
@@ -12,7 +15,9 @@
 #     -End의 이름이 열린 회차와 다르거나 회차가 없으면 세이브를 건드리지 않는다.
 #   - 이 스크립트가 띄운 게임만 닫는다. 다른 게임이 실행 중이면 띄우지도, 닫지도, 세이브를 되돌리지도 않는다.
 #   - 세이브를 되돌리기 직전의 상태를 save-before-restore-<이름>으로 한 벌 남긴다.
-param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild,
+#   - 고정본을 썼어도 -End 뒤의 세이브는 회차 전의 사용자 것이다. 고정본 자체는 바뀌지 않는다.
+#   - -End는 최근 다섯 회차의 복사본만 남기고 오래된 것을 지운다. 회차 동안 모드가 만든 세이브 자동 백업도 지운다(회차 전부터 있던 것은 남긴다).
+param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '',
   [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$ModId = 'sWP6UL',
   # 아래는 session.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다.
   [string]$SaveDir = '', [string]$WorkDir = '', [string]$DataDir = '', [string]$ProcessName = 'guigubahuang', [switch]$DryRun)
@@ -30,6 +35,10 @@ $noBag = Join-Path $dir 'session-bag-slots.absent'   # 회차 전에 bag-slots.t
 $pidFile = Join-Path $dir 'session.pid'
 $modeFile = Join-Path $dir 'session.mode'
 $flag = Join-Path $dir 'park.flag'
+$fixtures = Join-Path $dir 'fixtures'
+$backups = Join-Path $data 'backups'                 # 모드가 값을 바꾸기 전에 만드는 세이브 자동 백업
+$keptBackups = Join-Path $dir 'session-backups.txt'  # 회차 전부터 있던 자동 백업의 이름들
+$keepSessions = 5                                    # -End가 남기는 회차 복사본의 수
 
 function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue) }
 
@@ -82,8 +91,21 @@ function OpenSession {
   if (Test-Path $marker) { [IO.File]::ReadAllText($marker).Trim() } else { '' }
 }
 
+if ($MakeFixture) {
+  $target = Join-Path $fixtures $MakeFixture
+  if (Test-Path $target) { throw "고정본이 이미 있습니다: $target" }
+  if (-not $From -or -not (Test-Path -LiteralPath $From -PathType Container)) { throw "고정본의 원본 폴더가 없습니다: $From" }
+  [void][IO.Directory]::CreateDirectory($fixtures)
+  Copy-Item -LiteralPath $From -Destination $target -Recurse
+  $diff = Differences $From $target
+  if ($diff.Count -gt 0) { $diff; throw "고정본이 원본과 다릅니다: $target" }
+  "FIXTURE MADE: $MakeFixture"
+}
+
 if ($Begin) {
   if (Running) { throw '게임이 실행 중입니다. 사용자에게 종료를 요청하고 기다립니다(임의로 끄지 않는다).' }
+  $fixtureDir = if ($Fixture) { Join-Path $fixtures $Fixture } else { '' }
+  if ($Fixture -and -not (Test-Path -LiteralPath $fixtureDir -PathType Container)) { throw "고정본이 없습니다: $fixtureDir" }
   if (OpenSession) { throw "열려 있는 회차가 있습니다($(OpenSession)). 먼저 -End $(OpenSession) 으로 끝냅니다." }
   $bak = Join-Path $dir "save-backup-$Begin"
   if (Test-Path $bak) { throw "복사본이 이미 있습니다: $bak (다른 이름을 씁니다)" }
@@ -112,7 +134,18 @@ if ($Begin) {
     Copy-Item -LiteralPath $dll -Destination $installed -Force
     [IO.File]::WriteAllText($modeFile, $(if ($ReleaseBuild) { 'release' } else { 'dev' }))
   }
+  # 회차 전부터 있던 자동 백업의 이름을 적어 둔다. -End가 그 밖의 것(회차 동안 생긴 것)만 지운다.
+  $names = @(if (Test-Path -LiteralPath $backups) { Get-ChildItem -LiteralPath $backups | ForEach-Object Name })
+  [IO.File]::WriteAllText($keptBackups, ($names -join "`n"))
   [IO.File]::WriteAllText($marker, $Begin)
+  if ($Fixture) {
+    # 표식을 남긴 뒤에 바꾼다. 여기서 멈춰도 -End가 사용자의 세이브를 복사본으로 되돌린다.
+    robocopy $fixtureDir $save /MIR /NJH /NJS /NP /NDL /NFL | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "고정본을 세이브 폴더에 넣지 못했습니다(robocopy $LASTEXITCODE). -End $Begin 으로 세이브를 되돌립니다." }
+    $diff = Differences $fixtureDir $save
+    if ($diff.Count -gt 0) { $diff; throw "세이브 폴더가 고정본과 다릅니다. -End $Begin 으로 세이브를 되돌립니다." }
+    "FIXTURE LOADED: $Fixture"
+  }
   Launch
 }
 
@@ -158,6 +191,30 @@ if ($End) {
     'INSTALLED DLL RESTORED'
   }
   [IO.File]::Delete($marker)
+
+  # 회차 동안 모드가 만든 세이브 자동 백업을 지운다(시험 중의 세이브를 뜬 것이라 쓸모가 없다). 회차 전부터 있던 것은 남긴다.
+  if (Test-Path $keptBackups) {
+    $keep = @([IO.File]::ReadAllText($keptBackups) -split "`n" | Where-Object { $_ })
+    if (Test-Path -LiteralPath $backups) {
+      foreach ($entry in Get-ChildItem -LiteralPath $backups) {
+        if ($keep -notcontains $entry.Name -and $entry.FullName.StartsWith($backups + '\')) {
+          if ($entry.PSIsContainer) { [IO.Directory]::Delete($entry.FullName, $true) } else { [IO.File]::Delete($entry.FullName) }
+        }
+      }
+    }
+    [IO.File]::Delete($keptBackups)
+  }
+
+  # 오래된 회차의 복사본을 지운다. 회차마다 save-backup-<이름>과 save-before-restore-<이름> 한 쌍이고, 최근 것만 남긴다.
+  $old = @(Get-ChildItem -LiteralPath $dir -Directory | Where-Object { $_.Name -match '^save-backup-' } |
+    Sort-Object LastWriteTime -Descending | Select-Object -Skip $keepSessions)
+  foreach ($copy in $old) {
+    $name = $copy.Name.Substring('save-backup-'.Length)
+    foreach ($path in $copy.FullName, (Join-Path $dir "save-before-restore-$name")) {
+      if ((Test-Path -LiteralPath $path) -and $path.StartsWith($dir + '\save-')) { [IO.Directory]::Delete($path, $true) }
+    }
+  }
+  if ($old.Count -gt 0) { "OLD COPIES REMOVED: $($old.Count) sessions" }
 }
 $global:LASTEXITCODE = 0
 exit 0
