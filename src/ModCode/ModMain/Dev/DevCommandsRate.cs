@@ -6,6 +6,10 @@ namespace MOD_sWP6UL
     //   rstate   배율의 값과 패치 여부, 마지막으로 바꾼 값, 전투 보조, Time.timeScale.
     //   rnpc     플레이어가 아닌 단위 하나의 AddExp(10)을 부른다(배율이 걸리지 않아야 한다).
     //   rneg     플레이어의 AddExp(-7)을 부른다(곱해지지 않아야 한다).
+    //   bcast <종류>   전투 중인 플레이어가 기술을 쓰게 한다. 1 무예/영술, 2 절기, 3 신법.
+    //   rmart          장착한 무예·절기·신법·신통의 숙련 경험치.
+    //   bend           전투를 승리로 끝낸다.
+    //   rpause on|off  Time.timeScale을 0 또는 1로 쓴다.
     internal static class DevCommandsRate
     {
         public static string Execute(string[] p)
@@ -23,6 +27,22 @@ namespace MOD_sWP6UL
                         saved.AddExp(-7);
                         return "player AddExp(-7) exp " + before + " -> " + saved.exp;
                     }
+                case "bcast":
+                    return Cast(int.Parse(p[1]));
+                case "rmart":
+                    return Martials();
+                case "rpause":
+                    // 게임의 일시 정지를 흉내 낸다(0이면 편집기가 건드리지 않아야 한다).
+                    UnityEngine.Time.timeScale = p[1] == "on" ? 0f : 1f;
+                    return "timeScale=" + UnityEngine.Time.timeScale;
+                case "bend":
+                    // 전투를 승리로 끝낸다(게임의 종료 절차를 부른다). 결과 창은 따로 닫는다.
+                    if (!RateService.InBattle)
+                    {
+                        return "not in battle";
+                    }
+                    SceneType.battle.battleEnd.BattleEnd(true);
+                    return "BattleEnd(true) called";
                 default:
                     return null;
             }
@@ -41,6 +61,35 @@ namespace MOD_sWP6UL
                 .Append(" lastMove=").Append(RateService.Move.Last)
                 .Append(" timeScale=").Append(UnityEngine.Time.timeScale.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 .Append(" inBattle=").Append(RateService.InBattle);
+            return sb.ToString();
+        }
+
+        private static string Cast(int type)
+        {
+            if (!RateService.InBattle)
+            {
+                return "not in battle";
+            }
+            UnitCtrlPlayer me = SceneType.battle.battleMap.playerUnitCtrl;
+            if (type == 3)
+            {
+                me.CreateStep();
+                return "CreateStep called";
+            }
+            return "CreateSkillAttack=" + me.CreateSkillAttack((MartialType)type);
+        }
+
+        private static string Martials()
+        {
+            var info = g.world.playerUnit.data.unitData;
+            var sb = new StringBuilder();
+            string[] names = { "left", "right", "step", "ultimate" };
+            string[] ids = { info.skillLeft, info.skillRight, info.step, info.ultimate };
+            for (int i = 0; i < ids.Length; i++)
+            {
+                DataUnit.ActionMartialData data = string.IsNullOrEmpty(ids[i]) ? null : info.GetActionMartial(ids[i]);
+                sb.Append(names[i]).Append('=').Append(data == null ? -1 : data.exp).Append(' ');
+            }
             return sb.ToString();
         }
 
