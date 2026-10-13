@@ -9,6 +9,7 @@ namespace MOD_sWP6UL
     //   bcast <종류>   전투 중인 플레이어가 기술을 쓰게 한다. 1 무예/영술, 2 절기, 3 신법.
     //   rmart          장착한 무예·절기·신법·신통의 숙련 경험치.
     //   bdmg           전투 보조의 구독 여부와 피해 배율이 걸린 횟수.
+    //   cdstat         전투 중인 플레이어의 쿨타임 속도와 기술별 쿨타임.
     //   rpath <dx> <dy> 게임의 경로 이동으로 그만큼 떨어진 칸까지 간다.
     //   bend [lose]    전투를 승리(또는 패배)로 끝낸다.
     //   rpause on|off  Time.timeScale을 0으로 쓰고(on), 그 전의 값으로 되돌린다(off).
@@ -59,44 +60,6 @@ namespace MOD_sWP6UL
                     }
                 case "cdstat":
                     return CdStat();
-                case "cdrate":
-                    {
-                        // 쿨타임 비율(DynInt)의 기준값을 쓴다. which: skill, step, ultimate.
-                        var unitData = SceneType.battle.battleMap.playerUnitCtrl.data;
-                        DynInt rateValue = p[1] == "skill" ? unitData.skillCDRate : p[1] == "step" ? unitData.stepCDRate : unitData.ultimateCDRate;
-                        int was = rateValue.baseValue;
-                        rateValue.baseValue = int.Parse(p[2]);
-                        return p[1] + " base " + was + " -> " + rateValue.baseValue + " value=" + rateValue.value;
-                    }
-                case "cdcut":
-                    {
-                        // 모든 기술의 쿨타임을 그만큼 줄인다.
-                        UnitCtrlPlayer ctrl = SceneType.battle.battleMap.playerUnitCtrl;
-                        float cut = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture);
-                        for (int i = 0; i < ctrl.skills.Count; i++)
-                        {
-                            ctrl.skills[i].data.ReduceCDTime(cut);
-                        }
-                        if (ctrl.step != null) { ctrl.step.data.ReduceCDTime(cut); }
-                        if (ctrl.ultimate != null) { ctrl.ultimate.data.ReduceCDTime(cut); }
-                        return "cut " + cut + "; " + CdStat();
-                    }
-                case "cdbase":
-                    {
-                        // 모든 기술의 cd(DynInt) 기준값을 쓴다.
-                        UnitCtrlPlayer ctrl = SceneType.battle.battleMap.playerUnitCtrl;
-                        int v = int.Parse(p[1]);
-                        for (int i = 0; i < ctrl.skills.Count; i++)
-                        {
-                            ctrl.skills[i].data.cd.baseValue = v;
-                        }
-                        if (ctrl.step != null) { ctrl.step.data.cd.baseValue = v; }
-                        if (ctrl.ultimate != null) { ctrl.ultimate.data.cd.baseValue = v; }
-                        return "cd base=" + v + "; " + CdStat();
-                    }
-                case "bult":
-                    SceneType.battle.battleMap.playerUnitCtrl.CreateUltimate(new UnityEngine.Vector2(0f, 0f), new UnityEngine.Vector2(1f, 0f));
-                    return "CreateUltimate called; " + CdStat();
                 case "bend":
                     // 전투를 승리로 끝낸다(게임의 종료 절차를 부른다). 결과 창은 따로 닫는다.
                     if (!RateService.InBattle)
@@ -115,7 +78,7 @@ namespace MOD_sWP6UL
             var sb = new StringBuilder();
             foreach (RateService.Rate rate in RateService.All)
             {
-                sb.Append(rate.Key).Append('=').Append(rate.Text.Substring(1)).Append(rate.Patched ? "(patched)" : "").Append(' ');
+                sb.Append(rate.Key).Append('=').Append(rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)).Append(rate.Patched ? "(patched)" : "").Append(' ');
             }
             sb.Append("god=").Append(BattleService.God).Append(" damage=").Append(BattleService.Multiplier)
                 .Append(" lastExp=").Append(RateService.Exp.Last)

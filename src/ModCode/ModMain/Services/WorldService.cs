@@ -67,7 +67,13 @@ namespace MOD_sWP6UL
 
         private static bool Wanted
         {
-            get { return God || Multiplier > 1; }
+            get { return God || Multiplier > 1 || RateService.Taken.On; }
+        }
+
+        // 받는 피해 배율이 바뀌었을 때 구독 상태를 맞춘다.
+        public static void Refresh()
+        {
+            Sync();
         }
 
         // 이벤트 관리자는 세이브에 진입할 때 새로 만들어질 수 있으므로, ModMain.Init마다 구독 상태를 다시 맞춘다.
@@ -148,13 +154,15 @@ namespace MOD_sWP6UL
         public static int DevScaled;
         public static string DevLast = "-";
         public static string DevDrop = "-";
+        public static int DevOnPlayer;
+        public static string DevTaken = "-";
         private static System.IntPtr devTarget;
         private static int devTargetHp;
         private static int devTargetValue;
 
         public static string DevState
         {
-            get { return "subscribed=" + subscribed + " hits=" + DevHits + " scaled=" + DevScaled + " last=" + DevLast + " drop=" + DevDrop; }
+            get { return "subscribed=" + subscribed + " hits=" + DevHits + " scaled=" + DevScaled + " onPlayer=" + DevOnPlayer + " last=" + DevLast + " drop=" + DevDrop + " taken=" + DevTaken; }
         }
 #endif
 
@@ -166,10 +174,22 @@ namespace MOD_sWP6UL
             var data = e.Cast<EBattleTypeData.UnitHitDynIntHandler>();
             if (data.hitUnit != null && data.hitUnit.data.unitType == UnitType.Player)
             {
+#if DEVTOOLS
+                DevOnPlayer++;
+#endif
                 if (God)
                 {
                     data.dynV.baseValue = 0;
                     data.dynV.ClearCall();
+                }
+                else if (RateService.Taken.On && data.dynV.baseValue > 0)
+                {
+                    int before = data.dynV.baseValue;
+                    // 배율로는 0이 되지 않게 한다(피해 1에 x0.5를 걸면 0이 되어 무적과 같아진다. 0은 무적의 몫이다).
+                    data.dynV.baseValue = Math.Max(1, (int)Math.Round(before * (double)RateService.Taken.Value));
+#if DEVTOOLS
+                    DevTaken = "base " + before + "->" + data.dynV.baseValue;
+#endif
                 }
                 return;
             }
