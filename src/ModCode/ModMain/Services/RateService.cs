@@ -131,6 +131,7 @@ namespace MOD_sWP6UL
                 }
             }
             BattleService.Reset();
+            BattleService.Refresh();
             RestoreSpeed();
             return "배율: 모두 1배로 되돌리고 무적을 껐습니다.";
         }
@@ -138,6 +139,7 @@ namespace MOD_sWP6UL
         public static void OnDestroy()
         {
             RestoreSpeed();
+            cooldownUnit = IntPtr.Zero;
         }
 
         // 그 배율을 처음 켤 때 한 번 건다. 건 뒤에는 떼지 않고 값만 본다.
@@ -366,8 +368,13 @@ namespace MOD_sWP6UL
             {
                 if (!InBattle)
                 {
-                    // 전투 단위가 없어졌다. 되돌릴 것이 없다.
-                    cooldownUnit = IntPtr.Zero;
+                    // 전투 단위가 보이지 않는다. 꺼져 있으면 되돌릴 것이 없으니 잊는다.
+                    // 켜져 있으면 떠 둔 값을 남긴다: 같은 단위가 다시 보였을 때(연출 등으로 잠깐 사라진 경우)
+                    // 이미 곱한 값을 원래 값으로 다시 뜨면 배율이 겹친다. 새 전투의 단위는 포인터가 달라 새로 뜬다.
+                    if (!Cooldown.On)
+                    {
+                        cooldownUnit = IntPtr.Zero;
+                    }
                     return;
                 }
                 UnitCtrlPlayer unit = SceneType.battle.battleMap.playerUnitCtrl;
@@ -394,11 +401,11 @@ namespace MOD_sWP6UL
                 float factor = Cooldown.Value == 0f ? CooldownNone : 1f / Cooldown.Value;
                 int wantSkill = CooldownTarget(cooldownSkill, factor);
                 int wantStep = CooldownTarget(cooldownStep, factor);
-                if (skill.baseValue != wantSkill)
+                if (cooldownSkill > 0 && skill.baseValue != wantSkill)
                 {
                     skill.baseValue = wantSkill;
                 }
-                if (step.baseValue != wantStep)
+                if (cooldownStep > 0 && step.baseValue != wantStep)
                 {
                     step.baseValue = wantStep;
                 }

@@ -1268,6 +1268,11 @@ switch ($Part) {
     function Tab { Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null }
     Tab
     foreach ($b in 'RateCooldown', 'RateTaken') { Check "$b is drawn" (IsAt $b) }
+    # 받는 피해만 켰다가 모두 1배로: 이벤트를 듣던 것도 풀린다.
+    Press 'RateTaken' | Out-Null
+    Check 'listening while taken is on' ((Dmg) -match 'subscribed=True')
+    Press 'RateReset' | Out-Null
+    Check 'reset stops listening when only taken was on' ((Dmg) -match 'subscribed=False') (Dmg)
     Press 'Close' | Out-Null
 
     # 전투 1(약한 적): 받는 피해. 공격하지 않고 맞기만 한다.
