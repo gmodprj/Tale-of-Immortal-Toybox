@@ -8,8 +8,9 @@ namespace MOD_sWP6UL
     // 세계 탭: 순간 이동, 날짜(고정·실제 진행·직접 지정), 전투 보조.
     internal sealed class WorldTab : EditorTab
     {
+        private const string DateKey = "date";
+
         private readonly string[] dateInput = { "", "", "" };  // 직접 지정: 연, 월, 일
-        private bool datePending;   // 직접 지정을 한 번 더 눌러야 하는 상태
         private bool dateEdited;    // 입력 칸을 사용자가 고쳤는지. 고치지 않았으면 현재 날짜를 보여 준다
 
         private static int Step
@@ -32,12 +33,11 @@ namespace MOD_sWP6UL
             ResetDateInput();
         }
 
-        // 직접 지정의 입력 칸을 현재 날짜로 되돌리고 확인 상태를 푼다. 편집기를 열 때, 이 탭으로 들어올 때, 날짜가 바뀌는 동작 뒤에 부른다.
+        // 직접 지정의 입력 칸을 현재 날짜로 되돌린다. 편집기를 열 때, 이 탭으로 들어올 때, 날짜가 바뀌는 동작 뒤에 부른다.
         // 그러지 않으면 예전 날짜가 입력 칸에 남아, 일부만 고쳐 적용했을 때 엉뚱한 날짜로 간다.
         private void ResetDateInput()
         {
             dateEdited = false;
-            datePending = false;
         }
 
         protected override void Draw()
@@ -46,6 +46,7 @@ namespace MOD_sWP6UL
             Ui.Panel("MoveBox", content, 0, 0, ContentW, 250, Ui.Section);
             Ui.Label(content, "순간 이동", 16, 6, 300, 36, 21);
             Ui.Label(content, "현재 위치: (" + here.x + ", " + here.y + ")", 16, 44, 400, 34);
+            Ui.Label(content, "칸 수", 640, 8, 60, 38, 18).color = Ui.Dim;
             AmountBar.Build(content, "move", 700, 8);
             // 방향 버튼: 단위 값만큼의 칸을 이동한다. 대지도는 y가 커질수록 아래쪽이다(실측 전: 방향은 버튼 이름 기준).
             Ui.Button("MoveUp", content, "y - " + Step, 150, 88, 120, 40, new Action(() => Say(WorldService.TeleportBy(0, -Step))));
@@ -57,17 +58,17 @@ namespace MOD_sWP6UL
                 new Action(() => Say(WorldService.TeleportToUnit(g.world.unit.GetUnit(EditorWindow.SelectedNpcId, true)))), npc != null);
             Ui.Label(content, npc == null ? "NPC 탭에서 NPC를 선택하면 그 위치로 갈 수 있습니다." : "", 450, 184, 460, 34, 15).color = Ui.Dim;
 
-            float battle = RenderTimeBox(262) + 12;
+            float battle = DrawTimeBox(262) + 12;
             Ui.Panel("BattleBox", content, 0, battle, ContentW, 150, Ui.Section);
             Ui.Label(content, "전투 보조", 16, battle + 6, 200, 36, 21);
             Ui.Button("God", content, "무적: " + (BattleService.God ? "켜짐" : "꺼짐"), 16, battle + 48, 200, 44, new Action(() => Say(BattleService.SetGod(!BattleService.God))), true, BattleService.God);
             Ui.Button("Multiplier", content, "피해 배율: x" + BattleService.Multiplier, 232, battle + 48, 230, 44, new Action(() => Say(BattleService.NextMultiplier())), true, BattleService.Multiplier > 1);
             Ui.Label(content, "무적은 플레이어가 받는 피해를 0으로, 배율은 플레이어가 주는 피해를 곱합니다. 동료와 적끼리의 피해는 그대로입니다.", 16, battle + 98, 890, 24, 15).color = Ui.Dim;
-            Ui.Label(content, "게임을 다시 켜면 둘 다 꺼진 상태로 시작합니다.", 16, battle + 120, 890, 24, 15).color = Ui.Dim;
+            Ui.Label(content, "게임을 다시 켜면 둘 다 꺼진 상태로 시작합니다. 켜 둔 것은 화면 위쪽 가운데에 표시됩니다.", 16, battle + 120, 890, 24, 15).color = Ui.Dim;
         }
 
-        // 세계 탭의 날짜 상자: 표기, 실제 진행, 직접 지정. 아래쪽 끝의 y를 돌려준다.
-        private float RenderTimeBox(float top)
+        // 날짜 상자: 표기, 고정, 실제 진행, 직접 지정. 아래쪽 끝의 y를 돌려준다.
+        private float DrawTimeBox(float top)
         {
             const float height = 196;
             Ui.Panel("TimeBox", content, 0, top, ContentW, height, Ui.Section);
@@ -105,7 +106,7 @@ namespace MOD_sWP6UL
             advanceNote.color = Ui.Dim;
             advanceNote.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-            // 직접 지정: 달력의 날짜만 바꾼다. 두 번 눌러 확인한다.
+            // 직접 지정: 달력의 날짜만 바꾼다. 두 번 눌러 확인한다. 칸에서 Enter를 눌러도 적용 버튼과 같다.
             y = top + 144;
             if (!dateEdited)
             {
@@ -123,53 +124,56 @@ namespace MOD_sWP6UL
             for (int i = 0; i < 3; i++)
             {
                 int index = i;
-                Ui.Input(names[i], content, dateInput[i], units[i], xs[i], y, widths[i], 40, new Action<string>(v => { dateInput[index] = v; dateEdited = true; datePending = false; }), true);
+                // 칸을 고치면 앞서 물은 확인은 다른 날짜에 대한 것이므로 푼다.
+                NumberField.Build(content, names[i], xs[i], y, widths[i], 40, dateInput[i],
+                    new Action<string>(v => { dateInput[index] = v; dateEdited = true; Confirm.Clear(); }),
+                    new Action<int>(v => ApplyDate()));
                 Ui.Label(content, units[i], xs[i] + widths[i] + 4, y, 30, 40, 18);
             }
-            Ui.Button("DateApply", content, datePending ? "정말 변경" : "적용", 494, y, 130, 40, new Action(() =>
-            {
-                int year, month, day, target;
-                string error;
-                if (!int.TryParse(dateInput[0], out year) || !int.TryParse(dateInput[1], out month) || !int.TryParse(dateInput[2], out day))
-                {
-                    datePending = false;
-                    Say("날짜: 연·월·일을 모두 숫자로 입력하세요.");
-                    return;
-                }
-                if (!TimeService.TryToWorldDay(year, month, day, out target, out error))
-                {
-                    datePending = false;
-                    Say(error);
-                    return;
-                }
-                if (target == TimeService.WorldDay)
-                {
-                    datePending = false;
-                    Say("날짜: 이미 " + TimeService.DateText(target) + "입니다.");
-                    return;
-                }
-                if (!datePending)
-                {
-                    datePending = true;
-                    Say(TimeService.DateText(TimeService.WorldDay) + " -> " + TimeService.DateText(target)
-                        + ": 달력만 바뀌고 월말 처리와 날짜 기준 기록은 그대로입니다. \"정말 변경\"을 한 번 더 누르세요.");
-                    return;
-                }
-                string result = TimeService.SetDate(year, month, day);
-                ResetDateInput();
-                Say(result);
-            }), true, datePending);
+            bool waiting = Confirm.IsPending(DateKey);
+            Ui.Button("DateApply", content, waiting ? "정말 변경" : "적용", 494, y, 130, 40, new Action(ApplyDate), true, waiting);
             Text dateNote = Ui.Label(content, "달력의 날짜만 바꿉니다(앞·뒤 모두). 그 사이의 월말 처리는 일어나지 않고, 임무 기한 같은 날짜 기준 기록은 그대로입니다.", 640, y, 660, 40, 14);
             dateNote.color = Ui.Warn;
             dateNote.horizontalOverflow = HorizontalWrapMode.Wrap;
             return top + height;
         }
 
+        private void ApplyDate()
+        {
+            int year, month, day, target;
+            string error;
+            if (!int.TryParse(dateInput[0], out year) || !int.TryParse(dateInput[1], out month) || !int.TryParse(dateInput[2], out day))
+            {
+                Say("날짜: 연·월·일을 모두 숫자로 입력하세요.");
+                return;
+            }
+            if (!TimeService.TryToWorldDay(year, month, day, out target, out error))
+            {
+                Say(error);
+                return;
+            }
+            if (target == TimeService.WorldDay)
+            {
+                Say("날짜: 이미 " + TimeService.DateText(target) + "입니다.");
+                return;
+            }
+            if (!Confirm.IsPending(DateKey))
+            {
+                Confirm.Ask(DateKey, TimeService.DateText(TimeService.WorldDay) + " -> " + TimeService.DateText(target)
+                    + ": 달력만 바뀌고 월말 처리와 날짜 기준 기록은 그대로입니다. \"정말 변경\"을 한 번 더 누르세요.");
+                return;
+            }
+            Confirm.Clear();
+            string result = TimeService.SetDate(year, month, day);
+            ResetDateInput();
+            Say(result);
+        }
+
 #if DEVTOOLS
         // 개발 전용: 직접 지정 입력 칸과 확인 상태.
         public string DevDateState
         {
-            get { return "input=" + dateInput[0] + "-" + dateInput[1] + "-" + dateInput[2] + " pending=" + datePending; }
+            get { return "input=" + dateInput[0] + "-" + dateInput[1] + "-" + dateInput[2] + " pending=" + Confirm.IsPending(DateKey); }
         }
 #endif
     }

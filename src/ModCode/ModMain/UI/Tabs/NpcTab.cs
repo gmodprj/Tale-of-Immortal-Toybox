@@ -8,12 +8,18 @@ namespace MOD_sWP6UL
     // NPC 탭: 가까운 NPC 목록, 이름 검색, 호감도, 편집 대상 지정.
     internal sealed class NpcTab : EditorTab
     {
-        private const int NpcRows = 8;
+        private const float RowH = 40;
 
-        private int npcPage;
-        private string npcQuery = "";
-        private string appliedNpcQuery = "";
-        private List<WorldUnitBase> npcCache;
+        private sealed class Row
+        {
+            public string Id;
+            public string Name;
+            public int Distance;
+        }
+
+        private readonly ListView<Row> list = new ListView<Row>("NpcList", RowH);
+        private string query = "";
+        private List<Row> cache;   // 가까운 순서. null이면 다시 만든다
 
         private static int Step
         {
@@ -25,21 +31,60 @@ namespace MOD_sWP6UL
             get { return "NPC"; }
         }
 
+        public NpcTab()
+        {
+            list.EmptyText = "조건에 맞는 NPC가 없습니다.";
+        }
+
         // 편집기를 열 때마다 목록을 새로 만든다(그 사이에 NPC가 움직였을 수 있다).
         public override void OnOpen()
         {
-            npcCache = null;
+            cache = null;
+        }
+
+        // 이름은 여기서 한 번만 읽어 둔다. 치는 대로 거르려면 수천 명의 이름을 글자마다 게임에서 다시 읽을 수 없다.
+        private void BuildCache()
+        {
+            cache = new List<Row>();
+            WorldUnitBase player = Player;
+            string playerId = player.data.unitData.unitID;
+            int px = player.data.unitData.pointX;
+            int py = player.data.unitData.pointY;
+            var units = g.world.unit.GetUnits(false);
+            for (int i = 0; i < units.Count; i++)
+            {
+                var data = units[i].data.unitData;
+                if (data.unitID == playerId)
+                {
+                    continue;
+                }
+                cache.Add(new Row
+                {
+                    Id = data.unitID,
+                    Name = EditService.NameOf(units[i]),
+                    Distance = Math.Abs(data.pointX - px) + Math.Abs(data.pointY - py),
+                });
+            }
+            cache.Sort((a, b) => a.Distance.CompareTo(b.Distance));
+        }
+
+        private List<Row> Found()
+        {
+            if (query.Length == 0)
+            {
+                return cache;
+            }
+            string wanted = EditService.Compact(query);
+            return cache.FindAll(row => row.Name.Contains(wanted));
         }
 
         protected override void Draw()
         {
-            if (npcCache == null)
+            if (cache == null)
             {
-                BuildNpcCache();
+                BuildCache();
             }
             WorldUnitBase player = Player;
-            int px = player.data.unitData.pointX;
-            int py = player.data.unitData.pointY;
             WorldUnitBase selected = EditorWindow.SelectedNpcId == null ? null : g.world.unit.GetUnit(EditorWindow.SelectedNpcId, true);
 
             Ui.Panel("SelectedBox", content, 0, 0, ContentW, 104, Ui.Section);
@@ -49,7 +94,8 @@ namespace MOD_sWP6UL
             }
             else
             {
-                Ui.Label(content, "선택: " + EditService.NameOf(selected) + "   " + EditService.GradeName(selected.data.unitData.propertyData.gradeID), 16, 8, 600, 36, 21);
+                RectTransform nameHolder = Ui.Rect("SelectedName", content, 16, 8, 600, 36);
+                Ui.Label(nameHolder, "선택: " + EditService.NameOf(selected) + "   " + EditService.GradeName(selected.data.unitData.propertyData.gradeID), 0, 0, 600, 36, 21);
                 Ui.Label(content, "호감도  나→상대 " + EditService.IntimTo(player, selected) + "   상대→나 " + EditService.IntimTo(selected, player), 16, 52, 380, 40);
                 Ui.Button("IntimMinus", content, "- " + Step, 400, 54, 100, 38, new Action(() => ChangeIntim(-Step)));
                 Ui.Button("IntimPlus", content, "+ " + Step, 506, 54, 100, 38, new Action(() => ChangeIntim(Step)));
@@ -63,69 +109,28 @@ namespace MOD_sWP6UL
                 AmountBar.Build(content, "intim", 716, 8);
             }
 
-            int pages = Math.Max(1, (npcCache.Count + NpcRows - 1) / NpcRows);
-            npcPage = Mathf.Clamp(npcPage, 0, pages - 1);
-            RenderNpcSearch();
-            Ui.Label(content, "이름", 0, 156, 200, 30, 18).color = Ui.Dim;
-            Ui.Label(content, "경지", 260, 156, 200, 30, 18).color = Ui.Dim;
-            Ui.Label(content, "거리(칸)", 560, 156, 120, 30, 18).color = Ui.Dim;
-            for (int row = 0; row < NpcRows; row++)
+            Ui.Label(content, "이름 검색", 0, 114, 110, 38);
+            SearchBox.Build(content, "NpcQuery", 110, 114, 330, query, "이름의 일부", new Action<string>(v =>
             {
-                int index = npcPage * NpcRows + row;
-                if (index >= npcCache.Count)
-                {
-                    break;
-                }
-                WorldUnitBase npc = npcCache[index];
-                string id = npc.data.unitData.unitID;
-                float y = 188 + row * 40;
-                Ui.Label(content, EditService.NameOf(npc), 0, y, 250, 36);
-                Ui.Label(content, EditService.GradeName(npc.data.unitData.propertyData.gradeID), 260, y, 290, 36);
-                Ui.Label(content, Distance(npc, px, py).ToString(), 560, y, 120, 36);
-                Ui.Button("Pick" + index, content, id == EditorWindow.SelectedNpcId ? "선택됨" : "선택", 700, y, 110, 34, new Action(() => { EditorWindow.SelectedNpcId = id; Redraw(); }), true, id == EditorWindow.SelectedNpcId);
-            }
-            float footer = 188 + NpcRows * 40 + 8;
-            Ui.Button("NpcPrev", content, "이전", 0, footer, 90, 40, new Action(() => { npcPage--; Refresh(); }), npcPage > 0);
-            Ui.Label(content, (npcPage + 1) + " / " + pages, 100, footer, 110, 40, 20, TextAnchor.MiddleCenter);
-            Ui.Button("NpcNext", content, "다음", 220, footer, 90, 40, new Action(() => { npcPage++; Refresh(); }), npcPage < pages - 1);
-            Ui.Button("NpcNext10", content, "10쪽 뒤로", 320, footer, 130, 40, new Action(() => { npcPage += 10; Refresh(); }), npcPage < pages - 1);
-            Ui.Button("NpcRefresh", content, "목록 새로 고침", 470, footer, 180, 40, new Action(() => { npcCache = null; npcPage = 0; Refresh(); }));
-            Ui.Label(content, "전체 " + npcCache.Count + "명", 670, footer, 200, 40, 18).color = Ui.Dim;
+                query = v;
+                list.SetItems(Found());
+            }));
+            Ui.Button("NpcRefresh", content, "목록 새로 고침", 460, 114, 180, 38, new Action(() => { cache = null; list.Reset(); Redraw(); }));
+
+            Ui.Label(content, "이름", 8, 158, 200, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "경지", 268, 158, 200, 30, 18).color = Ui.Dim;
+            Ui.Label(content, "거리(칸)", 568, 158, 120, 30, 18).color = Ui.Dim;
+            list.Build(content, 0, 190, ContentW, ContentH - 190, Found(), DrawRow);
         }
 
-        private void RenderNpcSearch()
+        private void DrawRow(RectTransform row, Row npc, int index)
         {
-            Ui.Label(content, "이름 검색", 0, 110, 110, 40);
-            Ui.Input("NpcQuery", content, npcQuery, "이름의 일부", 110, 110, 280, 40, new Action<string>(v => npcQuery = v));
-            Ui.Button("NpcSearch", content, "검색", 400, 110, 90, 40, new Action(() => { appliedNpcQuery = npcQuery.Trim(); npcCache = null; npcPage = 0; Redraw(); }));
-            Ui.Button("NpcSearchClear", content, "지움", 500, 110, 90, 40, new Action(() => { npcQuery = ""; appliedNpcQuery = ""; npcCache = null; npcPage = 0; Redraw(); }), appliedNpcQuery.Length > 0 || npcQuery.Length > 0);
-            if (appliedNpcQuery.Length > 0)
-            {
-                Ui.Label(content, "'" + appliedNpcQuery + "' 포함", 604, 110, 300, 40, 18).color = Ui.Warn;
-            }
-        }
-
-        private void BuildNpcCache()
-        {
-            npcCache = new List<WorldUnitBase>();
-            WorldUnitBase player = Player;
-            string playerId = player.data.unitData.unitID;
-            var units = g.world.unit.GetUnits(false);
-            for (int i = 0; i < units.Count; i++)
-            {
-                if (units[i].data.unitData.unitID != playerId
-                    && (appliedNpcQuery.Length == 0 || EditService.NameOf(units[i]).Contains(EditService.Compact(appliedNpcQuery))))
-                {
-                    npcCache.Add(units[i]);
-                }
-            }
-            int px = player.data.unitData.pointX;
-            int py = player.data.unitData.pointY;
-            npcCache.Sort((a, b) => Distance(a, px, py).CompareTo(Distance(b, px, py)));
-        }
-        private static int Distance(WorldUnitBase unit, int px, int py)
-        {
-            return Math.Abs(unit.data.unitData.pointX - px) + Math.Abs(unit.data.unitData.pointY - py);
+            WorldUnitBase unit = g.world.unit.GetUnit(npc.Id, true);
+            bool picked = npc.Id == EditorWindow.SelectedNpcId;
+            Ui.Label(row, npc.Name, 8, 0, 250, RowH);
+            Ui.Label(row, unit == null ? "(없음)" : EditService.GradeName(unit.data.unitData.propertyData.gradeID), 268, 0, 290, RowH);
+            Ui.Label(row, npc.Distance.ToString(), 568, 0, 120, RowH);
+            Ui.Button("Pick" + npc.Id, row, picked ? "선택됨" : "선택", 708, 3, 110, RowH - 6, new Action(() => { EditorWindow.SelectedNpcId = npc.Id; Redraw(); }), unit != null, picked);
         }
 
         private void ChangeIntim(int delta)

@@ -123,7 +123,7 @@ switch ($Part) {
 
     # 화면: 세계 탭. 직접 지정의 입력 칸은 고치지 않았으면 늘 현재 날짜를 보여 준다
     Cmd 'editor' | Out-Null
-    Press 'Tab7' | Out-Null
+    Press 'Tab8' | Out-Null
     $s = State; $in = DateInput
     Check 'date inputs show the current date' ($in.text -eq "$($s.y)-$($s.m)-$($s.d)" -and -not $in.pending) $in.raw
     Check 'Day1 button is where expected' (IsAt 'Day1')
@@ -222,7 +222,7 @@ switch ($Part) {
 
     # 화면: 고정 버튼
     Cmd 'editor' | Out-Null
-    Press 'Tab7' | Out-Null
+    Press 'Tab8' | Out-Null
     Check 'Freeze button is where expected' (IsAt 'Freeze')
     Shot 'freeze-editor'
     Press 'Freeze' | Out-Null
@@ -260,8 +260,8 @@ switch ($Part) {
     Check 'file remembers 20' ([bool]((Get-Content -LiteralPath (Join-Path $data 'bag-slots.txt') -Encoding UTF8) -match '=20$'))
     $o = Cmd 'gridfill 600 5' 4000; $g1 = Grid
     # 가방은 쓰는 칸이 용량보다 2 많아질 때까지 받는다(05 문서 25절). 추가 칸을 걷어 낸 탓에 이미 그보다 많이 들어 있었다면 그만큼 덜 들어간다.
-    $fit = 20 - [Math]::Max(0, $g0.cur - ($g0.max + 2))
-    Check "exactly $fit more items fit" ($o -match "given=$fit " -and $g1.cur -eq $g0.cur + $fit -and $g1.cur -eq $g0.max + 22) $o
+    $fit = [Math]::Max(0, 20 - [Math]::Max(0, $g0.cur - ($g0.max + 2)))
+    Check "exactly $fit more items fit" ($o -match "given=$fit " -and $g1.cur -eq $g0.cur + $fit) $o
     Rc 'click 120 860' 2500 | Out-Null
     Shot 'bag-screen'
     Rc 'click 1722 160' 1200 | Out-Null

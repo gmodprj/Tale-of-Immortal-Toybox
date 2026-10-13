@@ -47,6 +47,12 @@ function IsAt([string]$name) {
 function Press([string]$name, [int]$wait = 800) {
   $p = Pos $name
   $o = Rc "click $($p.x) $($p.y)" $wait
+  # 시험 중에 게임 메뉴(돌아가기·저장…)가 떠서 편집기를 가릴 때가 있다(게임 창의 포커스 변화로 추정). 돌아가기를 눌러 닫고 한 번 더 누른다.
+  if ($o -match '/GameMemu/') {
+    "INFO game menu was open; closed it" | Write-Host
+    Rc 'click 959 391' 600 | Out-Null
+    $o = Rc "click $($p.x) $($p.y)" $wait
+  }
   if ($o -notmatch "Button\.onClick: $([regex]::Escape($p.name))\s*$") { throw "버튼이 눌리지 않았습니다: $name ($o)" }
   $o
 }
