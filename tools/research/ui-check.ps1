@@ -462,7 +462,7 @@ switch ($Part) {
     try {
       Cmd 'editor' | Out-Null; Press 'Tab3' | Out-Null
 
-      # 6절 1~3번, Review Focus 2: 이름과 파일
+      # 6절 1~3번, Review Focus 2: 이름과 파일. 영석과 화폐는 가방의 아이템 목록에도 들어 있어(한 종에 한 줄) 아이템 줄에서는 빠진다
       Press 'VaultExport' | Out-Null
       Check 'an empty name is refused' ((Msg) -match '이름을' -and -not (Test-Path -LiteralPath (Join-Path $dir '.json')))
       Cmd 'ui set VaultName uicheck-A' | Out-Null; Press 'VaultExport' | Out-Null
@@ -470,8 +470,10 @@ switch ($Part) {
       Check 'export writes a file' ((Test-Path -LiteralPath $fileA) -and (Msg) -match '내보냈습니다') (Msg)
       $pack = Get-Content -LiteralPath $fileA -Raw -Encoding UTF8 | ConvertFrom-Json
       $all = Num 'read' 'props=(\d+)'
-      Check 'the file is valid JSON with every plain item' ($pack.format -eq 1 -and $pack.kind -eq 'bag' -and $pack.items.Count -eq $all - $pack.skipped -and $pack.items.Count -gt 0) "items=$($pack.items.Count) skipped=$($pack.skipped) bag=$all"
+      Check 'the file is valid JSON with every plain item' ($pack.format -eq 1 -and $pack.kind -eq 'bag' -and $pack.items.Count + $pack.currencies.Count -eq $all - $pack.skipped -and $pack.items.Count -gt 0) "items=$($pack.items.Count) skipped=$($pack.skipped) bag=$all"
       Check 'currencies are in the file' (@($pack.currencies | Where-Object { $_.id -eq 10001 -and $_.count -gt 0 }).Count -eq 1)
+      $moneyIds = @($pack.currencies | ForEach-Object { $_.id })
+      Check 'currencies are not also listed as items' (@($pack.items | Where-Object { $moneyIds -contains $_.id }).Count -eq 0) "$(@($pack.items | Where-Object { $moneyIds -contains $_.id } | ForEach-Object { $_.id }) -join ',')"
       Check 'equipped items are marked' (@($pack.items | Where-Object { $_.equipped }).Count -gt 0)
       Cmd 'ui set VaultName uicheck-A' | Out-Null; Press 'VaultExport' | Out-Null
       Check 'the same name gets a number' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-A (2).json'))
@@ -491,7 +493,9 @@ switch ($Part) {
           [ordered]@{ id = 0; name = $martial.name; count = 1; type = 'Martial'; values = $martial.values; equipped = $false },
           [ordered]@{ id = 999999999; name = 'no such item'; count = 1; type = 'Props'; values = @(); equipped = $false },
           [ordered]@{ id = $stack.id; name = 'zero'; count = 0; type = 'Props'; values = @(); equipped = $false },
-          [ordered]@{ id = $stack.id; name = 'negative'; count = -5; type = 'Props'; values = @(); equipped = $false })
+          [ordered]@{ id = $stack.id; name = 'negative'; count = -5; type = 'Props'; values = @(); equipped = $false },
+          [ordered]@{ id = 10001; name = 'money as an item'; count = 5; type = 'Props'; values = @(); equipped = $false },
+          [ordered]@{ id = 0; name = 'empty manual'; count = 1; type = 'Martial'; values = @(); equipped = $false })
         currencies = @([ordered]@{ id = 10041; name = '성주령'; count = 7 }) }
       Start-Sleep -Milliseconds 1100
       [IO.File]::WriteAllText((Join-Path $dir 'uicheck-M.json'), ($made | ConvertTo-Json -Depth 6))
@@ -500,7 +504,7 @@ switch ($Part) {
 
       # 6절 4~8번: 세부 화면에서 하나씩
       Press 'VaultOpen0' | Out-Null
-      Check 'the detail screen lists items and currencies' ((IsAt 'Back') -and (Cmd 'uitext VaultItemsRange') -match '전체 8개')
+      Check 'the detail screen lists items and currencies' ((IsAt 'Back') -and (Cmd 'uitext VaultItemsRange') -match '전체 10개')
       $n0 = Num "count $($stack.id)" 'count=(\d+)'; $g0 = Num 'grid' 'cur=(\d+)'
       Press 'VaultGet0' | Out-Null
       Check 'a stackable item adds to the stack without a slot' ((Num "count $($stack.id)" 'count=(\d+)') -eq $n0 + 3 -and (Num 'grid' 'cur=(\d+)') -eq $g0) (Msg)
@@ -524,11 +528,12 @@ switch ($Part) {
       Press 'Back' | Out-Null
 
       # 6절 9번: 빈 칸이 넉넉할 때 전부
-      $n3 = Num "count $($stack.id)" 'count=(\d+)'; $n4 = Num "count $($single.id)" 'count=(\d+)'; $c1 = Num 'count 10041' 'count=(\d+)'; $p1 = Num 'read' 'props=(\d+)'
+      $n3 = Num "count $($stack.id)" 'count=(\d+)'; $n4 = Num "count $($single.id)" 'count=(\d+)'; $c1 = Num 'count 10041' 'count=(\d+)'; $p1 = Num 'read' 'props=(\d+)'; $m1 = Num 'count 10001' 'count=(\d+)'
       Press 'VaultAll0' | Out-Null
       $m = Msg
       Check 'import-all adds everything valid' ((Num "count $($stack.id)" 'count=(\d+)') -eq $n3 + 3 -and (Num "count $($single.id)" 'count=(\d+)') -eq $n4 + 2 -and (Num 'count 10041' 'count=(\d+)') -eq $c1 + 7 -and (Num 'read' 'props=(\d+)') -eq $p1 + 3) $m
-      Check 'the result counts what went in and what was skipped' ($m -match '아이템 4줄' -and $m -match '화폐 1종' -and $m -match '건너뜀 3줄') $m
+      Check 'the result counts what went in and what was skipped' ($m -match '아이템 4줄' -and $m -match '화폐 1종' -and $m -match '건너뜀 5줄') $m
+      Check 'a currency written as an item line is not imported' ((Num 'count 10001' 'count=(\d+)') -eq $m1)
 
       # 6절 10~11번, Review Focus 3: 가방을 가득 채운 뒤
       Cmd 'gridfill 600 5' 4000 | Out-Null
@@ -542,16 +547,25 @@ switch ($Part) {
       $m = Msg
       Check 'expand-and-import grows the bag by tens and adds everything' ((Num 'bagstat' 'extra=(\d+)') -eq $extra0 + 10 -and (Num "count $($single.id)" 'count=(\d+)') -eq $n6 + 2 -and $m -notmatch '못 넣음') $m
 
+      # 가방이 넘쳐 있을 때(추가 칸을 줄여 쓰는 칸이 전체보다 많다)도 "늘리고 모두"는 넘친 만큼까지 늘려야 한다
+      Cmd 'gridfill 600 5' 4000 | Out-Null; Cmd 'bag -10' | Out-Null
+      $over = (Num 'grid' 'cur=(\d+)') - (Num 'grid' 'max=(\d+)')
+      $extra1 = Num 'bagstat' 'extra=(\d+)'; $n7 = Num "count $($single.id)" 'count=(\d+)'
+      Press 'VaultAll0' | Out-Null; Press 'VaultExpand0' | Out-Null
+      $m = Msg
+      Check 'expanding an overfull bag covers the overflow too' ($over -gt 0 -and (Num 'bagstat' 'extra=(\d+)') -eq $extra1 + [math]::Ceiling(($over + 3) / 10) * 10 -and (Num "count $($single.id)" 'count=(\d+)') -eq $n7 + 2 -and $m -notmatch '못 넣음') "over=$over $m"
+
       # 6절 12번, Review Focus 1·4: 읽을 수 없는 파일, 밖에서 지워진 파일
       Start-Sleep -Milliseconds 1100
       [IO.File]::WriteAllText((Join-Path $dir 'uicheck-broken.json'), '{ "format": 1, "kind": "bag" "items": [ }')
       [IO.File]::WriteAllText((Join-Path $dir 'uicheck-empty.json'), '')
       [IO.File]::WriteAllText((Join-Path $dir 'uicheck-v2.json'), '{ "format": 2, "kind": "bag", "items": [], "currencies": [] }')
       [IO.File]::WriteAllText((Join-Path $dir 'uicheck-big.json'), '{ "format": 1, "kind": "bag", "name": "big", "items": [ { "id": 99999999999999, "count": "many", "type": "Props" } ] }')
+      [IO.File]::WriteAllText((Join-Path $dir 'uicheck-deep.json'), '{ "format": 1, "kind": "bag", "x": ' + ('[' * 200) + (']' * 200) + ', "items": [], "currencies": [] }')
       Press 'Tab3' | Out-Null
       Cmd 'ui set VaultQuery uicheck-' | Out-Null
-      $unreadable = 0; for ($i = 0; $i -lt 8; $i++) { if ((Cmd "uitext Row$i" 100) -match '읽을 수 없음') { $unreadable++ } }
-      Check 'broken, empty and other-format files are listed as unreadable' ($unreadable -eq 3) "unreadable=$unreadable"
+      $unreadable = 0; for ($i = 0; $i -lt 9; $i++) { if ((Cmd "uitext Row$i" 100) -match '읽을 수 없음') { $unreadable++ } }
+      Check 'broken, empty, other-format and too-deep files are listed as unreadable' ($unreadable -eq 4) "unreadable=$unreadable"
       Cmd 'ui set VaultQuery uicheck-big' | Out-Null
       Press 'VaultAll0' | Out-Null
       Check 'bad values in a readable file are skipped, not thrown' ((Msg) -match '건너뜀 1줄') (Msg)

@@ -135,7 +135,8 @@ namespace MOD_sWP6UL
                     {
                         int need = BagExportService.NeededSlots(pack);
                         int free = BagExportService.FreeSlots();
-                        if (need > free)
+                        // 파일이 밖에서 지워졌으면 칸을 묻지 않고 바로 그 사실을 알린다(ImportAll이 알린다).
+                        if (need > free && System.IO.File.Exists(pack.File))
                         {
                             Confirm.Ask(key, pack.Name + ": 필요 " + need + "칸, 빈 칸 " + free + "칸. 가방을 늘리고 모두 가져올지, 들어가는 만큼만 가져올지 고르세요.");
                             return;

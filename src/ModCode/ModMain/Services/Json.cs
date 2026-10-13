@@ -18,7 +18,7 @@ namespace MOD_sWP6UL
                 throw new FormatException("빈 내용");
             }
             int i = 0;
-            object value = Value(text, ref i);
+            object value = Value(text, ref i, 0);
             SkipSpace(text, ref i);
             if (i != text.Length)
             {
@@ -68,8 +68,15 @@ namespace MOD_sWP6UL
             return new FormatException(i + "번째 글자: " + what);
         }
 
-        private static object Value(string s, ref int i)
+        // 겹침의 한도. 내보내기 파일은 세 겹이면 된다. 한도가 없으면 깊게 겹친 파일 하나가 스택을 넘쳐 게임을 죽인다(잡을 수 없는 예외).
+        private const int MaxDepth = 64;
+
+        private static object Value(string s, ref int i, int depth)
         {
+            if (depth > MaxDepth)
+            {
+                throw Bad(i, "너무 깊게 겹쳐 있습니다");
+            }
             SkipSpace(s, ref i);
             if (i >= s.Length)
             {
@@ -78,11 +85,11 @@ namespace MOD_sWP6UL
             char c = s[i];
             if (c == '{')
             {
-                return Object(s, ref i);
+                return Object(s, ref i, depth);
             }
             if (c == '[')
             {
-                return Array(s, ref i);
+                return Array(s, ref i, depth);
             }
             if (c == '"')
             {
@@ -113,7 +120,7 @@ namespace MOD_sWP6UL
             return true;
         }
 
-        private static object Object(string s, ref int i)
+        private static object Object(string s, ref int i, int depth)
         {
             var result = new Dictionary<string, object>();
             i++;
@@ -137,7 +144,7 @@ namespace MOD_sWP6UL
                     throw Bad(i, "':'이 있어야 합니다");
                 }
                 i++;
-                result[key] = Value(s, ref i);
+                result[key] = Value(s, ref i, depth + 1);
                 SkipSpace(s, ref i);
                 if (i < s.Length && s[i] == ',')
                 {
@@ -153,7 +160,7 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static object Array(string s, ref int i)
+        private static object Array(string s, ref int i, int depth)
         {
             var result = new List<object>();
             i++;
@@ -165,7 +172,7 @@ namespace MOD_sWP6UL
             }
             while (true)
             {
-                result.Add(Value(s, ref i));
+                result.Add(Value(s, ref i, depth + 1));
                 SkipSpace(s, ref i);
                 if (i < s.Length && s[i] == ',')
                 {

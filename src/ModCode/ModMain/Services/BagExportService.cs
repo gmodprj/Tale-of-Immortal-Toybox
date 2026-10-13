@@ -67,6 +67,19 @@ namespace MOD_sWP6UL
             return conf != null && conf.isOverlay != 0;
         }
 
+        // 영석과 화폐는 가방의 아이템 목록(allProps)에도 들어 있다(실측: 10001, 10041). 화폐 줄로만 다뤄야 두 번 들어가지 않는다.
+        private static bool IsCurrency(int propsId)
+        {
+            foreach (ItemCatalog.Entry entry in ItemCatalog.Currencies)
+            {
+                if (entry.Id == propsId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // 이 묶음을 전부 넣을 때 필요한 칸. 겹쳐지는 것은 가방에 이미 있으면 칸을 쓰지 않고, 없으면 종류마다 한 칸이다.
         public static int NeededSlots(Pack pack)
         {
@@ -134,6 +147,11 @@ namespace MOD_sWP6UL
                     continue;
                 }
                 bool martial = d.propsType == DataProps.PropsDataType.Martial;
+                // 화폐는 아래에서 화폐 줄로 담는다. 여기서도 담으면 가져올 때 두 배가 된다.
+                if (!martial && IsCurrency(d.propsID))
+                {
+                    continue;
+                }
                 string label;
                 try
                 {
@@ -358,7 +376,17 @@ namespace MOD_sWP6UL
             {
                 return "수량이 1보다 작습니다";
             }
-            if (!item.Martial && g.conf.itemProps.GetItem(item.Id) == null)
+            if (item.Martial)
+            {
+                // 비급의 내용은 값 배열에 있다(실측: 11칸·17칸, 머리 세 칸 뒤의 첫 칸이 종류, 둘째 칸이 공법 번호).
+                // 비어 있어도 게임은 예외 없이 내용 없는 비급을 만들어 넣으므로 여기서 막는다.
+                return item.Values.Length < 2 ? "비급의 내용(values)이 없습니다" : null;
+            }
+            if (IsCurrency(item.Id))
+            {
+                return "화폐는 화폐 줄로만 가져옵니다";
+            }
+            if (g.conf.itemProps.GetItem(item.Id) == null)
             {
                 return "게임에 없는 아이템 번호입니다";
             }
@@ -386,20 +414,59 @@ namespace MOD_sWP6UL
         }
 
         // 아이템 한 줄을 가방에 넣는다. 넣은 뒤 실제로 늘었는지 본다(가방이 가득 차면 게임이 예외 없이 넣지 않는다).
-        private static bool Put(Item item)
+        // 못 넣었으면 false와 이유를, 넣었지만 만들어진 값이 파일의 값과 다르면 true와 그 사실을 note로 돌려준다.
+        // 게임이 던지는 예외는 여기서 잡는다. 밖으로 나가면 버튼 콜백에서 사라져, 여러 줄을 넣다 멈춰도 결과와 이력이 남지 않는다.
+        private static bool Put(Item item, out string note)
         {
-            DataProps bag = Bag;
-            int before = item.Martial ? bag.allProps.Count : bag.GetPropsNum(item.Id);
-            var tail = new Il2CppStructArray<int>(item.Values.Length);
-            for (int i = 0; i < item.Values.Length; i++)
+            note = null;
+            try
             {
-                tail[i] = item.Values[i];
+                DataProps bag = Bag;
+                int before = item.Martial ? bag.allProps.Count : bag.GetPropsNum(item.Id);
+                var tail = new Il2CppStructArray<int>(item.Values.Length);
+                for (int i = 0; i < item.Values.Length; i++)
+                {
+                    tail[i] = item.Values[i];
+                }
+                DataProps.PropsData made = DataProps.PropsData.New(item.Id, item.Count,
+                    item.Martial ? DataProps.PropsDataType.Martial : DataProps.PropsDataType.Props, tail);
+                bag.AddProps(made);
+                int after = item.Martial ? bag.allProps.Count : bag.GetPropsNum(item.Id);
+                if (after != before + (item.Martial ? 1 : item.Count))
+                {
+                    note = "가방에 들어가지 않았습니다(빈 칸을 확인하세요)";
+                    return false;
+                }
+                if (!SameValues(made, item))
+                {
+                    note = "만들어진 값이 파일의 값과 다릅니다";
+                }
+                return true;
             }
-            DataProps.PropsData made = DataProps.PropsData.New(item.Id, item.Count,
-                item.Martial ? DataProps.PropsDataType.Martial : DataProps.PropsDataType.Props, tail);
-            bag.AddProps(made);
-            int after = item.Martial ? bag.allProps.Count : bag.GetPropsNum(item.Id);
-            return after == before + (item.Martial ? 1 : item.Count);
+            catch (Exception e)
+            {
+                note = "게임이 받지 않았습니다(" + e.GetType().Name + ")";
+                return false;
+            }
+        }
+
+        // 만든 아이템의 값 배열(머리 세 칸 뒤)이 파일의 값과 같은지. 확인하지 못한 종류(강화 장비 등)가 다르게 만들어지면 여기서 드러난다.
+        private static bool SameValues(DataProps.PropsData made, Item item)
+        {
+            Il2CppStructArray<int> values = made.values;
+            int length = values == null ? 0 : Math.Max(0, values.Length - HeadLength);
+            if (length != item.Values.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < length; i++)
+            {
+                if (values[HeadLength + i] != item.Values[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static bool PutMoney(Money money)
@@ -450,10 +517,11 @@ namespace MOD_sWP6UL
             {
                 return backupError + " 변경을 중단했습니다.";
             }
-            bool ok = Put(item);
-            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), "가방 가져오기 " + Label(item), "+0", ok ? "+" + item.Count : "+0", ok);
-            return ok ? Label(item) + " x" + item.Count + "을(를) 가져왔습니다."
-                : Label(item) + ": 가방에 들어가지 않았습니다(빈 칸을 확인하세요).";
+            string note;
+            bool ok = Put(item, out note);
+            ChangeLog.Add(EditService.NameOf(g.world.playerUnit), "가방 가져오기 " + Label(item), "+0", ok ? "+" + item.Count : "+0", ok && note == null);
+            return ok ? Label(item) + " x" + item.Count + "을(를) 가져왔습니다." + (note != null ? " 다만 " + note + "." : "")
+                : Label(item) + ": " + note + ".";
         }
 
         public static string ImportCurrency(Pack pack, int index)
@@ -495,16 +563,24 @@ namespace MOD_sWP6UL
             string grown = "";
             if (expandBag)
             {
-                int missing = NeededSlots(pack) - FreeSlots();
-                int room = BagService.MaxExtra - BagService.Extra;
-                int add = Math.Min(room, (missing + BagService.Step - 1) / BagService.Step * BagService.Step);
-                if (missing > 0 && add > 0)
+                // 가방이 넘쳐 있으면(쓰는 칸이 전체보다 많다) 넘친 만큼도 모자란 칸이다. FreeSlots는 0에서 멈추므로 쓰지 않는다.
+                DataProps bag = Bag;
+                int missing = NeededSlots(pack) - (bag.GetGridMaxNum() - bag.GetGridCurNum());
+                int before = BagService.Extra;
+                int add = Math.Min(BagService.MaxExtra - before, (missing + BagService.Step - 1) / BagService.Step * BagService.Step);
+                if (missing > 0)
                 {
-                    BagService.Change(add);
-                    grown = " 가방 추가 칸 +" + add + ".";
+                    if (add > 0)
+                    {
+                        BagService.Change(add);
+                    }
+                    // 실제로 늘어난 만큼을 알린다(기록 파일을 쓰지 못하면 늘지 않는다).
+                    int got = BagService.Extra - before;
+                    grown = got >= missing ? " 가방 추가 칸 +" + got + "."
+                        : " 가방 추가 칸은 +" + got + "만 늘었습니다(상한 +" + BagService.MaxExtra + " 또는 기록 실패).";
                 }
             }
-            int put = 0, skipped = 0;
+            int put = 0, skipped = 0, differs = 0;
             var failed = new List<string>();
             // 겹쳐지는 것부터 넣는다. 칸을 쓰지 않거나 한 칸만 쓰므로, 뒤의 것 때문에 자리를 잃지 않는다.
             for (int pass = 0; pass < 2; pass++)
@@ -521,9 +597,14 @@ namespace MOD_sWP6UL
                         skipped++;
                         continue;
                     }
-                    if (Put(item))
+                    string note;
+                    if (Put(item, out note))
                     {
                         put++;
+                        if (note != null)
+                        {
+                            differs++;
+                        }
                     }
                     else
                     {
@@ -548,15 +629,19 @@ namespace MOD_sWP6UL
                 }
             }
             ChangeLog.Add(EditService.NameOf(g.world.playerUnit), "가방 가져오기 전부(" + pack.Name + ")", "-",
-                "아이템 " + put + "줄, 화폐 " + money + "종, 못 넣음 " + failed.Count + "줄", failed.Count == 0);
+                "아이템 " + put + "줄, 화폐 " + money + "종, 못 넣음 " + failed.Count + "줄" + (differs > 0 ? ", 값이 다른 것 " + differs + "줄" : ""), failed.Count == 0 && differs == 0);
             var sb = new StringBuilder(pack.Name + ": 아이템 " + put + "줄, 화폐 " + money + "종을 가져왔습니다." + grown);
             if (skipped > 0)
             {
                 sb.Append(" 건너뜀 ").Append(skipped).Append("줄(쓸 수 없는 줄).");
             }
+            if (differs > 0)
+            {
+                sb.Append(" 만들어진 값이 파일과 다른 것 ").Append(differs).Append("줄.");
+            }
             if (failed.Count > 0)
             {
-                sb.Append(" 못 넣음 ").Append(failed.Count).Append("줄(가방이 가득 참): ");
+                sb.Append(" 못 넣음 ").Append(failed.Count).Append("줄(가방이 가득 찼거나 게임이 받지 않음): ");
                 for (int i = 0; i < failed.Count && i < 5; i++)
                 {
                     sb.Append(i == 0 ? "" : ", ").Append(failed[i]);
