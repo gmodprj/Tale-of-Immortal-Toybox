@@ -1101,6 +1101,84 @@ switch ($Part) {
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
     RestoreConfig
   }
+  'rates' {
+    # 배율 탭: 수련치와 이동. 스펙 2026-10-13-rate-tab-design.md 5절.
+    # 깨끗한 회차에서 시작한다(패치가 하나도 걸려 있지 않은 것을 본다).
+    $traps = Traps
+    function RateState { Cmd 'rstate' 200 }
+    function MoveDay { if ((Cmd 'wdate' 200) -match 'moveDay=([\d.]+)') { [double]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
+    function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab10' | Out-Null
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateSpeed', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    $s = RateState
+    Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 speed=1 ' -and $s -notmatch 'patched') $s
+
+    # 이동: x1의 한 칸을 재고, x0.5에서 절반인지 본다.
+    $d0 = MoveDay; Cmd 'wmove 1 0' 900 | Out-Null; $plain = (MoveDay) - $d0
+    Check 'a plain step costs something' ($plain -gt 0) "cost=$plain"
+    Press 'RateMove' | Out-Null
+    Check 'move shows x0.5' ((Cmd 'uitext RateMove') -match "text='x0.5'")
+    $s = RateState
+    Check 'only move is patched' ($s -match 'move=0.5\(patched\)' -and $s -match 'exp=1 martial=1 ') $s
+    $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null; $half = (MoveDay) - $d0
+    $s = RateState
+    Check 'a half step is recorded' ($s -match 'lastMove=([\d.]+)->([\d.]+)' -and [math]::Abs([double]$Matches[2] - [double]$Matches[1] * 0.5) -lt 0.0001) $s
+    Check 'the half step costs half' ([math]::Abs($half - [double]$Matches[2]) -lt 0.0001) "half=$half"
+    Start-Sleep -Milliseconds 900
+    Check 'move is on the overlay' ((Cmd 'uistate') -match 'status=\[이동 x0.5\] ')
+
+    # x0: 여러 칸을 걸어도 날짜와 쌓인 값이 그대로다. 걸으면서 수련할 수 있는 칸을 찾는다.
+    1..3 | ForEach-Object { Press 'RateMove' | Out-Null }
+    Check 'move shows x0' ((Cmd 'uitext RateMove') -match "text='x0'")
+    Cmd 'setgrade 8' | Out-Null
+    Press 'RateExp' | Out-Null; Press 'RateExp' | Out-Null
+    Check 'exp shows x5' ((Cmd 'uitext RateExp') -match "text='x5'")
+    $day0 = WorldDayNow; $d0 = MoveDay; $trained = $false
+    for ($i = 0; $i -lt 10 -and -not $trained; $i++) {
+      $o = Cmd 'wexp' 1500
+      if ($o -match 'IsCreateAction=0 day=\d+ CreateAction=0 exp (\d+) -> (\d+)') {
+        $trained = $true; $gain = [int]$Matches[2] - [int]$Matches[1]
+        $s = RateState
+        Check 'training is scaled by 5' ($s -match 'lastExp=(\d+)->(\d+)' -and [int]$Matches[2] -eq [int]$Matches[1] * 5) $s
+        Check 'the scaled amount is what was gained' ($gain -eq [int]$Matches[2]) "gain=$gain"
+      } elseif ((Cmd 'wmove 1 0' 900) -notmatch 'IsCreateAction=0 CreateAction=0') { break }
+      else { Check "free step $i keeps the date" ((WorldDayNow) -eq $day0 -and [math]::Abs((MoveDay) - $d0) -lt 0.0001) }
+    }
+    Check 'a trainable tile was found' $trained
+
+    # 플레이어가 아닌 단위와 음수.
+    $o = Cmd 'rnpc' 300
+    Check 'an NPC gains the plain amount' ($o -match 'npc exp (\d+) -> (\d+)' -and [int]$Matches[2] - [int]$Matches[1] -eq 10) $o
+    $o = Cmd 'rneg' 300
+    Check 'a negative amount is not scaled' ($o -match 'player AddExp\(-7\) exp (\d+) -> (\d+)' -and [int]$Matches[1] - [int]$Matches[2] -eq 7) $o
+
+    # 날짜 고정과 함께.
+    Check 'no freeze note while not frozen' ((Cmd 'uitext RateNoteMove') -notmatch '날짜 고정 중')
+    Cmd 'tfreeze on' | Out-Null; Press 'Tab10' | Out-Null
+    Check 'the freeze note is shown' ((Cmd 'uitext RateNoteMove') -match '날짜 고정 중')
+    Cmd 'tfreeze off' | Out-Null; Press 'Tab10' | Out-Null
+
+    # 한 바퀴와 되돌리기, 표시와 이력.
+    Start-Sleep -Milliseconds 900
+    Check 'both are on the overlay' ((Cmd 'uistate') -match 'status=\[수련 x5 · 이동 x0\] ')
+    Press 'RateMove' | Out-Null
+    Check 'move wraps to x1' ((Cmd 'uitext RateMove') -match "text='x1'")
+    Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
+    Press 'RateReset' | Out-Null
+    $s = RateState
+    Check 'reset puts everything back' ($s -match 'exp=1\(patched\) martial=1 move=1\(patched\) speed=1 ' -and $s -match 'god=False damage=1') $s
+    Start-Sleep -Milliseconds 900
+    Check 'overlay is hidden after reset' ((Cmd 'uistate') -match 'status=\[hidden\] ')
+    $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null
+    Check 'steps cost again after reset' ((MoveDay) -ne $d0 -or (WorldDayNow) -gt $day0)
+    Press 'Tab11' | Out-Null
+    $lines = (Cmd 'uidescs HistoryLine' 300)
+    Check 'changes are in the history' ($lines -match '배율' -and $lines -match '수련치 획득')
+    Shot 'rates'
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'status' {
     # 스펙 6절 19번. 표시는 30프레임마다 맞춰지므로 켜고 끈 뒤 조금 기다린다.
     $traps = Traps

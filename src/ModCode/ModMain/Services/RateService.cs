@@ -1,0 +1,320 @@
+using System;
+using System.Globalization;
+using System.Reflection;
+using MelonLoader;
+using UnityEngine;
+
+namespace MOD_sWP6UL
+{
+    // 획득·소모의 배율. 플레이어의 호출에만 건다. 설정은 저장하지 않으며 게임을 켤 때마다 1배로 시작한다.
+    // 거는 곳은 docs/superpowers/specs/2026-10-13-rate-tab-design.md 3절에서 실측했다.
+    //   수련치: DataUnit.PropertyData.AddExp. 수련과 전투의 처치가 모두 지난다.
+    //   공법 숙련: DataUnit.UnitInfoData.AddMartialExpInBattle. 이 메서드가 안에서 AddMartialExp를 부르므로 한 곳에만 건다.
+    //   이동: UnitActionMovePlayer.OnCreate가 쓰기 전의 costDay(한 칸의 날짜 비용).
+    //   전투 속도: 패치 없이 전투 장면에서 매 프레임 Time.timeScale을 맞춘다.
+    internal static class RateService
+    {
+        public sealed class Rate
+        {
+            public string Key;
+            public string Label;    // 탭의 줄 이름
+            public string Short;    // 화면 위쪽 표시의 이름
+            public string Note;
+            public float[] Steps;   // 첫 칸은 항상 1
+            public int Index;
+            public bool Patched;
+            public bool Warned;
+            public MethodInfo Target;   // 걸 메서드. 전투 속도는 없다
+            public string Hook;
+
+            public float Value
+            {
+                get { return Steps[Index]; }
+            }
+
+            public bool On
+            {
+                get { return Index != 0; }
+            }
+
+            public string Text
+            {
+                get { return "x" + Value.ToString("0.##", CultureInfo.InvariantCulture); }
+            }
+
+#if DEVTOOLS
+            public string Last = "-";   // 개발 전용: 마지막으로 바꾼 값(전 -> 후)
+#endif
+        }
+
+        public static readonly Rate Exp = new Rate
+        {
+            Key = "exp", Label = "수련치 획득", Short = "수련", Steps = new[] { 1f, 2f, 5f, 10f, 100f },
+            Note = "수련과 전투로 얻는 수련치를 곱합니다. 수련치가 다음 단계의 필요량까지 찬 인물은 오르지 않습니다.",
+            Hook = "ExpPrefix",
+        };
+
+        public static readonly Rate Martial = new Rate
+        {
+            Key = "martial", Label = "전투 중 공법 숙련", Short = "숙련", Steps = new[] { 1f, 2f, 5f, 10f, 100f },
+            Note = "전투에서 기술을 써서 얻는 숙련 경험치를 곱합니다.",
+            Hook = "MartialPrefix",
+        };
+
+        public static readonly Rate Move = new Rate
+        {
+            Key = "move", Label = "이동의 날짜 소모", Short = "이동", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f },
+            Note = "대지도에서 한 칸을 갈 때 쓰는 날짜를 곱합니다. x0이면 걸어도 날짜가 흐르지 않습니다.",
+            Hook = "MovePrefix",
+        };
+
+        public static readonly Rate Speed = new Rate
+        {
+            Key = "speed", Label = "전투 속도", Short = "속도", Steps = new[] { 1f, 1.5f, 2f, 3f },
+            Note = "전투 장면의 진행 속도를 곱합니다. 전투 밖에서는 걸리지 않습니다.",
+        };
+
+        public static readonly Rate[] All = { Exp, Martial, Move, Speed };
+
+        private static HarmonyLib.Harmony harmony;
+        private static bool speedApplied;
+
+        // 다음 단계로 넘긴다. 마지막 다음은 1배다. 결과 문장을 돌려준다.
+        public static string Next(Rate rate)
+        {
+            int next = (rate.Index + 1) % rate.Steps.Length;
+            if (next != 0)
+            {
+                string error = EnsurePatched(rate);
+                if (error != null)
+                {
+                    return error;
+                }
+            }
+            string before = rate.Text;
+            rate.Index = next;
+            ChangeLog.Add("배율", rate.Label, before, rate.Text, true);
+            return rate.Label + ": " + rate.Text;
+        }
+
+        // 배율과 전투 보조를 모두 끈다.
+        public static string Reset()
+        {
+            foreach (Rate rate in All)
+            {
+                if (rate.On)
+                {
+                    string before = rate.Text;
+                    rate.Index = 0;
+                    ChangeLog.Add("배율", rate.Label, before, rate.Text, true);
+                }
+            }
+            BattleService.Reset();
+            RestoreSpeed();
+            return "배율: 모두 1배로 되돌리고 무적을 껐습니다.";
+        }
+
+        public static void OnDestroy()
+        {
+            RestoreSpeed();
+        }
+
+        // 그 배율을 처음 켤 때 한 번 건다. 건 뒤에는 떼지 않고 값만 본다.
+        private static string EnsurePatched(Rate rate)
+        {
+            if (rate.Patched || rate.Hook == null)
+            {
+                return null;
+            }
+            try
+            {
+                if (rate.Target == null)
+                {
+                    rate.Target = FindTarget(rate);
+                }
+                if (rate.Target == null)
+                {
+                    throw new MissingMethodException(rate.Key);
+                }
+                if (harmony == null)
+                {
+                    harmony = new HarmonyLib.Harmony("TlToybox.rate");
+                }
+                harmony.Patch(rate.Target, new HarmonyLib.HarmonyMethod(
+                    typeof(RateService).GetMethod(rate.Hook, BindingFlags.Static | BindingFlags.Public)));
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 배율 패치 실패(" + rate.Key + "): " + e);
+                return "배율: 게임에 연결하지 못해 켜지 않았습니다(" + e.GetType().Name + ").";
+            }
+            rate.Patched = true;
+            return null;
+        }
+
+        private static MethodInfo FindTarget(Rate rate)
+        {
+            if (rate == Exp)
+            {
+                return typeof(DataUnit.PropertyData).GetMethod("AddExp");
+            }
+            if (rate == Martial)
+            {
+                return typeof(DataUnit.UnitInfoData).GetMethod("AddMartialExpInBattle");
+            }
+            if (rate == Move)
+            {
+                return typeof(UnitActionMovePlayer).GetMethod("OnCreate");
+            }
+            return null;
+        }
+
+        private static WorldUnitBase Player
+        {
+            get { return g.world == null ? null : g.world.playerUnit; }
+        }
+
+        // 0 이하는 곱하지 않는다(줄어드는 호출을 키우지 않는다). 넘치면 최댓값으로 자른다.
+        private static int Scale(Rate rate, int value)
+        {
+            if (value <= 0)
+            {
+                return value;
+            }
+            double scaled = Math.Round(value * (double)rate.Value);
+            int result = scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+#if DEVTOOLS
+            rate.Last = value + "->" + result;
+#endif
+            return result;
+        }
+
+        private static void Warn(Rate rate, Exception e)
+        {
+            if (!rate.Warned)
+            {
+                rate.Warned = true;
+                MelonLogger.Msg("[TlToybox] 배율 처리 오류(" + rate.Key + "): " + e.Message);
+            }
+        }
+
+        public static void ExpPrefix(DataUnit.PropertyData __instance, ref int v)
+        {
+            if (!Exp.On)
+            {
+                return;
+            }
+            try
+            {
+                WorldUnitBase me = Player;
+                if (me != null && __instance != null && __instance.Pointer == me.data.unitData.propertyData.Pointer)
+                {
+                    v = Scale(Exp, v);
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(Exp, e);
+            }
+        }
+
+        public static void MartialPrefix(DataUnit.UnitInfoData __instance, ref int exp)
+        {
+            if (!Martial.On)
+            {
+                return;
+            }
+            try
+            {
+                WorldUnitBase me = Player;
+                if (me != null && __instance != null && __instance.Pointer == me.data.unitData.Pointer)
+                {
+                    exp = Scale(Martial, exp);
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(Martial, e);
+            }
+        }
+
+        public static void MovePrefix(UnitActionMovePlayer __instance)
+        {
+            if (!Move.On)
+            {
+                return;
+            }
+            try
+            {
+                WorldUnitBase me = Player;
+                WorldUnitBase unit = __instance == null ? null : __instance.unit;
+                if (me == null || unit == null || unit.data.unitData.unitID != me.data.unitData.unitID)
+                {
+                    return;
+                }
+                float before = __instance.costDay;
+                if (before <= 0f)
+                {
+                    return;
+                }
+                __instance.costDay = before * Move.Value;
+#if DEVTOOLS
+                Move.Last = before.ToString(CultureInfo.InvariantCulture) + "->" + __instance.costDay.ToString(CultureInfo.InvariantCulture);
+#endif
+            }
+            catch (Exception e)
+            {
+                Warn(Move, e);
+            }
+        }
+
+        public static bool InBattle
+        {
+            get
+            {
+                return SceneType.battle != null && SceneType.battle.battleMap != null
+                    && SceneType.battle.battleMap.playerUnitCtrl != null;
+            }
+        }
+
+        // 매 프레임 불린다. 전투 장면에 있는 동안만 속도를 맞추고, 벗어나거나 1배로 돌리면 되돌린다. 예외를 던지지 않는다.
+        public static void Tick()
+        {
+            if (!Speed.On && !speedApplied)
+            {
+                return;
+            }
+            try
+            {
+                if (!Speed.On || !InBattle)
+                {
+                    RestoreSpeed();
+                    return;
+                }
+                // 0은 게임의 일시 정지다. 풀지 않는다.
+                float now = Time.timeScale;
+                if (now != 0f && now != Speed.Value)
+                {
+                    Time.timeScale = Speed.Value;
+                }
+                speedApplied = true;
+            }
+            catch (Exception e)
+            {
+                Warn(Speed, e);
+            }
+        }
+
+        private static void RestoreSpeed()
+        {
+            if (speedApplied)
+            {
+                speedApplied = false;
+                if (Time.timeScale != 0f)
+                {
+                    Time.timeScale = 1f;
+                }
+            }
+        }
+    }
+}
