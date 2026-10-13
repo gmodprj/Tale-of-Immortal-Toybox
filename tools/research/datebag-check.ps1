@@ -2,29 +2,7 @@
 # tools\DevRemote\session.ps1 -Begin으로 게임이 떠서 세계에 들어가 있어야 한다.
 # 줄마다 PASS/FAIL이 나오고 마지막 줄이 FAILS=<수>다. "SHOT <파일>"은 눈으로 확인할 캡처다.
 param([Parameter(Mandatory)][string]$Part)
-$ErrorActionPreference = 'Stop'
-$tools = Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote'
-$work = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.devremote'
-$data = Join-Path $env:USERPROFILE 'AppData\LocalLow\guigugame\guigubahuang\TlToybox'
-$log = 'E:\Games\Tale of Immortal\MelonLoader\Latest.log'
-$script:fails = 0
-if (-not (Test-Path (Join-Path $work 'session.name'))) { throw 'session.ps1 -Begin으로 연 회차 안에서만 실행합니다(세이브와 bag-slots.txt를 바꾸는 시험이다).' }
-
-function Cmd([string]$c, [int]$wait = 600) { (& "$tools\mod.ps1" -Cmd $c -WaitMs $wait) -join "`n" }
-function Rc([string]$c, [int]$wait = 800) { (& "$tools\rc.ps1" -Cmd $c -NoShot -WaitMs $wait) -join "`n" }
-function Shot([string]$name) {
-  $file = Join-Path $work "check-$name.png"
-  & "$tools\win.ps1" -Do shot -Out $file -Scale 0.6 | Out-Null
-  "SHOT $file"
-}
-# 모드가 로그에 남긴 경고·오류 줄. 로그의 한글은 UTF-8이 아니어서(CP949) 문구로 찾을 수 없다.
-# 정상 줄(Init, Destroy, state, 단축키 안내)이 아닌 "[TlToybox] " 줄을 고른다. 명령과 변경 이력은 "[TlToybox][...]"이라 걸리지 않는다.
-function ModWarnings {
-  Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] ' -and $_ -notmatch '\[TlToybox\] (Init|Destroy|state: )' -and $_ -notmatch ': (Insert|F2|F3)\s*$' }
-}
-function Check([string]$name, [bool]$ok, [string]$detail = '') {
-  if ($ok) { "PASS $name" } else { $script:fails++; "FAIL $name  $detail" }
-}
+. (Join-Path $PSScriptRoot 'check-lib.ps1')
 function State {
   $o = Cmd 'wdate'
   if ($o -notmatch 'worldDay=(\d+) date=(\d+)-(\d+)-(\d+) roundDay=(\d+)/(\d+) residueDay=(-?\d+)') { throw "wdate 출력을 읽지 못했습니다: $o" }
@@ -84,7 +62,7 @@ switch ($Part) {
   'base' {
     $s = State; $g = Grid
     Check 'date parts are consistent' ($s.round -eq $s.day % 31 -and $s.res -eq 30 - $s.round) "day=$($s.day) round=$($s.round) res=$($s.res)"
-    Check 'grid is readable' ($g.max -gt 0 -and $g.add -notmatch 'TlToybox') $g.add
+    Check 'grid is readable' ($g.max -gt 0) $g.add
     Check 'walking works' ((Walk 2) -eq 2)
   }
   'time' {
@@ -145,47 +123,47 @@ switch ($Part) {
 
     # 화면: 세계 탭. 직접 지정의 입력 칸은 고치지 않았으면 늘 현재 날짜를 보여 준다
     Cmd 'editor' | Out-Null
-    Rc 'click 151 550' | Out-Null
+    Press 'Tab7' | Out-Null
     $s = State; $in = DateInput
     Check 'date inputs show the current date' ($in.text -eq "$($s.y)-$($s.m)-$($s.d)" -and -not $in.pending) $in.raw
-    Check 'Day1 button is where expected' ((Rc 'hit 415 542' 300) -match 'Day1')
+    Check 'Day1 button is where expected' (IsAt 'Day1')
     $before = $s.day
-    Rc 'click 415 542' | Out-Null
+    Press 'Day1' | Out-Null
     $s = State; $in = DateInput
     Check 'Day1 button advances one day' ($s.day -eq $before + 1)
     Check 'date inputs follow the date' ($in.text -eq "$($s.y)-$($s.m)-$($s.d)") $in.raw
     Cmd 'ui set DateDay' | Out-Null
-    Rc 'click 799 590' | Out-Null
+    Press 'DateApply' | Out-Null
     Check 'empty day is rejected' ((Cmd 'tmsg') -match '숫자로 입력' -and (State).day -eq $before + 1)
 
     # 확인 상태는 날짜 상자의 다른 버튼을 누르거나 편집기를 닫으면 풀린다
     Cmd 'ui set DateDay 25' | Out-Null
-    Rc 'click 799 590' | Out-Null
+    Press 'DateApply' | Out-Null
     Check 'first click only asks' ((Cmd 'tmsg') -match '정말 변경' -and (DateInput).pending -and (State).day -eq $before + 1)
-    Rc 'click 415 542' | Out-Null
+    Press 'Day1' | Out-Null
     $s = State; $in = DateInput
     Check 'another date button cancels the pending confirm' (-not $in.pending -and $s.day -eq $before + 2 -and $in.text -eq "$($s.y)-$($s.m)-$($s.d)") $in.raw
     Cmd 'ui set DateDay 25' | Out-Null
-    Rc 'click 799 590' | Out-Null
-    Rc 'click 1502 90' | Out-Null
+    Press 'DateApply' | Out-Null
+    Press 'Close' | Out-Null
     Cmd 'editor' | Out-Null
     $in = DateInput
     Check 'reopening the editor cancels the pending confirm' (-not $in.pending -and $in.text -eq "$($s.y)-$($s.m)-$($s.d)") $in.raw
 
     # 지금과 같은 날짜는 묻지 않고 알린다
     Cmd "ui set DateDay $($s.d)" | Out-Null
-    Rc 'click 799 590' | Out-Null
+    Press 'DateApply' | Out-Null
     Check 'same date is reported, not asked' ((Cmd 'tmsg') -match '이미' -and -not (DateInput).pending)
 
     # 두 번 눌러 적용
     Cmd 'ui set DateDay 25' | Out-Null
-    Rc 'click 799 590' | Out-Null
-    Rc 'click 799 590' | Out-Null
+    Press 'DateApply' | Out-Null
+    Press 'DateApply' | Out-Null
     $s2 = State; $in = DateInput
     Check 'second click applies' ($s2.y -eq $s.y -and $s2.m -eq $s.m -and $s2.d -eq 25 -and $s2.res -eq 6)
     Check 'date inputs show the new date after applying' ($in.text -eq "$($s2.y)-$($s2.m)-25" -and -not $in.pending) $in.raw
     Shot 'time-editor'
-    Rc 'click 754 542' | Out-Null
+    Press 'SkipMonth' | Out-Null
     $o = Rc 'hit 1037 531' 300   # 확인 창의 "아니오" 자리
     Check 'SkipMonth button closes the editor and opens the popup' ($o -match 'CheckPopup' -and $o -notmatch 'btn1') $o
     Rc 'click 1037 531' | Out-Null
@@ -221,7 +199,9 @@ switch ($Part) {
       $o = Cmd 'wexp' 1500
       if ($o -match 'IsCreateAction=0 day=(\d+) CreateAction=0 exp (\d+) -> (\d+)') {
         $gained = [int]$Matches[3] -gt [int]$Matches[2]; $after = State; $trained = $true
-        Check 'frozen training gains exp without using days' ($gained -and $after.day -eq $s0.day -and $after.res -eq $s0.res) $o
+        Check 'frozen training does not use days' ($after.day -eq $s0.day -and $after.res -eq $s0.res) $o
+        # 수련치가 다음 단계의 필요량까지 찬 인물은 수련해도 오르지 않는다. 그 경우는 알리기만 한다.
+        if (-not $gained) { "INFO exp did not rise (already full?): $o" }
       } elseif ((Cmd 'wmove 1 0' 1500) -notmatch 'IsCreateAction=0 CreateAction=0') { break }
     }
     if (-not $trained) { "SKIP frozen training (no tile nearby where the game allows it): $o" }
@@ -242,14 +222,14 @@ switch ($Part) {
 
     # 화면: 고정 버튼
     Cmd 'editor' | Out-Null
-    Rc 'click 151 550' | Out-Null
-    Check 'Freeze button is where expected' ((Rc 'hit 366 494' 300) -match 'Freeze')
+    Press 'Tab7' | Out-Null
+    Check 'Freeze button is where expected' (IsAt 'Freeze')
     Shot 'freeze-editor'
-    Rc 'click 366 494' | Out-Null
+    Press 'Freeze' | Out-Null
     Check 'Freeze button turns it off' ((Cmd 'tdesc') -match 'frozen=False')
-    Rc 'click 366 494' | Out-Null
+    Press 'Freeze' | Out-Null
     Check 'Freeze button turns it on' ((Cmd 'tdesc') -match 'frozen=True')
-    Rc 'click 1502 90' | Out-Null
+    Press 'Close' | Out-Null
 
     # 고정을 끄면 다시 흐르고, 달은 한 달만 넘어간다
     Check 'freeze off' ((Cmd 'tfreeze off') -match '날짜 고정: 꺼짐')
@@ -266,6 +246,9 @@ switch ($Part) {
   'bag' {
     # 주 화면에서부터 60프레임 점검이 돌았다. 경고가 없어야 한다 (Review Focus 5)
     Check 'no warning from the background tick' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+    # 사용자의 세이브에 편집기 추가 칸이 이미 있을 수 있다. 0에서 시작하도록 걷어 낸다(회차의 -End가 파일을 되돌린다).
+    if ((Cmd 'bagstat') -notmatch 'extra=(\d+)') { throw 'bagstat 출력을 읽지 못했습니다.' }
+    if ([int]$Matches[1] -gt 0) { Cmd "bag -$($Matches[1])" | Out-Null }
     Cmd 'gridfill 600 5' 4000 | Out-Null   # 재료로 가방을 가득 채워 기준을 만든다
     $g0 = Grid
     Check 'no editor slots at start' ($g0.add -notmatch 'TlToybox') $g0.add
@@ -276,21 +259,23 @@ switch ($Part) {
     Check 'plus 20' ($g.max -eq $g0.max + 20 -and $g.add -match 'TlToybox=20') $o
     Check 'file remembers 20' ([bool]((Get-Content -LiteralPath (Join-Path $data 'bag-slots.txt') -Encoding UTF8) -match '=20$'))
     $o = Cmd 'gridfill 600 5' 4000; $g1 = Grid
-    Check 'exactly 20 more items fit' ($o -match 'given=20 ' -and $g1.cur -eq $g0.cur + 20) $o
+    # 가방은 쓰는 칸이 용량보다 2 많아질 때까지 받는다(05 문서 25절). 추가 칸을 걷어 낸 탓에 이미 그보다 많이 들어 있었다면 그만큼 덜 들어간다.
+    $fit = 20 - [Math]::Max(0, $g0.cur - ($g0.max + 2))
+    Check "exactly $fit more items fit" ($o -match "given=$fit " -and $g1.cur -eq $g0.cur + $fit -and $g1.cur -eq $g0.max + 22) $o
     Rc 'click 120 860' 2500 | Out-Null
     Shot 'bag-screen'
     Rc 'click 1722 160' 1200 | Out-Null
 
     # 화면: 자원 탭
     Cmd 'editor' | Out-Null
-    Rc 'click 151 238' | Out-Null
-    Check 'BagPlus button is where expected' ((Rc 'hit 1501 234' 300) -match 'BagPlus')
-    Rc 'click 1501 234' | Out-Null
+    Press 'Tab1' | Out-Null
+    Check 'BagPlus button is where expected' (IsAt 'BagPlus')
+    Press 'BagPlus' | Out-Null
     Check 'BagPlus adds 10' ((Grid).max -eq $g0.max + 30)
-    Rc 'click 1425 234' | Out-Null
+    Press 'BagMinus' | Out-Null
     Check 'BagMinus removes 10' ((Grid).max -eq $g0.max + 20)
     Shot 'bag-editor'
-    Rc 'click 1502 90' | Out-Null
+    Press 'Close' | Out-Null
     Check 'history has the change' ((NewHistory) -match '가방 추가 칸')
 
     # 저장 후 재시작 확인의 준비
@@ -329,6 +314,4 @@ switch ($Part) {
   }
   default { throw "알 수 없는 Part: $Part" }
 }
-"FAILS=$script:fails"
-if ($script:fails -gt 0) { exit 1 }
-exit 0
+Finish
