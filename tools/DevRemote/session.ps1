@@ -38,6 +38,8 @@ $flag = Join-Path $dir 'park.flag'
 $fixtures = Join-Path $dir 'fixtures'
 $backups = Join-Path $data 'backups'                 # 모드가 값을 바꾸기 전에 만드는 세이브 자동 백업
 $keptBackups = Join-Path $dir 'session-backups.txt'  # 회차 전부터 있던 자동 백업의 이름들
+$configFile = Join-Path $data 'config.txt'
+$keptConfig = Join-Path $dir 'session-config.txt'      # 회차 전의 config.txt(창 위치 등)
 $keepSessions = 5                                    # -End가 남기는 회차 복사본의 수
 
 function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue) }
@@ -134,6 +136,8 @@ if ($Begin) {
     Copy-Item -LiteralPath $dll -Destination $installed -Force
     [IO.File]::WriteAllText($modeFile, $(if ($ReleaseBuild) { 'release' } else { 'dev' }))
   }
+  DeleteFiles $keptConfig
+  if (Test-Path -LiteralPath $configFile) { Copy-Item -LiteralPath $configFile -Destination $keptConfig }
   # 회차 전부터 있던 자동 백업의 이름을 적어 둔다. -End가 그 밖의 것(회차 동안 생긴 것)만 지운다.
   $names = @(if (Test-Path -LiteralPath $backups) { Get-ChildItem -LiteralPath $backups | ForEach-Object Name })
   [IO.File]::WriteAllText($keptBackups, ($names -join "`n"))
@@ -189,6 +193,12 @@ if ($End) {
     Copy-Item -LiteralPath $keptDll -Destination $installed -Force
     [IO.File]::Delete($keptDll)
     'INSTALLED DLL RESTORED'
+  }
+  # 창 위치 등 모드의 설정을 회차 전으로 되돌린다. 창을 옮기는 검사(ui-check.ps1의 move)가 중간에 끝나도 사용자의 창 위치가 바뀐 채 남지 않는다.
+  if (Test-Path $keptConfig) {
+    Copy-Item -LiteralPath $keptConfig -Destination $configFile -Force
+    DeleteFiles $keptConfig, (Join-Path $dir 'check-config.txt')
+    'CONFIG RESTORED'
   }
   [IO.File]::Delete($marker)
 

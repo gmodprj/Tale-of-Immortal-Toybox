@@ -146,6 +146,14 @@ $b = NewBox
 [void][IO.Directory]::CreateDirectory("$($b.data)\backups\made-by-the-test"); [IO.File]::WriteAllText("$($b.data)\backups\made-by-the-test\s.txt", 'test')
 $o = Run $b $none @{ End = 'x' }
 Check 'End removes the mod backups the session made' ($o -match 'SAVE RESTORED' -and (Test-Path "$($b.data)\backups\before-session\s.txt") -and -not (Test-Path "$($b.data)\backups\made-by-the-test")) $o
+# 17. -End는 모드의 설정 파일(config.txt: 창 위치)을 회차 전의 내용으로 되돌린다. 창을 옮기는 검사가 중간에 끝나도 사용자의 창 위치가 남지 않게
+$b = NewBox
+[IO.File]::WriteAllText("$($b.data)\config.txt", 'hotkey=Insert')
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\config.txt", "hotkey=Insert`nwindow=260,160")
+[IO.File]::WriteAllText("$($b.work)\check-config.txt", 'left by a stopped check')
+$o = Run $b $none @{ End = 'x' }
+Check 'End restores config.txt' ($o -match 'SAVE RESTORED' -and [IO.File]::ReadAllText("$($b.data)\config.txt") -eq 'hotkey=Insert' -and -not (Test-Path "$($b.work)\check-config.txt")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
