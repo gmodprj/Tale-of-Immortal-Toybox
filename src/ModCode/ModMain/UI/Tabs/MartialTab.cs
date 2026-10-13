@@ -40,6 +40,8 @@ namespace MOD_sWP6UL
         {
             martialId = null;
             replaceIndex = -1;
+            martialPending = null;   // 확인 대기는 대상이 바뀌면 푼다
+            skillPending = 0;
         }
 
         protected override void Draw()

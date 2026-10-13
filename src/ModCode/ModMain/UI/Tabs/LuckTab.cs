@@ -36,6 +36,7 @@ namespace MOD_sWP6UL
         {
             luckPicking = false;
             luckPage = 0;
+            pendingLuckRemove = 0;   // 다른 인물의 같은 운명이 한 번의 클릭으로 지워지지 않게 한다
         }
 
         protected override void Draw()

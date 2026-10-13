@@ -20,6 +20,21 @@ function EnterBattle {
   "INFO battle entry: $o"
   "INFO open game screens: $((Cmd 'uilist' 100) -replace "`n", ' |')"
 }
+# 창 위치를 바꾸는 시험(move 계열)은 세이브 폴더 밖의 config.txt를 고친다. 시험 전의 파일을 한 번만 떠 두고,
+# 끝났을 때와 중간에 멈췄을 때 모두 되돌린다. 이미 떠 둔 것이 있으면(앞선 실행이 멈춘 것) 덮어쓰지 않는다.
+function KeepConfig {
+  $copy = Join-Path $work 'check-config.txt'
+  if (-not (Test-Path -LiteralPath $copy)) { Copy-Item -LiteralPath (Join-Path $data 'config.txt') -Destination $copy }
+}
+function RestoreConfig {
+  $copy = Join-Path $work 'check-config.txt'
+  if (Test-Path -LiteralPath $copy) {
+    Copy-Item -LiteralPath $copy -Destination (Join-Path $data 'config.txt') -Force
+    [IO.File]::Delete($copy)
+    'config.txt restored'
+  }
+}
+trap { RestoreConfig; break }
 function WinState {
   $o = Cmd 'uistate' 100
   if ($o -notmatch ' pos=(-?\d+),(-?\d+) collapsed=(\w+) ') { throw "uistate 출력을 읽지 못했습니다: $o" }
@@ -108,6 +123,15 @@ switch ($Part) {
     Press 'ToPlayer' | Out-Null
     Check 'back to the player' ((Cmd 'uistate') -match 'target=player ' -and (Cmd 'uitext Title') -match '\(플레이어\)')
 
+    # 삭제 확인 대기는 편집 대상을 바꾸면 풀린다. 제목 줄의 버튼으로 어느 탭에서나 대상을 바꿀 수 있기 때문이다.
+    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'LuckRemove0' | Out-Null
+    Check 'removing an NPC luck asks first' ((Cmd 'uitext LuckRemove0') -match "text='정말 삭제'")
+    Press 'ToPlayer' | Out-Null
+    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Check 'the pending confirm is gone after the target changed' ((Cmd 'uitext LuckRemove0') -match "text='삭제'")
+    Press 'ToPlayer' | Out-Null
+
     # Review Focus 2: 대상으로 잡은 NPC가 없어지면 플레이어로 돌아간다
     $s = Cmd 'uitarget no-such-unit'
     Check 'a missing target falls back to the player' ($s -match 'target=player ' -and (Cmd 'uitext Title') -match '\(플레이어\)') $s
@@ -165,7 +189,7 @@ switch ($Part) {
   'move' {
     # 창 위치는 세이브 폴더 밖의 config.txt에 남는다(회차를 되돌려도 남는다). 시험 전의 파일을 떠 두고 move-corrupt에서 되돌린다.
     $traps = Traps
-    Copy-Item -LiteralPath (Join-Path $data 'config.txt') -Destination (Join-Path $work 'check-config.txt') -Force
+    KeepConfig
     Cmd 'editor' | Out-Null
     $o = DragWindowTo 60 60
     Check 'the title bar takes the drag' ($o -match 'handler=TitleBar ') $o
@@ -239,9 +263,7 @@ switch ($Part) {
     Check 'and dragged back' ((WinState).x -eq 60 -and (IsAt 'Close'))
     Press 'Close' | Out-Null
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
-    Copy-Item -LiteralPath (Join-Path $work 'check-config.txt') -Destination (Join-Path $data 'config.txt') -Force
-    [IO.File]::Delete((Join-Path $work 'check-config.txt'))
-    'config.txt restored'
+    RestoreConfig
   }
   'status' {
     # 스펙 6절 19번. 표시는 30프레임마다 맞춰지므로 켜고 끈 뒤 조금 기다린다.
@@ -275,6 +297,7 @@ switch ($Part) {
     Press 'Tab7' | Out-Null; Press 'God' | Out-Null
     Press 'Close' | Out-Null
     EnterBattle
+    Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
     Start-Sleep -Milliseconds 900
     Check 'shown in battle' ((Cmd 'uistate') -match 'status=\[무적\] ')
     Shot 'status-battle'
@@ -284,6 +307,7 @@ switch ($Part) {
     # 스펙 6절 21번, Review Focus 5. 전투에서 나오는 방법을 자동화하지 않았으므로 회차의 마지막에 돌리고 바로 -End 한다.
     $traps = Traps
     EnterBattle
+    Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
     Check 'editor opens in battle' ((Cmd 'editor') -match 'open=True')
     "INFO battle state: $(Cmd 'uistate')"
     Check 'tabs are clickable in battle' (IsAt 'Tab7')
