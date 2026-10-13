@@ -55,7 +55,13 @@ namespace MOD_sWP6UL
             {
                 return packs;
             }
-            return packs.FindAll(p => p.Name.Contains(query) || System.IO.Path.GetFileName(p.File).Contains(query));
+            return packs.FindAll(p => Matches(p.Name, query) || Matches(System.IO.Path.GetFileName(p.File), query));
+        }
+
+        // 검색은 대소문자를 가리지 않는다.
+        private static bool Matches(string text, string needle)
+        {
+            return text.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         protected override void Draw()
@@ -101,7 +107,8 @@ namespace MOD_sWP6UL
                 query = v;
                 list.SetItems(Found());
             }));
-            Text where = Ui.Label(content, "가져오기는 항상 지금 가방에 더합니다. 파일은 " + BagExportService.Dir + " 에 있습니다.", 400, 48, ContentW - 400, 38, 14);
+            Text where = Ui.Label(content, "지금 가방 " + BagExportService.Slots() + "칸. 가져오기는 항상 지금 가방에 더합니다. 파일은 " + BagExportService.Dir + " 에 있습니다.", 400, 48, ContentW - 400, 38, 14);
+            where.gameObject.name = "VaultBagSlots";
             where.color = Ui.Dim;
             where.horizontalOverflow = HorizontalWrapMode.Wrap;
 
@@ -198,7 +205,7 @@ namespace MOD_sWP6UL
                 BagExportService.Money money = opened.Currencies[i];
                 lines.Add(new Line { IsMoney = true, Index = i, Search = money.Name + " " + money.Id });
             }
-            return detailQuery.Length == 0 ? lines : lines.FindAll(l => l.Search.Contains(detailQuery));
+            return detailQuery.Length == 0 ? lines : lines.FindAll(l => Matches(l.Search, detailQuery));
         }
 
         // 하위 화면: 한 묶음의 아이템과 화폐. 줄마다 하나씩 가져온다.
@@ -237,7 +244,12 @@ namespace MOD_sWP6UL
                 Ui.Label(row, money.Count.ToString(), 540, 0, 120, h, 16);
                 Ui.Label(row, "화폐", 670, 0, 100, h, 16).color = Ui.Warn;
                 int at = line.Index;
-                Ui.Button("VaultGetC" + at, row, "가져오기", right - 128, 2, 120, 30, new Action(() => Say(BagExportService.ImportCurrency(pack, at))));
+                string whyNot = BagExportService.Why(money);
+                if (whyNot != null)
+                {
+                    Ui.Wrapped(row, whyNot, 780, 0, right - 128 - 790, h, 14).color = Ui.Warn;
+                }
+                Ui.Button("VaultGetC" + at, row, "가져오기", right - 128, 2, 120, 30, new Action(() => Say(BagExportService.ImportCurrency(pack, at))), whyNot == null);
                 return;
             }
             BagExportService.Item item = pack.Items[line.Index];
@@ -245,9 +257,13 @@ namespace MOD_sWP6UL
             Ui.Wrapped(row, item.Name, 130, 0, 400, h, 17);
             Ui.Label(row, item.Count.ToString(), 540, 0, 120, h, 16);
             Ui.Label(row, item.Martial ? "비급" : "아이템", 670, 0, 100, h, 16);
-            Ui.Label(row, item.Equipped ? "장착 중" : "", 780, 0, 80, h, 16).color = Ui.Warn;
             int itemAt = line.Index;
-            Ui.Button("VaultGet" + itemAt, row, "가져오기", right - 128, 2, 120, 30, new Action(() => Say(BagExportService.ImportItem(pack, itemAt))));
+            // 쓸 수 없는 줄(게임에 없는 번호, 수량 0 등)은 이유를 보이고 버튼을 끈다.
+            string why = BagExportService.Why(item);
+            Text state = Ui.Wrapped(row, why ?? (item.Equipped ? "장착 중" : ""), 780, 0, right - 128 - 790, h, why == null ? 16 : 14);
+            state.color = Ui.Warn;
+            state.gameObject.name = "VaultWhy" + itemAt;
+            Ui.Button("VaultGet" + itemAt, row, "가져오기", right - 128, 2, 120, 30, new Action(() => Say(BagExportService.ImportItem(pack, itemAt))), why == null);
         }
     }
 }

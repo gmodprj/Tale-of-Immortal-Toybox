@@ -42,6 +42,40 @@ namespace MOD_sWP6UL
             return "경지 " + grade;
         }
 
+        // 경지별 역천개명 기록의 사본(대경지 → 운명 번호).
+        // 게임의 운명 추가 행동(UnitActionLuckAdd)은 역천개명 분류의 운명을 "지금 대경지"의 기록에도 적는다(실측: 대경지 3인 인물에게
+        // 다른 역천개명을 붙이자 3번 기록의 번호가 그것으로 바뀌었고, 3번의 원래 운명은 효과만 남았다). 운명을 붙이는 쪽은
+        // 붙이기 전에 이것을 떠 두고, 붙인 뒤 RestoreRecords로 되돌린다.
+        public static Dictionary<int, int> Records(WorldUnitBase unit)
+        {
+            var result = new Dictionary<int, int>();
+            var log = Log(unit);
+            if (log != null)
+            {
+                foreach (var pair in log)
+                {
+                    result[pair.Key] = pair.Value.luck;
+                }
+            }
+            return result;
+        }
+
+        public static void RestoreRecords(WorldUnitBase unit, Dictionary<int, int> records)
+        {
+            var log = Log(unit);
+            if (log == null)
+            {
+                return;
+            }
+            foreach (var pair in records)
+            {
+                if (log.ContainsKey(pair.Key) && log[pair.Key].luck != pair.Value)
+                {
+                    log[pair.Key].luck = pair.Value;
+                }
+            }
+        }
+
         // 도달한 경지(축기경부터)의 역천개명 칸.
         public static List<Slot> Slots(WorldUnitBase unit)
         {
@@ -138,16 +172,9 @@ namespace MOD_sWP6UL
                 return backupError + " 변경을 중단했습니다.";
             }
             int oldId = log.ContainsKey(grade) ? log[grade].luck : 0;
-            // 게임의 운명 추가 행동은 역천개명 분류의 운명을 "지금 대경지"의 기록에도 적는다(실측: 대경지 3인 인물의 2번 기록을 바꾸자
-            // 3번 기록의 번호도 같은 것이 됐고, 3번의 원래 운명은 효과만 남았다). 다른 경지의 기록을 떠 두었다가 되돌린다.
-            var others = new Dictionary<int, int>();
-            foreach (var pair in log)
-            {
-                if (pair.Key != grade)
-                {
-                    others[pair.Key] = pair.Value.luck;
-                }
-            }
+            // 운명 추가 행동이 다른 경지의 기록을 덮어쓰므로 떠 두었다가 되돌린다(Records의 설명).
+            Dictionary<int, int> others = Records(unit);
+            others.Remove(grade);
             string oldName = "없음";
             if (oldId != 0)
             {
@@ -159,13 +186,7 @@ namespace MOD_sWP6UL
                 }
             }
             unit.CreateAction(new UnitActionLuckAdd(newId), false);
-            foreach (var pair in others)
-            {
-                if (log.ContainsKey(pair.Key) && log[pair.Key].luck != pair.Value)
-                {
-                    log[pair.Key].luck = pair.Value;
-                }
-            }
+            RestoreRecords(unit, others);
             if (!LuckService.Has(unit, newId))
             {
                 ChangeLog.Add(EditService.NameOf(unit), gradeName + " 역천개명", oldName, oldName, false);

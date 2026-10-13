@@ -480,6 +480,10 @@ switch ($Part) {
       Check 'the same name gets a number' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-A (2).json'))
       Cmd 'ui set VaultName uicheck-b:c*d?' | Out-Null; Press 'VaultExport' | Out-Null
       Check 'characters a file name cannot hold become underscores' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-b_c_d_.json'))
+      Check 'the header shows the bag slots' ((Cmd 'uitext VaultBagSlots') -match '가방 \d+/\d+') (Cmd 'uitext VaultBagSlots')
+      Cmd 'ui set VaultQuery UICHECK-A' | Out-Null
+      Check 'the search ignores case' ((Cmd 'uitext VaultListRange') -match '전체 2개') (Cmd 'uitext VaultListRange')
+      Press 'VaultQueryClear' | Out-Null
       Check 'the list shows three exports' ((Cmd 'uitext VaultListRange') -match '전체 3개' -or (Num 'uitext VaultListRange' '전체 (\d+)개') -ge 3)
 
       # 가져오기의 기준이 되는 묶음을 손으로 만든다: 겹쳐지는 것 1, 겹쳐지지 않는 것 2(같은 번호 두 줄), 비급 1, 화폐 1, 그리고 걸러져야 할 줄들
@@ -516,10 +520,11 @@ switch ($Part) {
       Press 'VaultGet3' | Out-Null
       Check 'a manual is recreated' ((Num 'read' 'props=(\d+)') -eq $p0 + 1) (Msg)
       $n2 = Num "count $($stack.id)" 'count=(\d+)'
-      Press 'VaultGet4' | Out-Null
-      Check 'an unknown item is skipped with a reason' ((Msg) -match '게임에 없는') (Msg)
-      Press 'VaultGet5' | Out-Null
-      Check 'a zero count is skipped' ((Num "count $($stack.id)" 'count=(\d+)') -eq $n2 -and (Msg) -match '수량') (Msg)
+      # 쓸 수 없는 줄은 이유가 줄에 보이고 버튼이 눌리지 않는다
+      $why = (Cmd 'uidescs VaultWhy' 200)
+      $p4 = Pos 'VaultGet4'; $p5 = Pos 'VaultGet5'
+      Check 'an unknown item shows why and cannot be imported' ($why -match "VaultWhy4 text='[^']*게임에 없는" -and (Rc "click $($p4.x) $($p4.y)" 300) -notmatch 'Button\.onClick') $why
+      Check 'a zero count shows why and cannot be imported' ($why -match "VaultWhy5 text='[^']*수량" -and (Rc "click $($p5.x) $($p5.y)" 300) -notmatch 'Button\.onClick' -and (Num "count $($stack.id)" 'count=(\d+)') -eq $n2) $why
       $c0 = Num 'count 10041' 'count=(\d+)'
       Press 'VaultGetC0' | Out-Null
       Check 'a currency adds its amount' ((Num 'count 10041' 'count=(\d+)') -eq $c0 + 7) (Msg)
@@ -646,10 +651,21 @@ switch ($Part) {
       if ($row.h -gt 34) { $tall++ }
       $prev = $row
     }
-    $descs = @((Cmd 'uidescs ItemDesc' 300) -split "`n" | Where-Object { $_ -match '^ItemDesc\d+ ' })
+    # 명령의 출력은 "uidescs ItemDesc -> "로 시작한다. 그 머리를 떼어야 첫 줄이 빠지지 않는다
+    $descs = @(((Cmd 'uidescs ItemDesc' 300) -replace '^[^\n]*?-> ', '') -split "`n" | Where-Object { $_ -match '^ItemDesc\d+ ' })
     foreach ($line in $descs) { if ($line -match '…') { $cut++ }; if ($line.Length -gt $longest) { $longest = $line.Length } }
     Check 'item descriptions are whole' ($descs.Count -ge 3 -and $cut -eq 0 -and $longest -gt 40) "rows=$($descs.Count) cut=$cut longest=$longest"
     Check 'rows with long text are taller' ($tall -ge 1) "tall=$tall of $shown"
+    # 31절: 설명 열을 넓혀 한 화면에 더 많은 줄이 보이고, 높아진 줄의 버튼은 줄의 세로 가운데에 온다
+    $firstDesc = if ($descs[0] -match '^(ItemDesc\d+) ') { $Matches[1] } else { '' }
+    Check 'the description column is wide' ((Cmd "uipos $firstDesc" 100) -match 'size=605,') (Cmd "uipos $firstDesc" 100)
+    Check 'more than ten rows fit on a screen' ($shown -ge 11) "shown=$shown"
+    $off = 99
+    for ($i = 0; $i -lt $shown; $i++) {
+      $row = Box "Row$i"
+      if ($row.h -gt 34 -and $descs[$i] -match '^ItemDesc(\d+) ') { $give = Pos "ItemGive$($Matches[1])"; $off = [math]::Abs($give.y - ($row.top + $row.h / 2)); break }
+    }
+    Check 'the button of a tall row sits in the middle' ($off -le 2) "off=$off"
     Check 'rows sit one under another' ($gaps -eq 0) "gaps=$gaps"
     Check 'the last shown row is inside the list' ((Box "Row$($shown - 1)") -and (IsAt (Pos 'ItemGive*').name))
 
@@ -731,6 +747,9 @@ switch ($Part) {
       Check 'the same name gets a number' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-C (2).json'))
       Cmd 'ui set CharName uicheck-b:c*d?' | Out-Null; Press 'CharExport' | Out-Null
       Check 'characters a file name cannot hold become underscores' (Test-Path -LiteralPath (Join-Path $dir 'uicheck-b_c_d_.json'))
+      Cmd 'ui set CharQuery uicheck-' | Out-Null
+      Cmd 'ui set CharQuery UICHECK-C' | Out-Null
+      Check 'the search ignores case' ((Cmd 'uitext CharListRange') -match '전체 2개') (Cmd 'uitext CharListRange')
       Cmd 'ui set CharQuery uicheck-' | Out-Null
       Check 'the list shows three exports' ((Cmd 'uitext CharListRange') -match '전체 3개')
 
@@ -944,6 +963,19 @@ switch ($Part) {
     Cmd 'ui set CharQuery uicheck-' | Out-Null
     Check 'no test files are left' ((Cmd 'uitext CharListRange') -match "text='0개'")
     Press 'CharQueryClear' | Out-Null; Press 'Close' | Out-Null
+  }
+  'fateguard' {
+    # 05 문서 31절. 역천개명 분류의 운명을 "운명 추가"로 붙여도 경지별 역천개명 기록은 그대로여야 한다.
+    # 게임의 추가 행동이 그 번호를 지금 대경지의 기록에 덮어쓴다(30절의 실측).
+    $before = if ((Cmd 'cstate' 200) -match 'fates=(\S+)') { $Matches[1] } else { '' }
+    if ($before -eq 'none' -or $before -eq '') { 'INFO no fate record in this save; not exercised' }
+    else {
+      $o = Cmd 'cluck3' 400
+      $after = if ((Cmd 'cstate' 200) -match 'fates=(\S+)') { $Matches[1] } else { '' }
+      Check 'the luck was added' ($o -match 'has=True\s*$') $o
+      Check 'adding a fate-class luck leaves the fate records alone' ($after -eq $before) "before=$before after=$after"
+    }
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
   'order' {
     $traps = Traps

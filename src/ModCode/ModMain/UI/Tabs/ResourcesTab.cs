@@ -10,7 +10,9 @@ namespace MOD_sWP6UL
     {
         private const float RowH = 32;
         private const float DetailH = 92;
-        private const float ColId = 8, ColCat = 110, ColName = 290, ColLevel = 560, ColOwned = 630, ColDesc = 710, ColGive = 1166;
+        // 설명이 가장 긴 글이라 가장 넓게 둔다(줄바꿈 뒤에도 한 화면에 여러 줄이 보이게).
+        private const float ColId = 8, ColCat = 100, ColName = 225, ColLevel = 432, ColOwned = 485, ColDesc = 550, ColGive = 1166;
+        private const float CatW = 120, NameW = 200, DescW = 605;
 
         private readonly ListView<ItemCatalog.Entry> list = new ListView<ItemCatalog.Entry>("ItemTable", RowH);
         private readonly DetailPane detail = new DetailPane("ItemDetail", "아이템명을 누르면 여기에 전체 설명이 나옵니다.");
@@ -162,16 +164,16 @@ namespace MOD_sWP6UL
             // 표 머리
             Ui.Panel("ItemHead", content, 0, top, ContentW, 30, Ui.Section);
             Ui.Label(content, "번호", ColId, top, 100, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "카테고리", ColCat, top, 170, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "아이템명", ColName, top, 260, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "품질", ColLevel, top, 60, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "보유", ColOwned, top, 70, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "설명", ColDesc, top, 440, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "카테고리", ColCat, top, CatW, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "아이템명", ColName, top, NameW, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "품질", ColLevel, top, 50, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "보유", ColOwned, top, 60, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "설명", ColDesc, top, DescW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "지급", ColGive, top, 116, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
             top += 32;
 
             // 표 본문과 이동 줄, 그 아래에 고른 아이템의 전체 설명
-            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Desc, 440, 15), Ui.TextHeight(entry.Name, 262, 19), Ui.TextHeight(entry.SubTypeName, 175, 16));
+            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Desc, DescW, 15), Ui.TextHeight(entry.Name, NameW, 19), Ui.TextHeight(entry.SubTypeName, CatW, 16));
             list.Build(content, 0, top, ContentW, ContentH - DetailH - 8 - top, Found(), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
@@ -180,11 +182,11 @@ namespace MOD_sWP6UL
         {
             float h = row.sizeDelta.y;
             Ui.Label(row, entry.Id.ToString(), ColId, 0, 100, h, 16);
-            Ui.Wrapped(row, entry.SubTypeName, ColCat, 0, 175, h, 16);
-            WrapLabel(Ui.Button("ItemName" + entry.Id, row, entry.Name, ColName, 2, 262, h - 4, new Action(() => detail.Show(Detail(entry)))));
-            Ui.Label(row, entry.Level.ToString(), ColLevel, 0, 60, h, 16);
-            Ui.Label(row, Player.data.unitData.propData.GetPropsNum(entry.Id).ToString(), ColOwned, 0, 70, h, 16);
-            Text desc = Ui.Wrapped(row, entry.Desc, ColDesc, 0, 440, h, 15);
+            Ui.Wrapped(row, entry.SubTypeName, ColCat, 0, CatW, h, 16);
+            WrapLabel(Ui.Button("ItemName" + entry.Id, row, entry.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(Detail(entry)))));
+            Ui.Label(row, entry.Level.ToString(), ColLevel, 0, 50, h, 16);
+            Ui.Label(row, Player.data.unitData.propData.GetPropsNum(entry.Id).ToString(), ColOwned, 0, 60, h, 16);
+            Text desc = Ui.Wrapped(row, entry.Desc, ColDesc, 0, DescW, h, 15);
             desc.color = Ui.Dim;
             desc.gameObject.name = "ItemDesc" + entry.Id;
             int amount = AmountBar.Get("item");

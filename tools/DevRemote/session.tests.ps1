@@ -103,6 +103,57 @@ $before = Tree $b.save
 $o = Run $b $busy @{ End = 'x' }
 Check 'End while a foreign game is running is refused' ($o -match '^THROWN' -and (Tree $b.save) -eq $before -and (Test-Path "$($b.work)\session.name")) $o
 
+# 12. 없는 고정본을 주면 -Begin을 거부하고 아무것도 남기지 않는다
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; Fixture = 'nope' }
+Check 'Begin with a missing fixture is refused' ($o -match '^THROWN' -and -not (Test-Path "$($b.work)\save-backup-x") -and -not (Test-Path "$($b.work)\session.name")) $o
+
+# 13. 고정본을 주면 회차 동안 세이브가 고정본의 내용이 되고, 사용자의 세이브는 복사본에 남는다
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.work)\fixtures\base\slot1")
+[IO.File]::WriteAllText("$($b.work)\fixtures\base\DataGloble.cache", 'fixture-global')
+[IO.File]::WriteAllText("$($b.work)\fixtures\base\slot1\a.cache", 'fixture-a')
+$mine = Tree $b.save
+$o = Run $b $none @{ Begin = 'x'; Fixture = 'base' }
+Check 'Begin with a fixture plays on the fixture' ($o -match 'FIXTURE LOADED' -and (Tree $b.save) -eq (Tree "$($b.work)\fixtures\base") -and (Tree "$($b.work)\save-backup-x") -eq $mine) $o
+
+# 14. 고정본으로 놀다 끝내면 세이브는 회차 전의 사용자 것으로 돌아오고, 고정본은 바뀌지 않는다
+[IO.File]::WriteAllText("$($b.save)\slot1\a.cache", 'fixture-a-changed-by-the-test')
+$fixtureBefore = Tree "$($b.work)\fixtures\base"
+$o = Run $b $none @{ End = 'x' }
+Check 'End after a fixture restores the user save' ($o -match 'SAVE RESTORED AND IDENTICAL' -and (Tree $b.save) -eq $mine -and (Tree "$($b.work)\fixtures\base") -eq $fixtureBefore) $o
+
+# 15. -End는 오래된 회차의 복사본을 지우고 최근 다섯 회차의 것만 남긴다(고정본은 건드리지 않는다)
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.work)\fixtures\base")
+[IO.File]::WriteAllText("$($b.work)\fixtures\base\keep.txt", 'fixture')
+for ($n = 1; $n -le 7; $n++) {
+  foreach ($kind in 'save-backup', 'save-before-restore') {
+    $old = "$($b.work)\$kind-old$n"
+    [void][IO.Directory]::CreateDirectory($old); [IO.File]::WriteAllText("$old\f.txt", "$n")
+    (Get-Item -LiteralPath $old).LastWriteTime = (Get-Date).AddDays(-10).AddMinutes($n)
+  }
+}
+[void](Run $b $none @{ Begin = 'x' })
+$o = Run $b $none @{ End = 'x' }
+$left = @(Get-ChildItem -LiteralPath $b.work -Directory | Where-Object { $_.Name -match '^save-(backup|before-restore)-' } | ForEach-Object Name | Sort-Object)
+Check 'End keeps the copies of the five newest sessions only' ($o -match 'SAVE RESTORED' -and $left.Count -eq 10 -and ($left -contains 'save-backup-x') -and ($left -contains 'save-backup-old7') -and ($left -contains 'save-backup-old4') -and -not ($left -contains 'save-backup-old3') -and (Test-Path "$($b.work)\fixtures\base\keep.txt")) ($left -join ',')
+
+# 16. -End는 회차 동안 모드가 만든 세이브 자동 백업을 지우고, 회차 전부터 있던 백업은 남긴다
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.data)\backups\before-session"); [IO.File]::WriteAllText("$($b.data)\backups\before-session\s.txt", 'mine')
+[void](Run $b $none @{ Begin = 'x' })
+[void][IO.Directory]::CreateDirectory("$($b.data)\backups\made-by-the-test"); [IO.File]::WriteAllText("$($b.data)\backups\made-by-the-test\s.txt", 'test')
+$o = Run $b $none @{ End = 'x' }
+Check 'End removes the mod backups the session made' ($o -match 'SAVE RESTORED' -and (Test-Path "$($b.data)\backups\before-session\s.txt") -and -not (Test-Path "$($b.data)\backups\made-by-the-test")) $o
+# 17. -End는 모드의 설정 파일(config.txt: 창 위치)을 회차 전의 내용으로 되돌린다. 창을 옮기는 검사가 중간에 끝나도 사용자의 창 위치가 남지 않게
+$b = NewBox
+[IO.File]::WriteAllText("$($b.data)\config.txt", 'hotkey=Insert')
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\config.txt", "hotkey=Insert`nwindow=260,160")
+[IO.File]::WriteAllText("$($b.work)\check-config.txt", 'left by a stopped check')
+$o = Run $b $none @{ End = 'x' }
+Check 'End restores config.txt' ($o -match 'SAVE RESTORED' -and [IO.File]::ReadAllText("$($b.data)\config.txt") -eq 'hotkey=Insert' -and -not (Test-Path "$($b.work)\check-config.txt")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }

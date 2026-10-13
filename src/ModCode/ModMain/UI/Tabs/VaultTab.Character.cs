@@ -32,7 +32,7 @@ namespace MOD_sWP6UL
             {
                 return charPacks;
             }
-            return charPacks.FindAll(p => p.Name.Contains(charQuery) || System.IO.Path.GetFileName(p.File).Contains(charQuery));
+            return charPacks.FindAll(p => Matches(p.Name, charQuery) || Matches(System.IO.Path.GetFileName(p.File), charQuery));
         }
 
         private static string UnreadableChar(CharacterExportService.Pack pack)
@@ -187,7 +187,7 @@ namespace MOD_sWP6UL
                     }
                     break;
             }
-            return charItemQuery.Length == 0 ? lines : lines.FindAll(l => l.Search.Contains(charItemQuery));
+            return charItemQuery.Length == 0 ? lines : lines.FindAll(l => Matches(l.Search, charItemQuery));
         }
 
         // 줄에서 가장 긴 글(이름이나 효과)의 높이로 줄 높이를 정한다.
@@ -330,7 +330,7 @@ namespace MOD_sWP6UL
                         Ui.Label(row, art.KindName, 8, 0, 110, h, 16).color = Ui.Dim;
                         Ui.Wrapped(row, art.Name, 125, 0, 400, h, 17);
                         Ui.Label(row, art.Id.ToString(), 540, 0, 120, h, 16).color = Ui.Dim;
-                        LineEnd(row, "CharGetArt" + at, learned ? "배움" : "-", art.Problem, learned ? "배움" : "가져오기", !learned,
+                        LineEnd(row, "CharGetArt" + at, learned ? "배움" : "-", CharacterExportService.Why(art), learned ? "배움" : "가져오기", !learned,
                             new Action(() => Say(CharacterExportService.ImportArt(pack, at))));
                         break;
                     }
@@ -342,7 +342,7 @@ namespace MOD_sWP6UL
                         Ui.Wrapped(row, luck.Name, 85, 0, 240, h, 17);
                         Ui.Wrapped(row, LuckTips(luck.Id), 335, 0, 560, h, 15).color = Ui.Dim;
                         bool born = line.Born;
-                        LineEnd(row, (born ? "CharGetBorn" : "CharGetAdd") + at, has ? "보유" : "-", luck.Problem, has ? "보유" : "가져오기", !has,
+                        LineEnd(row, (born ? "CharGetBorn" : "CharGetAdd") + at, has ? "보유" : "-", has ? null : CharacterExportService.Why(luck), has ? "보유" : "가져오기", !has,
                             new Action(() => Say(born ? CharacterExportService.ImportBornLuck(pack, at) : CharacterExportService.ImportAddLuck(pack, at))));
                         break;
                     }
@@ -354,7 +354,7 @@ namespace MOD_sWP6UL
                         Ui.Wrapped(row, fate.Name, 165, 0, 240, h, 17);
                         Ui.Wrapped(row, LuckTips(fate.Id), 415, 0, 480, h, 15).color = Ui.Dim;
                         // 상태 글에는 이름을 붙인다(검사가 "경지 미달"을 읽는다).
-                        LineEnd(row, "CharGetFate" + at, state, fate.Problem, state == "같음" ? "같음" : "가져오기", state == "다름",
+                        LineEnd(row, "CharGetFate" + at, state, CharacterExportService.Why(fate), state == "같음" ? "같음" : "가져오기", state == "다름",
                             new Action(() => Say(CharacterExportService.ImportFate(pack, at)))).gameObject.name = "CharFateState" + at;
                         break;
                     }
