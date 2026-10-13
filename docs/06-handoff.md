@@ -1,7 +1,7 @@
 # 06. 작업 인계 (2026-10-13 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
-세부 실험 기록은 `docs/05-editor-v0.1.md`(1~25절)에 있고, 이 문서는 그 길잡이다.
+세부 실험 기록은 `docs/05-editor-v0.1.md`(1~28절)에 있고, 이 문서는 그 길잡이다.
 
 **이어받는 순서**: 1절(상태)을 훑고 → 8절(다음에 할 일)을 읽고 → 일을 시작할 때 5절(검증 방법)과 6절(함정)을 본다.
 
@@ -11,19 +11,20 @@
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다.
 - 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
 - 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음).
-- 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-13 11:25 설치, 묶음 B 전체 포함. 그 뒤 `develop`에는 문서만 더해졌다).
+- 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-13 오후 설치, 묶음 C까지 포함).
 - 사용자의 세이브: 1번 슬롯(인물 "신환"). 시험 뒤에는 매번 시험 전 복사본으로 되돌렸다. 2026-10-12 밤(20:37~21:14)에 사용자가 설치본으로 직접 플레이하며 편집기를 썼다(영근·기예 +100, 가방 추가 칸 +90, 날짜 직접 지정, 선천운명 교체. `changes.log`에 남아 있다). 그래서 모드의 가방 칸 기록(`bag-slots.txt`)에 `kh3o73=90`이 있다. 검증 회차는 세이브와 이 파일을 시험 전 상태로 되돌린다.
-- 직전 작업: 묶음 B를 끝냈고(05 문서 26·27절), 묶음 C(가방 내보내기·가져오기)의 사전 실험과 설계 스펙(사용자 승인), 구현 계획까지 썼다. **계획은 사용자가 아직 승인하지 않았다.** 다음 세션은 계획의 승인을 받는 것부터 시작한다(8.4절). 코드는 묶음 B 이후로 바꾸지 않았다.
+- 직전 작업: 묶음 C(가방 내보내기·가져오기, 보관함 탭)를 끝냈다(05 문서 28절). 다음은 묶음 D(캐릭터 내보내기·가져오기)다(8.5절). 설계는 아직 시작하지 않았다.
 
 ## 2. 편집기 기능 지도
 
-탭 순서: 능력치 · 자원 · 화폐 · 경지 · 공법 · 운명 · 기예 · NPC · 세계 · 안전.
+탭 순서: 능력치 · 자원 · 화폐 · 보관함 · 경지 · 공법 · 운명 · 기예 · NPC · 세계 · 안전.
 
 | 탭 | 기능 | 코드 | 실험 기록(05 문서) |
 |---|---|---|---|
 | 능력치 | 게임 인물 화면의 다섯 분류(개인·전투·공법 자질·영근 자질·기예)로 저장값 편집, 증감 단위 1/10/100/1000/직접 입력, 자원 회복 | `AttributeCatalog`, `EditService.SetAttribute` | 5, 14, 15절 |
 | 자원 | 영석 추가, 아이템 표(번호·카테고리·이름·품질·보유·설명), 이름·카테고리 필터, 페이지당 10/20/50, 지급 수량, 가방 칸 ±10 | `ItemCatalog`, `EditService.GiveItem`, `BagService` | 14, 15, 25절 |
 | 화폐 | 영석과, 영석 말고도 화폐로 쓰이는 재화(종문 공헌, 생기, 사기, 정도의 기, 마도의 기, 성주령, 전공, 선우) 추가 | `ItemCatalog.Currencies`, `EditService.GiveItem`·`AddMoney` | 27절 |
+| 보관함 | 현재 가방(아이템, 장착 중인 것, 영석과 화폐)을 이름을 붙여 JSON 파일로 내보내기, 내보낸 것의 목록·세부, 하나씩 또는 모두 가져오기(칸이 모자라면 늘릴지 묻는다), 파일 삭제 | `BagExportService`, `Json`, `UI/Tabs/VaultTab` | 28절 |
 | 경지 | 수련치 채우기, 소경지 돌파, 대경지는 재료·천재지보 지급 후 게임의 돌파 화면 열기 | `EditService`(Breakthrough, GiveBreakthroughMaterials) | 8, 9, 20, 21절 |
 | 공법 | 익힌 공법 목록, 옵션 품질·교체, 숙련 경험치, 장착·해제·망각, 기술 추가(다섯 분류·경지·이름, 모두 배우기, 강제 추가) | `MartialService`, `SkillCatalog` | 7, 22, 23, 24절 |
 | 운명 | 선천운명 추가·교체·삭제, 후천운명 추가·삭제, 역천개명(경지별) 지정 | `LuckService`, `FateService` | 10, 15~19절 |
@@ -34,10 +35,10 @@
 
 공통 규칙:
 
-- 쓰기 전에 한 실행에 한 번 세이브 폴더를 백업한다(`SaveBackup.EnsureOnce`). 백업과 이력은 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox\`(`backups\`, `changes.log`, `config.txt`, `editor-lucks.txt`, `bag-slots.txt`).
+- 쓰기 전에 한 실행에 한 번 세이브 폴더를 백업한다(`SaveBackup.EnsureOnce`). 백업과 이력은 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox\`(`backups\`, `changes.log`, `config.txt`, `editor-lucks.txt`, `bag-slots.txt`, 내보내기 파일의 `exports\bag\`).
 - 쓰기 뒤에 값을 다시 읽어 이력에 남긴다. 다르면 "(재조회 불일치)"가 붙는다.
 - 되돌리기 어렵거나 게임이 붙인 것을 지우는 동작은 버튼을 두 번 눌러야 한다("정말 삭제", "정말 강제", "정말 변경" 등).
-- 능력치·공법·운명은 편집 대상(플레이어 또는 NPC)에, 자원·경지·기예·세계는 플레이어에 적용된다.
+- 능력치·공법·운명은 편집 대상(플레이어 또는 NPC)에, 자원·화폐·보관함·경지·기예·세계는 플레이어에 적용된다.
 - 켜고 끄는 기능(무적, 피해 배율, 날짜 고정)은 저장하지 않는다. 게임을 켤 때마다 꺼진 상태로 시작한다.
 - 편집기는 게임 화면 사이에 끼어 그려진다. 편집기를 연 뒤에 뜨는 게임 창은 편집기 위에 나오고, `Insert`는 가려진 편집기를 맨 앞으로 가져온다(맨 앞이면 닫는다). 켜 둔 기능은 화면 위쪽 가운데에 표시된다.
 - 게임 코드에 끼어드는 방법은 두 가지를 쓴다: 이벤트 구독(전투 보조)과 Harmony Prefix(날짜 고정, 처음 켤 때만 설치).
@@ -48,11 +49,11 @@
 |---|---|
 | `docs/00-design-brief.md` | 기획서(기준 문서) |
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
-| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~27절) |
+| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~28절) |
 | `docs/06-handoff.md` | 이 문서 |
-| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획. 사전 조사, 묶음 A(`2026-10-12-date-bag*`), 묶음 B(`2026-10-13-ui-rework*`) |
+| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획. 사전 조사, 묶음 A(`2026-10-12-date-bag*`), 묶음 B(`2026-10-13-ui-rework*`), 묶음 C(`2026-10-13-bag-export*`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
-| `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다 |
+| `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기)와 `BagExportService.cs`(가방 내보내기·가져오기)도 여기 있다 |
 | `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀: 제목 줄·탭 줄·결과 영역·앞뒤 순서·이동·접기), `StatusOverlay.cs`(켜 둔 기능 표시), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(공통 부품: `ListView`, `SearchBox`, `DetailPane`, `Confirm`, `NumberField`, `AmountBar`) |
 | `src/ModCode/ModMain/Safety/` | 백업, 변경 이력 |
 | `src/ModCode/ModMain/Dev/` | 개발 빌드 전용 명령(배포 빌드에서 제외) |
@@ -96,7 +97,7 @@
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다(2026-10-13 실측, 묶음 B 스펙 3.4절).
 - `tools/research/datebag-check.ps1 -Part <이름>` — 날짜·가방의 자동 검증(PASS/FAIL). 부분은 `base`, `time`, `time-restart`, `freeze`, `bag`, `bag-restart`, `bag-corrupt`. `freeze`와 `bag`은 깨끗한 회차에서 시작하고, `time-restart`·`bag-restart`·`bag-corrupt`는 앞 부분 뒤에 `-Restart`를 하고 돌린다.
-- `tools/research/ui-check.ps1 -Part <이름>` — 편집기 화면의 자동 검증. 부분은 `base`, `tabs`, `items`(화폐 탭 포함), `numbers`, `people`, `history`, `confirm`, `actions`, `order`, `move`, `move-restart`, `move-corrupt`, `status`, `status-battle`, `battle`. `items`는 가방 추가 칸과 재화를, `actions`는 기술·운명·기예를 바꾼다(회차의 `-End`가 되돌린다). `history`는 `items` 뒤에 돌린다. `move-restart`와 `move-corrupt`는 앞 부분 뒤에 `-Restart`를 하고 돌린다. `battle`과 `status-battle`은 전투에 들어간 채로 끝나므로 각각 회차의 마지막에 돌리고 바로 `-End` 한다.
+- `tools/research/ui-check.ps1 -Part <이름>` — 편집기 화면의 자동 검증. 부분은 `base`, `tabs`, `items`(화폐 탭 포함), `numbers`, `people`, `history`, `confirm`, `actions`, `order`, `move`, `move-restart`, `move-corrupt`, `status`, `status-battle`, `battle`, `vault`, `vault-restart`. `items`는 가방 추가 칸과 재화를, `actions`는 기술·운명·기예를 바꾼다(회차의 `-End`가 되돌린다). `history`는 `items` 뒤에 돌린다. `move-restart`와 `move-corrupt`는 앞 부분 뒤에 `-Restart`를 하고 돌린다. `battle`과 `status-battle`은 전투에 들어간 채로 끝나므로 각각 회차의 마지막에 돌리고 바로 `-End` 한다. `vault-restart`는 `vault` 뒤에 `-Restart`를 하고 돌린다. `vault`가 만든 내보내기 파일은 이름이 `uicheck-`로 시작하고 검사가 지운다(내보내기 폴더는 세이브 밖이라 회차가 되돌리지 않는다. 멈췄으면 그 이름의 파일만 손으로 지운다).
 
 편집기의 버튼은 좌표가 아니라 이름으로 찾는다. `mod.ps1 -Cmd "uipos <이름>"`이 가운데의 게임 좌표를 준다(이름 끝의 `*`는 "이 글자로 시작"). 검증 스크립트에서는 `check-lib.ps1`의 `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지)을 쓴다. `uistate`가 창의 상태(켜 둔 기능 표시, 열림, 탭, 대상, 방식, 정렬, 가려짐, 위치, 접힘, 결과 문구)를 주고, `uitoggle`이 단축키와 같은 동작을 한다. 그 밖에 `uitext`, `uifocus`, `uidrag`, `uiopen`·`uiclose <게임 화면>`, `uilist`, `uicanvas`, `uitarget`, `uisay`, `uiraise`, `uicollapse`(`Dev/DevCommandsUi.cs`).
 
@@ -184,8 +185,8 @@ PowerShell과 도구:
 |---|---|---|
 | A | 날짜 고정·변경, 가방 칸 ±10 (요청 1, 2) | 끝남. 스펙·계획 `docs/superpowers/*/2026-10-12-date-bag*`, 기록 05 문서 25절 |
 | B | 화면 구조 정리와 탭별 UI/UX 개선 (요청 3) | 끝남. 스펙 `2026-10-13-ui-rework-design.md`, 계획 `2026-10-13-ui-rework-1-shell.md`·`-2-widgets.md`, 기록 05 문서 26·27절 |
-| C | 가방 내보내기·가져오기 (요청 4) | **진행 중.** 스펙 승인(2026-10-13), 구현 계획 작성·**사용자 승인 대기**. 코드는 아직 없다(8.4절) |
-| D | 캐릭터 내보내기·가져오기 (요청 5) | C 다음. C의 저장소와 화면을 재사용 |
+| C | 가방 내보내기·가져오기 (요청 4) | 끝남. 스펙 `2026-10-13-bag-export-design.md`, 계획 `2026-10-13-bag-export.md`, 기록 05 문서 28절 |
+| D | 캐릭터 내보내기·가져오기 (요청 5) | **다음 차례.** 설계 시작 전(8.5절). C의 보관함 탭, `Json`, 파일 폴더를 재사용 |
 
 요청 6(그 밖에 추가·개선할 기능 검토)은 따로 묶지 않았다. 각 묶음을 설계할 때 그 영역의 후보를 함께 제시하고, 어디에도 들어가지 않는 것은 마지막에 목록으로 낸다. B를 C·D보다 앞에 둔 이유는, C·D에 "목록 → 세부 → 개별 가져오기" 같은 여러 단계의 새 화면이 필요해 지금의 한 파일 구조에 얹으면 다시 손봐야 하기 때문이다.
 
@@ -250,18 +251,24 @@ B에서 지킬 것:
 
 ### 8.4 묶음 C — 가방 내보내기·가져오기
 
-**지금 상태**: 스펙은 승인됐고, 구현 계획을 써서 사용자에게 보였으나 답을 받기 전에 세션을 넘겼다. 코드는 한 줄도 쓰지 않았다(`feat/bag-export` 브랜치도 아직 없다).
+**끝났다**(2026-10-13). 계획은 사용자가 승인했고("진행") Native 방식으로 실행했다. 기록은 05 문서 28절.
 
-- 스펙: `docs/superpowers/specs/2026-10-13-bag-export-design.md` (승인, 2026-10-13)
-- 계획: `docs/superpowers/plans/2026-10-13-bag-export.md` (**미승인**. 사용자가 읽을 수 있게 `develop`에 넣어 두었을 뿐이다)
+- 스펙: `docs/superpowers/specs/2026-10-13-bag-export-design.md`
+- 계획: `docs/superpowers/plans/2026-10-13-bag-export.md`
 - 사전 실험: 회차 `bagx-r1`·`bagx-r2`, 결과는 스펙 3절. 실험 명령은 `feat/bag-export-research` 브랜치의 `Dev/DevCommandsBag.cs`(`develop`에 병합하지 않음)
 
-**다음 세션이 할 일**
+**묶음 D가 다시 쓸 것**
 
-1. 사용자에게 계획의 승인을 묻는다("승인"이면 진행, 고칠 곳이 있으면 계획을 고친다). 실행 방식은 지금까지와 같은 Native(`/superpowers:executing-plans`)로 하겠다고 알렸고, 사용자는 묶음 B의 두 계획 모두 그 방식을 골랐다.
-2. 승인되면 계획의 Task 1부터 실행한다. 계획은 `develop`에서 `feat/bag-export`를 만드는 것으로 시작한다.
-3. 게임이 켜져 있으면 끄도록 알리고 기다린다(회차를 6번쯤 연다).
+- 보관함 탭(`UI/Tabs/VaultTab.cs`): 목록 → 세부(`Push`) → 줄마다 가져오기의 모양. D의 캐릭터 내보내기도 이 탭에 얹기로 했다(스펙 2절).
+- `Services/Json.cs`: `Json.Parse`(틀리면 `FormatException`, 겹침 64단까지), `Json.Quote`. 쓰기는 문자열을 직접 이어 붙인다.
+- 파일 폴더: `TlToybox\exports\bag\`. D는 `exports\` 아래에 다른 폴더를 쓰고 `kind`를 다르게 적는다(`BagExportService.Read`는 `kind`가 `bag`이 아니면 "읽을 수 없음"으로 본다).
+- 읽기의 규칙: 파일 전체가 틀리면 "읽을 수 없음", 줄 하나가 틀리면 그 줄만 건너뛴다. 넣은 뒤에는 실제로 들어갔는지 다시 읽어 확인한다.
 
+**구현에서 알게 된 것** (05 문서 28절에 전부 있다)
+
+- 영석과 화폐는 가방의 `allProps`에도 한 종에 한 줄로 들어 있다. 아이템으로도 담으면 가져올 때 두 배가 된다(최종 검토에서 발견해 고쳤다). 가방을 순회하는 코드를 새로 쓸 때 조심한다.
+- `PropsData.New`는 내용 없는 비급도 예외 없이 만든다. 값을 검사하고 넣는다.
+- `datebag-check.ps1 -Part freeze` 뒤에 같은 회차에서 `ui-check.ps1 -Part battle`을 돌리면 전투에 들어가지 못한다. `battle`은 다른 회차에서 돌린다.
 **사용자와 정한 것** (스펙 2절)
 
 - 용도는 아이템 묶음 보관과, 다른 세이브·새 인물로 옮기기다.
@@ -275,13 +282,7 @@ B에서 지킬 것:
 - 아이템은 `PropsData.New(propsID, propsCount, propsType, values의 넷째 칸부터)` + `DataProps.AddProps(PropsData)`로 원본과 같게 다시 만들어진다. `values` 전체를 넘기면 머리 세 칸(종류, 번호, 수량)이 두 번 들어간다.
 - 가방이 가득 차면 겹쳐지지 않는 아이템은 예외 없이 안 들어간다. 넣은 뒤 수를 다시 읽어야 안다. 겹쳐지는 아이템은 가득 차 있어도 합쳐진다.
 - `RewardPropItem`을 가득 찬 가방에서 겹쳐지지 않는 아이템에 부르자 개발 명령 통로가 멈췄다(원인 미확인). 가져오기는 이 경로를 재화에만 쓴다.
-- 미확인: 강화·옵션이 붙은 장비, 가져온 비급을 실제로 배우는 동작, 법보 같은 특수 아이템, 다른 세이브로 옮기기(세이브가 하나뿐이다).
-
-**계획을 실행할 때 주의할 것**
-
-- 계획의 코드는 게임에서 한 번도 돌려 보지 않았다. 묶음 B에서는 계획의 코드가 대부분 그대로 통과했지만 검증 스크립트 쪽에서 고칠 것이 여러 번 나왔다(6절의 함정 참고).
-- 검사가 만드는 내보내기 파일은 이름이 `uicheck-`로 시작한다. 내보내기 폴더(`TlToybox\exports\bag`)는 세이브 밖이라 회차가 되돌리지 않으므로 검사가 직접 지운다. 멈췄으면 그 이름의 파일만 손으로 지운다.
-- 보관함이 `Tab3`으로 들어가면 검증 스크립트의 탭 번호가 또 하나씩 밀린다(계획 Task 1 Step 1).
+- 미확인: 강화·옵션이 붙은 장비, 가져온 비급을 실제로 배우는 동작, 법보 같은 특수 아이템, 다른 세이브로 옮기기(세이브가 하나뿐이다). 사용자에게 직접 써 보기를 부탁했다.
 
 ### 8.5 묶음 D — 캐릭터 내보내기·가져오기
 
@@ -308,6 +309,7 @@ B에서 지킬 것:
 - 실험 브랜치 셋(`feat/date-bag-research` 포함)을 지울지 사용자에게 여러 번 물었고 답을 받지 못했다. 답이 올 때까지 둔다.
 - `.devremote`에 회차별 세이브 복사본(`save-backup-*`, `save-before-restore-*`)이 112개 쌓여 있고(2026-10-13 기준), 모드의 자동 백업(`TlToybox\backups\`)도 72개다. 정리할지 사용자에게 여러 번 물었고 답을 받지 못했다. 임의로 지우지 않는다.
 - 요청 6번(그 밖의 추가·개선 후보)으로 모아 둔 것: 아이템·영석 줄이기.
+- 묶음 C의 최종 검토에서 사소하다고 보고 고치지 않은 것: 보관함 머리에 지금 가방의 칸 수(스펙 5.3절의 "가방 89/154")를 보이지 않음, 모두 가져오기의 결과가 못 넣은 것의 이름만 보이고 수량과 건너뛴 줄의 이유는 보이지 않음, 화폐가 오르지 않은 경우도 "못 넣음"에 함께 묶임, 아이템 수량의 `int` 넘침 검사 없음, 겹쳐지지 않는 아이템에 수량 2 이상을 적은 줄, 세이브 밖에서 남은 가져오기 버튼, Windows 예약 파일 이름, 목록 검색이 대소문자를 가림.
 - 사용자에게 직접 확인을 부탁했고 아직 답을 받지 못한 것(도구로 시험할 수 없다): 실제 마우스로 제목 줄 끌기, `Insert`를 빠르게 여러 번, 한글 입력기로 검색 칸에 입력, 마우스 휠과 스크롤 막대로 긴 목록 넘기기. 다음에 사용자가 써 본 이야기를 하면 결과를 05 문서 26·27절의 "확인하지 못한 것"에 적는다.
 - 묶음 B의 최종 검토에서 사소하다고 보고 고치지 않은 것(사용자에게 보고했고 지시는 없었다): 16:9보다 넓은 화면에서 창을 아래로 끌면 제목 줄이 화면 밖으로 나갈 수 있음, UI 카메라가 한 번 사라지면 다시 열 때까지 덧그리기 방식으로 남음, 목록 맨 아래에서 다음 줄이 조금 덜 그려질 수 있음, 삭제·교체 뒤 상세 칸에 이전 글이 남음, NPC 목록의 거리가 목록을 만든 시점의 값임, 숫자 칸의 안내 글이 빠짐, 변경 이력 파일을 탭에 들어올 때마다 통째로 읽음.
 - 7절의 "고치지 않은 것" 다섯 가지.
