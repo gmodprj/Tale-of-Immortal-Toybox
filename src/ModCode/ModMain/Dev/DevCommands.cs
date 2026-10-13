@@ -104,6 +104,8 @@ namespace MOD_sWP6UL
                         + " luck saved=" + saved.luck + " value=" + dyn.luck.value
                         + " props=" + props.allProps.Count + " grid=" + props.GetGridCurNum() + "/" + props.GetGridMaxNum()
                         + " worldDay=" + g.data.world.worldDay;
+                case "fame":
+                    return "fame saved=" + saved.reputation + " value=" + dyn.reputation.value;
                 case "count":
                     return "propsID=" + p[1] + " count=" + props.GetPropsNum(int.Parse(p[1]));
                 case "money":

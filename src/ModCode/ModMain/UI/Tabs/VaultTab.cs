@@ -89,24 +89,33 @@ namespace MOD_sWP6UL
             Ui.Label(content, "인물", 495, 96, 110, 30, 16).color = Ui.Dim;
             Ui.Label(content, "아이템", 610, 96, 55, 30, 16).color = Ui.Dim;
             Ui.Label(content, "화폐", 668, 96, 45, 30, 16).color = Ui.Dim;
+            list.HeightOf = pack => pack.Error != null
+                ? RowFor(40, Ui.TextHeight(Unreadable(pack), ContentW - Ui.ScrollBarWidth - 158, 16))
+                : RowFor(40, Ui.TextHeight(pack.Name, 290, 20), Ui.TextHeight(pack.Character, 110, 16));
             list.Build(content, 0, 128, ContentW, ContentH - 128, Found(), DrawRow);
+        }
+
+        private static string Unreadable(BagExportService.Pack pack)
+        {
+            return "(읽을 수 없음) " + System.IO.Path.GetFileName(pack.File) + " — " + pack.Error;
         }
 
         private void DrawRow(RectTransform row, BagExportService.Pack pack, int index)
         {
             float right = ContentW - Ui.ScrollBarWidth;
+            float h = row.sizeDelta.y;
             if (pack.Error != null)
             {
-                Text bad = Ui.Label(row, "(읽을 수 없음) " + System.IO.Path.GetFileName(pack.File) + " — " + Shorten(pack.Error, 40), 8, 0, right - 150, 40, 16);
+                Text bad = Ui.Wrapped(row, Unreadable(pack), 8, 0, right - 158, h, 16);
                 bad.color = Ui.Warn;
             }
             else
             {
-                Ui.Label(row, Shorten(pack.Name, 14), 8, 0, 290, 40);
-                Ui.Label(row, pack.Date, 300, 0, 190, 40, 16);
-                Ui.Label(row, Shorten(pack.Character, 6), 495, 0, 110, 40, 16);
-                Ui.Label(row, pack.Items.Count.ToString(), 610, 0, 55, 40, 16);
-                Ui.Label(row, pack.Currencies.Count.ToString(), 668, 0, 45, 40, 16);
+                Ui.Wrapped(row, pack.Name, 8, 0, 290, h);
+                Ui.Label(row, pack.Date, 300, 0, 190, h, 16);
+                Ui.Wrapped(row, pack.Character, 495, 0, 110, h, 16);
+                Ui.Label(row, pack.Items.Count.ToString(), 610, 0, 55, h, 16);
+                Ui.Label(row, pack.Currencies.Count.ToString(), 668, 0, 45, h, 16);
                 Ui.Button("VaultOpen" + index, row, "세부", right - 566, 3, 90, 34, new Action(() =>
                 {
                     opened = pack;
@@ -189,30 +198,32 @@ namespace MOD_sWP6UL
             Ui.Label(content, "종류", 670, y + 46, 100, 30, 16).color = Ui.Dim;
             Ui.Label(content, "장착", 780, y + 46, 80, 30, 16).color = Ui.Dim;
             float top = y + 78;
+            detailList.HeightOf = line => RowFor(34, Ui.TextHeight(line.IsMoney ? opened.Currencies[line.Index].Name : opened.Items[line.Index].Name, 400, 17));
             detailList.Build(content, 0, top, ContentW, ContentH - top, DetailLines(), DrawDetailRow);
         }
 
         private void DrawDetailRow(RectTransform row, Line line, int index)
         {
             float right = ContentW - Ui.ScrollBarWidth;
+            float h = row.sizeDelta.y;
             BagExportService.Pack pack = opened;
             if (line.IsMoney)
             {
                 BagExportService.Money money = pack.Currencies[line.Index];
-                Ui.Label(row, money.Id.ToString(), 8, 0, 110, 34, 16);
-                Ui.Label(row, Shorten(money.Name, 24), 130, 0, 400, 34, 17);
-                Ui.Label(row, money.Count.ToString(), 540, 0, 120, 34, 16);
-                Ui.Label(row, "화폐", 670, 0, 100, 34, 16).color = Ui.Warn;
+                Ui.Label(row, money.Id.ToString(), 8, 0, 110, h, 16);
+                Ui.Wrapped(row, money.Name, 130, 0, 400, h, 17);
+                Ui.Label(row, money.Count.ToString(), 540, 0, 120, h, 16);
+                Ui.Label(row, "화폐", 670, 0, 100, h, 16).color = Ui.Warn;
                 int at = line.Index;
                 Ui.Button("VaultGetC" + at, row, "가져오기", right - 128, 2, 120, 30, new Action(() => Say(BagExportService.ImportCurrency(pack, at))));
                 return;
             }
             BagExportService.Item item = pack.Items[line.Index];
-            Ui.Label(row, item.Martial ? "-" : item.Id.ToString(), 8, 0, 110, 34, 16);
-            Ui.Label(row, Shorten(item.Name, 24), 130, 0, 400, 34, 17);
-            Ui.Label(row, item.Count.ToString(), 540, 0, 120, 34, 16);
-            Ui.Label(row, item.Martial ? "비급" : "아이템", 670, 0, 100, 34, 16);
-            Ui.Label(row, item.Equipped ? "장착 중" : "", 780, 0, 80, 34, 16).color = Ui.Warn;
+            Ui.Label(row, item.Martial ? "-" : item.Id.ToString(), 8, 0, 110, h, 16);
+            Ui.Wrapped(row, item.Name, 130, 0, 400, h, 17);
+            Ui.Label(row, item.Count.ToString(), 540, 0, 120, h, 16);
+            Ui.Label(row, item.Martial ? "비급" : "아이템", 670, 0, 100, h, 16);
+            Ui.Label(row, item.Equipped ? "장착 중" : "", 780, 0, 80, h, 16).color = Ui.Warn;
             int itemAt = line.Index;
             Ui.Button("VaultGet" + itemAt, row, "가져오기", right - 128, 2, 120, 30, new Action(() => Say(BagExportService.ImportItem(pack, itemAt))));
         }

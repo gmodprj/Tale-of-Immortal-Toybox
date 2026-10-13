@@ -92,13 +92,15 @@ namespace MOD_sWP6UL
                 : "기록 파일을 읽지 못해 이번 실행의 기록만 보입니다(" + readError + ").", 460, 114, 840, 38, 15);
             note.color = readError == null ? Ui.Dim : Ui.Warn;
 
+            list.HeightOf = line => RowFor(RowH, Ui.TextHeight(line, ContentW - 40, 16));
             list.Build(content, 0, 158, ContentW, ContentH - 158 - DetailH - 8, Found(), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
 
         private void DrawRow(RectTransform row, string line, int index)
         {
-            Text text = Ui.Label(row, Shorten(line, 92), 8, 0, ContentW - 40, RowH, 16);
+            Text text = Ui.Wrapped(row, line, 8, 0, ContentW - 40, row.sizeDelta.y, 16);
+            text.gameObject.name = "HistoryLine" + index;
             // 쓴 뒤 다시 읽은 값이 달랐던 기록
             if (line.Contains("(재조회 불일치)"))
             {

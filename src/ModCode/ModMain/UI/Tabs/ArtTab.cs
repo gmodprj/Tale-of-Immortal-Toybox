@@ -56,6 +56,7 @@ namespace MOD_sWP6UL
             Ui.Label(content, "상태", ColState, 98, 100, 30, 16).color = Ui.Dim;
             Ui.Label(content, "설명", ColDesc, 98, 500, 30, 16).color = Ui.Dim;
 
+            list.HeightOf = book => RowFor(RowH, Ui.TextHeight(book.Desc, 560, 15), Ui.TextHeight(book.Name, 305, 17));
             list.Build(content, 0, 130, ContentW, ContentH - 130 - DetailH - 8, ArtService.Books(kind, query), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
@@ -66,12 +67,15 @@ namespace MOD_sWP6UL
             bool learned = ArtService.Learned(kind, book.Id);
             // 배우지 않은 것은 지금 배울 수 있는지 게임에 물어 본다.
             string blocked = learned ? null : ArtService.BlockReason(kind, book.Id);
-            Ui.Label(row, book.Id.ToString(), ColId, 0, 100, RowH, 16);
-            Ui.Label(row, Shorten(book.Name, 15), ColName, 0, 305, RowH, 17);
-            Ui.Label(row, book.Level.ToString(), ColLevel, 0, 60, RowH, 16);
-            Text state = Ui.Label(row, learned ? "배움" : blocked != null ? "배울 수 없음" : "-", ColState, 0, 110, RowH, 15);
+            float h = row.sizeDelta.y;
+            Ui.Label(row, book.Id.ToString(), ColId, 0, 100, h, 16);
+            Ui.Wrapped(row, book.Name, ColName, 0, 305, h, 17);
+            Ui.Label(row, book.Level.ToString(), ColLevel, 0, 60, h, 16);
+            Text state = Ui.Label(row, learned ? "배움" : blocked != null ? "배울 수 없음" : "-", ColState, 0, 110, h, 15);
             state.color = learned ? Ui.Warn : Ui.Dim;
-            Ui.Label(row, Shorten(book.Desc, 32), ColDesc, 0, 560, RowH, 15).color = Ui.Dim;
+            Text desc = Ui.Wrapped(row, book.Desc, ColDesc, 0, 560, h, 15);
+            desc.color = Ui.Dim;
+            desc.gameObject.name = "ArtDesc" + book.Id;
             string name = "ArtAct" + book.Id;
             if (learned)
             {

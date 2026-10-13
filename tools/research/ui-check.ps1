@@ -605,6 +605,96 @@ switch ($Part) {
     Check 'the vault opens with no test files left' ((Cmd 'ui set VaultQuery uicheck-') -ne $null -and (Cmd 'uitext VaultListRange') -match "text='0개'")
     Press 'VaultQueryClear' | Out-Null; Press 'Close' | Out-Null
   }
+  'wrap' {
+    # 05 문서 29절. 목록의 글은 말줄임 없이 줄바꿈되어 전부 보이고, 줄의 높이가 글에 맞춰 늘어난다. 화폐 탭의 명성.
+    $traps = Traps
+    function TextIn([string]$name) { $o = Cmd "uitext $name" 100; if ($o -match "(?s) text='(.*)'\s*$") { $Matches[1] } else { '' } }
+    function Box([string]$name) {
+      $o = Cmd "uipos $name" 100
+      if ($o -notmatch ' at (-?\d+),(-?\d+) size=(\d+),(\d+)') { return $null }
+      [pscustomobject]@{ top = [int]$Matches[2] - [int]$Matches[4] / 2; h = [int]$Matches[4] }
+    }
+    Cmd 'editor' | Out-Null
+
+    # 화폐 탭: 설명이 잘리지 않는다(정도의 기 10031의 설명은 44자를 넘는다)
+    Press 'Tab2' | Out-Null
+    $d = TextIn 'CurrencyDesc10031'
+    Check 'a currency description is whole' ($d.Length -gt 46 -and $d -notmatch '…') "len=$($d.Length) $d"
+    $a = Box 'CurrencyRow10031'; $b = Box 'CurrencyRow10032'
+    Check 'currency rows do not overlap' ($a -and $b -and $b.top -ge $a.top + $a.h - 1) "a=$($a.top)+$($a.h) b=$($b.top)"
+
+    # 화폐 탭의 명성: 추가량만큼 오르고 저장값(reputation)과 같다
+    $fame0 = if ((Cmd 'fame' 100) -match 'saved=(-?\d+)') { [int]$Matches[1] } else { -999 }
+    Check 'the fame row shows the saved value' ((TextIn 'CurrencyOwnedFame') -eq "$fame0") "row=$(TextIn 'CurrencyOwnedFame') saved=$fame0"
+    Press 'CurrencyAddFame' | Out-Null
+    $o = Cmd 'fame' 100
+    Check 'fame rises by the amount' ($o -match "saved=$($fame0 + 10) value=$($fame0 + 10)\b") $o
+    Check 'the fame row is redrawn' ((TextIn 'CurrencyOwnedFame') -eq "$($fame0 + 10)")
+    $hist = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Select-Object -Last 3) -join "`n"
+    Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + 10)") $hist
+
+    # 자원 탭: 보이는 줄마다 설명이 전부 들어 있고, 긴 설명의 줄은 더 높고, 줄이 서로 겹치지 않는다
+    Press 'Tab1' | Out-Null
+    $o = Cmd 'uitext ItemTableRange'
+    $shown = if ($o -match '중 1~(\d+)번째') { [int]$Matches[1] } else { 0 }
+    Check 'the item list shows rows' ($shown -ge 3) $o
+    $cut = 0; $tall = 0; $gaps = 0; $longest = 0; $prev = $null
+    for ($i = 0; $i -lt $shown; $i++) {
+      $row = Box "Row$i"
+      if ($prev -and [math]::Abs($row.top - ($prev.top + $prev.h)) -gt 1) { $gaps++ }
+      if ($row.h -gt 34) { $tall++ }
+      $prev = $row
+    }
+    $descs = @((Cmd 'uidescs ItemDesc' 300) -split "`n" | Where-Object { $_ -match '^ItemDesc\d+ ' })
+    foreach ($line in $descs) { if ($line -match '…') { $cut++ }; if ($line.Length -gt $longest) { $longest = $line.Length } }
+    Check 'item descriptions are whole' ($descs.Count -ge 3 -and $cut -eq 0 -and $longest -gt 40) "rows=$($descs.Count) cut=$cut longest=$longest"
+    Check 'rows with long text are taller' ($tall -ge 1) "tall=$tall of $shown"
+    Check 'rows sit one under another' ($gaps -eq 0) "gaps=$gaps"
+    Check 'the last shown row is inside the list' ((Box "Row$($shown - 1)") -and (IsAt (Pos 'ItemGive*').name))
+
+    # 이동: 다음은 다 보이지 않던 첫 줄에서 시작하고, 끝은 마지막 줄까지 간다
+    $total = if ($o -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }
+    Press 'ItemTableNext' | Out-Null
+    Check 'next starts at the first row that was not whole' ((Cmd 'uitext ItemTableRange') -match "중 $($shown + 1)~")
+    Press 'ItemTableLast' | Out-Null
+    Check 'last reaches the end' ((Cmd 'uitext ItemTableRange') -match "~$($total)번째")
+    $last = Box "Row$($total - 1)"; $view = Box 'ItemTable'
+    Check 'the last row ends at the bottom of the list' ($last -and $view -and [math]::Abs(($last.top + $last.h) - ($view.top + $view.h)) -le 2) "row=$($last.top)+$($last.h) view=$($view.top)+$($view.h)"
+    Press 'ItemTablePrev' | Out-Null; Press 'ItemTableFirst' | Out-Null
+    Check 'first returns to the top' ((Cmd 'uitext ItemTableRange') -match '중 1~')
+
+    # 다른 탭의 목록도 말줄임이 없다(기예, 운명 고르기, 기술 추가, 변경 이력)
+    Press 'Tab7' | Out-Null
+    $n = @((Cmd 'uidescs ArtDesc' 300) -split "`n" | Where-Object { $_ -match '^ArtDesc' })
+    Check 'art book descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
+    Press 'Tab6' | Out-Null; Press 'LuckAddOpen' | Out-Null
+    $n = @((Cmd 'uidescs LuckTips' 300) -split "`n" | Where-Object { $_ -match '^LuckTips' })
+    Check 'luck effects are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
+    Press 'Back' | Out-Null
+    # 공법의 옵션: 글이 전부 들어 있고, 줄바꿈으로 높아진 옵션 줄이 아래의 장착 버튼과 겹치지 않는다
+    Press 'Tab5' | Out-Null; Press 'PickMartial1' | Out-Null
+    $bottom = 0; $cut = 0; $opts = 0
+    for ($i = 0; $i -lt 6; $i++) {
+      $b = Box "OptionText$i"
+      if ($b) { $opts++; if ($b.top + $b.h -gt $bottom) { $bottom = $b.top + $b.h }; if ((TextIn "OptionText$i") -match '…') { $cut++ } }
+    }
+    $equip = Box 'MartialEquip'
+    Check 'martial options are whole and above the equip button' ($opts -ge 1 -and $cut -eq 0 -and $equip -and $bottom -le $equip.top) "options=$opts cut=$cut bottom=$bottom equip=$($equip.top)"
+    Shot 'wrap-martial'
+    Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    $n = @((Cmd 'uidescs SkillDesc' 300) -split "`n" | Where-Object { $_ -match '^SkillDesc' })
+    Check 'skill descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
+    Press 'Back' | Out-Null
+    Press 'Tab10' | Out-Null
+    $n = @((Cmd 'uidescs HistoryLine' 300) -split "`n" | Where-Object { $_ -match '^HistoryLine' })
+    Check 'history lines are whole' ($n.Count -ge 1 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
+    Shot 'wrap-history'
+    Press 'Tab1' | Out-Null; Shot 'wrap-items'
+    Press 'Tab2' | Out-Null; Shot 'wrap-currency'
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'order' {
     $traps = Traps
     Cmd 'editor' | Out-Null

@@ -27,15 +27,41 @@ namespace MOD_sWP6UL
             Ui.Label(content, "설명", 460, 48, 600, 30, 16).color = Ui.Dim;
             var props = Player.data.unitData.propData;
             List<ItemCatalog.Entry> currencies = ItemCatalog.Currencies;
+            float y = 82;
             for (int i = 0; i < currencies.Count; i++)
             {
                 ItemCatalog.Entry entry = currencies[i];
-                float y = 82 + i * 44;
-                Ui.Label(content, entry.Id.ToString(), 8, y, 100, 40, 16);
-                Ui.Label(content, entry.Name, 120, y, 200, 40);
-                Ui.Label(content, props.GetPropsNum(entry.Id).ToString(), 330, y, 120, 40);
-                Ui.Label(content, Shorten(entry.Desc, 44), 460, y, 680, 40, 15).color = Ui.Dim;
-                Ui.Button("CurrencyAdd" + entry.Id, content, "+ " + amount, ContentW - 150, y + 2, 150, 36, new Action(() => Say(Add(entry, amount))));
+                // 설명은 줄바꿈해 전부 보인다. 긴 설명의 줄은 그만큼 높아진다.
+                float h = RowFor(44, Ui.TextHeight(entry.Desc, 680, 15));
+                RectTransform row = Ui.Rect("CurrencyRow" + entry.Id, content, 0, y, ContentW, h);
+                Ui.Label(row, entry.Id.ToString(), 8, 0, 100, h, 16);
+                Ui.Label(row, entry.Name, 120, 0, 200, h);
+                Ui.Label(row, props.GetPropsNum(entry.Id).ToString(), 330, 0, 120, h);
+                Text desc = Ui.Wrapped(row, entry.Desc, 460, 0, 680, h, 15);
+                desc.color = Ui.Dim;
+                desc.gameObject.name = "CurrencyDesc" + entry.Id;
+                Ui.Button("CurrencyAdd" + entry.Id, row, "+ " + amount, ContentW - 150, 4, 150, 36, new Action(() => Say(Add(entry, amount))));
+                y += h;
+            }
+
+            // 명성은 아이템이 아니라 인물의 속성(저장값 reputation)이다. 낭야각 같은 상점의 "명성 N 도달 필요"에 쓰이는 값과 같아(실측: 화면의 80 = 저장값 80)
+            // 재화와 함께 올릴 수 있게 여기에도 둔다. 쓰기는 능력치 탭과 같은 경로다.
+            AttributeDef fame = AttributeCatalog.All.Find(d => d.Label == "명성");
+            if (fame != null)
+            {
+                y += 8;
+                Ui.Panel("CurrencyFameLine", content, 0, y, ContentW, 2, Ui.Section);
+                y += 8;
+                const string note = "인물의 속성입니다(능력치 탭 > 개인 속성의 명성과 같은 값). 상점의 \"명성 N 도달 필요\" 조건에 쓰입니다.";
+                float h = RowFor(44, Ui.TextHeight(note, 680, 15));
+                RectTransform row = Ui.Rect("CurrencyRowFame", content, 0, y, ContentW, h);
+                int have = fame.Get(Player.data.unitData.propertyData);
+                Ui.Label(row, "속성", 8, 0, 100, h, 16).color = Ui.Dim;
+                Ui.Label(row, "명성", 120, 0, 200, h);
+                Ui.Label(row, have.ToString(), 330, 0, 120, h).gameObject.name = "CurrencyOwnedFame";
+                Ui.Wrapped(row, note, 460, 0, 680, h, 15).color = Ui.Dim;
+                Ui.Button("CurrencyAddFame", row, "+ " + amount, ContentW - 150, 4, 150, 36, new Action(() =>
+                    Say(EditService.SetAttribute(Player, fame, fame.Get(Player.data.unitData.propertyData) + amount))));
             }
         }
 
