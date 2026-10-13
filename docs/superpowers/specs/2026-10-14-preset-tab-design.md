@@ -314,7 +314,7 @@
 | `Services/WingmanService.cs` (새 파일) | 명우 쓰기(대경지 9 이상), 상태 읽기 |
 | `Services/GradeService.cs` (새 파일) | 경지 올리기(경로, 증가분 더하기). `EditService`의 경지 관련 함수는 옮기지 않는다 |
 | `Services/MartialService.cs` | 옵션을 지정해 만들기(`AddFromValues`를 감싸 품질을 최고로 맞춘다), 세트 번호 읽기·쓰기, 요구 조건 읽기 |
-| `Services/ExportFiles.cs` | 폴더 뿌리를 받는 형태로 조금 넓힌다(`presets`는 `exports` 밖이다). JSON 값 꺼내기는 그대로 쓴다 |
+| `Services/ExportFiles.cs` | 고치지 않는다. `PresetService`가 폴더(`presets`)를 직접 다루고 JSON 값 꺼내기만 쓴다 |
 | `Presets/01-….json` ~ `10-….json` (새 파일) | 기본 프리셋 |
 | `ModMain.csproj` | `Presets\*.json`을 EmbeddedResource로 |
 | `UI/Tabs/PresetTab.cs` (새 파일) | 목록과 상세보기 |
@@ -367,7 +367,7 @@
 
 단계: "3 결정: 역천개명 건너뜀. 공법 추가 4(장착 4). 심법 추가 6(장착 6, 세트 과룡문). 수도 점수 62 → 144. 못 넣음 1(패왕순: 게임이 장착하지 않았습니다(코드 61))."
 
-`적용`과 `최종 단계까지`는 구역마다 같은 모양으로 잇는다. 변경 이력에는 구역마다 한 줄(넣은 수, 건너뛴 수, 못 넣은 수)을 남긴다. 능력치·운명·역천개명은 기존 서비스가 줄마다 남긴다.
+`적용`과 `최종 단계까지`는 구역마다 같은 모양으로 잇는다. 변경 이력에는 적용 한 번에 한 줄(구역마다의 넣은 수, 건너뛴 수, 못 넣은 수가 든 결과 문장)을 남긴다. 장착·해제, 능력치, 운명, 역천개명, 법보·신혼·명우는 각 서비스가 줄마다 남긴다.
 
 ## 6. 프리셋 10개의 내용
 
@@ -429,7 +429,7 @@
 
 ## 8. 검증
 
-`session.ps1` 회차 안에서 고정본으로, `tools/research/ui-check.ps1`에 부분을 더해 한다. 검사는 자기 프리셋 파일(`uicheck-*.json`)을 만들고 지운다. 버튼과 표시만이 아니라 게임의 값이 바뀌는 것을 본다.
+`session.ps1` 회차 안에서 고정본으로, 새 스크립트 `tools/research/preset-check.ps1`(`check-lib.ps1`을 쓴다)로 한다. 프리셋 폴더는 세이브 밖에 있으므로 `session.ps1 -End`가 회차 전 상태로 되돌린다. 아래 표의 "부분"은 이 스크립트의 부분(`files`, `apply`, `apply-full`, `apply-battle`, `apply-restart`, `ui`)으로 나눠 구현한다. 검사는 자기 프리셋 파일(`uicheck-*.json`)을 만들고 지운다. 버튼과 표시만이 아니라 게임의 값이 바뀌는 것을 본다.
 
 | # | 부분 | 시험 | 기대 |
 |---|---|---|---|
