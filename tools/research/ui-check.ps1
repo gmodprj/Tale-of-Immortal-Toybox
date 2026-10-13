@@ -683,10 +683,11 @@ switch ($Part) {
     Check 'first returns to the top' ((Cmd 'uitext ItemTableRange') -match '중 1~')
 
     # 다른 탭의 목록도 말줄임이 없다(기예, 운명 고르기, 기술 추가, 변경 이력)
-    Press 'Tab7' | Out-Null
+    # 검색 칸은 앞선 검사(confirm)가 적은 글을 기억한다. 비우고 읽는다.
+    Press 'Tab7' | Out-Null; Cmd 'ui set ArtQuery' | Out-Null
     $n = @((Cmd 'uidescs ArtDesc' 300) -split "`n" | Where-Object { $_ -match '^ArtDesc' })
     Check 'art book descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
-    Press 'Tab6' | Out-Null; Press 'LuckAddOpen' | Out-Null
+    Press 'Tab6' | Out-Null; Press 'LuckAddOpen' | Out-Null; Cmd 'ui set LuckQuery' | Out-Null
     $n = @((Cmd 'uidescs LuckTips' 300) -split "`n" | Where-Object { $_ -match '^LuckTips' })
     Check 'luck effects are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Press 'Back' | Out-Null
@@ -700,7 +701,7 @@ switch ($Part) {
     $equip = Box 'MartialEquip'
     Check 'martial options are whole and above the equip button' ($opts -ge 1 -and $cut -eq 0 -and $equip -and $bottom -le $equip.top) "options=$opts cut=$cut bottom=$bottom equip=$($equip.top)"
     Shot 'wrap-martial'
-    Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    Press 'Tab5' | Out-Null; Press 'SkillAddOpen' | Out-Null; Cmd 'ui set SkillQuery' | Out-Null
     $n = @((Cmd 'uidescs SkillDesc' 300) -split "`n" | Where-Object { $_ -match '^SkillDesc' })
     Check 'skill descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Press 'Back' | Out-Null
@@ -1209,7 +1210,8 @@ switch ($Part) {
     $s = Cmd 'rstate' 200
     Check 'the use is scaled by 5' ($s -match 'lastMartial=(\d+)->(\d+)' -and [int]$Matches[2] -eq [int]$Matches[1] * 5) $s
     Check 'the mastery rose by a multiple of 5' ($gain -gt $plain -and $gain % 5 -eq 0) "plain=$plain gain=$gain"
-    Check 'the inner call is not patched' ($s -match 'martial=5\(patched\)' -and $s -match 'exp=1 ') $s
+    # AddMartialExpInBattle이 안에서 AddMartialExp를 부른다. 둘 다에 걸리면 오른 양이 제곱(25배)이 된다.
+    Check 'the mastery rose by the scaled amount, not its square' ($s -match 'lastMartial=(\d+)->(\d+)' -and $gain -eq [int]$Matches[2]) "gain=$gain $s"
 
     # 일시 정지와 되돌리기.
     Cmd 'rpause on' 200 | Out-Null; Start-Sleep -Milliseconds 800

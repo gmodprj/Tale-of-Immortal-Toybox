@@ -1256,3 +1256,88 @@
 - 역천개명 분류의 운명을 붙일 때 게임이 기록을 덮어쓰는 것 말고 다른 것(품질 값 등)을 바꾸는지. 번호만 되돌린다.
 - NPC에게 역천개명 분류의 운명을 붙일 때(NPC의 기록 `npcUpGrade`에도 같은 처리가 걸리지만 시험하지 않았다).
 - 화면 크기가 1920x1080이 아닐 때의 줄바꿈과 버튼 위치.
+
+## 32. 배율 탭 (2026-10-13 추가)
+
+묶음 F1이다. 설계는 `docs/superpowers/specs/2026-10-13-rate-tab-design.md`, 구현 계획은 `docs/superpowers/plans/2026-10-13-rate-tab.md`.
+
+### 쓰는 법
+
+- 탭 줄에 `배율`이 생겼다(세계와 안전 사이). 줄 하나가 배율 하나이고, 값 버튼을 누를 때마다 다음 단계로 넘어간다. 마지막 단계 다음은 x1이다.
+- 맨 위의 `모두 1배로`가 배율을 전부 x1로 되돌리고 무적을 끈다.
+- 무적과 피해 배율은 세계 탭에서 이 탭으로 옮겼다. 세계 탭에는 순간 이동과 날짜가 남았다.
+- 1배가 아닌 배율은 화면 위쪽 가운데에 `수련 x5 · 숙련 x10 · 이동 x0.5 · 속도 x2`처럼 나온다.
+
+### 규칙
+
+| 줄 | 단계 | 규칙 |
+|---|---|---|
+| 수련치 획득 | x1, 2, 5, 10, 100 | 플레이어가 얻는 수련치(수련, 전투의 처치)를 곱한다. 0 이하의 값은 곱하지 않는다 |
+| 전투 중 공법 숙련 | x1, 2, 5, 10, 100 | 전투에서 기술을 써서 얻는 숙련 경험치를 곱한다 |
+| 이동의 날짜 소모 | x1, 0.5, 0.25, 0.1, 0 | 대지도의 한 칸에 쓰는 날짜를 곱한다. x0이면 걸어도 날짜가 흐르지 않는다. 날짜 고정 중에는 줄에 안내가 나온다 |
+| 전투 속도 | x1, 1.5, 2, 3 | 전투 장면(결과 창까지)에서만 걸린다. 지도로 나오면 1배로 돌아오고 다음 전투에서 다시 걸린다. 게임이 일시 정지한 동안은 건드리지 않는다 |
+| 주는 피해 | x1, 2, 5, 10, 100 | 13절과 같다 |
+| 무적 | 켬/끔 | 13절과 같다 |
+
+- 저장하지 않는다. 게임을 켤 때마다 전부 x1, 무적 꺼짐이다.
+- NPC에는 걸리지 않는다.
+- 게임에 끼어드는 패치는 그 배율을 처음 x1이 아닌 값으로 바꿀 때 그 지점에만 건다. 건 뒤에는 떼지 않고 값만 본다. 한 번도 쓰지 않은 배율은 게임에 아무것도 걸지 않는다. 전투 속도는 패치가 없다.
+- 값을 바꿀 때마다 변경 이력에 "배율"로 남는다.
+
+### 실측 (2026-10-13)
+
+사전 실험은 `feat/multiplier-research` 브랜치의 `Dev/DevCommandsRate.cs`(탐침)로 했다.
+
+| 항목 | 실측 |
+|---|---|
+| 수련치의 입구 | `DataUnit.PropertyData.AddExp(Int32 v)`. 수련(`UnitActionGridGetExp`) 한 번에 한 번 불린다(인자 16). x5에서 인자가 80이 되고 수련치가 80 올랐다. 전투에서 적을 처치할 때도 플레이어의 `AddExp`가 불린다(고정본 인물과 1레벨 적에서는 인자 0) |
+| 공법 숙련의 호출 순서 | 기술을 쓰면 `UnitCtrlPlayer.AddSkillMartialExp(ActionMartialData, Int32, Single)` → `DataUnit.UnitInfoData.AddMartialExpInBattle(String, Int32)` → `AddMartialExp(String, Int32)`. 세 지점의 호출 수가 같았다. 뒤의 둘은 한 호출의 안팎이라 둘 다에 걸면 제곱이 된다. `AddMartialExpInBattle`에만 건다 |
+| 공법 숙련의 배율 | 신법을 한 번 쓰면 인자 77. x5에서 385가 되고 신법의 숙련이 385 올랐다 |
+| 오르지 않는 기술 | 고정본 인물의 무예 숙련(3570)은 기술을 써도 그대로였다. 상한으로 보이나 확인하지 못했다 |
+| 이동의 비용 | `UnitActionMovePlayer.costDay`(Single). 한 칸에 0.1875~0.3125가 쌓이고(칸에 따라 다르다) 1에 닿으면 `WorldUnitBase.AddResidueDay(1, false)`가 불린다. `OnCreate`의 접두 함수에서 `costDay`를 바꾸면 쌓이는 값이 바뀐다. x0에서 열 칸을 걸어도 날짜와 쌓인 값이 그대로였다 |
+| `UnitActionMovePlayer.GetCurDay` | 쌓인 값을 읽는 함수다. 비용이 아니다 |
+| 플레이어 구분 | 수련치는 `__instance.Pointer`를 `playerUnit.data.unitData.propertyData.Pointer`와, 공법 숙련은 `playerUnit.data.unitData.Pointer`와 견준다. 이동은 행동의 `unit`의 `unitID` |
+| `Time.timeScale` | 전투 중 2로 쓰면 몇 초 뒤에도 2다. 결과 창(`BattleEnd`)이 떠 있는 동안도 전투 장면이라 2다. 결과 창의 확인을 눌러 지도(`MapMain`)로 나오면 `SceneType.battle.battleMap.playerUnitCtrl`이 없어지고 편집기가 1로 되돌린다 |
+| 전투의 끝 | 전투는 한 구역의 적을 다 잡아도 끝나지 않고 여러 구역을 다 잡아야 끝난다(사용자가 알려 줌. 결과 창의 "탐색 공간: 1/2"). `BattleEndMgr.BattleEnd(true)`를 부르면 승리로 끝나고 결과 창이 뜬다 |
+| 화면 밖의 게임에서 전투 조작 | 클릭으로는 공격이 되지 않는다. `UnitCtrlPlayer.CreateSkillAttack(MartialType)`, `CreateStep()`을 직접 부르면 기술이 나간다. 전투 개시 버튼은 `(956, 749)`, 결과 창의 확인은 `(959, 831)` |
+| 걸리는 것을 확인하지 못한 지점 | 호감도 `DataUnit.RelationData.AddIntim`, 영석 `WorldUnitData.RewardPropMoney`, 아이템 `WorldUnitData.RewardPropItem(Int32, Int32, Boolean)`, `PropertyData.AddFixExp`·`AddAbilityExp`. 패치는 걸렸으나 실험 중 게임이 부르지 않았다 |
+
+### 구조
+
+- `Services/RateService.cs`: 배율(`Rate`: 이름, 단계, 지금 값, 패치 여부)의 목록 `All`, 다음 단계로 넘기는 `Next`, `Reset`, 처음 켤 때의 패치 설치, 접두 함수 셋(`ExpPrefix`, `MartialPrefix`, `MovePrefix`), 전투 속도의 프레임 처리 `Tick`. 화면을 모른다.
+- `BattleService.Reset`(`Services/WorldService.cs`): 무적을 끄고 피해 배율을 1로.
+- `UI/Tabs/RateTab.cs`: 배율 탭. `RateService.All`을 돌며 줄을 그린다. 버튼 이름은 `RateExp`, `RateMartial`, `RateMove`, `RateSpeed`, `Multiplier`, `God`, `RateReset`, 설명 글은 `RateNote…`.
+- `UI/Tabs/WorldTab.cs`에서 전투 보조 구역을 뺐다. `UI/EditorWindow.cs`의 탭은 열둘이다(`Tab10` 배율, `Tab11` 안전).
+- `UI/EditorHost.cs`가 매 프레임 `RateService.Tick()`을 부르고, `ModMain.Destroy`가 `RateService.OnDestroy()`로 전투 속도를 되돌린다.
+- `UI/StatusOverlay.cs`의 표시에 배율이 붙는다.
+
+### 검증 (게임에서 실행, 고정본 세이브, `tools/research/ui-check.ps1`)
+
+| 부분 | 보는 것 | 결과 |
+|---|---|---|
+| `rates` | 줄 일곱 개가 그려짐, 처음에는 패치가 하나도 없음, 이동 x0.5의 한 칸이 절반, x0에서 걸어도 날짜와 쌓인 값이 그대로, 수련 x5(인자와 오른 양), NPC의 `AddExp(10)`은 10만 오름, 음수는 곱하지 않음, 날짜 고정 중의 안내, 화면 위쪽 표시, 한 바퀴 돌아 x1, `모두 1배로`, 되돌린 뒤 다시 날짜가 듦, 변경 이력 | PASS 35, FAIL 0 |
+| `rates-battle` | 전투 밖에서는 속도가 걸리지 않음, 전투에서 x2가 걸리고 몇 초 뒤에도 x2, 신법 한 번의 숙련이 x5에서 5배(제곱이 아님), 일시 정지(0)는 풀지 않음, x1로 돌리면 1, 배율 탭의 무적, 전투를 끝내면 결과 창까지 x2이고 지도로 나오면 1 | PASS 22, FAIL 0 |
+| `base`, `tabs`, `items`, `numbers`, `history`, `people`, `confirm`, `wrap`, `order`, `status`, `battle`, `fateguard`, `actions` | 다른 화면이 그대로인지(탭 열둘, 무적·피해 배율은 `Tab10`, 안전은 `Tab11`) | `base` 19, `tabs` 51, `items` 33, `numbers` 14, `history` 7, `people` 8, `confirm` 18, `wrap` 25, `order` 12, `status` 8, `battle` 6, `fateguard` 3, `actions` 8 모두 FAIL 0 |
+| `datebag-check.ps1`의 `base`, `freeze` | 날짜 고정이 그대로인지 | 3, 20 모두 FAIL 0 |
+| 배포 구성 | 경고·오류 0, DLL 하나, 배율 탭이 열린다 | 통과(`Tab10`이 눌리고 줄 여섯 개가 보임, 콜백 예외 없음) |
+
+`rates`는 깨끗한 회차의 첫 검사로 돌린다. 경지를 낮추고 걷고 수련하므로 그 뒤에 다른 화면의 검사를 잇지 않는다(`rates-battle`은 이어도 된다).
+
+검증용 개발 명령(`Dev/DevCommandsRate.cs`): `rstate`(배율의 값과 패치 여부, 마지막으로 바꾼 값, `Time.timeScale`, 전투 여부), `rnpc`, `rneg`, `bcast <1|2|3>`, `rmart`, `bend`, `rpause on|off`.
+
+### 구현하며 고친 것
+
+- 전투에서 나오는 방법이 없어 "전투 뒤의 속도 복귀"를 볼 수 없었다. `bend`(`BattleEndMgr.BattleEnd(true)`)와 결과 창의 확인 `(959, 831)`으로 지도에 돌아오게 하고 검사에 넣었다.
+- `wrap`이 `confirm` 뒤에 돌면 "luck effects are whole"이 실패했다. `confirm`이 운명 검색 칸에 남긴 글 때문에 목록이 비어 있었다. `wrap`이 기예·운명·기술의 검색 칸을 비우고 읽게 했다(검사의 순서 문제이고 편집기의 결함이 아니다).
+- `rates-battle`의 "다른 배율은 패치되지 않음" 검사는 `rates` 뒤에 돌리면 실패했고 보려던 것(제곱이 아님)도 보지 못했다. 오른 양이 곱한 값과 같은지로 바꿨다.
+- 오래 걸리는 검사를 백그라운드로 돌려 놓고 같은 때에 다른 회차를 열어 서로 간섭했다(실패 여럿이 이 때문이었다). 회차와 검사는 한 번에 하나만 돌린다. 한 번의 실행은 10분 안에 끝나게 나눈다.
+
+### 확인하지 못한 것, 한계
+
+- 전투 속도의 체감(화면 밖에서 돌려 값만 확인했다), 타격 연출과의 충돌. 게임이 일시 정지가 아닌 이유로 `Time.timeScale`을 잠깐 바꾸면 편집기가 다음 프레임에 되돌린다.
+- 패배나 도주로 끝나는 전투 뒤의 속도. 승리로 끝낸 경우만 봤다.
+- 숙련이 오르지 않는 기술(고정본의 무예)의 이유.
+- 수련치 배율이 수련과 처치 말고 다른 경로(기연, 단약 등)의 수련치에 걸리는지. 같은 `AddExp`를 지나면 걸린다.
+- 이동 비용이 탈것·지형에 따라 다른 지점에서 정해지는 경우.
+- 달을 넘길 때 NPC 수백 명의 호출에 접두 함수가 끼어드는 비용. 배율을 켠 채 달을 넘겨 보지 않았다.
+- 호감도, 영석·아이템 획득, 기예 경험치, 드롭률, 적 능력치, 전투 쿨타임의 배율(범위 밖).
