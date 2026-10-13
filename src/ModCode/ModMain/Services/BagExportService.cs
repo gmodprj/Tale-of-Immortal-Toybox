@@ -308,6 +308,24 @@ namespace MOD_sWP6UL
         }
         // ---- 가져오기 ----
 
+        // 화면이 줄에 이유를 보이고 버튼을 끄는 데 쓴다.
+        public static string Why(Item item)
+        {
+            return Usable(item);
+        }
+
+        public static string Why(Money money)
+        {
+            return Usable(money);
+        }
+
+        // 지금 가방의 쓰는 칸과 전체 칸.
+        public static string Slots()
+        {
+            DataProps bag = Bag;
+            return bag.GetGridCurNum() + "/" + bag.GetGridMaxNum();
+        }
+
         // 이 줄을 넣을 수 없는 이유. null이면 넣을 수 있다.
         private static string Usable(Item item)
         {

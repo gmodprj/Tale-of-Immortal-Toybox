@@ -59,6 +59,18 @@ namespace MOD_sWP6UL
                         }
                         return sb.ToString();
                     }
+                case "cluck3":
+                    {
+                        // 지금 대경지에서 뽑을 수 있는 역천개명 분류의 운명 가운데 가지지 않은 첫 번째를, 운명 탭의 "운명 추가"와 같은 길로 붙인다.
+                        foreach (LuckService.LuckView view in FateService.Candidates(FateService.CurrentGrade(me), ""))
+                        {
+                            if (!LuckService.Has(me, view.Id))
+                            {
+                                return "id=" + view.Id + " has=" + LuckService.Has(me, view.Id) + " " + LuckService.Add(me, view.Id) + " has=" + LuckService.Has(me, view.Id);
+                            }
+                        }
+                        return "no candidate";
+                    }
                 case "cfatealt":
                     {
                         // 그 경지의 역천개명을 지금 것과 다른 첫 후보로 바꾼다.

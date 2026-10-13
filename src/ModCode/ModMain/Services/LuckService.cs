@@ -92,6 +92,15 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 게임의 운명 추가 행동. 역천개명 분류의 운명이면 게임이 지금 대경지의 역천개명 기록을 그 번호로 덮어쓰므로(FateService.Records의 설명)
+        // 기록을 떠 두었다가 되돌린다. 경지의 역천개명을 바꾸려면 역천개명 화면(FateService.Set)을 쓴다.
+        private static void AddAction(WorldUnitBase unit, int id)
+        {
+            Dictionary<int, int> records = FateService.Records(unit);
+            unit.CreateAction(new UnitActionLuckAdd(id), false);
+            FateService.RestoreRecords(unit, records);
+        }
+
         public static bool IsSystem(int id)
         {
             return SystemIds.Contains(id);
@@ -210,7 +219,7 @@ namespace MOD_sWP6UL
             {
                 return backupError + " 변경을 중단했습니다.";
             }
-            unit.CreateAction(new UnitActionLuckAdd(id), false);
+            AddAction(unit, id);
             bool added = Has(unit, id);
             if (added)
             {
@@ -263,7 +272,7 @@ namespace MOD_sWP6UL
             // 게임이 만든 항목을 그대로 선천 배열로 옮겨 쓴다(효과는 추가 행동이 이미 켰다).
             if (FindAdd(saved, id) == null)
             {
-                unit.CreateAction(new UnitActionLuckAdd(id), false);
+                AddAction(unit, id);
             }
             DataUnit.LuckData data = FindAdd(saved, id);
             if (data == null)
@@ -348,7 +357,7 @@ namespace MOD_sWP6UL
             string oldName = oldConf == null ? oldId.ToString() : GameTool.LS(oldConf.name);
             unit.CreateAction(new UnitActionLuckDel(oldId), false);
             saved.bornLuck[index].id = newId;
-            unit.CreateAction(new UnitActionLuckAdd(newId), false);
+            AddAction(unit, newId);
             saved.DelAddLuck(newId);
             bool written = saved.bornLuck[index].id == newId;
             bool live = Has(unit, newId) && !Has(unit, oldId);

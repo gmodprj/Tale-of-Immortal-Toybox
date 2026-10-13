@@ -89,6 +89,48 @@ namespace MOD_sWP6UL
             return "다름";
         }
 
+        // 줄을 가져올 수 없는 이유(읽기에서 걸린 것과, 게임에 없는 번호). 화면이 줄에 이유를 보이고 버튼을 끄는 데 쓴다. 가져올 수 있으면 null.
+        public static string Why(ArtLine line)
+        {
+            if (line.Problem != null)
+            {
+                return line.Problem;
+            }
+            ArtService.Kind kind = ArtKind(line);
+            if (kind == null)
+            {
+                return "모르는 기예 분류입니다";
+            }
+            return ArtService.Books(kind, "").Find(b => b.Id == line.Id) == null ? "게임에 없는 " + kind.Book + "입니다" : null;
+        }
+
+        public static string Why(LuckLine line)
+        {
+            if (line.Problem != null)
+            {
+                return line.Problem;
+            }
+            ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(line.Id);
+            if (conf == null)
+            {
+                return "게임에 없는 운명입니다";
+            }
+            if (conf.type == 3)
+            {
+                return "역천개명 항목에서 가져옵니다";
+            }
+            return LuckService.IsSystem(line.Id) ? "경지의 진행 표식입니다" : null;
+        }
+
+        public static string Why(FateLine line)
+        {
+            if (line.Problem != null)
+            {
+                return line.Problem;
+            }
+            return g.conf.roleCreateFeature.GetItem(line.Id) == null || g.conf.fateFeature.GetItem(line.Id) == null ? "게임의 역천개명 목록에 없습니다" : null;
+        }
+
         // ---- 줄 하나 넣기 ----
 
         private static string Gone(Pack pack)

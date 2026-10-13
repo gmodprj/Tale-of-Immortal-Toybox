@@ -200,6 +200,7 @@ namespace MOD_sWP6UL
                     }
                 }
                 drawRow(row, items[i], i);
+                CenterButtons(row, height);
                 if (tops[i] >= scrollY + viewH)
                 {
                     i++;
@@ -208,6 +209,21 @@ namespace MOD_sWP6UL
             }
             drawnEnd = i;
             DrawNav();
+        }
+
+        // 줄에 바로 붙은 버튼을 줄의 세로 가운데로 옮긴다. 긴 글 때문에 줄이 높아져도 버튼이 위에 붙어 있지 않게 한다.
+        // 줄 높이를 거의 다 채우는 버튼(아이템 이름처럼 줄 전체를 쓰는 것)은 그대로 둔다.
+        private static void CenterButtons(RectTransform row, float height)
+        {
+            for (int i = 0; i < row.childCount; i++)
+            {
+                var child = row.GetChild(i).GetComponent<RectTransform>();
+                if (child == null || child.GetComponent<Button>() == null || child.sizeDelta.y >= height - 8f)
+                {
+                    continue;
+                }
+                child.anchoredPosition = new Vector2(child.anchoredPosition.x, -(height - child.sizeDelta.y) / 2f);
+            }
         }
 
         private void DrawNav()
