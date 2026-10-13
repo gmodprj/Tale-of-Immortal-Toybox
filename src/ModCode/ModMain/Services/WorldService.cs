@@ -67,7 +67,13 @@ namespace MOD_sWP6UL
 
         private static bool Wanted
         {
-            get { return God || Multiplier > 1; }
+            get { return God || Multiplier > 1 || RateService.Taken.On; }
+        }
+
+        // 받는 피해 배율이 바뀌었을 때 구독 상태를 맞춘다.
+        public static void Refresh()
+        {
+            Sync();
         }
 
         // 이벤트 관리자는 세이브에 진입할 때 새로 만들어질 수 있으므로, ModMain.Init마다 구독 상태를 다시 맞춘다.
@@ -142,23 +148,77 @@ namespace MOD_sWP6UL
             subscribed = false;
         }
 
+#if DEVTOOLS
+        // 개발 전용: 구독 여부와, 이벤트가 불린 횟수·배율을 건 횟수·마지막으로 건 값.
+        public static int DevHits;
+        public static int DevScaled;
+        public static string DevLast = "-";
+        public static string DevDrop = "-";
+        public static int DevOnPlayer;
+        public static string DevTaken = "-";
+        private static System.IntPtr devTarget;
+        private static int devTargetHp;
+        private static int devTargetValue;
+
+        public static string DevState
+        {
+            get { return "subscribed=" + subscribed + " hits=" + DevHits + " scaled=" + DevScaled + " onPlayer=" + DevOnPlayer + " last=" + DevLast + " drop=" + DevDrop + " taken=" + DevTaken; }
+        }
+#endif
+
         private static void OnHit(ETypeData e)
         {
+#if DEVTOOLS
+            DevHits++;
+#endif
             var data = e.Cast<EBattleTypeData.UnitHitDynIntHandler>();
             if (data.hitUnit != null && data.hitUnit.data.unitType == UnitType.Player)
             {
+#if DEVTOOLS
+                DevOnPlayer++;
+#endif
                 if (God)
                 {
                     data.dynV.baseValue = 0;
                     data.dynV.ClearCall();
+                }
+                else if (RateService.Taken.On && data.dynV.baseValue > 0)
+                {
+                    int before = data.dynV.baseValue;
+                    // 배율로는 0이 되지 않게 한다(피해 1에 x0.5를 걸면 0이 되어 무적과 같아진다. 0은 무적의 몫이다).
+                    data.dynV.baseValue = Math.Max(1, (int)Math.Round(before * (double)RateService.Taken.Value));
+#if DEVTOOLS
+                    DevTaken = "base " + before + "->" + data.dynV.baseValue;
+#endif
                 }
                 return;
             }
             UnitCtrlBase attacker = data.hitData == null ? null : data.hitData.attackUnit;
             if (Multiplier > 1 && attacker != null && attacker.data.unitType == UnitType.Player)
             {
+#if DEVTOOLS
+                int devBase = data.dynV.baseValue;
+                int devValue = data.dynV.value;
+#endif
                 long scaled = (long)data.dynV.baseValue * Multiplier;
                 data.dynV.baseValue = scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+#if DEVTOOLS
+                DevScaled++;
+                DevLast = "base " + devBase + "->" + data.dynV.baseValue + " value " + devValue + "->" + data.dynV.value;
+                // 같은 적을 다시 때렸을 때, 앞선 타격이 실제로 깎은 체력을 적는다(화면의 숫자가 남은 체력으로 잘리는지 가린다).
+                if (data.hitUnit != null)
+                {
+                    int hpNow = data.hitUnit.data.hp;
+                    if (data.hitUnit.Pointer == devTarget)
+                    {
+                        DevDrop = "prevValue=" + devTargetValue + " hp " + devTargetHp + "->" + hpNow + " max=" + data.hitUnit.data.maxHP.value;
+                    }
+                    devTarget = data.hitUnit.Pointer;
+                    devTargetHp = hpNow;
+                    devTargetValue = data.dynV.value;
+                    DevLast += " targetHp=" + hpNow + "/" + data.hitUnit.data.maxHP.value;
+                }
+#endif
             }
         }
     }

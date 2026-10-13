@@ -37,9 +37,11 @@ namespace MOD_sWP6UL
                 get { return Index != 0; }
             }
 
+            public string ZeroText;     // 값이 0인 단계를 부르는 말(없으면 x0)
+
             public string Text
             {
-                get { return "x" + Value.ToString("0.##", CultureInfo.InvariantCulture); }
+                get { return Value == 0f && ZeroText != null ? ZeroText : "x" + Value.ToString("0.##", CultureInfo.InvariantCulture); }
             }
 
 #if DEVTOOLS
@@ -74,7 +76,22 @@ namespace MOD_sWP6UL
             Note = "전투 장면의 진행 속도를 곱합니다. 전투 밖에서는 걸리지 않습니다.",
         };
 
-        public static readonly Rate[] All = { Exp, Martial, Move, Speed };
+        // 전투 중인 플레이어의 쿨타임 속도(skillCDRate, stepCDRate. 기본 100)를 올려 쿨타임을 줄인다(실측: 05 문서 33절).
+        // skillCDRate는 무예·절기·신통에, stepCDRate는 신법에 걸린다.
+        public static readonly Rate Cooldown = new Rate
+        {
+            Key = "cooldown", Label = "기술 쿨타임", Short = "쿨타임", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
+            Note = "전투에서 무예·절기·신법·신통의 재사용 대기시간을 곱합니다. 없음이면 바로 다시 쓸 수 있습니다(영력 소모와 발동 조건은 그대로).",
+        };
+
+        // 플레이어가 받는 피해. 주는 피해와 같은 이벤트에서 BattleService가 곱한다.
+        public static readonly Rate Taken = new Rate
+        {
+            Key = "taken", Label = "받는 피해", Short = "받는 피해", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f },
+            Note = "플레이어가 받는 피해를 곱합니다. 무적이 켜져 있으면 무적이 우선입니다.",
+        };
+
+        public static readonly Rate[] All = { Exp, Martial, Move, Speed, Cooldown, Taken };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -94,6 +111,10 @@ namespace MOD_sWP6UL
             string before = rate.Text;
             rate.Index = next;
             ChangeLog.Add("배율", rate.Label, before, rate.Text, true);
+            if (rate == Taken)
+            {
+                BattleService.Refresh();
+            }
             return rate.Label + ": " + rate.Text;
         }
 
@@ -110,6 +131,7 @@ namespace MOD_sWP6UL
                 }
             }
             BattleService.Reset();
+            BattleService.Refresh();
             RestoreSpeed();
             return "배율: 모두 1배로 되돌리고 무적을 껐습니다.";
         }
@@ -117,6 +139,7 @@ namespace MOD_sWP6UL
         public static void OnDestroy()
         {
             RestoreSpeed();
+            cooldownUnit = IntPtr.Zero;
         }
 
         // 그 배율을 처음 켤 때 한 번 건다. 건 뒤에는 떼지 않고 값만 본다.
@@ -280,6 +303,7 @@ namespace MOD_sWP6UL
         // 매 프레임 불린다. 전투 장면에 있는 동안만 속도를 맞추고, 벗어나거나 1배로 돌리면 되돌린다. 예외를 던지지 않는다.
         public static void Tick()
         {
+            TickCooldown();
             if (!Speed.On && !speedApplied)
             {
                 return;
@@ -323,6 +347,84 @@ namespace MOD_sWP6UL
             }
             Time.timeScale = 1f;
             speedApplied = false;
+        }
+
+        // 쿨타임 속도에 쓰는 값의 상한. "없음"은 원래 값의 만 배다(13초가 0.0013초).
+        private const long CooldownMax = 100000000;
+        private const float CooldownNone = 10000f;
+
+        private static IntPtr cooldownUnit;     // 값을 떠 둔 전투 단위. 전투마다 새로 만들어진다
+        private static int cooldownSkill;       // 그 단위의 원래 skillCDRate
+        private static int cooldownStep;        // 원래 stepCDRate
+
+        // 전투 중인 플레이어의 쿨타임 속도를 맞춘다. 전투마다 원래 값을 떠 두고, 1배로 돌리면 그 값으로 되돌린다.
+        private static void TickCooldown()
+        {
+            if (!Cooldown.On && cooldownUnit == IntPtr.Zero)
+            {
+                return;
+            }
+            try
+            {
+                if (!InBattle)
+                {
+                    // 전투 단위가 보이지 않는다. 꺼져 있으면 되돌릴 것이 없으니 잊는다.
+                    // 켜져 있으면 떠 둔 값을 남긴다: 같은 단위가 다시 보였을 때(연출 등으로 잠깐 사라진 경우)
+                    // 이미 곱한 값을 원래 값으로 다시 뜨면 배율이 겹친다. 새 전투의 단위는 포인터가 달라 새로 뜬다.
+                    if (!Cooldown.On)
+                    {
+                        cooldownUnit = IntPtr.Zero;
+                    }
+                    return;
+                }
+                UnitCtrlPlayer unit = SceneType.battle.battleMap.playerUnitCtrl;
+                DynInt skill = unit.data.skillCDRate;
+                DynInt step = unit.data.stepCDRate;
+                if (unit.Pointer != cooldownUnit)
+                {
+                    if (!Cooldown.On)
+                    {
+                        cooldownUnit = IntPtr.Zero;
+                        return;
+                    }
+                    cooldownUnit = unit.Pointer;
+                    cooldownSkill = skill.baseValue;
+                    cooldownStep = step.baseValue;
+                }
+                if (!Cooldown.On)
+                {
+                    skill.baseValue = cooldownSkill;
+                    step.baseValue = cooldownStep;
+                    cooldownUnit = IntPtr.Zero;
+                    return;
+                }
+                float factor = Cooldown.Value == 0f ? CooldownNone : 1f / Cooldown.Value;
+                int wantSkill = CooldownTarget(cooldownSkill, factor);
+                int wantStep = CooldownTarget(cooldownStep, factor);
+                if (cooldownSkill > 0 && skill.baseValue != wantSkill)
+                {
+                    skill.baseValue = wantSkill;
+                }
+                if (cooldownStep > 0 && step.baseValue != wantStep)
+                {
+                    step.baseValue = wantStep;
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(Cooldown, e);
+            }
+        }
+
+        // 원래 값이 0 이하이면(게임이 쿨타임을 멈춘 상태) 건드리지 않는다.
+        private static int CooldownTarget(int original, float factor)
+        {
+            if (original <= 0)
+            {
+                return original;
+            }
+            double scaled = Math.Round(original * (double)factor);
+            return scaled > CooldownMax ? (int)CooldownMax : (int)scaled;
         }
     }
 }

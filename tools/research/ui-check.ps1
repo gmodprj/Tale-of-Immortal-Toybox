@@ -1249,6 +1249,105 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'combat' {
+    # 배율 탭의 전투 줄이 실제 전투에 걸리는지: 주는 피해(적의 체력이 곱한 만큼 깎인다), 받는 피해, 기술 쿨타임.
+    # 전투 셋을 차례로 연다. 전투에서 나올 때는 결과 창이 뜨고 지도가 돌아올 때까지 기다린다(서두르면 다음 전투의 화면이 깨진다).
+    $traps = Traps
+    function Dmg { Cmd 'bdmg' 200 }
+    function Num([string]$text, [string]$pattern) { if ($text -match $pattern) { [double]$Matches[1] } else { throw "읽지 못했습니다: $pattern in $text" } }
+    function Into([int]$level) {
+      Cmd "fight 1011 $level" 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 4000 | Out-Null
+    }
+    function Leave {
+      Cmd 'bend' 500 | Out-Null
+      for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      Start-Sleep -Seconds 2
+      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+      Start-Sleep -Seconds 3
+    }
+    function Tab { Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null }
+    Tab
+    foreach ($b in 'RateCooldown', 'RateTaken') { Check "$b is drawn" (IsAt $b) }
+    # 받는 피해만 켰다가 모두 1배로: 이벤트를 듣던 것도 풀린다.
+    Press 'RateTaken' | Out-Null
+    Check 'listening while taken is on' ((Dmg) -match 'subscribed=True')
+    Press 'RateReset' | Out-Null
+    Check 'reset stops listening when only taken was on' ((Dmg) -match 'subscribed=False') (Dmg)
+    Press 'Close' | Out-Null
+
+    # 전투 1(약한 적): 받는 피해. 공격하지 않고 맞기만 한다.
+    Into 1
+    Check 'nothing is listening before a row is on' ((Dmg) -match 'subscribed=False')
+    Tab; Press 'RateTaken' | Out-Null
+    Check 'taken shows x0.5' ((Cmd 'uitext RateTaken') -match "text='x0.5'")
+    Press 'Close' | Out-Null
+    for ($i = 0; $i -lt 40 -and (Dmg) -match 'taken=-'; $i++) { Start-Sleep -Milliseconds 500 }
+    $s = Dmg
+    # 약한 적의 피해는 1이다. 배율로는 0이 되지 않는다(0은 무적의 몫).
+    Check 'a hit of 1 stays 1' ($s -match 'taken=base 1->1') $s
+    Start-Sleep -Milliseconds 900
+    Check 'taken is on the overlay' ((Cmd 'uistate') -match 'status=\[받는 피해 x0.5\] ')
+
+    # 쿨타임: 절기의 쿨타임 초가 절반이 되고, 없음에서 연달아 써지며, x1로 돌리면 원래 값이다.
+    $plain = Num (Cmd 'cdstat' 200) 'skill1 cd=\d+/\d+ cdTime=([\d.]+)'
+    $plainStep = Num (Cmd 'cdstat' 200) 'step cd=\d+/\d+ cdTime=([\d.]+)'
+    Check 'the special skill has a cooldown' ($plain -gt 1) "cdTime=$plain"
+    Check 'a second use is refused while cooling down' ((Cmd 'bcast 2' 400) -match 'True' -and (Cmd 'bcast 2' 400) -match 'False')
+    Tab; Press 'RateCooldown' | Out-Null
+    Check 'cooldown shows x0.5' ((Cmd 'uitext RateCooldown') -match "text='x0.5'")
+    Start-Sleep -Milliseconds 500
+    $c = Cmd 'cdstat' 200
+    Check 'the skill cooldown is halved' ([math]::Abs((Num $c 'skill1 cd=\d+/\d+ cdTime=([\d.]+)') - $plain / 2) -lt 0.02) $c
+    Check 'the step cooldown is halved' ([math]::Abs((Num $c 'step cd=\d+/\d+ cdTime=([\d.]+)') - $plainStep / 2) -lt 0.02) $c
+    1..3 | ForEach-Object { Press 'RateCooldown' | Out-Null }
+    Check 'cooldown shows none' ((Cmd 'uitext RateCooldown') -match "text='없음'")
+    Press 'Close' | Out-Null; Start-Sleep -Milliseconds 500
+    $ok = @(1..4 | ForEach-Object { Cmd 'bcast 2' 400 } | Where-Object { $_ -match 'True' }).Count
+    Check 'the special skill is used four times in a row' ($ok -eq 4) "ok=$ok"
+    Start-Sleep -Milliseconds 500
+    Check 'cooldown is on the overlay' ((Cmd 'uistate') -match '쿨타임 없음')
+    Tab; Press 'RateCooldown' | Out-Null
+    Check 'cooldown wraps to x1' ((Cmd 'uitext RateCooldown') -match "text='x1'")
+    Start-Sleep -Milliseconds 500
+    $c = Cmd 'cdstat' 200
+    Check 'the cooldown is back' ([math]::Abs((Num $c 'skill1 cd=\d+/\d+ cdTime=([\d.]+)') - $plain) -lt 0.02 -and $c -match 'rates skill=100/100 step=100/100') $c
+    Press 'RateCooldown' | Out-Null; Press 'RateTaken' | Out-Null; Press 'RateTaken' | Out-Null
+    Check 'taken shows x0.1' ((Cmd 'uitext RateTaken') -match "text='x0.1'")
+    1..3 | ForEach-Object { Press 'Multiplier' | Out-Null }
+    Check 'damage shows x10' ((Cmd 'uitext Multiplier') -match "text='x10'")
+    Press 'Close' | Out-Null
+    Leave
+    Check 'back on the map' ((Cmd 'uilist' 100) -match 'MapMain')
+
+    # 전투 2(수준 20의 적, 한 방이 수십): 켜 둔 쿨타임이 새 전투에도 걸리고, 받는 피해가 x0.1로 줄어든다.
+    # 수준 30부터는 한 방이 수천이라 고정본 인물이 쓰러진다(쓰러지면 대화 사건이 떠 뒤의 검사가 꼬인다).
+    Into 20
+    Start-Sleep -Milliseconds 500
+    $c = Cmd 'cdstat' 200
+    Check 'the kept cooldown applies in the next battle' ([math]::Abs((Num $c 'skill1 cd=\d+/\d+ cdTime=([\d.]+)') - $plain / 2) -lt 0.02) $c
+    for ($i = 0; $i -lt 40 -and (Dmg) -notmatch 'taken=base \d{2,}->'; $i++) { Start-Sleep -Milliseconds 500 }
+    $s = Dmg
+    Check 'a hit on the player is cut to a tenth' ($s -match 'taken=base (\d+)->(\d+)' -and [int]$Matches[1] -ge 10 -and [math]::Abs([int]$Matches[2] - [int]$Matches[1] * 0.1) -le 0.51) $s
+    Check 'the player is alive' ((Cmd 'battle stat' 100) -match 'playerHp=[1-9]\d*/')
+    Leave
+
+    # 전투 3(수준 60의 적, 체력 수만): 주는 피해가 곱해지고 적의 체력이 그만큼 깎인다. 한 방에 쓰러지지 않게 무적을 켠다.
+    Tab; Press 'God' | Out-Null; Press 'Close' | Out-Null
+    Into 60
+    for ($i = 0; $i -lt 60 -and (Dmg) -notmatch 'drop=prevValue'; $i++) { Cmd 'bcast 1' 350 | Out-Null }
+    $s = Dmg
+    Check 'a hit is scaled by 10' ($s -match 'last=base (\d+)->(\d+) ' -and [int]$Matches[2] -eq [int]$Matches[1] * 10) $s
+    Check 'the enemy loses the scaled amount' ($s -match 'drop=prevValue=(\d+) hp (\d+)->(\d+) ' -and [int]$Matches[2] - [int]$Matches[3] -ge [int]$Matches[1]) $s
+    Check 'taken x0.1 is still on' ((Cmd 'rstate' 200) -match 'taken=0.1 ')
+    Leave
+    Tab; Press 'RateReset' | Out-Null
+    $s = Cmd 'rstate' 200
+    Check 'reset puts the battle rows back' ($s -match 'cooldown=1 taken=1 god=False damage=1') $s
+    Press 'Close' | Out-Null
+    Shot 'combat'
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'status' {
     # 스펙 6절 19번. 표시는 30프레임마다 맞춰지므로 켜고 끈 뒤 조금 기다린다.
     $traps = Traps
