@@ -34,7 +34,7 @@ function RestoreConfig {
     'config.txt restored'
   }
 }
-trap { RestoreConfig; break }
+trap { if (Get-Command RestoreConfig -ErrorAction SilentlyContinue) { RestoreConfig }; break }
 function WinState {
   $o = Cmd 'uistate' 100
   if ($o -notmatch ' pos=(-?\d+),(-?\d+) collapsed=(\w+) ') { throw "uistate 출력을 읽지 못했습니다: $o" }
@@ -139,6 +139,220 @@ switch ($Part) {
     Check 'target tabs still draw after the fallback' (IsAt 'SkillAddOpen')
 
     Shot 'tabs'
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'items' {
+    # 스펙 6절 7, 8, 17번. 자원 탭의 목록·검색·상세, 가방 칸 한 번에 지정, 의복의 구분 표시.
+    $traps = Traps
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    $o = Cmd 'uitext ItemTableRange'
+    if ($o -notmatch '전체 (\d+)개 중 1~(\d+)번째') { throw "아이템 목록의 범위 글을 읽지 못했습니다: $o" }
+    $total = [int]$Matches[1]; $screen = [int]$Matches[2]
+    Check 'the list holds every item' ($total -gt 3000) $o
+    Check 'only the visible rows are built' ((Cmd "uipos Row$($screen + 5)") -match 'no element named')
+    Check 'paging buttons are gone' ((Cmd 'uipos ItemPageSize10') -match 'no element named' -and (Cmd 'uipos ItemSearch') -match 'no element named')
+
+    # 즉시 검색: 실제 키로 번호를 친다(이름과 번호 둘 다 찾는다)
+    Cmd 'uifocus ItemQuery' | Out-Null
+    Key 0x31 350; Key 0x30 350; Key 0x31 350
+    $typed = Cmd 'uitext ItemQuery'
+    $o = Cmd 'uitext ItemTableRange'
+    Check 'the keys reached the search box' ($typed -match "text='101'") $typed
+    Check 'typing filters at once' ($o -match '전체 (\d+)개' -and [int]$Matches[1] -lt $total -and [int]$Matches[1] -gt 0) $o
+    Check 'the search box is still in place' (IsAt 'ItemQuery')
+
+    # Review Focus 1: 결과가 없을 때
+    Cmd 'ui set ItemQuery zzzzzz' | Out-Null
+    Check 'no match shows an empty list' ((Cmd 'uitext ItemTableRange') -match "text='0개'" -and (Cmd 'uipos ItemTableNext') -match 'no element named' -and (Cmd 'uipos Row0') -match 'no element named')
+    Press 'ItemQueryClear' | Out-Null
+    Check 'clearing brings everything back' ((Cmd 'uitext ItemTableRange') -match "전체 $total개 중 1~" -and (Cmd 'uitext ItemQuery') -match "text=''")
+
+    # 이동 줄과 스크롤
+    Press 'ItemTableNext' | Out-Null
+    Check 'next moves one screen' ((Cmd 'uitext ItemTableRange') -match "중 $($screen + 1)~")
+    Press 'ItemTableLast' | Out-Null
+    Check 'last reaches the end' ((Cmd 'uitext ItemTableRange') -match "~$($total)번째")
+    $p = Pos 'ItemTable'
+    Rc "scroll $($p.x) $($p.y) 3" 300 | Out-Null
+    Check 'the wheel scrolls back up' ((Cmd 'uitext ItemTableRange') -notmatch "~$($total)번째")
+    Press 'ItemTableLast' | Out-Null
+
+    # Review Focus 2: 끝까지 내린 채 검색해 목록이 짧아진다
+    Cmd 'ui set ItemQuery 101' | Out-Null
+    Check 'a shorter result starts from the top' ((Cmd 'uitext ItemTableRange') -match '중 1~' -and (Cmd 'uipos Row0') -match ' at ')
+    Press 'ItemQueryClear' | Out-Null
+
+    # 지급 뒤에도 목록 위치가 그대로이고 보유 수가 바뀐다
+    Press 'ItemTableNext' | Out-Null
+    $before = Cmd 'uitext ItemTableRange'
+    $give = Pos 'ItemGive*'
+    $id = $give.name -replace 'ItemGive', ''
+    $had = if ((Cmd "count $id") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
+    Press $give.name | Out-Null
+    $has = if ((Cmd "count $id") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
+    Check 'giving an item works from the list' ($has -eq $had + 1) "id=$id $had -> $has"
+    Check 'the list stays where it was' ((Cmd 'uitext ItemTableRange') -eq $before)
+    Press "ItemName$id" | Out-Null
+    Check 'pressing a name shows the whole text below' ((Cmd 'uitext ItemDetail') -match "\[$id\]")
+
+    # 의복: 이름만으로 구분된다
+    Cmd 'ui set ItemQuery 3041003' | Out-Null
+    $o = Cmd 'uitext ItemName3041003'
+    Check 'clothes show sex, shape and colour' ($o -match "text='의복\((남|여)\) \d+-\d+'") $o
+    Press 'ItemQueryClear' | Out-Null
+
+    # 가방 칸 한 번에 지정 (회차의 -End가 bag-slots.txt를 되돌린다)
+    function Extra { if ((Cmd 'bagstat') -match 'extra=(\d+)') { [int]$Matches[1] } else { -1 } }
+    $e0 = Extra
+    $want = if ($e0 -eq 120) { 135 } else { 125 }
+    Cmd 'uifocus BagExtra' | Out-Null; Cmd "ui set BagExtra $want" | Out-Null; Key 0x0D
+    Check 'Enter sets the extra slots, rounded down to tens' ((Extra) -eq $want - 5) "extra=$(Extra)"
+    Cmd 'ui set BagExtra 501' | Out-Null; Press 'BagApply' | Out-Null
+    Check 'the apply button works and the value is capped' ((Extra) -eq 500)
+    Cmd 'ui set BagExtra 0' | Out-Null; Press 'BagApply' | Out-Null
+    Check 'zero removes them' ((Extra) -eq 0)
+    Press 'BagPlus' | Out-Null
+    Check 'the +10 button still works' ((Extra) -eq 10)
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'numbers' {
+    # 스펙 6절 9번, Review Focus 3. 능력치의 저장값 칸과 수량 줄의 직접 입력.
+    $traps = Traps
+    Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null
+    $cell = (Pos 'Attr*').name
+    function Val { if ((Cmd "uitext $cell") -match "text='(-?\d+)'") { [int]$Matches[1] } else { throw "값을 읽지 못했습니다: $cell" } }
+    $v = Val
+    Check 'the direct-input row is gone' ((Cmd 'uipos AttributeApply') -match 'no element named')
+
+    Cmd "uifocus $cell" | Out-Null; Cmd "ui set $cell $($v + 1)" | Out-Null
+    Press 'attr10' | Out-Null
+    Check 'without Enter nothing is applied' ((Val) -eq $v)
+    Cmd "uifocus $cell" | Out-Null; Cmd "ui set $cell $($v + 1)" | Out-Null; Key 0x0D
+    Check 'Enter applies the typed value' ((Val) -eq $v + 1) "value=$(Val)"
+    Check 'the change is reported' ((Cmd 'uistate') -match "message='[^']*->")
+    Cmd "uifocus $cell" | Out-Null; Cmd "ui set $cell 999999999" | Out-Null; Key 0x0D
+    Check 'an out-of-range value is refused' ((Val) -eq $v + 1)
+    Cmd "uifocus $cell" | Out-Null; Cmd "ui set $cell" | Out-Null; Key 0x0D
+    Check 'an empty value is refused with a reason' ((Val) -eq $v + 1 -and (Cmd 'uistate') -match "message='[^']*숫자")
+    Cmd "uifocus $cell" | Out-Null; Cmd "ui set $cell -5" | Out-Null; Key 0x0D
+    Check 'a negative value is refused' ((Val) -eq $v + 1)
+    Cmd "uifocus $cell" | Out-Null; Cmd "ui set $cell $v" | Out-Null; Key 0x0D
+    Check 'back to the original value' ((Val) -eq $v)
+
+    # 수량 줄의 직접 입력도 Enter로 적용된다
+    Cmd 'uifocus attrInput' | Out-Null; Cmd 'ui set attrInput 7' | Out-Null; Key 0x0D
+    Check 'Enter applies a typed step' ((Cmd 'uitext Plus*') -match "text='\+ 7'")
+    Cmd 'uifocus attrInput' | Out-Null; Cmd 'ui set attrInput 0' | Out-Null; Key 0x0D
+    Check 'a step of zero is refused' ((Cmd 'uitext Plus*') -match "text='\+ 7'" -and (Cmd 'uistate') -match "message='수량은")
+    Press 'attr10' | Out-Null
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'people' {
+    # NPC 탭의 목록과 즉시 검색.
+    $traps = Traps
+    Cmd 'editor' | Out-Null; Press 'Tab6' | Out-Null
+    $o = Cmd 'uitext NpcListRange'
+    if ($o -notmatch '전체 (\d+)개') { throw "NPC 목록의 범위 글을 읽지 못했습니다: $o" }
+    $total = [int]$Matches[1]
+    Check 'the NPC list is a scrolling list' ($total -gt 8 -and (Cmd 'uipos NpcNext10') -match 'no element named' -and (Cmd 'uipos NpcSearch') -match 'no element named')
+    $pick = Pos 'Pick*'
+    Press $pick.name | Out-Null
+    Check 'picking an NPC shows the favour buttons' (IsAt 'IntimPlus')
+    $name = if ((Cmd 'uitext SelectedName') -match "text='선택: (\S+)") { $Matches[1] } else { '' }
+    Cmd "ui set NpcQuery $name" | Out-Null
+    $o = Cmd 'uitext NpcListRange'
+    Check 'typing a name narrows the list' ($name.Length -gt 0 -and $o -match '전체 (\d+)개' -and [int]$Matches[1] -ge 1 -and [int]$Matches[1] -lt $total) $o
+    Cmd 'ui set NpcQuery zzzzzz' | Out-Null
+    Check 'no match shows an empty list' ((Cmd 'uitext NpcListRange') -match "text='0개'")
+    Press 'NpcQueryClear' | Out-Null
+    Check 'clearing brings everyone back' ((Cmd 'uitext NpcListRange') -match "전체 $total개")
+    Press 'NpcListLast' | Out-Null
+    Check 'the list scrolls to the end' ((Cmd 'uitext NpcListRange') -match "~$($total)번째")
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'history' {
+    # 스펙 6절 18번. 안전 탭의 변경 이력 전체 보기. 방금 한 변경이 맨 위에 오는지 보려고 먼저 하나를 만든다.
+    $traps = Traps
+    Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null; Press 'Restore' | Out-Null
+    Press 'Tab8' | Out-Null
+    $o = Cmd 'uitext HistoryRange'
+    if ($o -notmatch '전체 (\d+)개') { throw "이력 목록의 범위 글을 읽지 못했습니다: $o" }
+    $total = [int]$Matches[1]
+    $lines = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ }).Count
+    Check 'past runs are listed too' ($total -eq [Math]::Min(2000, $lines)) "list=$total file=$lines"
+    Check 'the newest change is on top' ((Cmd 'uitext Row0') -match '자원 회복')
+    Cmd 'ui set HistoryQuery 가방' | Out-Null
+    $o = Cmd 'uitext HistoryRange'
+    Check 'the search narrows it' ($o -match '전체 (\d+)개' -and [int]$Matches[1] -lt $total) $o
+    Press 'Row0' | Out-Null
+    Check 'pressing a line shows it whole' ((Cmd 'uitext HistoryDetail') -match '가방')
+    Press 'HistoryQueryClear' | Out-Null
+    Check 'the backup button is still there' (IsAt 'BackupNow')
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'confirm' {
+    # 스펙 6절 11~14번, Review Focus 4·5. 하위 화면과 확인 대기.
+    $traps = Traps
+    Cmd 'editor' | Out-Null
+    Press 'Tab6' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    $rm = (Pos 'LuckRemove*').name
+    Press $rm | Out-Null
+    Check 'the first press only asks' ((Cmd "uitext $rm") -match "text='정말 삭제'")
+    Press 'Tab3' | Out-Null; Press 'Tab4' | Out-Null
+    Check 'a tab change cancels it' ((Cmd "uitext $rm") -match "text='삭제'")
+    Press $rm | Out-Null
+    Press 'LuckAddOpen' | Out-Null
+    Check 'a sub screen opens with one back button' ((IsAt 'Back') -and (Cmd 'uipos LuckAddOpen') -match 'no element named')
+    Press 'Back' | Out-Null
+    Check 'opening a sub screen cancels it' ((Cmd "uitext $rm") -match "text='삭제'")
+    Press $rm | Out-Null
+    Press 'ToPlayer' | Out-Null
+    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Check 'a target change cancels it' ((Cmd "uitext $rm") -match "text='삭제'")
+
+    # Review Focus 5: 하위 화면이 열린 채 대상을 바꾸거나 탭을 떠난다
+    Press 'FateOpen' | Out-Null
+    Check 'the fate screen opens' (IsAt 'Back')
+    Press 'ToPlayer' | Out-Null
+    Check 'a target change closes the sub screen' ((IsAt 'LuckAddOpen') -and (Cmd 'uistate') -match 'target=player ')
+    Press 'LuckAddOpen' | Out-Null
+    Cmd 'ui set LuckQuery zzzzzz' | Out-Null
+    Check 'the picker search is immediate' ((Cmd 'uitext LuckPickRange') -match "text='0개'")
+    Press 'Tab3' | Out-Null; Press 'Tab4' | Out-Null
+    Check 'leaving the tab closes the sub screen' (IsAt 'LuckAddOpen')
+
+    # 공법: 기술 추가 화면의 목록과 검색, 옵션 교체 화면
+    Press 'Tab3' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    $o = Cmd 'uitext SkillListRange'
+    Check 'the skill list is a scrolling list' ($o -match '전체 (\d+)개' -and [int]$Matches[1] -gt 12) $o
+    Cmd 'ui set SkillQuery zzzzzz' | Out-Null
+    Check 'the skill search is immediate' ((Cmd 'uitext SkillListRange') -match "text='0개'")
+    Press 'SkillQueryClear' | Out-Null
+    Press 'Back' | Out-Null
+    Press (Pos 'PickMartial*').name | Out-Null
+    Check 'picking a skill shows its options' (IsAt 'MartialEquip')
+    Press 'MartialForget' | Out-Null
+    Check 'forgetting asks first' ((Cmd 'uitext MartialForget') -match "text='정말 망각'")
+    Press 'MartialExp' | Out-Null
+    Check 'another action cancels it' ((Cmd 'uitext MartialForget') -match "text='기술 망각'")
+
+    # 기예: 목록과 검색
+    Press 'Tab5' | Out-Null
+    $o = Cmd 'uitext ArtTableRange'
+    Check 'the art list is a scrolling list' ($o -match '전체 (\d+)개') $o
+    Cmd 'ui set ArtQuery zzzzzz' | Out-Null
+    Check 'the art search is immediate' ((Cmd 'uitext ArtTableRange') -match "text='0개'")
+    Press 'ArtQueryClear' | Out-Null
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')

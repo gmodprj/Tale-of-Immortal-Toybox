@@ -98,7 +98,7 @@ namespace MOD_sWP6UL
             targetId = unitId;
             for (int i = 0; tabs != null && i < tabs.Length; i++)
             {
-                tabs[i].OnTargetChanged();
+                tabs[i].TargetChanged();
             }
         }
 
@@ -302,7 +302,7 @@ namespace MOD_sWP6UL
 
         public static void SwitchTab(int index)
         {
-            tabs[tab].OnHide();
+            tabs[tab].Leave();
             tab = index;
             message = "";
             tabs[tab].OnShow();
@@ -451,6 +451,7 @@ namespace MOD_sWP6UL
 
         private static void Render()
         {
+            Confirm.OnRender();
             Ui.Clear(titleArea);
             Ui.Clear(tabBar);
             Ui.Clear(content);

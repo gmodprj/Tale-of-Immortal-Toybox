@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MOD_sWP6UL
@@ -20,10 +22,65 @@ namespace MOD_sWP6UL
             get { return false; }
         }
 
+        // 하위 화면에서 내용이 시작하는 y. 그 위는 제목과 돌아가기다.
+        protected const float SubTop = 44;
+
+        private sealed class SubView
+        {
+            public Func<string> Title;
+            public Action Draw;
+        }
+
+        private readonly List<SubView> views = new List<SubView>();
+
         public void Render(RectTransform area)
         {
             content = area;
-            Draw();
+            if (views.Count == 0)
+            {
+                Draw();
+                return;
+            }
+            SubView view = views[views.Count - 1];
+            Ui.Label(content, view.Title(), 0, 0, ContentW - 150, 36, 21);
+            Ui.Button("Back", content, "돌아가기", ContentW - 130, 0, 130, 36, new Action(Pop));
+            view.Draw();
+        }
+
+        // 하위 화면을 쌓는다(목록 → 고르기 같은 흐름). draw는 SubTop 아래에 그린다.
+        protected void Push(Func<string> title, Action draw)
+        {
+            views.Add(new SubView { Title = title, Draw = draw });
+            Redraw();
+        }
+
+        // 한 단계 돌아간다.
+        protected void Pop()
+        {
+            if (views.Count > 0)
+            {
+                views.RemoveAt(views.Count - 1);
+            }
+            Redraw();
+        }
+
+        protected void CloseViews()
+        {
+            views.Clear();
+        }
+
+        // 틀이 부른다: 이 탭을 떠날 때. 하위 화면을 닫는다.
+        public void Leave()
+        {
+            CloseViews();
+            OnHide();
+        }
+
+        // 틀이 부른다: 편집 대상이 바뀌었을 때. 하위 화면은 앞의 대상을 보고 있으므로 닫는다.
+        public void TargetChanged()
+        {
+            CloseViews();
+            OnTargetChanged();
         }
 
         protected abstract void Draw();

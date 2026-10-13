@@ -37,13 +37,9 @@ namespace MOD_sWP6UL
             {
                 text = Array.IndexOf(Amounts, current) < 0 ? current.ToString() : "";
             }
-            Ui.Input(key + "Input", parent, text, "직접 입력", inputX, y, 130, 38, new Action<string>(v => typed[key] = v), true);
-            Ui.Button(key + "Apply", parent, "적용", inputX + 136, y, 70, 38, new Action(() =>
+            Action<int> apply = value =>
             {
-                string entered;
-                int value;
-                typed.TryGetValue(key, out entered);
-                if (!int.TryParse(entered, out value) || value < 1 || value > Max)
+                if (value < 1 || value > Max)
                 {
                     EditorWindow.Say("수량은 1~" + Max + " 사이의 숫자로 입력하세요.");
                     return;
@@ -51,6 +47,18 @@ namespace MOD_sWP6UL
                 values[key] = value;
                 EditorWindow.ClearMessage();
                 EditorWindow.Refresh();
+            };
+            NumberField.Build(parent, key + "Input", inputX, y, 130, 38, text, new Action<string>(v => typed[key] = v), apply);
+            Ui.Button(key + "Apply", parent, "적용", inputX + 136, y, 70, 38, new Action(() =>
+            {
+                string entered;
+                int value;
+                typed.TryGetValue(key, out entered);
+                if (!int.TryParse(entered, out value))
+                {
+                    value = 0;
+                }
+                apply(value);
             }));
             return inputX + 136 + 70;
         }

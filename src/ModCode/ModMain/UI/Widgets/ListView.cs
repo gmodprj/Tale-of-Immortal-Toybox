@@ -1,0 +1,160 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace MOD_sWP6UL
+{
+    // 세로로 스크롤되는 목록. 전체 높이만큼의 영역에 화면에 걸친 줄만 만든다(아이템 3천여 개를 줄마다 만들면 너무 느리다).
+    // 스크롤해서 첫 줄의 번호가 바뀌면 그때 줄을 다시 만든다. 목록 위치는 이 객체가 기억하므로 탭이 내용을 다시 그려도 유지된다.
+    // 아래에 이동 줄이 붙는다: 처음·이전·다음·끝과 "전체 N개 중 a~b번째". 전체가 한 화면에 들어오면 버튼을 숨긴다.
+    internal sealed class ListView<T>
+    {
+        private const float NavH = 38;
+        private const float Gap = 6;
+        private static readonly Color Stripe = new Color(1f, 1f, 1f, 0.04f);
+        private static readonly Color Clear = new Color(1f, 1f, 1f, 0f);
+
+        private readonly string name;
+        private readonly float rowHeight;
+        private IList<T> items = new List<T>();
+        private Action<RectTransform, T, int> drawRow;
+        private RectTransform inner;
+        private RectTransform nav;
+        private float viewH;
+        private float innerW;
+        private float scrollY;
+        private int first = -1;
+
+        // 줄을 눌렀을 때 부를 것. 있으면 줄 전체가 눌린다(줄 위의 버튼은 따로 눌린다).
+        public Action<T> OnSelect { get; set; }
+
+        public string EmptyText = "조건에 맞는 것이 없습니다.";
+
+        public ListView(string name, float rowHeight)
+        {
+            this.name = name;
+            this.rowHeight = rowHeight;
+        }
+
+        public int Count
+        {
+            get { return items.Count; }
+        }
+
+        // 다음에 그릴 때 맨 위에서 시작한다(분류를 바꿨을 때).
+        public void Reset()
+        {
+            scrollY = 0;
+        }
+
+        private float Clamp(float y)
+        {
+            return Mathf.Clamp(y, 0f, Mathf.Max(0f, items.Count * rowHeight - viewH));
+        }
+
+        // (x, y, w, h) 안에 목록과 이동 줄을 그린다. h에는 이동 줄의 높이가 들어 있다.
+        public void Build(Transform parent, float x, float y, float w, float h, IList<T> list, Action<RectTransform, T, int> draw)
+        {
+            items = list;
+            drawRow = draw;
+            viewH = h - NavH - Gap;
+            innerW = w - Ui.ScrollBarWidth;
+            scrollY = Clamp(scrollY);
+            inner = Ui.Scroll(name, parent, x, y, w, viewH, items.Count * rowHeight, scrollY, new Action<float>(OnScroll));
+            nav = Ui.Rect(name + "Nav", parent, x, y + viewH + Gap, w, NavH);
+            DrawRows();
+        }
+
+        // 걸러진 결과로 바꾸고 맨 위에서 시작한다. 줄만 다시 그리므로 검색 칸이 그대로 남는다.
+        public void SetItems(IList<T> list)
+        {
+            items = list;
+            scrollY = 0;
+            if (inner == null)
+            {
+                return;
+            }
+            inner.sizeDelta = new Vector2(innerW, Mathf.Max(viewH, items.Count * rowHeight));
+            inner.anchoredPosition = Vector2.zero;
+            DrawRows();
+        }
+
+        // 보이는 줄을 다시 그린다(줄의 내용이 바뀌었을 때).
+        public void Refresh()
+        {
+            if (inner != null)
+            {
+                DrawRows();
+            }
+        }
+
+        private void OnScroll(float y)
+        {
+            scrollY = y;
+            if ((int)(y / rowHeight) != first)
+            {
+                DrawRows();
+            }
+        }
+
+        private void ScrollTo(float y)
+        {
+            scrollY = Clamp(y);
+            inner.anchoredPosition = new Vector2(0f, scrollY);
+            DrawRows();
+        }
+
+        private void DrawRows()
+        {
+            Ui.Clear(inner);
+            Ui.Clear(nav);
+            first = Mathf.Max(0, (int)(scrollY / rowHeight));
+            int perScreen = Mathf.Max(1, (int)(viewH / rowHeight));
+            int last = Mathf.Min(items.Count, first + perScreen + 1);
+            if (items.Count == 0)
+            {
+                Ui.Label(inner, EmptyText, 16, 8, innerW - 32, 34, 18).color = Ui.Warn;
+            }
+            for (int i = first; i < last; i++)
+            {
+                RectTransform row = Ui.Rect("Row" + i, inner, 0, i * rowHeight, innerW, rowHeight);
+                if (OnSelect != null || i % 2 == 1)
+                {
+                    var image = row.gameObject.AddComponent<Image>();
+                    image.color = i % 2 == 1 ? Stripe : Clear;
+                    if (OnSelect != null)
+                    {
+                        T item = items[i];
+                        var button = row.gameObject.AddComponent<Button>();
+                        button.targetGraphic = image;
+                        button.transition = Selectable.Transition.None;
+                        button.onClick.AddListener(new Action(() => OnSelect(item)));
+                    }
+                    else
+                    {
+                        image.raycastTarget = false;
+                    }
+                }
+                drawRow(row, items[i], i);
+            }
+
+            bool fits = items.Count * rowHeight <= viewH;
+            float labelX = 0;
+            if (!fits)
+            {
+                float page = perScreen * rowHeight;
+                float max = Clamp(float.MaxValue);
+                Ui.Button(name + "First", nav, "처음", 0, 0, 80, NavH, new Action(() => ScrollTo(0f)), scrollY > 0f);
+                Ui.Button(name + "Prev", nav, "이전", 86, 0, 80, NavH, new Action(() => ScrollTo(scrollY - page)), scrollY > 0f);
+                Ui.Button(name + "Next", nav, "다음", 172, 0, 80, NavH, new Action(() => ScrollTo(scrollY + page)), scrollY < max);
+                Ui.Button(name + "Last", nav, "끝", 258, 0, 80, NavH, new Action(() => ScrollTo(max)), scrollY < max);
+                labelX = 350;
+            }
+            string range = items.Count == 0 ? "0개"
+                : "전체 " + items.Count + "개 중 " + (first + 1) + "~" + Mathf.Min(items.Count, first + perScreen) + "번째";
+            RectTransform holder = Ui.Rect(name + "Range", nav, labelX, 0, 600, NavH);
+            Ui.Label(holder, range, 0, 0, 600, NavH, 16).color = Ui.Dim;
+        }
+    }
+}
