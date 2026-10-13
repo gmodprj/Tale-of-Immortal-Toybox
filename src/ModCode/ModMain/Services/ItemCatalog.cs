@@ -25,7 +25,10 @@ namespace MOD_sWP6UL
             public int Count;
         }
 
+        private const int ClothClass = 304;   // ItemProps.className: 의복
+
         private static List<Entry> all;
+        private static List<Entry> currencies;
         private static List<Category> mainCategories;
 
         private static string CategoryName(int id)
@@ -43,27 +46,44 @@ namespace MOD_sWP6UL
         private static void Build()
         {
             all = new List<Entry>();
+            currencies = new List<Entry>();
             var counts = new Dictionary<int, int>();
             var items = g.conf.itemProps._allConfList;
             for (int i = 0; i < items.Count; i++)
             {
                 ConfItemPropsItem item = items[i];
-                // 영석 같은 재화(hide)는 자원 탭의 다른 기능으로 다룬다.
+                string name = GameTool.LS(item.name);
+                // 재화(hide)는 아이템 표에 넣지 않는다. 그 가운데 일반 재화(type 0)는 화폐 목록으로 따로 모은다.
+                // 천원산 안에서만 쓰는 재화(type 5: 신석, 현옥)와 임무용 물건은 넣지 않는다.
                 if (item.hide != 0)
                 {
+                    if (item.type == 0)
+                    {
+                        string label = MartialService.CleanDesc(GameTool.LS(item.desc)).Replace("\r", "").Replace('\n', ' ');
+                        // 이름의 번역이 없는 재화(등선폐)는 설명이 곧 이름이다.
+                        bool named = !string.IsNullOrEmpty(name) && name != item.name;
+                        currencies.Add(new Entry { Id = item.id, Name = named ? name : label, Desc = label, Level = item.level, Type = item.type, SubType = item.className });
+                    }
                     continue;
                 }
-                string name = GameTool.LS(item.name);
                 if (string.IsNullOrEmpty(name) || name == item.name)
                 {
                     continue;
+                }
+                string desc = MartialService.CleanDesc(GameTool.LS(item.desc)).Replace("\r", "").Replace('\n', ' ');
+                // 의복은 게임의 이름과 설명이 모두 "의복"이다. 성별·모양·색으로 구분되게 한다(의복 표 ClothItem).
+                ConfClothItemItem cloth = item.className == ClothClass ? g.conf.clothItem.GetItem(item.id) : null;
+                if (cloth != null)
+                {
+                    string sex = cloth.sex == 1 ? "남" : "여";
+                    desc = name + " — " + sex + "성용, 모양 " + cloth.style + ", 색 " + cloth.color;
+                    name = name + "(" + sex + ") " + cloth.style + "-" + cloth.color;
                 }
                 all.Add(new Entry
                 {
                     Id = item.id,
                     Name = name,
-                    // 표의 한 칸에 들어가도록 줄바꿈을 없앤다.
-                    Desc = MartialService.CleanDesc(GameTool.LS(item.desc)).Replace("\r", "").Replace('\n', ' '),
+                    Desc = desc,
                     Level = item.level,
                     Type = item.type,
                     SubType = item.className,
@@ -92,6 +112,19 @@ namespace MOD_sWP6UL
                     Build();
                 }
                 return all;
+            }
+        }
+
+        // 영석을 포함한 일반 재화(종문 공헌, 성주령, 전공 등). 가방 칸을 차지하지 않고 수량만 있다.
+        public static List<Entry> Currencies
+        {
+            get
+            {
+                if (currencies == null)
+                {
+                    Build();
+                }
+                return currencies;
             }
         }
 

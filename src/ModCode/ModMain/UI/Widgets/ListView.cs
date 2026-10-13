@@ -151,8 +151,11 @@ namespace MOD_sWP6UL
                 Ui.Button(name + "Last", nav, "끝", 258, 0, 80, NavH, new Action(() => ScrollTo(max)), scrollY < max);
                 labelX = 350;
             }
+            // 맨 아래에서는 첫 줄이 반쯤 잘려 있고 마지막 줄이 다 보인다. 범위는 다 보이는 줄로 센다.
+            bool atEnd = !fits && scrollY >= Clamp(float.MaxValue) - 0.5f;
+            int from = atEnd ? items.Count - perScreen + 1 : first + 1;
             string range = items.Count == 0 ? "0개"
-                : "전체 " + items.Count + "개 중 " + (first + 1) + "~" + Mathf.Min(items.Count, first + perScreen) + "번째";
+                : "전체 " + items.Count + "개 중 " + from + "~" + Mathf.Min(items.Count, from + perScreen - 1) + "번째";
             RectTransform holder = Ui.Rect(name + "Range", nav, labelX, 0, 600, NavH);
             Ui.Label(holder, range, 0, 0, 600, NavH, 16).color = Ui.Dim;
         }

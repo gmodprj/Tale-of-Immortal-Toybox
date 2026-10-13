@@ -167,7 +167,8 @@ switch ($Part) {
     Cmd 'ui set ItemQuery zzzzzz' | Out-Null
     Check 'no match shows an empty list' ((Cmd 'uitext ItemTableRange') -match "text='0개'" -and (Cmd 'uipos ItemTableNext') -match 'no element named' -and (Cmd 'uipos Row0') -match 'no element named')
     Press 'ItemQueryClear' | Out-Null
-    Check 'clearing brings everything back' ((Cmd 'uitext ItemTableRange') -match "전체 $total개 중 1~" -and (Cmd 'uitext ItemQuery') -match "text=''")
+    $o = (Cmd 'uitext ItemTableRange') + ' | ' + (Cmd 'uitext ItemQuery')
+    Check 'clearing brings everything back' ($o -match "전체 $($total)개 중 1~" -and $o -match "ItemQuery text=''") $o
 
     # 이동 줄과 스크롤
     Press 'ItemTableNext' | Out-Null
@@ -202,6 +203,25 @@ switch ($Part) {
     $o = Cmd 'uitext ItemName3041003'
     Check 'clothes show sex, shape and colour' ($o -match "text='의복\((남|여)\) \d+-\d+'") $o
     Press 'ItemQueryClear' | Out-Null
+
+    # 화폐: 영석 말고도 화폐로 쓰이는 재화(사용자 지시로 추가)
+    Press 'CurrencyOpen' | Out-Null
+    Check 'the currency screen lists the other currencies' ((IsAt 'Back') -and (IsAt 'CurrencyAdd10011') -and (IsAt 'CurrencyAdd10041') -and (IsAt 'CurrencyAdd7000315') -and (IsAt 'CurrencyAdd2821101'))
+    Check 'run-only currencies are left out' ((Cmd 'uipos CurrencyAdd5061016') -match 'no element named')
+    $grid = if ((Cmd 'grid') -match 'cur=(\d+)') { [int]$Matches[1] } else { -1 }
+    foreach ($cid in 10041, 10011) {
+      $had = if ((Cmd "count $cid") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
+      Press "CurrencyAdd$cid" | Out-Null
+      $has = if ((Cmd "count $cid") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
+      Check "currency $cid goes up by the chosen amount" ($has -eq $had + 10) "$had -> $has"
+    }
+    Check 'the result names the currency, not a text key' ((Cmd 'uistate') -notmatch "message='item_name")
+    Check 'currencies do not take bag slots' ((Cmd 'grid') -match "cur=$grid ")
+    $money = if ((Cmd 'read') -match 'money=(\d+)') { [int]$Matches[1] } else { -1 }
+    Press 'CurrencyAdd10001' | Out-Null
+    Check 'spirit stones can be added here too' ((Cmd 'read') -match "money=$($money + 10) ")
+    Press 'Back' | Out-Null
+    Check 'back to the item list' (IsAt 'MoneyAdd')
 
     # 가방 칸 한 번에 지정 (회차의 -End가 bag-slots.txt를 되돌린다)
     function Extra { if ((Cmd 'bagstat') -match 'extra=(\d+)') { [int]$Matches[1] } else { -1 } }
@@ -271,7 +291,7 @@ switch ($Part) {
     Cmd 'ui set NpcQuery zzzzzz' | Out-Null
     Check 'no match shows an empty list' ((Cmd 'uitext NpcListRange') -match "text='0개'")
     Press 'NpcQueryClear' | Out-Null
-    Check 'clearing brings everyone back' ((Cmd 'uitext NpcListRange') -match "전체 $total개")
+    Check 'clearing brings everyone back' ((Cmd 'uitext NpcListRange') -match "전체 $($total)개")
     Press 'NpcListLast' | Out-Null
     Check 'the list scrolls to the end' ((Cmd 'uitext NpcListRange') -match "~$($total)번째")
     Press 'Close' | Out-Null
