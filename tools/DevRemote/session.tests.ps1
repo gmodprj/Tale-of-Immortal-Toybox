@@ -154,6 +154,24 @@ $b = NewBox
 [IO.File]::WriteAllText("$($b.work)\check-config.txt", 'left by a stopped check')
 $o = Run $b $none @{ End = 'x' }
 Check 'End restores config.txt' ($o -match 'SAVE RESTORED' -and [IO.File]::ReadAllText("$($b.data)\config.txt") -eq 'hotkey=Insert' -and -not (Test-Path "$($b.work)\check-config.txt")) $o
+# 18. -End는 프리셋 폴더(presets)를 회차 전의 내용으로 되돌린다. 검사가 폴더를 지우고 다시 만들어도 사용자가 고친 프리셋이 남는다
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.data)\presets")
+[IO.File]::WriteAllText("$($b.data)\presets\mine.json", 'edited by the user')
+[IO.File]::WriteAllText("$($b.data)\presets\01-default.json", 'default')
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\presets\mine.json", 'overwritten by a check')
+[IO.File]::Delete("$($b.data)\presets\01-default.json")
+[IO.File]::WriteAllText("$($b.data)\presets\uicheck-preset.json", 'left by a check')
+$o = Run $b $none @{ End = 'x' }
+Check 'End restores the presets folder' ($o -match 'PRESETS RESTORED' -and (Tree "$($b.data)\presets") -eq '\01-default.json=default;\mine.json=edited by the user' -and -not (Test-Path "$($b.work)\session-presets")) "$o | $(Tree "$($b.data)\presets")"
+# 19. 회차 전에 프리셋 폴더가 없었으면 -End 뒤에도 없다(다음에 탭을 열 때 기본 프리셋이 풀린다)
+$b = NewBox
+[void](Run $b $none @{ Begin = 'x' })
+[void][IO.Directory]::CreateDirectory("$($b.data)\presets")
+[IO.File]::WriteAllText("$($b.data)\presets\uicheck-preset.json", 'left by a check')
+$o = Run $b $none @{ End = 'x' }
+Check 'End removes a presets folder the session made' ($o -match 'PRESETS RESTORED' -and -not (Test-Path "$($b.data)\presets") -and -not (Test-Path "$($b.work)\session-presets.absent")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
