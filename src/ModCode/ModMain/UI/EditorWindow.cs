@@ -433,7 +433,7 @@ namespace MOD_sWP6UL
             Button collapse = Ui.Button("Collapse", window, "접기", Width - 196, 8, 90, 36, new Action(() => SetCollapsed(!collapsed)));
             collapseLabel = collapse.GetComponentInChildren<Text>();
             Ui.Button("Close", window, "닫기", Width - 100, 8, 84, 36, new Action(Close));
-            tabBar = Ui.Rect("Tabs", window, 16, ContentY, 150, 9 * 52);
+            tabBar = Ui.Rect("Tabs", window, 16, ContentY, 150, 10 * 52);
             content = Ui.Rect("Content", window, ContentX, ContentY, ContentW, ContentH);
             RectTransform box = Ui.Panel("MessageBox", window, 16, Height - MessageH - 8, Width - 32, MessageH, Ui.Section);
             messageBox = box.GetComponent<Image>();
@@ -444,7 +444,7 @@ namespace MOD_sWP6UL
 
             tabs = new EditorTab[]
             {
-                new AttributesTab(), new ResourcesTab(), new GradeTab(), new MartialTab(), new LuckTab(),
+                new AttributesTab(), new ResourcesTab(), new CurrencyTab(), new GradeTab(), new MartialTab(), new LuckTab(),
                 new ArtTab(), new NpcTab(), new WorldTab(), new SafetyTab(),
             };
         }
@@ -537,7 +537,18 @@ namespace MOD_sWP6UL
         // 개발 전용: 세계 탭의 직접 지정 입력 칸과 확인 상태.
         public static string DevDateState
         {
-            get { return tabs == null ? "window not built" : ((WorldTab)tabs[7]).DevDateState; }
+            get
+            {
+                for (int i = 0; tabs != null && i < tabs.Length; i++)
+                {
+                    WorldTab world = tabs[i] as WorldTab;
+                    if (world != null)
+                    {
+                        return world.DevDateState;
+                    }
+                }
+                return "window not built";
+            }
         }
 
         // 개발 전용: 창의 상태. 결과 문구에는 공백이 들어가므로 맨 끝에 둔다.

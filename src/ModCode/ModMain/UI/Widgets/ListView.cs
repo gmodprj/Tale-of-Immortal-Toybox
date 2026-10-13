@@ -95,7 +95,10 @@ namespace MOD_sWP6UL
             if ((int)(y / rowHeight) != first)
             {
                 DrawRows();
+                return;
             }
+            // 첫 줄 번호가 그대로여도 맨 위·맨 아래를 벗어났는지는 달라졌을 수 있다. 이동 줄만 다시 그린다.
+            DrawNav();
         }
 
         private void ScrollTo(float y)
@@ -108,7 +111,6 @@ namespace MOD_sWP6UL
         private void DrawRows()
         {
             Ui.Clear(inner);
-            Ui.Clear(nav);
             first = Mathf.Max(0, (int)(scrollY / rowHeight));
             int perScreen = Mathf.Max(1, (int)(viewH / rowHeight));
             int last = Mathf.Min(items.Count, first + perScreen + 1);
@@ -138,7 +140,13 @@ namespace MOD_sWP6UL
                 }
                 drawRow(row, items[i], i);
             }
+            DrawNav();
+        }
 
+        private void DrawNav()
+        {
+            Ui.Clear(nav);
+            int perScreen = Mathf.Max(1, (int)(viewH / rowHeight));
             bool fits = items.Count * rowHeight <= viewH;
             float labelX = 0;
             if (!fits)

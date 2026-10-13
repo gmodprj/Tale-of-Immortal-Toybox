@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'BackupNow')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -54,7 +54,7 @@ switch ($Part) {
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
-    for ($i = 0; $i -lt 9; $i++) {
+    for ($i = 0; $i -lt 10; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
@@ -75,18 +75,18 @@ switch ($Part) {
     Check 'title shows the target' ((Cmd 'uitext Title') -match '편집 대상: .+\(플레이어\)')
     $p = Pos 'ToPlayer'
     Check 'ToPlayer is off while the target is the player' ((Rc "click $($p.x) $($p.y)" 300) -match 'not interactable')
-    for ($i = 0; $i -lt 9; $i++) {
+    for ($i = 0; $i -lt 10; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i is selected" ((Cmd 'uistate') -match "tab=$i ")
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
 
     # 탭 안의 하위 화면
-    Press 'Tab3' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    Press 'Tab4' | Out-Null; Press 'SkillAddOpen' | Out-Null
     Check 'skill add screen opens' (IsAt 'Back')
     Press 'Back' | Out-Null
     Check 'skill add screen closes' (IsAt 'SkillAddOpen')
-    Press 'Tab4' | Out-Null; Press 'LuckAddOpen' | Out-Null
+    Press 'Tab5' | Out-Null; Press 'LuckAddOpen' | Out-Null
     Check 'luck picker opens' (IsAt 'Back')
     Press 'Back' | Out-Null; Press 'FateOpen' | Out-Null
     Check 'fate screen opens' (IsAt 'Back')
@@ -96,15 +96,15 @@ switch ($Part) {
     # 수량은 쓰는 곳마다 따로 기억한다 (스펙 6절 10번)
     Press 'Tab0' | Out-Null; Press 'attr100' | Out-Null
     Check 'attribute step is 100' ((Cmd 'uitext Plus*') -match "text='\+ 100'")
-    Press 'Tab7' | Out-Null
+    Press 'Tab8' | Out-Null
     Check 'move step is still 10' ((Cmd 'uitext MoveUp') -match "text='y - 10'")
     Press 'move1000' | Out-Null
     Check 'move step is 1000' ((Cmd 'uitext MoveUp') -match "text='y - 1000'")
-    Press 'Tab6' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null
+    Press 'Tab7' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null
     Check 'intim step is still 10' ((Cmd 'uitext IntimPlus') -match "text='\+ 10'")
     Press 'Tab0' | Out-Null
     Check 'attribute step is still 100' ((Cmd 'uitext Plus*') -match "text='\+ 100'")
-    Press 'attr10' | Out-Null; Press 'Tab7' | Out-Null; Press 'move10' | Out-Null
+    Press 'attr10' | Out-Null; Press 'Tab8' | Out-Null; Press 'move10' | Out-Null
 
     # 결과 영역 (스펙 6절 20번은 캡처로 본다)
     Press 'Tab0' | Out-Null; Press 'Restore' | Out-Null
@@ -116,7 +116,7 @@ switch ($Part) {
     Press 'Tab1' | Out-Null
 
     # 편집 대상: NPC로 바꿨다가 제목 줄의 버튼으로 되돌린다 (스펙 6절 15번)
-    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'EditNpc' | Out-Null
     $s = Cmd 'uistate'
     Check 'target is the NPC and the first tab is shown' ($s -match 'tab=0 target=npc ') $s
     Check 'title shows the NPC' ((Cmd 'uitext Title') -match '\(NPC\)')
@@ -124,18 +124,18 @@ switch ($Part) {
     Check 'back to the player' ((Cmd 'uistate') -match 'target=player ' -and (Cmd 'uitext Title') -match '\(플레이어\)')
 
     # 삭제 확인 대기는 편집 대상을 바꾸면 풀린다. 제목 줄의 버튼으로 어느 탭에서나 대상을 바꿀 수 있기 때문이다.
-    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab5' | Out-Null
     $rm = (Pos 'LuckRemove*').name; Press $rm | Out-Null
     Check 'removing an NPC luck asks first' ((Cmd "uitext $rm") -match "text='정말 삭제'")
     Press 'ToPlayer' | Out-Null
-    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab5' | Out-Null
     Check 'the pending confirm is gone after the target changed' ((Cmd "uitext $rm") -match "text='삭제'")
     Press 'ToPlayer' | Out-Null
 
     # Review Focus 2: 대상으로 잡은 NPC가 없어지면 플레이어로 돌아간다
     $s = Cmd 'uitarget no-such-unit'
     Check 'a missing target falls back to the player' ($s -match 'target=player ' -and (Cmd 'uitext Title') -match '\(플레이어\)') $s
-    Press 'Tab3' | Out-Null
+    Press 'Tab4' | Out-Null
     Check 'target tabs still draw after the fallback' (IsAt 'SkillAddOpen')
 
     Shot 'tabs'
@@ -171,6 +171,11 @@ switch ($Part) {
     Check 'clearing brings everything back' ($o -match "전체 $($total)개 중 1~" -and $o -match "ItemQuery text=''") $o
 
     # 이동 줄과 스크롤
+    # 휠로 조금만 내려도(첫 줄 번호가 그대로여도) 이동 버튼이 켜진다
+    $p = Pos 'ItemTable'
+    Rc "scroll $($p.x) $($p.y) -0.5" 300 | Out-Null
+    $f = Pos 'ItemTableFirst'
+    Check 'a small scroll enables the first button' ((Rc "click $($f.x) $($f.y)" 400) -match 'Button.onClick: ItemTableFirst')
     Press 'ItemTableNext' | Out-Null
     Check 'next moves one screen' ((Cmd 'uitext ItemTableRange') -match "중 $($screen + 1)~")
     Press 'ItemTableLast' | Out-Null
@@ -205,8 +210,8 @@ switch ($Part) {
     Press 'ItemQueryClear' | Out-Null
 
     # 화폐: 영석 말고도 화폐로 쓰이는 재화(사용자 지시로 추가)
-    Press 'CurrencyOpen' | Out-Null
-    Check 'the currency screen lists the other currencies' ((IsAt 'Back') -and (IsAt 'CurrencyAdd10011') -and (IsAt 'CurrencyAdd10041') -and (IsAt 'CurrencyAdd7000315') -and (IsAt 'CurrencyAdd2821101'))
+    Press 'Tab2' | Out-Null
+    Check 'the currency tab lists the other currencies' ((IsAt 'CurrencyAdd10011') -and (IsAt 'CurrencyAdd10041') -and (IsAt 'CurrencyAdd7000315') -and (IsAt 'CurrencyAdd2821101'))
     Check 'run-only currencies are left out' ((Cmd 'uipos CurrencyAdd5061016') -match 'no element named')
     $grid = if ((Cmd 'grid') -match 'cur=(\d+)') { [int]$Matches[1] } else { -1 }
     foreach ($cid in 10041, 10011) {
@@ -220,8 +225,8 @@ switch ($Part) {
     $money = if ((Cmd 'read') -match 'money=(\d+)') { [int]$Matches[1] } else { -1 }
     Press 'CurrencyAdd10001' | Out-Null
     Check 'spirit stones can be added here too' ((Cmd 'read') -match "money=$($money + 10) ")
-    Press 'Back' | Out-Null
-    Check 'back to the item list' (IsAt 'MoneyAdd')
+    Check 'the resources tab no longer has a currency screen' ((Cmd 'uipos CurrencyOpen') -match 'no element named')
+    Press 'Tab1' | Out-Null
 
     # 가방 칸 한 번에 지정 (회차의 -End가 bag-slots.txt를 되돌린다)
     function Extra { if ((Cmd 'bagstat') -match 'extra=(\d+)') { [int]$Matches[1] } else { -1 } }
@@ -229,8 +234,14 @@ switch ($Part) {
     $want = if ($e0 -eq 120) { 135 } else { 125 }
     Cmd 'uifocus BagExtra' | Out-Null; Cmd "ui set BagExtra $want" | Out-Null; Key 0x0D
     Check 'Enter sets the extra slots, rounded down to tens' ((Extra) -eq $want - 5) "extra=$(Extra)"
+    # Review Focus 3: 범위 밖의 수는 맞춰서 적용하지 않고 거부한다
+    $kept = Extra
     Cmd 'ui set BagExtra 501' | Out-Null; Press 'BagApply' | Out-Null
-    Check 'the apply button works and the value is capped' ((Extra) -eq 500)
+    Check 'a value above the limit is refused' ((Extra) -eq $kept -and (Cmd 'uistate') -match "message='가방: 추가 칸은 0~500") "extra=$(Extra)"
+    Cmd 'ui set BagExtra -10' | Out-Null; Press 'BagApply' | Out-Null
+    Check 'a negative value is refused' ((Extra) -eq $kept -and (Cmd 'uistate') -match "message='가방: 추가 칸은 0~500") "extra=$(Extra)"
+    Cmd 'ui set BagExtra 500' | Out-Null; Press 'BagApply' | Out-Null
+    Check 'the apply button sets the upper limit' ((Extra) -eq 500)
     Cmd 'ui set BagExtra 0' | Out-Null; Press 'BagApply' | Out-Null
     Check 'zero removes them' ((Extra) -eq 0)
     Press 'BagPlus' | Out-Null
@@ -270,12 +281,12 @@ switch ($Part) {
     Check 'a step of zero is refused' ((Cmd 'uitext Plus*') -match "text='\+ 7'" -and (Cmd 'uistate') -match "message='수량은")
     Press 'attr10' | Out-Null
     # 세계 탭: 날짜 칸에서 Enter를 누르면 적용 버튼과 같다(확인은 그대로 두 번)
-    Press 'Tab7' | Out-Null
+    Press 'Tab8' | Out-Null
     if ((Cmd 'tin') -notmatch 'input=(\d+)-(\d+)-(\d+) pending=False') { throw '날짜 입력 상태를 읽지 못했습니다.' }
     $day = [int]$Matches[3]; $other = if ($day -eq 12) { 13 } else { 12 }
     Cmd 'uifocus DateDay' | Out-Null; Cmd "ui set DateDay $other" | Out-Null; Key 0x0D
     Check 'Enter in a date box asks like the apply button' ((Cmd 'tin') -match "-$other pending=True" -and (Cmd 'uitext DateApply') -match "text='정말 변경'")
-    Press 'Tab7' | Out-Null
+    Press 'Tab8' | Out-Null
     Check 'coming back to the tab cancels the date change' ((Cmd 'tin') -match "-$day pending=False")
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
@@ -284,7 +295,7 @@ switch ($Part) {
   'people' {
     # NPC 탭의 목록과 즉시 검색.
     $traps = Traps
-    Cmd 'editor' | Out-Null; Press 'Tab6' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab7' | Out-Null
     $o = Cmd 'uitext NpcListRange'
     if ($o -notmatch '전체 (\d+)개') { throw "NPC 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]
@@ -311,7 +322,7 @@ switch ($Part) {
     # 스펙 6절 18번. 안전 탭의 변경 이력 전체 보기. 방금 한 변경이 맨 위에 오는지 보려고 먼저 하나를 만든다.
     $traps = Traps
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null; Press 'Restore' | Out-Null
-    Press 'Tab8' | Out-Null
+    Press 'Tab9' | Out-Null
     $o = Cmd 'uitext HistoryRange'
     if ($o -notmatch '전체 (\d+)개') { throw "이력 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]
@@ -333,11 +344,11 @@ switch ($Part) {
     # 스펙 6절 11~14번, Review Focus 4·5. 하위 화면과 확인 대기.
     $traps = Traps
     Cmd 'editor' | Out-Null
-    Press 'Tab6' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab5' | Out-Null
     $rm = (Pos 'LuckRemove*').name
     Press $rm | Out-Null
     Check 'the first press only asks' ((Cmd "uitext $rm") -match "text='정말 삭제'")
-    Press 'Tab3' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab4' | Out-Null; Press 'Tab5' | Out-Null
     Check 'a tab change cancels it' ((Cmd "uitext $rm") -match "text='삭제'")
     Press $rm | Out-Null
     Press 'LuckAddOpen' | Out-Null
@@ -346,7 +357,7 @@ switch ($Part) {
     Check 'opening a sub screen cancels it' ((Cmd "uitext $rm") -match "text='삭제'")
     Press $rm | Out-Null
     Press 'ToPlayer' | Out-Null
-    Press 'Tab6' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab7' | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab5' | Out-Null
     Check 'a target change cancels it' ((Cmd "uitext $rm") -match "text='삭제'")
 
     # Review Focus 5: 하위 화면이 열린 채 대상을 바꾸거나 탭을 떠난다
@@ -357,11 +368,11 @@ switch ($Part) {
     Press 'LuckAddOpen' | Out-Null
     Cmd 'ui set LuckQuery zzzzzz' | Out-Null
     Check 'the picker search is immediate' ((Cmd 'uitext LuckPickRange') -match "text='0개'")
-    Press 'Tab3' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab4' | Out-Null; Press 'Tab5' | Out-Null
     Check 'leaving the tab closes the sub screen' (IsAt 'LuckAddOpen')
 
     # 공법: 기술 추가 화면의 목록과 검색, 옵션 교체 화면
-    Press 'Tab3' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    Press 'Tab4' | Out-Null; Press 'SkillAddOpen' | Out-Null
     $o = Cmd 'uitext SkillListRange'
     Check 'the skill list is a scrolling list' ($o -match '전체 (\d+)개' -and [int]$Matches[1] -gt 12) $o
     Cmd 'ui set SkillQuery zzzzzz' | Out-Null
@@ -376,7 +387,7 @@ switch ($Part) {
     Check 'another action cancels it' ((Cmd 'uitext MartialForget') -match "text='기술 망각'")
 
     # 기예: 목록과 검색
-    Press 'Tab5' | Out-Null
+    Press 'Tab6' | Out-Null
     $o = Cmd 'uitext ArtTableRange'
     Check 'the art list is a scrolling list' ($o -match '전체 (\d+)개') $o
     Cmd 'ui set ArtQuery zzzzzz' | Out-Null
@@ -398,13 +409,16 @@ switch ($Part) {
     Cmd 'editor' | Out-Null
     Cmd 'uitarget player' | Out-Null
 
-    Press 'Tab3' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    Press 'Tab4' | Out-Null
+    $had = if ((Cmd 'uitext MartialListRange') -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }
+    Press 'SkillAddOpen' | Out-Null
     $s = PressThrough (Pos 'SkillAdd*').name
-    Check 'adding a skill reports a result' ($s -match "message='[^']+'") $s
-    "INFO skill: $($s -replace '.*message=', '')"
     Press 'Back' | Out-Null
+    $has = if ((Cmd 'uitext MartialListRange') -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }
+    Check 'adding a skill puts one more in the learned list' ($has -eq $had + 1) "$had -> $has; $s"
+    "INFO skill: $($s -replace '.*message=', '')"
 
-    Press 'Tab4' | Out-Null; Press 'LuckAddOpen' | Out-Null; Press 'LuckType2' | Out-Null
+    Press 'Tab5' | Out-Null; Press 'LuckAddOpen' | Out-Null; Press 'LuckType2' | Out-Null
     Press 'LuckQueryClear' | Out-Null   # 앞선 검사가 검색어를 남겼을 수 있다
     $added = $null
     for ($i = 0; $i -lt 6 -and -not $added; $i++) {
@@ -417,19 +431,20 @@ switch ($Part) {
     Press 'Back' | Out-Null
     # 방금 붙인 운명은 목록의 끝에 온다. 목록이 한 화면보다 길면 끝으로 간다.
     if ((Cmd 'uipos LuckListLast') -match ' at ') { try { Press 'LuckListLast' | Out-Null } catch { } }
-    if ((Cmd "uipos LuckRemove$added") -match ' at ') {
-      $s = PressThrough "LuckRemove$added"
-      Check 'removing it reports a result' ($s -match "message='[^']+'" -and (Cmd "uipos LuckRemove$added") -match 'no element named') $s
-      "INFO luck remove: $($s -replace '.*message=', '')"
-    } else { "INFO the added luck row is not on screen; removal not pressed" }
+    Check 'the added luck is in the list' ((Cmd "uipos LuckRemove$added") -match ' at ')
+    $s = PressThrough "LuckRemove$added"
+    Check 'removing it reports a result' ($s -match "message='[^']+'" -and (Cmd "uipos LuckRemove$added") -match 'no element named') $s
+    "INFO luck remove: $($s -replace '.*message=', '')"
 
-    Press 'Tab5' | Out-Null
+    Press 'Tab6' | Out-Null
     $book = (Pos 'ArtAct*').name
+    $label0 = Cmd "uitext $book"
     $s = PressThrough $book
-    Check 'the art button reports a result' ($s -match "message='[^']+'") $s
+    $label1 = Cmd "uitext $book"
+    Check 'the art button changes the book state' ($label1 -ne $label0) "$label0 -> $label1; $s"
     "INFO art 1: $($s -replace '.*message=', '')"
     $s = PressThrough $book
-    Check 'and the opposite action too' ($s -match "message='[^']+'") $s
+    Check 'and the opposite action brings it back' ((Cmd "uitext $book") -eq $label0) $s
     "INFO art 2: $($s -replace '.*message=', '')"
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
@@ -565,7 +580,7 @@ switch ($Part) {
     Start-Sleep -Milliseconds 900
     Check 'shown without ever opening the editor' ((Cmd 'uistate') -match 'status=\[날짜 고정\] ')
     Cmd 'editor' | Out-Null
-    Press 'Tab7' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
+    Press 'Tab8' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
     Start-Sleep -Milliseconds 900
     Check 'all three are listed' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] ')
     Press 'Close' | Out-Null
@@ -575,7 +590,7 @@ switch ($Part) {
     Shot 'status'
     # 끈다. 배율은 x2 → x5 → x10 → x100 → x1로 돈다.
     Cmd 'editor' | Out-Null
-    Press 'Tab7' | Out-Null; Press 'God' | Out-Null; Press 'Freeze' | Out-Null
+    Press 'Tab8' | Out-Null; Press 'God' | Out-Null; Press 'Freeze' | Out-Null
     1..4 | ForEach-Object { Press 'Multiplier' | Out-Null }
     Press 'Close' | Out-Null
     Start-Sleep -Milliseconds 900
@@ -586,7 +601,7 @@ switch ($Part) {
   'status-battle' {
     # Review Focus 5. 회차의 마지막에 돌리고 바로 -End 한다(전투에서 나오지 않는다).
     Cmd 'editor' | Out-Null
-    Press 'Tab7' | Out-Null; Press 'God' | Out-Null
+    Press 'Tab8' | Out-Null; Press 'God' | Out-Null
     Press 'Close' | Out-Null
     EnterBattle
     Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
@@ -602,8 +617,8 @@ switch ($Part) {
     Check 'the battle scene is entered' ((Cmd 'uilist' 100) -match 'BattleInfo')
     Check 'editor opens in battle' ((Cmd 'editor') -match 'open=True')
     "INFO battle state: $(Cmd 'uistate')"
-    Check 'tabs are clickable in battle' (IsAt 'Tab7')
-    Press 'Tab7' | Out-Null
+    Check 'tabs are clickable in battle' (IsAt 'Tab8')
+    Press 'Tab8' | Out-Null
     Check 'world tab is drawn in battle' (IsAt 'God')
     Shot 'battle'
     Press 'Close' | Out-Null

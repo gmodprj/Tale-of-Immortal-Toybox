@@ -45,10 +45,16 @@ namespace MOD_sWP6UL
             Redraw();
         }
 
-        // 가방의 추가 칸을 원하는 수로 맞춘다. 10칸 단위로 내림하고 0~MaxExtra로 맞춘 뒤 지금 값과의 차이만큼 바꾼다.
+        // 가방의 추가 칸을 원하는 수로 맞춘다. 10칸 단위로 내림한 뒤 지금 값과의 차이만큼 바꾼다.
+        // 범위 밖의 수는 가까운 값으로 맞추지 않고 거부한다(음수를 잘못 넣었을 때 추가 칸이 모두 사라지지 않게).
         private void SetBagExtra(int wanted)
         {
-            int target = Math.Max(0, Math.Min(BagService.MaxExtra, wanted / BagService.Step * BagService.Step));
+            if (wanted < 0 || wanted > BagService.MaxExtra)
+            {
+                Say("가방: 추가 칸은 0~" + BagService.MaxExtra + " 사이의 숫자로 입력하세요.");
+                return;
+            }
+            int target = wanted / BagService.Step * BagService.Step;
             int delta = target - BagService.Extra;
             if (delta == 0)
             {
@@ -70,7 +76,6 @@ namespace MOD_sWP6UL
             Ui.Label(content, "추가량", 270, 6, 70, 40, 18).color = Ui.Dim;
             float moneyRight = AmountBar.Build(content, "money", 340, 7);
             Ui.Button("MoneyAdd", content, "영석 + " + moneyAmount, moneyRight + 20, 7, 200, 38, new Action(() => Say(EditService.AddMoney(Player, moneyAmount))));
-            Ui.Button("CurrencyOpen", content, "다른 화폐", moneyRight + 230, 7, 140, 38, new Action(() => Push(() => "화폐 — 영석 말고도 화폐로 쓰이는 재화", DrawCurrencies)));
             Ui.Label(content, "아이템 지급 수량", 16, 50, 250, 40, 20);
             AmountBar.Build(content, "item", 340, 51);
             // 가방 칸. 편집기가 늘린 만큼만 되돌릴 수 있다.
@@ -168,45 +173,6 @@ namespace MOD_sWP6UL
             // 표 본문과 이동 줄, 그 아래에 고른 아이템의 전체 설명
             list.Build(content, 0, top, ContentW, ContentH - DetailH - 8 - top, Found(), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
-        }
-
-        // 하위 화면: 게임이 재화로 다루는 항목(종문 공헌, 성주령, 전공 등). 아이템과 같은 경로로 지급되고 가방 칸을 차지하지 않는다(실측).
-        private void DrawCurrencies()
-        {
-            float y = SubTop;
-            int amount = AmountBar.Get("money");
-            Ui.Label(content, "추가량", 0, y, 70, 38, 18).color = Ui.Dim;
-            AmountBar.Build(content, "money", 70, y);
-            Ui.Label(content, "가방 칸을 차지하지 않습니다. 대상은 플레이어입니다.", 570, y, 730, 38, 15).color = Ui.Dim;
-            Ui.Panel("CurrencyHead", content, 0, y + 48, ContentW, 30, Ui.Section);
-            Ui.Label(content, "번호", 8, y + 48, 100, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "화폐", 120, y + 48, 200, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "보유", 330, y + 48, 120, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "설명", 460, y + 48, 600, 30, 16).color = Ui.Dim;
-            var props = Player.data.unitData.propData;
-            List<ItemCatalog.Entry> currencies = ItemCatalog.Currencies;
-            for (int i = 0; i < currencies.Count; i++)
-            {
-                ItemCatalog.Entry entry = currencies[i];
-                float rowY = y + 82 + i * 44;
-                Ui.Label(content, entry.Id.ToString(), 8, rowY, 100, 40, 16);
-                Ui.Label(content, entry.Name, 120, rowY, 200, 40);
-                Ui.Label(content, props.GetPropsNum(entry.Id).ToString(), 330, rowY, 120, 40);
-                Ui.Label(content, Shorten(entry.Desc, 44), 460, rowY, 680, 40, 15).color = Ui.Dim;
-                Ui.Button("CurrencyAdd" + entry.Id, content, "+ " + amount, ContentW - 150, rowY + 2, 150, 36, new Action(() => Say(AddCurrency(entry, amount))));
-            }
-        }
-
-        private static string AddCurrency(ItemCatalog.Entry entry, int amount)
-        {
-            if (entry.Id == PropsIDType.Money)
-            {
-                return EditService.AddMoney(Player, amount);
-            }
-            string result = EditService.GiveItem(Player, entry.Id, amount);
-            // 이름의 번역이 없는 재화는 결과 문장에 번역 열쇠가 나온다. 목록에 보인 이름으로 바꾼다.
-            string raw = EditService.ItemName(entry.Id);
-            return string.IsNullOrEmpty(raw) || raw == entry.Name ? result : result.Replace(raw, entry.Name);
         }
 
         private void DrawRow(RectTransform row, ItemCatalog.Entry entry, int index)
