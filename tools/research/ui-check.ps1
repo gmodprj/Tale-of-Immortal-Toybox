@@ -386,6 +386,55 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'actions' {
+    # 스펙 6절 12~14번. 새 목록에서 실제 동작이 서비스까지 가는지: 기술 배우기, 운명 추가와 삭제, 서적 배우기·잊기.
+    $traps = Traps
+    # 확인이 필요한 버튼이면 한 번 더 누른다.
+    function PressThrough([string]$name) {
+      Press $name | Out-Null
+      if ((Cmd "uitext $name") -match "text='정말") { Press $name | Out-Null }
+      Cmd 'uistate'
+    }
+    Cmd 'editor' | Out-Null
+    Cmd 'uitarget player' | Out-Null
+
+    Press 'Tab3' | Out-Null; Press 'SkillAddOpen' | Out-Null
+    $s = PressThrough (Pos 'SkillAdd*').name
+    Check 'adding a skill reports a result' ($s -match "message='[^']+'") $s
+    "INFO skill: $($s -replace '.*message=', '')"
+    Press 'Back' | Out-Null
+
+    Press 'Tab4' | Out-Null; Press 'LuckAddOpen' | Out-Null; Press 'LuckType2' | Out-Null
+    Press 'LuckQueryClear' | Out-Null   # 앞선 검사가 검색어를 남겼을 수 있다
+    $added = $null
+    for ($i = 0; $i -lt 6 -and -not $added; $i++) {
+      $p = Pos 'LuckAdd*'
+      if ((Rc "click $($p.x) $($p.y)" 600) -match 'Button\.onClick: ') { $added = $p.name -replace 'LuckAdd', '' } else { Press 'LuckPickNext' | Out-Null }
+    }
+    $s = Cmd 'uistate'
+    Check 'adding a luck reports a result' ($added -and $s -match "message='[^']+'") $s
+    "INFO luck add: $($s -replace '.*message=', '')"
+    Press 'Back' | Out-Null
+    # 방금 붙인 운명은 목록의 끝에 온다. 목록이 한 화면보다 길면 끝으로 간다.
+    if ((Cmd 'uipos LuckListLast') -match ' at ') { try { Press 'LuckListLast' | Out-Null } catch { } }
+    if ((Cmd "uipos LuckRemove$added") -match ' at ') {
+      $s = PressThrough "LuckRemove$added"
+      Check 'removing it reports a result' ($s -match "message='[^']+'" -and (Cmd "uipos LuckRemove$added") -match 'no element named') $s
+      "INFO luck remove: $($s -replace '.*message=', '')"
+    } else { "INFO the added luck row is not on screen; removal not pressed" }
+
+    Press 'Tab5' | Out-Null
+    $book = (Pos 'ArtAct*').name
+    $s = PressThrough $book
+    Check 'the art button reports a result' ($s -match "message='[^']+'") $s
+    "INFO art 1: $($s -replace '.*message=', '')"
+    $s = PressThrough $book
+    Check 'and the opposite action too' ($s -match "message='[^']+'") $s
+    "INFO art 2: $($s -replace '.*message=', '')"
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'order' {
     $traps = Traps
     Cmd 'editor' | Out-Null

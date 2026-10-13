@@ -13,7 +13,7 @@
 - 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음).
 - 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-13 09:18 설치, 묶음 B 1차 포함).
 - 사용자의 세이브: 1번 슬롯(인물 "신환"). 시험 뒤에는 매번 시험 전 복사본으로 되돌렸다. 2026-10-12 밤(20:37~21:14)에 사용자가 설치본으로 직접 플레이하며 편집기를 썼다(영근·기예 +100, 가방 추가 칸 +90, 날짜 직접 지정, 선천운명 교체. `changes.log`에 남아 있다). 그래서 모드의 가방 칸 기록(`bag-slots.txt`)에 `kh3o73=90`이 있다. 검증 회차는 세이브와 이 파일을 시험 전 상태로 되돌린다.
-- 직전 작업: 묶음 B(화면 구조 정리와 탭별 UI/UX 개선)의 1차(검증 도구, 창의 틀, 탭 분리)를 끝냈다(05 문서 26절). 다음은 2차 계획이다(8.3절).
+- 직전 작업: 묶음 B(화면 구조 정리와 탭별 UI/UX 개선)를 끝냈다(05 문서 26·27절). 사용자가 도중에 더한 두 가지(의복 아이템의 구분 표시, 영석 말고의 화폐 추가)도 들어갔다. 다음은 묶음 C다(8.4절).
 
 ## 2. 편집기 기능 지도
 
@@ -47,12 +47,12 @@
 |---|---|
 | `docs/00-design-brief.md` | 기획서(기준 문서) |
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
-| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~26절) |
+| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~27절) |
 | `docs/06-handoff.md` | 이 문서 |
 | `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획. 사전 조사, 묶음 A(`2026-10-12-date-bag*`), 묶음 B(`2026-10-13-ui-rework*`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
 | `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다 |
-| `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀: 제목 줄·탭 줄·결과 영역·앞뒤 순서·이동·접기), `StatusOverlay.cs`(켜 둔 기능 표시), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(공통 부품. 지금은 `AmountBar`) |
+| `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀: 제목 줄·탭 줄·결과 영역·앞뒤 순서·이동·접기), `StatusOverlay.cs`(켜 둔 기능 표시), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(공통 부품: `ListView`, `SearchBox`, `DetailPane`, `Confirm`, `NumberField`, `AmountBar`) |
 | `src/ModCode/ModMain/Safety/` | 백업, 변경 이력 |
 | `src/ModCode/ModMain/Dev/` | 개발 빌드 전용 명령(배포 빌드에서 제외) |
 | `tools/install.ps1` | 배포 빌드를 만들어 게임에 설치 |
@@ -95,7 +95,7 @@
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다(2026-10-13 실측, 묶음 B 스펙 3.4절).
 - `tools/research/datebag-check.ps1 -Part <이름>` — 날짜·가방의 자동 검증(PASS/FAIL). 부분은 `base`, `time`, `time-restart`, `freeze`, `bag`, `bag-restart`, `bag-corrupt`. `freeze`와 `bag`은 깨끗한 회차에서 시작하고, `time-restart`·`bag-restart`·`bag-corrupt`는 앞 부분 뒤에 `-Restart`를 하고 돌린다.
-- `tools/research/ui-check.ps1 -Part <이름>` — 편집기 화면의 자동 검증. 부분은 `base`, `tabs`, `order`, `move`, `move-restart`, `move-corrupt`, `status`, `status-battle`, `battle`. `move-restart`와 `move-corrupt`는 앞 부분 뒤에 `-Restart`를 하고 돌린다. `battle`과 `status-battle`은 전투에 들어간 채로 끝나므로 각각 회차의 마지막에 돌리고 바로 `-End` 한다.
+- `tools/research/ui-check.ps1 -Part <이름>` — 편집기 화면의 자동 검증. 부분은 `base`, `tabs`, `items`, `numbers`, `people`, `history`, `confirm`, `actions`, `order`, `move`, `move-restart`, `move-corrupt`, `status`, `status-battle`, `battle`. `items`는 가방 추가 칸과 재화를, `actions`는 기술·운명·기예를 바꾼다(회차의 `-End`가 되돌린다). `history`는 `items` 뒤에 돌린다. `move-restart`와 `move-corrupt`는 앞 부분 뒤에 `-Restart`를 하고 돌린다. `battle`과 `status-battle`은 전투에 들어간 채로 끝나므로 각각 회차의 마지막에 돌리고 바로 `-End` 한다.
 
 편집기의 버튼은 좌표가 아니라 이름으로 찾는다. `mod.ps1 -Cmd "uipos <이름>"`이 가운데의 게임 좌표를 준다(이름 끝의 `*`는 "이 글자로 시작"). 검증 스크립트에서는 `check-lib.ps1`의 `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지)을 쓴다. `uistate`가 창의 상태(켜 둔 기능 표시, 열림, 탭, 대상, 방식, 정렬, 가려짐, 위치, 접힘, 결과 문구)를 주고, `uitoggle`이 단축키와 같은 동작을 한다. 그 밖에 `uitext`, `uifocus`, `uidrag`, `uiopen`·`uiclose <게임 화면>`, `uilist`, `uicanvas`, `uitarget`, `uisay`, `uiraise`, `uicollapse`(`Dev/DevCommandsUi.cs`).
 
@@ -119,6 +119,9 @@ PowerShell과 도구:
 - `mod.ps1`·`rc.ps1`은 배열 매개변수가 있어 `pwsh -File`로 부르면 인수가 어긋난다. `&`로 부른다.
 - 창 위치는 세이브 폴더 밖의 `config.txt`에 남는다. 위치를 바꾸는 시험은 시험 전의 파일을 떠 두고 되돌린다(`ui-check.ps1`의 `move` 계열이 그렇게 한다. 중간에 멈췄으면 `.devremote\check-config.txt`를 손으로 되돌린다).
 - 화면 밖의 게임에 잇달아 보낸 키는 빠질 때가 있다. 키 한 번의 전달은 믿을 수 있지만, 여러 번 누르는 판정은 개발 명령(`uitoggle`)으로 한다.
+- 편집기가 게임 화면 사이에 끼어 그려지므로, 시험 중에 뜬 게임 메뉴(`GameMemu`)가 편집기를 가린다. `check-lib.ps1`의 `Press`가 닫고 다시 누른다.
+- `datebag-check.ps1`의 `time`은 세이브에 따라 달라진다. 달을 넘길 때 사건(전투 등)이 일어나면 그 뒤의 검사가 막힌다. 실패하면 캡처와 `uilist`로 무엇이 떠 있는지부터 본다.
+- PowerShell의 큰따옴표 글 안에서 변수 바로 뒤에 한글이 오면 변수 이름의 일부로 읽힌다(`"$total개"`). `"$($total)개"`로 쓴다.
 - 게임 화면을 닫는 명령 뒤에 고정 시간으로 기다리지 않는다. 닫히는 연출의 길이가 달라진다. 값이 바뀔 때까지 기다린다(`ui-check.ps1`의 `GameScreen`).
 - 함수 이름이 별칭과 겹치면 별칭이 먼저 실행된다(`R`은 `Invoke-History`, `History`는 `Get-History`, `Erase`는 삭제 명령). 새 함수를 만들면 `Get-Alias <이름>`으로 확인한다.
 - 명령 문자열에 삭제 명령의 이름이 들어 있으면 안전 검사가 명령 전체를 막는 경우가 있다(문서 문구로 들어 있어도 막혔다). 파일 삭제는 `[IO.File]::Delete`나 Bash의 `rm`을, 문서의 그런 문구는 편집 도구를 쓴다.
@@ -179,8 +182,8 @@ PowerShell과 도구:
 | 묶음 | 내용 | 상태 |
 |---|---|---|
 | A | 날짜 고정·변경, 가방 칸 ±10 (요청 1, 2) | 끝남. 스펙·계획 `docs/superpowers/*/2026-10-12-date-bag*`, 기록 05 문서 25절 |
-| B | 화면 구조 정리와 탭별 UI/UX 개선 (요청 3) | **진행 중.** 1차(검증 도구, 창의 틀, 탭 분리) 끝남, 05 문서 26절. 2차(공통 부품, 탭별 개선, 가방 칸 한 번에 지정, 변경 이력 전체 보기)는 계획 작성 전(8.3절) |
-| C | 가방 내보내기·가져오기 (요청 4) | B 다음 |
+| B | 화면 구조 정리와 탭별 UI/UX 개선 (요청 3) | 끝남. 스펙 `2026-10-13-ui-rework-design.md`, 계획 `2026-10-13-ui-rework-1-shell.md`·`-2-widgets.md`, 기록 05 문서 26·27절 |
+| C | 가방 내보내기·가져오기 (요청 4) | **다음 차례.** 설계 시작 전 |
 | D | 캐릭터 내보내기·가져오기 (요청 5) | C 다음. C의 저장소와 화면을 재사용 |
 
 요청 6(그 밖에 추가·개선할 기능 검토)은 따로 묶지 않았다. 각 묶음을 설계할 때 그 영역의 후보를 함께 제시하고, 어디에도 들어가지 않는 것은 마지막에 목록으로 낸다. B를 C·D보다 앞에 둔 이유는, C·D에 "목록 → 세부 → 개별 가져오기" 같은 여러 단계의 새 화면이 필요해 지금의 한 파일 구조에 얹으면 다시 손봐야 하기 때문이다.
@@ -212,7 +215,9 @@ PowerShell과 도구:
 구현 계획은 둘로 나눴다. 한 문서에 담기에는 코드가 너무 많고, 2차의 코드는 1차에서 만든 틀에 맞춰 써야 하기 때문이다.
 
 - 1차: `docs/superpowers/plans/2026-10-13-ui-rework-1-shell.md` — 검증 도구(버튼을 이름으로 찾기), 창의 틀(앞뒤 순서·이동·접기·결과 영역·켜 둔 기능 표시), 탭을 파일별로 분리. 스펙 작업 순서의 1~2번. **끝났다**(05 문서 26절). 실행 방식은 사용자가 Native를 골랐다.
-- 2차: `docs/superpowers/plans/2026-10-13-ui-rework-2-widgets.md` — 공통 부품(목록·검색·상세·확인·숫자 칸), 탭의 하위 화면 쌓기, 탭별 개선, 가방 칸 한 번에 지정, 변경 이력 전체 보기, 그리고 의복 아이템의 구분 표시(사용자가 2026-10-13에 추가로 지시. 게임의 의복 295개는 이름이 모두 "의복"이다). **사용자의 계획 검토를 기다리는 중이다.** 계획이 `develop`에 없으면 `docs/ui-rework-plan-2` 브랜치에 있다. 실행 방식은 1차와 같이 Native.
+- 2차: `docs/superpowers/plans/2026-10-13-ui-rework-2-widgets.md` — 공통 부품, 탭의 하위 화면 쌓기, 탭별 개선, 가방 칸 한 번에 지정, 변경 이력 전체 보기, 의복의 구분 표시, 영석 말고의 화폐. **끝났다**(05 문서 27절).
+
+화면을 새로 만들 때 지킬 것(묶음 C·D): 목록은 `ListView`, 검색은 `SearchBox`(검색어가 바뀌면 목록만 다시 그린다), 확인은 `Confirm`, 숫자는 `NumberField`, 여러 단계의 화면은 `EditorTab.Push`/`Pop`. 목록 안의 버튼 이름에는 줄 번호가 아니라 항목의 번호를 붙인다. 버튼 이름의 앞머리가 다른 버튼과 겹치지 않게 한다(검증이 이름의 앞머리로 찾는다).
 
 사용자와 정한 것(2026-10-13, 스펙 2절):
 
