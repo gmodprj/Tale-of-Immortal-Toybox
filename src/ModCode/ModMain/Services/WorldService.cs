@@ -142,8 +142,27 @@ namespace MOD_sWP6UL
             subscribed = false;
         }
 
+#if DEVTOOLS
+        // 개발 전용: 구독 여부와, 이벤트가 불린 횟수·배율을 건 횟수·마지막으로 건 값.
+        public static int DevHits;
+        public static int DevScaled;
+        public static string DevLast = "-";
+        public static string DevDrop = "-";
+        private static System.IntPtr devTarget;
+        private static int devTargetHp;
+        private static int devTargetValue;
+
+        public static string DevState
+        {
+            get { return "subscribed=" + subscribed + " hits=" + DevHits + " scaled=" + DevScaled + " last=" + DevLast + " drop=" + DevDrop; }
+        }
+#endif
+
         private static void OnHit(ETypeData e)
         {
+#if DEVTOOLS
+            DevHits++;
+#endif
             var data = e.Cast<EBattleTypeData.UnitHitDynIntHandler>();
             if (data.hitUnit != null && data.hitUnit.data.unitType == UnitType.Player)
             {
@@ -157,8 +176,29 @@ namespace MOD_sWP6UL
             UnitCtrlBase attacker = data.hitData == null ? null : data.hitData.attackUnit;
             if (Multiplier > 1 && attacker != null && attacker.data.unitType == UnitType.Player)
             {
+#if DEVTOOLS
+                int devBase = data.dynV.baseValue;
+                int devValue = data.dynV.value;
+#endif
                 long scaled = (long)data.dynV.baseValue * Multiplier;
                 data.dynV.baseValue = scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+#if DEVTOOLS
+                DevScaled++;
+                DevLast = "base " + devBase + "->" + data.dynV.baseValue + " value " + devValue + "->" + data.dynV.value;
+                // 같은 적을 다시 때렸을 때, 앞선 타격이 실제로 깎은 체력을 적는다(화면의 숫자가 남은 체력으로 잘리는지 가린다).
+                if (data.hitUnit != null)
+                {
+                    int hpNow = data.hitUnit.data.hp;
+                    if (data.hitUnit.Pointer == devTarget)
+                    {
+                        DevDrop = "prevValue=" + devTargetValue + " hp " + devTargetHp + "->" + hpNow + " max=" + data.hitUnit.data.maxHP.value;
+                    }
+                    devTarget = data.hitUnit.Pointer;
+                    devTargetHp = hpNow;
+                    devTargetValue = data.dynV.value;
+                    DevLast += " targetHp=" + hpNow + "/" + data.hitUnit.data.maxHP.value;
+                }
+#endif
             }
         }
     }

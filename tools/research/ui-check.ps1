@@ -1249,6 +1249,45 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'damage' {
+    # 주는 피해의 배율이 실제 타격에 걸리는지. 지도에서 켜고 전투에 들어가는 경우와 전투 안에서 켜는 경우를 본다.
+    # 사용자 보고(2026-10-13): 배율을 켜도 피해가 그대로였다.
+    $traps = Traps
+    function Dmg { Cmd 'bdmg' 200 }
+    function Scaled { if ((Dmg) -match 'scaled=(\d+)') { [int]$Matches[1] } else { throw 'bdmg 출력을 읽지 못했습니다' } }
+    # 적이 다가와 맞을 때까지 무예와 절기를 쓴다.
+    function Fight([int]$want) {
+      for ($i = 0; $i -lt 40 -and (Scaled) -lt $want; $i++) { Cmd 'bcast 1' 350 | Out-Null; if ($i % 5 -eq 4) { Cmd 'bcast 2' 350 | Out-Null } }
+    }
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null
+    1..3 | ForEach-Object { Press 'Multiplier' | Out-Null }
+    Check 'damage shows x10' ((Cmd 'uitext Multiplier') -match "text='x10'")
+    Press 'God' | Out-Null; Press 'Close' | Out-Null
+    EnterBattle
+    Rc 'click 956 749' 3000 | Out-Null
+    Fight 1
+    $s = Dmg
+    Check 'set on the map: the hit event reaches the editor in battle' ($s -match 'hits=(\d+)' -and [int]$Matches[1] -gt 0) $s
+    Check 'set on the map: a hit is scaled by 10' ($s -match 'last=base (\d+)->(\d+) value (\d+)->(\d+)' -and [int]$Matches[2] -eq [int]$Matches[1] * 10 -and [int]$Matches[4] -ge [int]$Matches[3] * 9) $s
+    # 전투 안에서 끄고 다시 켠다.
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null; Press 'RateReset' | Out-Null
+    Press 'God' | Out-Null; Press 'Multiplier' | Out-Null; Press 'Close' | Out-Null
+    $before = Scaled; Fight ($before + 1)
+    $s = Dmg
+    Check 'set in battle: a hit is scaled by 2' ((Scaled) -gt $before -and $s -match 'last=base (\d+)->(\d+) ' -and [int]$Matches[2] -eq [int]$Matches[1] * 2) $s
+    Cmd 'bend' 3000 | Out-Null; Rc 'click 959 831' 2000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    # 두 번째 전투: 켜 둔 채 다시 들어가도 걸린다.
+    EnterBattle
+    Rc 'click 956 749' 3000 | Out-Null
+    $before = Scaled; Fight ($before + 1)
+    Check 'kept on: a hit in the next battle is scaled' ((Scaled) -gt $before) (Dmg)
+    Cmd 'bend' 3000 | Out-Null; Rc 'click 959 831' 2000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    Cmd 'editor' | Out-Null; Press 'Tab10' | Out-Null; Press 'RateReset' | Out-Null; Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'status' {
     # 스펙 6절 19번. 표시는 30프레임마다 맞춰지므로 켜고 끈 뒤 조금 기다린다.
     $traps = Traps

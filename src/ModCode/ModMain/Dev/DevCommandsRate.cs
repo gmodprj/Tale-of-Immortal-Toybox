@@ -8,6 +8,7 @@ namespace MOD_sWP6UL
     //   rneg     플레이어의 AddExp(-7)을 부른다(곱해지지 않아야 한다).
     //   bcast <종류>   전투 중인 플레이어가 기술을 쓰게 한다. 1 무예/영술, 2 절기, 3 신법.
     //   rmart          장착한 무예·절기·신법·신통의 숙련 경험치.
+    //   bdmg           전투 보조의 구독 여부와 피해 배율이 걸린 횟수.
     //   rpath <dx> <dy> 게임의 경로 이동으로 그만큼 떨어진 칸까지 간다.
     //   bend [lose]    전투를 승리(또는 패배)로 끝낸다.
     //   rpause on|off  Time.timeScale을 0으로 쓰고(on), 그 전의 값으로 되돌린다(off).
@@ -47,6 +48,8 @@ namespace MOD_sWP6UL
                         UnityEngine.Time.timeScale = pausedFrom;
                     }
                     return "timeScale=" + UnityEngine.Time.timeScale;
+                case "bdmg":
+                    return BattleService.DevState;
                 case "rpath":
                     {
                         // 게임의 경로 이동(지도를 눌렀을 때와 같은 절차)으로 여러 칸을 간다.
@@ -54,6 +57,46 @@ namespace MOD_sWP6UL
                         SceneType.map.world.MovePlayerPosi(new UnityEngine.Vector2Int(here.x + int.Parse(p[1]), here.y + int.Parse(p[2])));
                         return "MovePlayerPosi called from " + here.x + "," + here.y;
                     }
+                case "cdstat":
+                    return CdStat();
+                case "cdrate":
+                    {
+                        // 쿨타임 비율(DynInt)의 기준값을 쓴다. which: skill, step, ultimate.
+                        var unitData = SceneType.battle.battleMap.playerUnitCtrl.data;
+                        DynInt rateValue = p[1] == "skill" ? unitData.skillCDRate : p[1] == "step" ? unitData.stepCDRate : unitData.ultimateCDRate;
+                        int was = rateValue.baseValue;
+                        rateValue.baseValue = int.Parse(p[2]);
+                        return p[1] + " base " + was + " -> " + rateValue.baseValue + " value=" + rateValue.value;
+                    }
+                case "cdcut":
+                    {
+                        // 모든 기술의 쿨타임을 그만큼 줄인다.
+                        UnitCtrlPlayer ctrl = SceneType.battle.battleMap.playerUnitCtrl;
+                        float cut = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture);
+                        for (int i = 0; i < ctrl.skills.Count; i++)
+                        {
+                            ctrl.skills[i].data.ReduceCDTime(cut);
+                        }
+                        if (ctrl.step != null) { ctrl.step.data.ReduceCDTime(cut); }
+                        if (ctrl.ultimate != null) { ctrl.ultimate.data.ReduceCDTime(cut); }
+                        return "cut " + cut + "; " + CdStat();
+                    }
+                case "cdbase":
+                    {
+                        // 모든 기술의 cd(DynInt) 기준값을 쓴다.
+                        UnitCtrlPlayer ctrl = SceneType.battle.battleMap.playerUnitCtrl;
+                        int v = int.Parse(p[1]);
+                        for (int i = 0; i < ctrl.skills.Count; i++)
+                        {
+                            ctrl.skills[i].data.cd.baseValue = v;
+                        }
+                        if (ctrl.step != null) { ctrl.step.data.cd.baseValue = v; }
+                        if (ctrl.ultimate != null) { ctrl.ultimate.data.cd.baseValue = v; }
+                        return "cd base=" + v + "; " + CdStat();
+                    }
+                case "bult":
+                    SceneType.battle.battleMap.playerUnitCtrl.CreateUltimate(new UnityEngine.Vector2(0f, 0f), new UnityEngine.Vector2(1f, 0f));
+                    return "CreateUltimate called; " + CdStat();
                 case "bend":
                     // 전투를 승리로 끝낸다(게임의 종료 절차를 부른다). 결과 창은 따로 닫는다.
                     if (!RateService.InBattle)
@@ -108,6 +151,40 @@ namespace MOD_sWP6UL
             {
                 DataUnit.ActionMartialData data = string.IsNullOrEmpty(ids[i]) ? null : info.GetActionMartial(ids[i]);
                 sb.Append(names[i]).Append('=').Append(data == null ? -1 : data.exp).Append(' ');
+            }
+            return sb.ToString();
+        }
+
+        // 실험용: 전투 중인 플레이어의 쿨타임 비율과 기술별 쿨타임 상태.
+        private static string CdStat()
+        {
+            if (!RateService.InBattle)
+            {
+                return "not in battle";
+            }
+            UnitCtrlPlayer ctrl = SceneType.battle.battleMap.playerUnitCtrl;
+            var data = ctrl.data;
+            var sb = new StringBuilder();
+            sb.Append("time=").Append(UnityEngine.Time.time.ToString("0.0")).Append(" rates skill=").Append(data.skillCDRate.baseValue).Append('/').Append(data.skillCDRate.value)
+                .Append(" step=").Append(data.stepCDRate.baseValue).Append('/').Append(data.stepCDRate.value)
+                .Append(" ult=").Append(data.ultimateCDRate.baseValue).Append('/').Append(data.ultimateCDRate.value);
+            for (int i = 0; i < ctrl.skills.Count; i++)
+            {
+                SkillDataAttack d = ctrl.skills[i].data;
+                sb.Append(" | skill").Append(i).Append(" cd=").Append(d.cd.baseValue).Append('/').Append(d.cd.value).Append(" cdTime=").Append(d.cdTime.ToString("0.00"))
+                    .Append(" use=").Append(d.cdUseTime.ToString("0.00")).Append(" last=").Append(d.lastShotTime.ToString("0.0")).Append(" reduce=").Append(d.reduceCDTime.ToString("0.0"));
+            }
+            if (ctrl.step != null)
+            {
+                StepDataBase d = ctrl.step.data;
+                sb.Append(" | step cd=").Append(d.cd.baseValue).Append('/').Append(d.cd.value).Append(" cdTime=").Append(d.cdTime.ToString("0.00"))
+                    .Append(" use=").Append(d.cdUseTime.ToString("0.00")).Append(" last=").Append(d.lastShotTime.ToString("0.0"));
+            }
+            if (ctrl.ultimate != null)
+            {
+                SkillDataAttack d = ctrl.ultimate.data;
+                sb.Append(" | ult cd=").Append(d.cd.baseValue).Append('/').Append(d.cd.value).Append(" cdTime=").Append(d.cdTime.ToString("0.00"))
+                    .Append(" use=").Append(d.cdUseTime.ToString("0.00")).Append(" last=").Append(d.lastShotTime.ToString("0.0"));
             }
             return sb.ToString();
         }
