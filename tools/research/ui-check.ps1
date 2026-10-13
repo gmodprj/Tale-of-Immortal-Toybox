@@ -100,7 +100,7 @@ switch ($Part) {
     Check 'move step is still 10' ((Cmd 'uitext MoveUp') -match "text='y - 10'")
     Press 'move1000' | Out-Null
     Check 'move step is 1000' ((Cmd 'uitext MoveUp') -match "text='y - 1000'")
-    Press 'Tab6' | Out-Null; Press 'Pick0' | Out-Null
+    Press 'Tab6' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null
     Check 'intim step is still 10' ((Cmd 'uitext IntimPlus') -match "text='\+ 10'")
     Press 'Tab0' | Out-Null
     Check 'attribute step is still 100' ((Cmd 'uitext Plus*') -match "text='\+ 100'")
@@ -243,7 +243,7 @@ switch ($Part) {
     # 스펙 6절 9번, Review Focus 3. 능력치의 저장값 칸과 수량 줄의 직접 입력.
     $traps = Traps
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null
-    $cell = (Pos 'Attr*').name
+    $cell = (Pos 'AttrValue*').name
     function Val { if ((Cmd "uitext $cell") -match "text='(-?\d+)'") { [int]$Matches[1] } else { throw "값을 읽지 못했습니다: $cell" } }
     $v = Val
     Check 'the direct-input row is gone' ((Cmd 'uipos AttributeApply') -match 'no element named')
@@ -324,7 +324,7 @@ switch ($Part) {
     # 스펙 6절 11~14번, Review Focus 4·5. 하위 화면과 확인 대기.
     $traps = Traps
     Cmd 'editor' | Out-Null
-    Press 'Tab6' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
+    Press 'Tab6' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null; Press 'Tab4' | Out-Null
     $rm = (Pos 'LuckRemove*').name
     Press $rm | Out-Null
     Check 'the first press only asks' ((Cmd "uitext $rm") -match "text='정말 삭제'")
