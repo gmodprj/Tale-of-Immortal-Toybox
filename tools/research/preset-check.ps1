@@ -529,6 +529,23 @@ switch ($Part) {
     Check 'every fate luck is actually held' ((Cmd "phas $ids" 300) -match 'held=9 of=9') (Cmd "phas $ids" 300)
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'preset-all' {
+    # 기본 프리셋 10개를 차례로 최종 단계까지 적용한다. 프리셋마다 못 넣음이 없고, 마지막 단계가 "적용됨"이어야 한다.
+    # 앞 프리셋의 역천개명·신혼·명우를 다음 프리셋이 바꾼다(프리셋에서 프리셋으로 갈아타기).
+    if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
+    $c = Fields (Cmd 'pcheck' 900)
+    Check 'there are ten default presets' ((Fields (Cmd 'pdefaults' 200)).embedded -eq '10' -and $c.presets -eq '10' -and $c.unreadable -eq '0') "embedded=$((Fields (Cmd 'pdefaults' 200)).embedded) presets=$($c.presets)"
+    Check 'no default preset has an unusable line' ($c.problems -eq '0') (Cmd 'pcheck' 900)
+    foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Sort-Object Name) {
+      $r = Cmd "papply $($file.Name) full" 9000
+      $run = Fields $r
+      Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
+      $st = Fields (Cmd "pstage $($file.Name) 10" 500)
+      Check "$($file.BaseName.Substring(0, 2)): the last stage reads as applied" ($st.state -eq 'Applied') (Cmd "pstage $($file.Name) 10" 500)
+      Check "$($file.BaseName.Substring(0, 2)): ability points cover what is in use" ([int](State).used -le [int](State).ap) "used=$((State).used) ap=$((State).ap)"
+    }
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
