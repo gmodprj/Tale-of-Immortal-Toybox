@@ -38,6 +38,16 @@ namespace MOD_sWP6UL
                         }
                         return "pisces=" + On(map.playerInfo.btnPiscesPendant) + " godEye=" + On(map.playerInfo.btnGodEye) + " devil=" + On(map.playerInfo.btnDevilDemon);
                     }
+                case "awpos":
+                    {
+                        // 지도 화면 신기 버튼의 자리(부모 기준 x,y)와 게임 좌표(1920x1080, 왼쪽 위 기준)의 가운데.
+                        UIMapMain map = g.ui.GetUI<UIMapMain>(UIType.MapMain);
+                        if (map == null || map.playerInfo == null)
+                        {
+                            return "map=null";
+                        }
+                        return "pisces=" + Pos(map.playerInfo.btnPiscesPendant) + " godEye=" + Pos(map.playerInfo.btnGodEye) + " devil=" + Pos(map.playerInfo.btnDevilDemon);
+                    }
                 case "aon": return ArtifactService.Enable(int.Parse(p[1]));
                 case "aoff": return ArtifactService.Disable(int.Parse(p[1]));
                 case "apoint": return ArtifactService.SetPoint(int.Parse(p[1]));
@@ -109,6 +119,21 @@ namespace MOD_sWP6UL
             DevilDemonMgr mgr = g.world.devilDemonMgr;
             int repair = Math.Max(mgr == null || mgr.devilDemonData == null ? 0 : mgr.devilDemonData.repairMonth, g.data.world.devilDemonData.repairMonth);
             return "damaged=" + ArtifactService.DevilDamaged + " canUse=" + (mgr != null && mgr.IsCanUse()) + " repairMonth=" + repair + " month=" + g.world.run.roundMonth;
+        }
+
+        private static string Pos(UnityEngine.UI.Button b)
+        {
+            if (b == null || !b.gameObject.activeInHierarchy)
+            {
+                return "off";
+            }
+            var rect = b.GetComponent<UnityEngine.RectTransform>();
+            UnityEngine.Canvas canvas = b.GetComponentInParent<UnityEngine.Canvas>();
+            UnityEngine.Camera cam = canvas == null || canvas.renderMode == UnityEngine.RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            UnityEngine.Rect r = rect.rect;
+            UnityEngine.Vector2 screen = UnityEngine.RectTransformUtility.WorldToScreenPoint(cam, rect.TransformPoint(new UnityEngine.Vector3(r.center.x, r.center.y, 0f)));
+            return UnityEngine.Mathf.RoundToInt(rect.anchoredPosition.x) + "," + UnityEngine.Mathf.RoundToInt(rect.anchoredPosition.y)
+                + "@" + UnityEngine.Mathf.RoundToInt(screen.x) + "," + UnityEngine.Mathf.RoundToInt(UnityEngine.Screen.height - screen.y);
         }
 
         private static string On(UnityEngine.UI.Button b)
