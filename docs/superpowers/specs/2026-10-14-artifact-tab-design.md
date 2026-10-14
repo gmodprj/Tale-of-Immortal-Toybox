@@ -19,7 +19,7 @@
 | 빈 목록 | 빈 목록으로 불러오면 게임이 시작 연출(`IntoGameInfo` → `IntoGameDrama`) → 신기 선택 → 튜토리얼 전투를 다시 튼다 |
 | 쌍어옥패 점수 | `g.data.world.resurgeCount`. 부활 정보 화면(`ResurgeInfo`)의 "쌍어옥패 N점"과 지도 화면 초상 옆 숫자. 쓰면 바로 반영, 저장 후 유지 |
 | 호천안 손상 | `godEyeData.isDamage`, `repairMonth`. `Repair()`는 수리 맡기기(`repairMonth`가 지금 달+3, `IsCanUse()=false`). `isDamage=false`, `repairMonth=0`을 쓰면 `IsCanUse()=true` |
-| 호천안 요수 | `godEyeData.bossGrade`(`Dictionary<int,int>`: 요수 번호 → 단계). 값이 요수 그림 위의 경지 글이 된다(1 연기, 2 축기, 3 결정, 대경지 번호와 같다). 쓰면 "요수 기능" 화면에서 그 요수가 열린다. 화면 아래 "축기경의 요수 격파 0/5"(호천안 돌파 진행)는 바뀌지 않았다 |
+| 호천안 요수 | `godEyeData.bossGrade`(`Dictionary<int,int>`: 요수 번호 → 단계). 값이 요수 그림 위의 경지 글이 된다(1 연기, 2 축기, 3 결정, 대경지 번호와 같다). 쓰면 "요수 기능" 화면에서 그 요수가 열린다. 화면 아래 "축기경의 요수 격파 0/5"(호천안 돌파 진행)는 `bossGrade`만 쓸 때 바뀌지 않았다. (구현 중 바로잡음: 기술까지 익히면 1/5로 올랐다. 회차 `atab4c`, 05 문서 37절) |
 | 호천안 기술 | `godEyeData.skillsID`(익힌 기술 번호들), `equipSkillID`(장착 하나). 요수가 열려 있어야 화면에 나온다. 화면에 "요수 기술 터득(1/3)", 기술에 "장비 중". 저장 후 유지 |
 | 요수·기술 표 | `g.conf.godEyeSkills`(95줄): `id`(기술 번호), `name`, `desc`, `bossID`. 요수 이름은 `g.conf.battleUnitAttr.GetItem(bossID).name`(7010 수요, 7091 무라, 340271 약령) |
 | 호요 추가 | `g.world.devilDemonMgr.potMonMgr.AddPotMon(호요 번호, 단계, true)`. 단계는 대경지 번호(1을 주면 연기경, 3을 주면 결정경). 경험치는 그 단계의 시작값. 연요호 화면 "모든 호요"에 바로 나오고 저장 후 유지 |
