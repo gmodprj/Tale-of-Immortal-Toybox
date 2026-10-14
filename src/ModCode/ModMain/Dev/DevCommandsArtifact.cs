@@ -63,6 +63,48 @@ namespace MOD_sWP6UL
                         }
                         return "no npc";
                     }
+                case "rset":
+                    {
+                        // rset <배율 key> <단계 번호>: 배율을 그 단계로(0이 1배). 화면의 단추처럼 이력에 남는다.
+                        foreach (RateService.Rate rate in RateService.All)
+                        {
+                            if (rate.Key == p[1])
+                            {
+                                int want = int.Parse(p[2]);
+                                string text = "";
+                                for (int i = 0; i < rate.Steps.Length && rate.Index != want; i++)
+                                {
+                                    text = RateService.Next(rate);
+                                }
+                                return rate.Key + "=" + rate.Text + " " + text;
+                            }
+                        }
+                        return "no rate " + p[1];
+                    }
+                case "bcost":
+                    {
+                        // 전투 중 기술마다의 영력 소모·대기와 연요호의 집중력·대기, 지금 영력·집중력.
+                        UnitCtrlPlayer pl = RateService.InBattle ? SceneType.battle.battleMap.playerUnitCtrl : null;
+                        if (pl == null)
+                        {
+                            return "battle=null";
+                        }
+                        var sb = new StringBuilder();
+                        for (int i = 0; pl.skills != null && i < pl.skills.Count; i++)
+                        {
+                            var d = pl.skills[i] == null || pl.skills[i].data == null ? null : pl.skills[i].data.TryCast<SkillDataAttack>();
+                            sb.Append("s").Append(i).Append("Mp=").Append(d == null ? -1 : d.mpCost.baseValue).Append(" s").Append(i).Append("Cd=").Append(d == null ? -1 : d.cd.baseValue).Append(' ');
+                        }
+                        var u = pl.ultimate == null || pl.ultimate.data == null ? null : pl.ultimate.data.TryCast<SkillDataAttack>();
+                        sb.Append("ultMp=").Append(u == null ? -1 : u.mpCost.baseValue).Append(' ');
+                        sb.Append("stepMp=").Append(pl.step == null || pl.step.data == null ? -1 : pl.step.data.mpCost.baseValue).Append(' ');
+                        var e = pl.eyeSkillBase == null || pl.eyeSkillBase.skillAttack == null ? null : pl.eyeSkillBase.skillAttack.data.TryCast<SkillDataAttack>();
+                        sb.Append("eyeMp=").Append(e == null ? -1 : e.mpCost.baseValue).Append(" eyeCd=").Append(e == null ? -1 : e.cd.baseValue).Append(' ');
+                        var dv = pl.devilDemonSkill;
+                        sb.Append("devilSp=").Append(dv == null ? -1 : dv.spCost.baseValue).Append(" devilCd=").Append(dv == null ? -1 : dv.cd.baseValue).Append(' ');
+                        sb.Append("mp=").Append(pl.data.mp).Append(" sp=").Append(pl.data.sp);
+                        return sb.ToString();
+                    }
                 case "akey":
                     return ArtifactKeyService.Set(int.Parse(p[1]), (UnityEngine.KeyCode)Enum.Parse(typeof(UnityEngine.KeyCode), p[2], true));
                 case "akeyoff":

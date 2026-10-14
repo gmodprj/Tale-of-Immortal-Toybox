@@ -91,7 +91,29 @@ namespace MOD_sWP6UL
             Note = "플레이어가 받는 피해를 곱합니다. 무적이 켜져 있으면 무적이 우선입니다.",
         };
 
-        public static readonly Rate[] All = { Exp, Martial, Move, Speed, Cooldown, Taken };
+        // 전투 중 기술마다의 값에 곱한다(전투 단위의 비율 artifactCDRate·mpCostRate·spCostRate는 전투 중에 바꿔도 듣지 않았다. 05 문서 37절).
+        // 신기 쿨타임: 호천안 기술의 cd(밀리초), 연요호의 cd(초). 쌍어패 소환의 대기는 게임 날짜라 다루지 않는다.
+        public static readonly Rate ArtifactCooldown = new Rate
+        {
+            Key = "artifactCooldown", Label = "신기 쿨타임", Short = "신기 쿨타임", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
+            Note = "전투에서 호천안 기술과 연요호의 재사용 대기시간을 곱합니다(쌍어패 소환의 대기는 게임 날짜라 그대로). 소모와 발동 조건은 그대로입니다.",
+        };
+
+        // 영력 소모: 무예·절기(skills), 신통(ultimate), 신법(step), 호천안 기술의 mpCost.
+        public static readonly Rate MpCost = new Rate
+        {
+            Key = "mpCost", Label = "영력 소모", Short = "영력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
+            Note = "전투에서 무예·절기·신법·신통과 호천안 기술이 쓰는 영력을 곱합니다.",
+        };
+
+        // 집중력 소모: 연요호의 spCost.
+        public static readonly Rate SpCost = new Rate
+        {
+            Key = "spCost", Label = "집중력 소모", Short = "집중력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
+            Note = "전투에서 연요호가 쓰는 집중력을 곱합니다.",
+        };
+
+        public static readonly Rate[] All = { Exp, Martial, Move, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, Taken };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -140,6 +162,8 @@ namespace MOD_sWP6UL
         {
             RestoreSpeed();
             cooldownUnit = IntPtr.Zero;
+            skillUnit = IntPtr.Zero;
+            skillValues.Clear();
         }
 
         // 그 배율을 처음 켤 때 한 번 건다. 건 뒤에는 떼지 않고 값만 본다.
@@ -304,6 +328,7 @@ namespace MOD_sWP6UL
         public static void Tick()
         {
             TickCooldown();
+            TickSkillValues();
             if (!Speed.On && !speedApplied)
             {
                 return;
@@ -414,6 +439,130 @@ namespace MOD_sWP6UL
             {
                 Warn(Cooldown, e);
             }
+        }
+
+        // 기술마다의 값(DynInt.baseValue) 하나와 그 원래 값.
+        private sealed class SkillValue
+        {
+            public DynInt Value;
+            public int Original;
+            public Rate Rate;
+        }
+
+        private static IntPtr skillUnit;   // 원래 값을 떠 둔 전투 단위. 전투마다 새로 만들어진다
+        private static readonly System.Collections.Generic.Dictionary<IntPtr, SkillValue> skillValues = new System.Collections.Generic.Dictionary<IntPtr, SkillValue>();
+
+        // 전투 중인 플레이어의 기술마다의 영력 소모·집중력 소모·신기 대기에 배율을 건다. 처음 본 값은 원래 값으로 떠 두고,
+        // 1배로 돌리면 그 값으로 되돌린다. 전투 중에 새로 생긴 기술(호천안 기술을 바꾼 경우 등)은 보이는 대로 떠 둔다.
+        private static void TickSkillValues()
+        {
+            bool any = ArtifactCooldown.On || MpCost.On || SpCost.On;
+            if (!any && skillValues.Count == 0)
+            {
+                return;
+            }
+            try
+            {
+                if (!InBattle)
+                {
+                    // 같은 단위가 다시 보일 때 곱한 값을 원래 값으로 뜨지 않도록, 켜져 있으면 떠 둔 것을 남긴다.
+                    if (!any)
+                    {
+                        skillValues.Clear();
+                        skillUnit = IntPtr.Zero;
+                    }
+                    return;
+                }
+                UnitCtrlPlayer unit = SceneType.battle.battleMap.playerUnitCtrl;
+                if (unit.Pointer != skillUnit)
+                {
+                    skillValues.Clear();
+                    skillUnit = unit.Pointer;
+                    if (!any)
+                    {
+                        return;
+                    }
+                }
+                if (any)
+                {
+                    Collect(unit);
+                }
+                var done = new System.Collections.Generic.List<IntPtr>();
+                foreach (var pair in skillValues)
+                {
+                    SkillValue v = pair.Value;
+                    int want = v.Rate.On ? Scaled(v.Original, v.Rate.Value) : v.Original;
+                    if (v.Value.baseValue != want)
+                    {
+                        v.Value.baseValue = want;
+                    }
+                    if (!v.Rate.On)
+                    {
+                        done.Add(pair.Key);
+                    }
+                }
+                // 1배로 돌린 값은 되돌렸으니 잊는다(다시 켜면 그때의 값을 원래 값으로 뜬다).
+                foreach (IntPtr key in done)
+                {
+                    skillValues.Remove(key);
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(MpCost.On ? MpCost : SpCost.On ? SpCost : ArtifactCooldown, e);
+            }
+        }
+
+        private static void Collect(UnitCtrlPlayer unit)
+        {
+            if (MpCost.On)
+            {
+                for (int i = 0; unit.skills != null && i < unit.skills.Count; i++)
+                {
+                    Track(Attack(unit.skills[i]) == null ? null : Attack(unit.skills[i]).mpCost, MpCost);
+                }
+                SkillDataAttack ult = Attack(unit.ultimate);
+                Track(ult == null ? null : ult.mpCost, MpCost);
+                Track(unit.step == null || unit.step.data == null ? null : unit.step.data.mpCost, MpCost);
+            }
+            SkillDataAttack eye = unit.eyeSkillBase == null ? null : Attack(unit.eyeSkillBase.skillAttack);
+            if (MpCost.On)
+            {
+                Track(eye == null ? null : eye.mpCost, MpCost);
+            }
+            if (ArtifactCooldown.On)
+            {
+                Track(eye == null ? null : eye.cd, ArtifactCooldown);
+                Track(unit.devilDemonSkill == null ? null : unit.devilDemonSkill.cd, ArtifactCooldown);
+            }
+            if (SpCost.On)
+            {
+                Track(unit.devilDemonSkill == null ? null : unit.devilDemonSkill.spCost, SpCost);
+            }
+        }
+
+        private static SkillDataAttack Attack(SkillAttack skill)
+        {
+            return skill == null || skill.data == null ? null : skill.data.TryCast<SkillDataAttack>();
+        }
+
+        private static void Track(DynInt value, Rate rate)
+        {
+            if (value == null || skillValues.ContainsKey(value.Pointer))
+            {
+                return;
+            }
+            skillValues[value.Pointer] = new SkillValue { Value = value, Original = value.baseValue, Rate = rate };
+        }
+
+        // 0 이하는 곱하지 않는다. 반올림은 0.5를 올린다(25의 절반은 13).
+        private static int Scaled(int original, float factor)
+        {
+            if (original <= 0)
+            {
+                return original;
+            }
+            return (int)Math.Round(original * (double)factor, MidpointRounding.AwayFromZero);
         }
 
         // 원래 값이 0 이하이면(게임이 쿨타임을 멈춘 상태) 건드리지 않는다.

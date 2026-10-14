@@ -1111,7 +1111,7 @@ switch ($Part) {
     function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab12' | Out-Null
-    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateSpeed', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
     $s = RateState
     Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 speed=1 ' -and $s -notmatch 'patched') $s
 
