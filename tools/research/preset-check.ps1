@@ -617,6 +617,18 @@ switch ($Part) {
     Cmd 'uiclose GetImmortalSkill' 500 | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'immortal-attr' {
+    # 능력치 탭의 "본원 선력" 줄: 선법의 선력 총량(unitData.immortalCard.immortalPoint)을 게임의 상한(0~40) 안에서 정한다.
+    $r = Cmd 'cattr immortalPoint 12' 800
+    Check 'the immortal power total is set' ((Fields (Cmd 'imm' 200)).immortalPoint -eq '12') "$r | $(Cmd 'imm' 200)"
+    $r = Cmd 'cattr immortalPoint 41' 800
+    Check 'a value over the game limit is refused' ((Fields (Cmd 'imm' 200)).immortalPoint -eq '12') "$r | $(Cmd 'imm' 200)"
+    Check 'the editor draws the row in the combat category' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab0' | Out-Null
+    Press 'AttrCat1' | Out-Null
+    Shot 'immortal-attr'
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

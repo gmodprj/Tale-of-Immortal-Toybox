@@ -22,7 +22,7 @@
 
 | 탭 | 기능 | 코드 | 실험 기록(05 문서) |
 |---|---|---|---|
-| 능력치 | 게임 인물 화면의 다섯 분류(개인·전투·공법 자질·영근 자질·기예)로 저장값 편집(값 칸에 쓰고 Enter), 증감 단위, 자원 회복 | `AttributeCatalog`, `EditService.SetAttribute` | 5, 14, 15, 27절 |
+| 능력치 | 게임 인물 화면의 다섯 분류(개인·전투·공법 자질·영근 자질·기예)로 저장값 편집(값 칸에 쓰고 Enter), 증감 단위, 자원 회복. 전투 속성 끝에 선법의 본원 선력(0~40) | `AttributeCatalog`, `EditService.SetAttribute` | 5, 14, 15, 27, 35절 |
 | 자원 | 영석 추가, 아이템 표(번호·카테고리·이름·품질·보유·설명), 이름·카테고리 필터, 지급 수량, 가방 칸(±10, 직접 지정) | `ItemCatalog`, `EditService.GiveItem`, `BagService` | 14, 15, 25, 27, 31절 |
 | 화폐 | 영석과 재화 8종(종문 공헌, 생기, 사기, 정도의 기, 마도의 기, 성주령, 전공, 선우) 추가, 명성(인물 속성) 올리기 | `ItemCatalog.Currencies`, `EditService.GiveItem`·`AddMoney`·`SetAttribute` | 27, 29절 |
 | 보관함 | `가방`: 현재 가방(아이템, 장착 중인 것, 영석과 화폐)을 이름을 붙여 JSON 파일로 내보내기, 목록·세부, 하나씩 또는 모두 가져오기(칸이 모자라면 늘릴지 묻는다), 삭제. `캐릭터`: 플레이어의 능력치·경지·공법·기예·운명·역천개명을 내보내고 전부·구역별·줄 하나씩 가져오기 | `BagExportService`, `CharacterExportService`(+`.Import`), `ExportFiles`, `Json`, `UI/Tabs/VaultTab`(+`.Character`) | 28, 30, 31절 |
@@ -364,7 +364,7 @@ PowerShell과 도구:
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
-- 2026-10-14에 쓴 회차 이름: `grade-1014a`~`r`, `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함). 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
+- 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함). 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
 
 ## 9. 작업 규칙 요약
 
