@@ -86,6 +86,14 @@ namespace MOD_sWP6UL
                         sb.Append(" cg=").Append(cg == null ? "none" : cg.alpha + "/" + cg.blocksRaycasts);
                         return sb.ToString();
                     }
+                case "iguard":
+                    {
+                        var es = UnityEngine.EventSystems.EventSystem.current;
+                        UnityEngine.GameObject sel = es == null ? null : es.currentSelectedGameObject;
+                        UnityEngine.UI.InputField f = sel == null ? null : sel.GetComponent<UnityEngine.UI.InputField>();
+                        return "blocking=" + InputGuard.Blocking + " selected=" + (sel == null ? "null" : sel.name) + " focused=" + (f != null && f.isFocused)
+                            + " inputBase=" + (InputBase.instance != null);
+                    }
                 case "brclick":
                     {
                         // brclick <x> <y>: 실제 마우스와 같은 경로(맨 위 요소에서 누름·뗌·클릭을 보냄)로 누른다.

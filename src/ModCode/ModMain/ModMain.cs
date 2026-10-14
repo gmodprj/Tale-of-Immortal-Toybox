@@ -26,6 +26,7 @@ namespace MOD_sWP6UL
             BattleService.OnDestroy();
             RateService.OnDestroy();
             ArtifactKeyService.OnDestroy();
+            InputGuard.Release();
 #if DEVTOOLS
             StopDevPoll();
 #endif
