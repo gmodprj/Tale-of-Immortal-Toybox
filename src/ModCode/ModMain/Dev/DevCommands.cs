@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string immortal = DevCommandsImmortal.Execute(p);
+            if (immortal != null)
+            {
+                return immortal;
+            }
             string snap = g.world == null || g.world.playerUnit == null ? null : DevCommandsSnap.Handle(g.world.playerUnit, p);
             if (snap != null)
             {
