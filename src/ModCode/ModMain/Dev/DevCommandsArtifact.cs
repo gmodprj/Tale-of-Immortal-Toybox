@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -64,12 +65,18 @@ namespace MOD_sWP6UL
                 case "geequip": return GodEyeService.Equip(GodEyeService.FindSkill(int.Parse(p[1])));
                 case "ddmg":
                     {
-                        bool on = p[1] == "1";
+                        // 0 정상, 1 손상, 2 수리 중(지금 달 + 3에 끝남), 3 끝난 수리(지난 달). 관리자와 세계 자료 둘 다.
+                        int mode = int.Parse(p[1]);
+                        int month = g.world.run.roundMonth;
+                        bool damage = mode == 1;
+                        int repair = mode == 2 ? month + 3 : mode == 3 ? Math.Max(1, month - 1) : 0;
                         if (g.world.devilDemonMgr != null && g.world.devilDemonMgr.devilDemonData != null)
                         {
-                            g.world.devilDemonMgr.devilDemonData.isDamage = on;
+                            g.world.devilDemonMgr.devilDemonData.isDamage = damage;
+                            g.world.devilDemonMgr.devilDemonData.repairMonth = repair;
                         }
-                        g.data.world.devilDemonData.isDamage = on;
+                        g.data.world.devilDemonData.isDamage = damage;
+                        g.data.world.devilDemonData.repairMonth = repair;
                         return DdState();
                     }
                 case "ddstate": return DdState();
@@ -100,7 +107,8 @@ namespace MOD_sWP6UL
         private static string DdState()
         {
             DevilDemonMgr mgr = g.world.devilDemonMgr;
-            return "damaged=" + ArtifactService.DevilDamaged + " canUse=" + (mgr != null && mgr.IsCanUse());
+            int repair = Math.Max(mgr == null || mgr.devilDemonData == null ? 0 : mgr.devilDemonData.repairMonth, g.data.world.devilDemonData.repairMonth);
+            return "damaged=" + ArtifactService.DevilDamaged + " canUse=" + (mgr != null && mgr.IsCanUse()) + " repairMonth=" + repair + " month=" + g.world.run.roundMonth;
         }
 
         private static string On(UnityEngine.UI.Button b)

@@ -13,6 +13,14 @@ function Fields([string]$text) {
 # 그 이름의 버튼이 꺼져 있는지(누르면 "not interactable").
 function IsOff([string]$name) { $p = Pos $name; (Rc "click $($p.x) $($p.y)" 300) -match 'not interactable' }
 function LogHas([string]$word) { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 20 -Encoding UTF8 | Where-Object { $_ -match $word }).Count -gt 0 }
+# 점수 칸에 쓰고 Enter. 화면 밖 게임 창으로 가는 키가 한 회차 내내 빠지는 때가 있어(원인 미확인, 회차 atab4·atab13) 반영되지 않았으면 한 번 다시 보낸다.
+function EnterPoint([string]$text, [string]$want) {
+  for ($try = 1; $try -le 2; $try++) {
+    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd "ui set ArtifactPoint $text" | Out-Null; Key 0x0D 800
+    if ((Fields (Cmd 'aw' 200)).point -eq $want) { return }
+    "INFO Enter was not applied (try $try)" | Write-Host
+  }
+}
 
 switch ($Part) {
   'list' {
@@ -95,6 +103,15 @@ switch ($Part) {
     Check 'damage makes the gourd unusable' ((Fields (Cmd 'ddstate' 200)).canUse -eq 'False') (Cmd 'ddstate' 200)
     $r = Cmd 'ddrepair' 400
     Check 'repair makes the gourd usable' ((Fields (Cmd 'ddstate' 200)).canUse -eq 'True' -and (Fields (Cmd 'ddstate' 200)).damaged -eq 'False') "$r | $(Cmd 'ddstate' 200)"
+    Cmd 'ddmg 2' 300 | Out-Null
+    $d = Fields (Cmd 'ddstate' 200)
+    Check 'a gourd under repair counts as damaged' ($d.damaged -eq 'True') (Cmd 'ddstate' 200)
+    $r = Cmd 'ddrepair' 400
+    $d = Fields (Cmd 'ddstate' 200)
+    Check 'repair clears a pending repair too' ($d.damaged -eq 'False' -and $d.canUse -eq 'True' -and $d.repairMonth -eq '0') "$r | $(Cmd 'ddstate' 200)"
+    Cmd 'ddmg 3' 300 | Out-Null
+    Check 'a finished repair (past month) is not damage' ((Fields (Cmd 'ddstate' 200)).damaged -eq 'False') (Cmd 'ddstate' 200)
+    Cmd 'ddmg 0' 300 | Out-Null
     Check 'the change log has the gourd line' (LogHas '연요호')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
@@ -105,6 +122,7 @@ switch ($Part) {
     Check 'the artifact tab is the eighth' (IsAt 'ArtifactPoint')
     Check 'the last artifact cannot be turned off' ((IsOff 'ArtifactOff1') -and (Cmd 'uitext ArtifactLast' 150) -match '하나 이상')
     Check 'details of a missing artifact are off' (IsOff 'ArtifactOpen2')
+    Check 'a missing artifact says to turn it on first' ((Cmd 'uitext ArtifactNeed2' 150) -match '먼저 켜세요') (Cmd 'uitext ArtifactNeed2' 150)
     Press 'ArtifactOn2' 1200 | Out-Null
     Check 'turning on adds it' ((Fields (Cmd 'aw' 200)).weapons -eq '1,2') (Cmd 'aw' 200)
     Press 'ArtifactOn3' 1200 | Out-Null
@@ -113,17 +131,19 @@ switch ($Part) {
     Press 'ArtifactOff3' 1200 | Out-Null
     Check 'the second press turns it off' ((Fields (Cmd 'aw' 200)).weapons -eq '1,2') (Cmd 'aw' 200)
     Press 'ArtifactOn3' 1200 | Out-Null
-    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd 'ui set ArtifactPoint 25' | Out-Null; Key 0x0D
+    EnterPoint 25 25
     Check 'the point field sets the point on Enter' ((Fields (Cmd 'aw' 200)).point -eq '25') (Cmd 'aw' 200)
     Press 'ArtifactPointPlus10' | Out-Null
     Press 'ArtifactPointMinus1' | Out-Null
     Check 'plus ten and minus one' ((Fields (Cmd 'aw' 200)).point -eq '34') (Cmd 'aw' 200)
-    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd 'ui set ArtifactPoint -5' | Out-Null; Key 0x0D
+    EnterPoint -5 0
     Check 'a negative point becomes 0' ((Fields (Cmd 'aw' 200)).point -eq '0') (Cmd 'aw' 200)
-    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd 'ui set ArtifactPoint 99999' | Out-Null; Key 0x0D
+    EnterPoint 99999 9999
     Check 'a point over the limit becomes 9999' ((Fields (Cmd 'aw' 200)).point -eq '9999') (Cmd 'aw' 200)
     Press 'ArtifactOpen2' | Out-Null
     Check 'the god eye page has its controls' ((IsAt 'GodEyeUnlockAll') -and (IsAt 'GodEyeSearch') -and (IsAt 'GodEyeBoss7010'))
+    Press 'GodEyeUnlockAll' | Out-Null
+    Check 'unlock all warns that it fills the god eye breakthrough progress' ((Cmd 'uistate' 200) -match '돌파') (Cmd 'uistate' 200)
     Check 'repair is off without damage' (IsOff 'GodEyeRepair')
     Check 'an unlearned skill cannot be equipped' (IsOff 'GodEyeEquip100721')
     Press 'GodEyeBoss7010' 1200 | Out-Null

@@ -186,20 +186,36 @@ namespace MOD_sWP6UL
         }
 
         // 연요호의 손상은 관리자(실행 중의 값)와 세계 자료(저장되는 값) 두 곳에 있다. 둘 다 본다.
-        public static bool DevilDamaged
+        // repairMonth가 지금 달보다 뒤면 수리 중이고 게임도 쓸 수 없다고 한다(IsCanUse=False, 회차 atab10). 지난 달이면 끝난 수리다.
+        private static bool DevilBroken
         {
             get
             {
                 DevilDemonMgr mgr = Devil;
-                bool runtime = mgr != null && mgr.devilDemonData != null && mgr.devilDemonData.isDamage;
-                bool saved = Ready && g.data.world.devilDemonData != null && g.data.world.devilDemonData.isDamage;
-                return runtime || saved;
+                return (mgr != null && mgr.devilDemonData != null && mgr.devilDemonData.isDamage)
+                    || (Ready && g.data.world.devilDemonData != null && g.data.world.devilDemonData.isDamage);
             }
+        }
+
+        private static bool DevilRepairing
+        {
+            get
+            {
+                DevilDemonMgr mgr = Devil;
+                int month = g.world == null || g.world.run == null ? 0 : g.world.run.roundMonth;
+                return (mgr != null && mgr.devilDemonData != null && mgr.devilDemonData.repairMonth > month)
+                    || (Ready && g.data.world.devilDemonData != null && g.data.world.devilDemonData.repairMonth > month);
+            }
+        }
+
+        public static bool DevilDamaged
+        {
+            get { return DevilBroken || DevilRepairing; }
         }
 
         public static string DevilState()
         {
-            return Devil == null ? "자료 없음" : DevilDamaged ? "손상" : "사용 가능";
+            return Devil == null ? "자료 없음" : DevilBroken ? "손상" : DevilRepairing ? "수리 중" : "사용 가능";
         }
 
         public static string RepairDevil()
@@ -223,12 +239,13 @@ namespace MOD_sWP6UL
                 mgr.devilDemonData.isDamage = false;
                 mgr.devilDemonData.repairMonth = 0;
             }
-            if (g.data.world.devilDemonData != null)
+            if (Ready && g.data.world.devilDemonData != null)
             {
                 g.data.world.devilDemonData.isDamage = false;
                 g.data.world.devilDemonData.repairMonth = 0;
             }
-            bool ok = !DevilDamaged;
+            // 연요호를 가졌으면 게임의 판정(IsCanUse)까지 본다. 없으면 IsCanUse는 늘 거짓이다.
+            bool ok = !DevilDamaged && (!Has(3) || mgr.IsCanUse());
             ChangeLog.Add("연요호", "손상", "손상", DevilState(), ok);
             return ok ? "연요호: 손상을 해제했습니다." : "연요호: 손상이 남아 있습니다.";
         }

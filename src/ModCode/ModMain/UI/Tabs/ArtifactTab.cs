@@ -59,7 +59,16 @@ namespace MOD_sWP6UL
                 state.gameObject.name = "ArtifactState" + n;
                 Ui.Wrapped(content, desc, 220, y, descW, h, 15).color = Ui.Dim;
                 float bx = ContentW - 410;
-                Ui.Label(content, n == 2 && has ? ArtifactService.GodEyeState() : n == 3 && has ? ArtifactService.DevilState() : "", bx, y, 120, h, 15).color = Ui.Dim;
+                if (n != 1 && !has)
+                {
+                    Text need = Ui.Wrapped(content, "신기를 먼저 켜세요", bx, y, 120, h, 15);
+                    need.color = Ui.Warn;
+                    need.gameObject.name = "ArtifactNeed" + n;
+                }
+                else
+                {
+                    Ui.Label(content, n == 2 ? ArtifactService.GodEyeState() : n == 3 ? ArtifactService.DevilState() : "", bx, y, 120, h, 15).color = Ui.Dim;
+                }
                 if (has)
                 {
                     Confirm.Button("ArtifactOff" + n, content, "끄기", "정말 끄기", bx + 126, by, 130, 36, "artifact-off-" + n,
@@ -139,7 +148,7 @@ namespace MOD_sWP6UL
             GodEyeService.Skill equipped = GodEyeService.FindSkill(GodEyeService.Equipped);
             Ui.Label(content, "장착: " + (equipped == null ? "없음" : equipped.Name), 450, y, 400, 36, 18).gameObject.name = "GodEyeEquipText";
             Confirm.Button("GodEyeUnlockAll", content, "모든 요수 해금", "정말 모두", ContentW - 220, y, 220, 36, "godeye-all",
-                "모든 요수를 지금 대경지(" + ArtifactService.MajorName(ArtifactService.PlayerMajor()) + ")로 해금하고 기술을 모두 익힙니다(이미 해금한 요수는 단계를 바꾸지 않습니다). \"정말 모두\"를 한 번 더 누르세요.",
+                "모든 요수를 지금 대경지(" + ArtifactService.MajorName(ArtifactService.PlayerMajor()) + ")로 해금하고 기술을 모두 익힙니다(이미 해금한 요수는 단계를 바꾸지 않습니다). 게임의 호천안 돌파 진행(요수 격파 수)도 함께 오릅니다. \"정말 모두\"를 한 번 더 누르세요.",
                 new Action(() => Say(GodEyeService.UnlockAll(GodEyeService.Bosses()))));
             y += 46;
             SearchBox.Build(content, "GodEyeSearch", 0, y, 330, eyeQuery, "요수 또는 기술 이름의 일부", new Action<string>(v =>
@@ -147,7 +156,7 @@ namespace MOD_sWP6UL
                 eyeQuery = v;
                 eyeList.SetItems(Lines(GodEyeService.Find(eyeQuery)));
             }));
-            Ui.Wrapped(content, "해금은 지금 대경지로 하고 그 요수의 기술을 모두 익힙니다. 장착은 하나만 됩니다. 전투에서의 사용은 확인하지 못했습니다.", 350, y, ContentW - 350, 40, 15).color = Ui.Dim;
+            Ui.Wrapped(content, "해금은 지금 대경지로 하고 그 요수의 기술을 모두 익힙니다. 호천안 돌파 진행(요수 격파 수)에도 들어갑니다. 장착은 하나만 됩니다. 전투에서의 사용은 확인하지 못했습니다.", 350, y, ContentW - 350, 40, 15).color = Ui.Dim;
             float top = y + 46;
             eyeList.HeightOf = l => l.Skill == null ? 44 : RowFor(40, Ui.TextHeight(l.Skill.Desc, DescW, 15));
             eyeList.Build(content, 0, top, ContentW, ContentH - top, Lines(GodEyeService.Find(eyeQuery)), DrawEyeLine);
