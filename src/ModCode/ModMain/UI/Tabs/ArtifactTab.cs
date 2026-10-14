@@ -104,6 +104,38 @@ namespace MOD_sWP6UL
                 Ui.Button(names[i], content, labels[i], 320 + i * 76, y, 70, 36, new Action(() => Say(ArtifactService.SetPoint(ArtifactService.Point + step))));
             }
             Ui.Wrapped(content, "전투에서 쓰러지면 점수를 써서 되살아납니다(0~" + ArtifactService.PointMax + "). 게임 화면: 부활 정보의 \"쌍어옥패 N점\".", 640, y, ContentW - 640, 40, 15).color = Ui.Dim;
+            DrawKeys(y + 60);
+        }
+
+        // 전투 단축키: 게임의 신기 키는 가진 신기를 한꺼번에 발동하므로, 신기마다 따로 쓰는 키와 게임 키 끄기.
+        private void DrawKeys(float y)
+        {
+            Ui.Label(content, "전투 단축키", 0, y, 200, 36, 19);
+            Ui.Wrapped(content, "게임의 신기 키(" + ArtifactKeyService.GameKey() + ")는 가진 신기를 한꺼번에 발동합니다. 여기서 정한 키는 그 신기만 발동합니다. 전투 화면의 쌍어패·연요호 칸을 눌러도 그 신기만 발동합니다. 집중력이 모자라거나 재사용 대기 중이면 게임처럼 발동하지 않습니다.",
+                220, y, ContentW - 220, 40, 15).color = Ui.Dim;
+            y += 46;
+            foreach (int id in new[] { 2, 3, 1 })
+            {
+                int n = id;
+                bool capturing = ArtifactKeyService.Capturing == n;
+                KeyCode key = ArtifactKeyService.Get(n);
+                Ui.Label(content, ArtifactKeyService.Name(n), 12, y, 120, 36, 18);
+                Text label = Ui.Label(content, capturing ? "누를 키를 기다립니다(Esc: 그만두기)" : key == KeyCode.None ? "없음" : key.ToString(), 140, y, 320, 36, 18);
+                label.color = capturing ? Ui.Warn : Ui.Dim;
+                label.gameObject.name = "ArtifactKeyText" + n;
+                Ui.Button("ArtifactKeySet" + n, content, "바꾸기", 470, y, 110, 34, new Action(() =>
+                {
+                    ArtifactKeyService.Capturing = n;
+                    Say(ArtifactKeyService.Name(n) + "에 쓸 키를 누르세요(Esc: 그만두기).");
+                }), !capturing);
+                Ui.Button("ArtifactKeyClear" + n, content, "지우기", 586, y, 110, 34, new Action(() => Say(ArtifactKeyService.Set(n, KeyCode.None))), key != KeyCode.None);
+                y += 40;
+            }
+            y += 6;
+            bool off = ArtifactKeyService.GameKeyOff;
+            Ui.Button("ArtifactGameKey", content, off ? "게임의 신기 키: 전투 중 끔" : "게임의 신기 키: 그대로", 12, y, 300, 36,
+                new Action(() => Say(ArtifactKeyService.SetGameKeyOff(!ArtifactKeyService.GameKeyOff))), true, off);
+            Ui.Wrapped(content, "끄면 전투 동안만 게임의 키를 쓰지 않게 하고, 전투가 끝나거나 게임 설정 창을 열면 되돌립니다. 게임의 키 설정은 바꾸지 않습니다.", 330, y, ContentW - 330, 40, 15).color = Ui.Dim;
         }
 
         private void Open(int n)

@@ -297,6 +297,73 @@ switch ($Part) {
     Check 'back on the map' ((Cmd 'uilist' 200) -match '  MapMain layer') (Cmd 'uilist' 200)
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'keys' {
+    # 신기별 단축키(모드)와 게임의 신기 키 끄기, 전투 칸 클릭. 키는 화면 밖 게임에 전달될 때 판정한다(전달되지 않으면 INFO).
+    function IntoBattle { Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 2500 | Out-Null; Cmd 'bgod on' 300 | Out-Null }
+    function LeaveBattle {
+      Cmd 'bend' 500 | Out-Null
+      for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      Start-Sleep -Seconds 2
+      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+      Start-Sleep -Seconds 3
+    }
+    Cmd 'awset 1,2,3' 300 | Out-Null
+    Cmd 'potadd 1001 1' 500 | Out-Null; Cmd 'potequip' 500 | Out-Null
+    Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    $r = Cmd 'akey 3 K' 300
+    Check 'a key is set for the gourd' ((Cmd 'akeys' 200) -match 'devil=K' -and (Cmd 'akeys' 200) -match 'godEye=None') "$r | $(Cmd 'akeys' 200)"
+    Cmd 'akeyoff on' 300 | Out-Null
+    Check 'the game key is kept outside battle' ((Cmd 'akeys' 200) -match 'game=F ') (Cmd 'akeys' 200)
+    IntoBattle
+    Start-Sleep -Milliseconds 500
+    Check 'the game key is off during battle' ((Cmd 'akeys' 200) -match 'game=None ') (Cmd 'akeys' 200)
+    # 칸 클릭: 연요호만 발동한다(회차 akey-1014c에서 손으로 확인).
+    $p = Cmd 'bslot devil' 200
+    if ($p -match '@(\d+),(\d+)') {
+      $o = Rc "click $($Matches[1]) $($Matches[2])" 1500
+      $s = Cmd 'bfired' 200
+      Check 'clicking the gourd slot fires only the gourd' ($o -match 'Button\.onClick' -and $s -match 'devil=True' -and $s -match 'godEye=False') "$o | $s"
+    } else { Check 'the gourd slot has a position' $false $p }
+    $p = Cmd 'bslot pisces' 200
+    Check 'the pendant slot is off without a gifted half' ($p -match 'off') $p
+    # 단축키: 호천안 키를 F9로 두고 누르면 호천안이 발동한다. 키가 화면 밖 게임에 전달되지 않으면 INFO.
+    Cmd 'akey 2 F9' 300 | Out-Null
+    Key 0x78 1500
+    $s = Cmd 'bfired' 200
+    if ($s -match 'godEye=True') { Check 'the god eye key fires the god eye' $true $s }
+    else {
+      "INFO the F9 key did not reach the game window ($s)"
+      Cmd 'afire 2' 800 | Out-Null
+      Check 'firing the god eye from the mod works' ((Cmd 'bfired' 200) -match 'godEye=True') (Cmd 'bfired' 200)
+    }
+    Cmd 'akey 2 None' 300 | Out-Null
+    LeaveBattle
+    Check 'the game key is back after battle' ((Cmd 'akeys' 200) -match 'game=F ') (Cmd 'akeys' 200)
+    Cmd 'akeyoff off' 300 | Out-Null
+    Cmd 'save' 2500 | Out-Null
+    Check 'the keys are written to config.txt' (@(Get-Content -LiteralPath (Join-Path $data 'config.txt') -Encoding UTF8 | Where-Object { $_ -match '^artifactkey3=K$' }).Count -eq 1)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'keys-ui' {
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab7' | Out-Null
+    Check 'the key rows are drawn' ((IsAt 'ArtifactKeySet2') -and (IsAt 'ArtifactKeySet3') -and (IsAt 'ArtifactKeySet1') -and (IsAt 'ArtifactGameKey'))
+    Press 'ArtifactKeySet2' | Out-Null
+    Check 'change waits for a key' ((Cmd 'uitext ArtifactKeyText2' 150) -match 'Esc') (Cmd 'uitext ArtifactKeyText2' 150)
+    Key 0x78 1000
+    Check 'the pressed key becomes the god eye key' ((Cmd 'akeys' 200) -match 'godEye=F9') (Cmd 'akeys' 200)
+    Press 'ArtifactKeyClear2' | Out-Null
+    Check 'clear removes it' ((Cmd 'akeys' 200) -match 'godEye=None') (Cmd 'akeys' 200)
+    $before = (Cmd 'akeys' 200) -match 'off=True'
+    Press 'ArtifactGameKey' | Out-Null
+    Check 'the game key button toggles' (((Cmd 'akeys' 200) -match 'off=True') -ne $before) (Cmd 'akeys' 200)
+    Press 'ArtifactGameKey' | Out-Null
+    Shot 'artifact-keys'
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'keys-restart' {
+    Check 'the keys are kept after a restart' ((Cmd 'akeys' 200) -match 'devil=K' -and (Cmd 'akeys' 200) -match 'off=False') (Cmd 'akeys' 200)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

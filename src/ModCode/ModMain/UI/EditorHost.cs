@@ -74,6 +74,7 @@ namespace MOD_sWP6UL
             StatusOverlay.Tick();
             RateService.Tick();
             ArtifactHudService.Tick();
+            ArtifactKeyService.Tick();
             if (Input.GetKeyDown(EditorHost.Hotkey))
             {
                 try

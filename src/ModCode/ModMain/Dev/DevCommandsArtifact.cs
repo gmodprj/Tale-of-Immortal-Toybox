@@ -63,6 +63,58 @@ namespace MOD_sWP6UL
                         }
                         return "no npc";
                     }
+                case "akey":
+                    return ArtifactKeyService.Set(int.Parse(p[1]), (UnityEngine.KeyCode)Enum.Parse(typeof(UnityEngine.KeyCode), p[2], true));
+                case "akeyoff":
+                    return ArtifactKeyService.SetGameKeyOff(p[1] == "on");
+                case "akeys":
+                    return "pisces=" + ArtifactKeyService.Get(1) + " godEye=" + ArtifactKeyService.Get(2) + " devil=" + ArtifactKeyService.Get(3)
+                        + " game=" + ArtifactKeyService.GameKeyNow() + " off=" + ArtifactKeyService.GameKeyOff;
+                case "afire":
+                    return ArtifactKeyService.Fire(int.Parse(p[1]));
+                case "bgod":
+                    return BattleService.SetGod(p[1] == "on");
+                case "potequip":
+                    {
+                        // 검사 준비: 첫 호요를 호위로.
+                        var mgr = g.world.devilDemonMgr.potMonMgr;
+                        mgr.EquipPotMon(mgr.potMonDatas[0], true);
+                        return "battle=" + mgr.battlePotMonDatas.Count;
+                    }
+                case "bfired":
+                    {
+                        // 전투에서 신기 기술이 쓰였는지(재사용 대기가 시작됐는지).
+                        UnitCtrlPlayer pl = RateService.InBattle ? SceneType.battle.battleMap.playerUnitCtrl : null;
+                        UIBattleInfo ui = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
+                        if (pl == null || ui == null || ui.info == null)
+                        {
+                            return "battle=null";
+                        }
+                        bool eye = ui.info.imgGodEyeSkillCD != null && ui.info.imgGodEyeSkillCD.fillAmount > 0.01f;
+                        bool devil = pl.devilDemonSkill != null && pl.devilDemonSkill.lastUseTime > 0f;
+                        bool pisces = pl.piscesSkillBase != null && pl.piscesSkillBase.leftCDTime > 0f;
+                        return "pisces=" + pisces + " godEye=" + eye + " devil=" + devil;
+                    }
+                case "bslot":
+                    {
+                        // 전투 칸의 게임 좌표(1920x1080, 왼쪽 위 기준) 가운데. 꺼져 있으면 off.
+                        UIBattleInfo ui = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
+                        if (ui == null || ui.info == null)
+                        {
+                            return "battle=null";
+                        }
+                        UnityEngine.GameObject go = p[1] == "pisces" ? ui.info.goPiscesPendant : p[1] == "godEye" ? ui.info.goGodEye : ui.info.goDevilDemon;
+                        if (go == null || !go.activeInHierarchy)
+                        {
+                            return p[1] + "=off";
+                        }
+                        var rect = go.GetComponent<UnityEngine.RectTransform>();
+                        UnityEngine.Canvas canvas = go.GetComponentInParent<UnityEngine.Canvas>();
+                        UnityEngine.Camera cam = canvas == null || canvas.renderMode == UnityEngine.RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+                        UnityEngine.Rect r = rect.rect;
+                        UnityEngine.Vector2 screen = UnityEngine.RectTransformUtility.WorldToScreenPoint(cam, rect.TransformPoint(new UnityEngine.Vector3(r.center.x, r.center.y, 0f)));
+                        return p[1] + "@" + UnityEngine.Mathf.RoundToInt(screen.x) + "," + UnityEngine.Mathf.RoundToInt(UnityEngine.Screen.height - screen.y);
+                    }
                 case "awreset":
                     {
                         // 검사용: 게임이 자리를 되돌린 것처럼 지도 화면 신기 버튼 셋을 게임의 자리(-240,-93)로 옮긴다.
