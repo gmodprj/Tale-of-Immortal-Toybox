@@ -42,7 +42,7 @@ namespace MOD_sWP6UL
                 return;
             }
             SubView view = views[views.Count - 1];
-            Ui.Label(content, view.Title(), 0, 0, ContentW - 150, 36, 21);
+            Ui.Label(content, view.Title(), 0, 0, ContentW - 150, 36, 21).gameObject.name = "SubTitle";
             Ui.Button("Back", content, "돌아가기", ContentW - 130, 0, 130, 36, new Action(Pop));
             view.Draw();
         }
