@@ -1,4 +1,4 @@
-﻿# 날짜·가방 기능의 게임 내 검증(docs/superpowers/specs/2026-10-12-date-bag-design.md 6절).
+# 날짜·가방 기능의 게임 내 검증(docs/superpowers/specs/2026-10-12-date-bag-design.md 6절).
 # tools\DevRemote\session.ps1 -Begin으로 게임이 떠서 세계에 들어가 있어야 한다.
 # 줄마다 PASS/FAIL이 나오고 마지막 줄이 FAILS=<수>다. "SHOT <파일>"은 눈으로 확인할 캡처다.
 param([Parameter(Mandatory)][string]$Part)
@@ -123,7 +123,7 @@ switch ($Part) {
 
     # 화면: 세계 탭. 직접 지정의 입력 칸은 고치지 않았으면 늘 현재 날짜를 보여 준다
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null
+    Press 'Tab10' | Out-Null
     $s = State; $in = DateInput
     Check 'date inputs show the current date' ($in.text -eq "$($s.y)-$($s.m)-$($s.d)" -and -not $in.pending) $in.raw
     Check 'Day1 button is where expected' (IsAt 'Day1')
@@ -222,7 +222,7 @@ switch ($Part) {
 
     # 화면: 고정 버튼
     Cmd 'editor' | Out-Null
-    Press 'Tab9' | Out-Null
+    Press 'Tab10' | Out-Null
     Check 'Freeze button is where expected' (IsAt 'Freeze')
     Shot 'freeze-editor'
     Press 'Freeze' | Out-Null

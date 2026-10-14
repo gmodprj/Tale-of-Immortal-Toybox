@@ -60,6 +60,50 @@ switch ($Part) {
     Check 'doing it again skips all' ($r -match '익힘 0, 건너뜀 6' -and [int](Fields (Cmd 'ilist' 200)).owned -eq $before + $done) $r
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'ui' {
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab6' | Out-Null
+    Check 'the immortal tab is the seventh' (IsAt 'ImmortalAddOpen')
+    Check 'the immortal power is shown as used/total' ((Cmd 'uitext ImmortalPointText' 150) -match "ImmortalPointText text='[^']*0 / 0")
+    Press 'ImmortalPointPlus' | Out-Null
+    Check 'plus one raises the total' ((Fields (Cmd 'ilist' 200)).total -eq '1') (Cmd 'ilist' 200)
+    Press 'ImmortalPointMax' | Out-Null
+    Check 'max sets the game limit' ((Fields (Cmd 'ilist' 200)).total -eq '40') (Cmd 'ilist' 200)
+    Press 'ImmortalPointMinus' | Out-Null
+    Check 'minus one lowers it' ((Fields (Cmd 'ilist' 200)).total -eq '39') (Cmd 'ilist' 200)
+    Press 'ImmortalAddOpen' | Out-Null
+    Check 'the add page has the filters' ((IsAt 'ImmortalHuman0') -and (IsAt 'ImmortalHuman1004') -and (IsAt 'ImmortalKind2') -and (IsAt 'ImmortalLearnAll'))
+    Press 'ImmortalHuman1004' | Out-Null
+    Check 'filtering by an immortal shows its cards' ((IsAt 'ImmortalLearn5000') -and -not (IsAt 'ImmortalLearn6000'))
+    Press 'ImmortalLearn5000' 1500 | Out-Null
+    Check 'learn marks the card as owned' ((Cmd 'ihas 5000' 200) -match 'has=True' -and (Cmd 'uitext ImmortalState5000' 150) -match '보유')
+    Press 'ImmortalLearnAll' | Out-Null
+    Check 'learn all asks first' ((Fields (Cmd 'ilist' 200)).owned -eq '1')
+    Press 'ImmortalLearnAll' 2500 | Out-Null
+    Check 'the second press learns the shown cards' ((Fields (Cmd 'ilist' 200)).owned -eq '6') (Cmd 'ilist' 200)
+    Press 'Back' | Out-Null
+    Check 'the owned list shows the cards' (IsAt 'ImmortalOwnedList')
+    Shot 'immortal-tab'
+    # NPC: 선법 자료가 없거나 비어 있어도 예외 없이 그려진다.
+    Press 'Tab9' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null
+    Press 'Tab6' | Out-Null
+    Check 'an NPC target draws without an exception' ((IsAt 'ImmortalAddOpen') -or (IsAt 'ImmortalNoData'))
+    Press 'ToPlayer' | Out-Null
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'game' {
+    # 등선 후기로 올린 뒤 익힌 카드가 게임의 선법 창에 나오는지(캡처로 본다).
+    Cmd 'pgraise 44' 4000 | Out-Null
+    for ($n = 0; $n -lt 5 -and (Cmd 'uilist' 200) -match 'DramaDialogue|GetImmortalSkill'; $n++) { Cmd 'uiclose DramaDialogue' 500 | Out-Null; Cmd 'uiclose GetImmortalSkill' 500 | Out-Null }
+    $i = Cmd 'ilist' 200
+    Check 'raising the grade keeps the immortal power within the game limit' ([int](Fields $i).total -le 40) $i
+    Cmd 'ilearnall 1004 0' 2000 | Out-Null
+    Cmd 'uiopen ImmortalSkill' 2000 | Out-Null
+    Shot 'immortal-game'
+    Check 'the game window opened' ((Cmd 'uilist' 200) -match 'ImmortalSkill')
+    Cmd 'uiclose ImmortalSkill' 800 | Out-Null
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
