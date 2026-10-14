@@ -20,6 +20,9 @@ namespace MOD_sWP6UL
                 case "psoles": return Soles(me);
                 case "pmartial": return Martials(me, int.Parse(p[1]));
                 case "pbattle": return Battle();
+                case "pgpath": return GradePath(me, int.Parse(p[1]));
+                case "pgsum": return GradeSum(me, int.Parse(p[1]));
+                case "pgraise": return GradeService.RaiseTo(me, int.Parse(p[1]));
                 default: return null;
             }
         }
@@ -254,6 +257,37 @@ namespace MOD_sWP6UL
             return "suits=" + suits + " wing=" + (wing == null ? 0 : wing.wingManID)
                 + " wingobjs=" + (wing == null || wing.wingManList == null ? 0 : wing.wingManList.Count)
                 + " props=" + (ctrl.props == null ? 0 : ctrl.props.Count) + " skills=" + (ctrl.skills == null ? 0 : ctrl.skills.Count);
+        }
+
+        private static string GradePath(WorldUnitBase me, int toId)
+        {
+            var sb = new StringBuilder("path=");
+            List<ConfRoleGradeItem> path = GradeService.Path(me.data.unitData.propertyData.gradeID, toId);
+            for (int i = 0; i < path.Count; i++)
+            {
+                sb.Append(i == 0 ? "" : ",").Append(path[i].id);
+            }
+            return sb.ToString();
+        }
+
+        // 그 줄까지 올린 뒤 기대하는 저장값. 서비스의 더하기를 거치지 않고 줄마다의 증가분을 따로 더한다(상한은 보지 않는다).
+        private static string GradeSum(WorldUnitBase me, int toId)
+        {
+            var saved = me.data.unitData.propertyData;
+            int attack = saved.attack, defense = saved.defense, hpMax = saved.hpMax, life = saved.life, points = saved.abilityPoint;
+            foreach (ConfRoleGradeItem row in GradeService.Path(saved.gradeID, toId))
+            {
+                foreach (var pair in UnitActionRoleUpGrade.GetAddAttr(row))
+                {
+                    attack += pair.Key == "atk" ? pair.Value : 0;
+                    defense += pair.Key == "def" ? pair.Value : 0;
+                    hpMax += pair.Key == "hpMax" ? pair.Value : 0;
+                    life += pair.Key == "life" ? pair.Value : 0;
+                }
+                life += row.growAddLife;
+                points += row.abilityPoint;
+            }
+            return "attack=" + attack + " defense=" + defense + " hpMax=" + hpMax + " life=" + life + " ap=" + points;
         }
     }
 }

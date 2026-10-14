@@ -45,6 +45,32 @@ switch ($Part) {
     Check 'the equipped left skill is listed with its options' ((Cmd 'pmartial 14111' 150) -match 'n=1 \| sole=\S+ g=1 eq=True suit=0 lv=\d+ cost=0 nums=[\d,]+ atmax=(True|False)')
     Check 'not in battle' ((Cmd 'pbattle' 150) -match 'not in battle')
   }
+  'grade' {
+    $s0 = State
+    Check 'the path from 9 to 27 takes the best quality rows' ((Fields (Cmd 'pgpath 27' 150)).path -eq '10,11,16,17,18,19,20,21,24,25,26,27') (Cmd 'pgpath 27' 150)
+    Check 'there is no path to the same or a lower row' ((Fields (Cmd 'pgpath 9' 150)).path -eq '' -and (Fields (Cmd 'pgpath 4' 150)).path -eq '')
+    $want = Fields (Cmd 'pgsum 27' 150)
+    $r = Cmd 'pgraise 27' 500
+    $s1 = State
+    Check 'the grade is 27, major grade 7' ($s1.grade -eq '27' -and $s1.major -eq '7') $r
+    foreach ($k in 'attack', 'defense', 'hpMax', 'life', 'ap') {
+      Check "$k grew by the breakthrough gains" ($s1[$k] -eq $want[$k]) "have $($s1[$k]) want $($want[$k])"
+    }
+    # 실측(회차 preset-1014b): 9에서 27까지 올리면 공격력 766, 체력 상한 17104, 수명 9600, 수도 점수 312.
+    Check 'the values match the measured ones' ($s1.attack -eq '766' -and $s1.hpMax -eq '17104' -and $s1.life -eq '9600' -and $s1.ap -eq '312') "attack=$($s1.attack) hpMax=$($s1.hpMax) life=$($s1.life) ap=$($s1.ap)"
+    Check 'the result gives the new attack' ($r -match '82 -> 766')
+    $history = (Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 3 -Encoding UTF8) -join ' '
+    Check 'the change log has the grade and the attributes' ($history -match '\(9\) -> .*\(27\)' -and $history -match ' 82, .* -> .* 766, ') $history
+    $r = Cmd 'pgraise 27' 300
+    Check 'raising to the same row again changes nothing' ((State).attack -eq '766' -and (State).grade -eq '27') $r
+    $r = Cmd 'pgraise 9999' 300
+    Check 'an unknown row is refused' ((State).grade -eq '27') $r
+    Cmd 'pgraise 44' 800 | Out-Null
+    $s2 = State
+    Check 'the last row is reached' ($s2.grade -eq '44' -and $s2.major -eq '10') "grade=$($s2.grade)"
+    Check 'attack grew again' ([int]$s2.attack -gt 766) $s2.attack
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
