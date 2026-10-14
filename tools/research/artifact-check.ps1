@@ -310,6 +310,8 @@ switch ($Part) {
     Cmd 'awset 1,2,3' 300 | Out-Null
     Cmd 'potadd 1001 1' 500 | Out-Null; Cmd 'potequip' 500 | Out-Null
     Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    # 사용자의 config.txt에 정해 둔 키가 있을 수 있다(회차 -End가 되돌린다). 검사는 비운 상태에서 시작한다.
+    Cmd 'akey 1 None' 300 | Out-Null; Cmd 'akey 2 None' 300 | Out-Null; Cmd 'akey 3 None' 300 | Out-Null; Cmd 'akeyoff off' 300 | Out-Null
     $r = Cmd 'akey 3 K' 300
     Check 'a key is set for the gourd' ((Cmd 'akeys' 200) -match 'devil=K' -and (Cmd 'akeys' 200) -match 'godEye=None') "$r | $(Cmd 'akeys' 200)"
     Cmd 'akeyoff on' 300 | Out-Null
@@ -320,9 +322,9 @@ switch ($Part) {
     # 칸 클릭: 연요호만 발동한다(회차 akey-1014c에서 손으로 확인).
     $p = Cmd 'bslot devil' 200
     if ($p -match '@(\d+),(\d+)') {
-      $o = Rc "click $($Matches[1]) $($Matches[2])" 1500
+      $o = Cmd "brclick $($Matches[1]) $($Matches[2])" 1500
       $s = Cmd 'bfired' 200
-      Check 'clicking the gourd slot fires only the gourd' ($o -match 'Button\.onClick' -and $s -match 'devil=True' -and $s -match 'godEye=False') "$o | $s"
+      Check 'clicking the gourd slot fires only the gourd' ($o -match 'sent=True' -and $s -match 'devil=True' -and $s -match 'godEye=False') "$o | $s"
     } else { Check 'the gourd slot has a position' $false $p }
     $p = Cmd 'bslot pisces' 200
     Check 'the pendant slot is off without a gifted half' ($p -match 'off') $p
@@ -342,6 +344,31 @@ switch ($Part) {
     Cmd 'akeyoff off' 300 | Out-Null
     Cmd 'save' 2500 | Out-Null
     Check 'the keys are written to config.txt' (@(Get-Content -LiteralPath (Join-Path $data 'config.txt') -Encoding UTF8 | Where-Object { $_ -match '^artifactkey3=K$' }).Count -eq 1)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'slot-clicks' {
+    # 전투 칸을 실제 마우스와 같은 경로로 누른다(brclick). 연요호 칸은 그림(imgPotmonHead)의 게임 처리기가, 쌍어패 칸은 게임의 단추가 클릭을 받는다.
+    function IntoBattle { Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 2500 | Out-Null; Cmd 'bgod on' 300 | Out-Null }
+    Cmd 'awset 1,2,3' 300 | Out-Null
+    Cmd 'potadd 1001 1' 500 | Out-Null; Cmd 'potequip' 500 | Out-Null
+    Cmd 'pigive' 400 | Out-Null; Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    IntoBattle
+    foreach ($pair in @(@('devil', 'devil'), @('pisces', 'pisces'))) {
+      $p = Cmd "bslot $($pair[0])" 200
+      if ($p -match '@(\d+),(\d+)') {
+        $o = Cmd "brclick $($Matches[1]) $($Matches[2])" 2500
+        $s = Cmd 'bfired' 200
+        Check "a real click on the $($pair[0]) slot fires it" ($s -match "$($pair[1])=True") "$o | $s"
+      } else { Check "the $($pair[0]) slot is on" $false $p }
+    }
+    $s = Cmd 'bfired' 200
+    Check 'the god eye is not fired by those clicks' ($s -match 'godEye=False') $s
+    Cmd 'bend' 500 | Out-Null
+    for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+    Start-Sleep -Seconds 2
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+    Start-Sleep -Seconds 3
+    Cmd 'bgod off' 300 | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   'costs' {
@@ -391,6 +418,7 @@ switch ($Part) {
   }
   'keys-ui' {
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Cmd 'akey 2 None' 300 | Out-Null
     Press 'Tab7' | Out-Null
     Check 'the key rows are drawn' ((IsAt 'ArtifactKeySet2') -and (IsAt 'ArtifactKeySet3') -and (IsAt 'ArtifactKeySet1') -and (IsAt 'ArtifactGameKey'))
     Press 'ArtifactKeySet2' | Out-Null
