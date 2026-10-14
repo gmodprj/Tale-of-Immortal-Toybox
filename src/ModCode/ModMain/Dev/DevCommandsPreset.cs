@@ -54,6 +54,20 @@ namespace MOD_sWP6UL
                 case "pdump": return Dump(p[1]);
                 case "pfateset": return FateService.Set(me, int.Parse(p[1]), int.Parse(p[2]));
                 case "pluckadd": return LuckService.Add(me, int.Parse(p[1]));
+                case "pborn": return LuckService.AddBorn(me, int.Parse(p[1]));
+                case "cexport": return CharacterExportService.Export(p[1]);
+                case "cimpfates":
+                    {
+                        // 이름이 그것인 캐릭터 내보내기 파일의 역천개명 구역을 가져온다(화면의 "이 항목 모두 가져오기").
+                        foreach (CharacterExportService.Pack pack in CharacterExportService.List())
+                        {
+                            if (pack.Name == p[1] && pack.Error == null)
+                            {
+                                return CharacterExportService.ImportSection(pack, CharacterExportService.Section.Fates);
+                            }
+                        }
+                        return "no pack " + p[1];
+                    }
                 case "phas":
                     {
                         // 그 번호의 운명들 가운데 실제로 가지고 있는 수(효과가 붙어 있는가). 기록만 보는 검사를 보완한다.

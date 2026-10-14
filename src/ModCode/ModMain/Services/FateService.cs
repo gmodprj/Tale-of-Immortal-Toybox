@@ -180,6 +180,35 @@ namespace MOD_sWP6UL
             log[grade].luck = 0;
             return true;
         }
+        // 여러 대경지를 한 번에 정할 때(프리셋 적용, 캐릭터 가져오기의 역천개명 구역) 쓴다. pending은 이번에 정할 대경지 가운데
+        // 아직 처리하지 않은 것들이다. 함께 둘 수 없는 것을 가진 대경지가 여기 있으면 그 칸을 먼저 비우고(곧 그 줄이 다시 정한다) 정한다.
+        // 그래야 두 대경지의 것이 서로 맞바뀌거나 앞 프리셋과 계열이 겹쳐도 한 번에 들어간다. 부르는 쪽은 줄을 처리할 때 그 대경지를 pending에서 뺀다.
+        public static string SetAmong(WorldUnitBase unit, int grade, int newId, List<int> pending)
+        {
+            var emptied = new List<int>();
+            for (int tries = 0; tries < 10; tries++)
+            {
+                int clash = HeldElsewhere(unit, grade, newId);
+                if (clash == 0 || pending == null || !pending.Contains(clash) || !Release(unit, clash))
+                {
+                    break;
+                }
+                emptied.Add(clash);
+            }
+            string text = Set(unit, grade, newId);
+            if (emptied.Count > 0 && !(Records(unit).ContainsKey(grade) && Records(unit)[grade] == newId && LuckService.Has(unit, newId)))
+            {
+                // 비운 칸은 그 대경지의 줄이 뒤에서 다시 정한다. 정하지 못한 채 끝나면 빈 칸으로 남으므로 알린다.
+                var names = new List<string>();
+                foreach (int each in emptied)
+                {
+                    names.Add(GradeName(each));
+                }
+                text += " (" + string.Join(", ", names.ToArray()) + "의 역천개명을 비웠습니다)";
+            }
+            return text;
+        }
+
         // 그 경지의 역천개명을 newId로 정한다. 이전 것이 있으면 효과를 끄고 바꾼다.
         public static string Set(WorldUnitBase unit, int grade, int newId)
         {
@@ -199,16 +228,21 @@ namespace MOD_sWP6UL
             {
                 return name + ": " + gradeName + "에서 얻을 수 없는 역천개명입니다.";
             }
-            if (LuckService.Has(unit, newId))
-            {
-                return name + ": 이미 가지고 있습니다.";
-            }
             int clash = HeldElsewhere(unit, grade, newId);
             if (clash != 0)
             {
-                ConfRoleCreateFeatureItem held = g.conf.roleCreateFeature.GetItem(Records(unit)[clash]);
+                int heldId = Records(unit)[clash];
+                if (heldId == newId)
+                {
+                    return name + ": " + GradeName(clash) + "의 역천개명으로 이미 가지고 있습니다. 그 경지의 역천개명을 먼저 바꾸세요.";
+                }
+                ConfRoleCreateFeatureItem held = g.conf.roleCreateFeature.GetItem(heldId);
                 return name + ": 같은 계열의 역천개명(" + (held == null ? "?" : GameTool.LS(held.name)) + ")을 " + GradeName(clash)
                     + "에 가지고 있어 함께 둘 수 없습니다. 그 경지의 역천개명을 먼저 바꾸세요.";
+            }
+            if (LuckService.Has(unit, newId))
+            {
+                return name + ": 이미 가지고 있습니다.";
             }
             var log = Log(unit);
             if (log == null)

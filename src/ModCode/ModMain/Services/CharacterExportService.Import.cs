@@ -332,9 +332,14 @@ namespace MOD_sWP6UL
             return Outcome.Failed;
         }
 
-        private static Outcome PutFate(FateLine line, out string text)
+        // pending: 역천개명 구역을 한 번에 가져올 때, 아직 처리하지 않은 파일의 대경지들(FateService.SetAmong). 줄 하나를 가져올 때는 null이다.
+        private static Outcome PutFate(FateLine line, List<int> pending, out string text)
         {
             string label = (line.Name.Length > 0 ? line.Name : "역천개명") + "(" + line.Id + ")";
+            if (pending != null)
+            {
+                pending.Remove(line.Grade);
+            }
             if (line.Problem != null)
             {
                 text = label + ": " + line.Problem;
@@ -351,7 +356,7 @@ namespace MOD_sWP6UL
                 text = label + ": " + (state == "같음" ? "이미 그 경지의 역천개명입니다" : "아직 도달하지 않은 경지(대경지 " + line.Grade + ")라 건너뜁니다");
                 return Outcome.Skipped;
             }
-            text = FateService.Set(Me, line.Grade, line.Id);
+            text = FateService.SetAmong(Me, line.Grade, line.Id, pending);
             return FateState(line) == "같음" ? Outcome.Done : Outcome.Failed;
         }
 
@@ -411,7 +416,7 @@ namespace MOD_sWP6UL
 
         public static string ImportFate(Pack pack, int index)
         {
-            return One(pack, (out string text) => PutFate(pack.Fates[index], out text));
+            return One(pack, (out string text) => PutFate(pack.Fates[index], null, out text));
         }
 
         // ---- 구역과 전부 ----
@@ -533,10 +538,18 @@ namespace MOD_sWP6UL
                     }
                     return tally.Sentence("운명", "추가");
                 default:
+                    var pending = new List<int>();
+                    foreach (FateLine line in pack.Fates)
+                    {
+                        if (line.Problem == null)
+                        {
+                            pending.Add(line.Grade);
+                        }
+                    }
                     foreach (FateLine line in pack.Fates)
                     {
                         FateLine each = line;
-                        tally.Count((out string text) => PutFate(each, out text), Name(each.Name, "역천개명 " + each.Id));
+                        tally.Count((out string text) => PutFate(each, pending, out text), Name(each.Name, "역천개명 " + each.Id));
                     }
                     return tally.Sentence("역천개명", "지정");
             }

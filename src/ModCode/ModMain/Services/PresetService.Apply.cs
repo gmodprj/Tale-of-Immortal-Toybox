@@ -110,9 +110,11 @@ namespace MOD_sWP6UL
             return IsBorn(me, line.Id) ? Outcome.Done : Outcome.Failed;
         }
 
-        // replacing: 이번 적용이 정할 대경지들. 함께 둘 수 없는 것을 가진 대경지가 여기 있으면 그 칸을 먼저 비운다(곧 다른 것으로 정해진다).
-        private static Outcome PutFate(WorldUnitBase me, FateLine line, List<int> replacing, out string text)
+        // pending: 이번 적용이 정할 대경지 가운데 아직 처리하지 않은 것들. 함께 둘 수 없는 것을 가진 대경지가 여기 있으면
+        // FateService.SetAmong이 그 칸을 먼저 비운다(곧 그 줄이 다시 정한다). 처리한 대경지는 빼서, 정해진 칸이나 실패한 칸을 뒤의 줄이 비우지 않게 한다.
+        private static Outcome PutFate(WorldUnitBase me, FateLine line, List<int> pending, out string text)
         {
+            pending.Remove(line.Grade);
             string label = Named(line.Name, line.Id);
             if (line.Problem != null)
             {
@@ -124,21 +126,7 @@ namespace MOD_sWP6UL
                 text = label;
                 return Outcome.Skipped;
             }
-            // 같은 번호나 같은 계열을 다른 대경지에 가지고 있으면 함께 둘 수 없다(게임이 앞의 운명을 없애고 기록만 남긴다).
-            for (int tries = 0; tries < StageCount; tries++)
-            {
-                int clash = FateService.HeldElsewhere(me, line.Grade, line.Id);
-                if (clash == 0)
-                {
-                    break;
-                }
-                if (!replacing.Contains(clash) || !FateService.Release(me, clash))
-                {
-                    text = label + ": " + StageName(clash) + "의 역천개명과 같은 계열이라 함께 둘 수 없습니다. 그 경지의 역천개명을 먼저 바꾸세요";
-                    return Outcome.Failed;
-                }
-            }
-            text = FateService.Set(me, line.Grade, line.Id);
+            text = FateService.SetAmong(me, line.Grade, line.Id, pending);
             return FateNow(me, line.Grade) == line.Id && LuckService.Has(me, line.Id) ? Outcome.Done : Outcome.Failed;
         }
 

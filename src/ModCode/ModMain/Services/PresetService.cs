@@ -362,7 +362,7 @@ namespace MOD_sWP6UL
             return line;
         }
 
-        private static FateLine ReadFate(Dictionary<string, object> o, List<int> seen, List<int> groups)
+        private static FateLine ReadFate(Dictionary<string, object> o, List<int> seen, List<int> groups, List<int> ids)
         {
             var line = new FateLine();
             if (o == null || !ExportFiles.Whole(o, "grade", out line.Grade) || !ExportFiles.Whole(o, "id", out line.Id))
@@ -388,6 +388,11 @@ namespace MOD_sWP6UL
             {
                 line.Problem = "같은 경지의 줄이 이미 있습니다";
             }
+            // 같은 운명은 한 대경지에만 둘 수 있다. 두 줄을 적용하면 서로의 칸을 비운다.
+            else if (ids.Contains(line.Id))
+            {
+                line.Problem = "같은 역천개명의 줄이 이미 있습니다";
+            }
             // 게임은 같은 계열의 역천개명을 하나만 둔다. 같은 계열을 또 붙이면 앞의 것이 사라지고 기록만 남는다(실측, 회차 ptab23).
             else if (fate.group != 0 && groups.Contains(fate.group))
             {
@@ -397,6 +402,7 @@ namespace MOD_sWP6UL
             {
                 line.Group = fate.group;
                 seen.Add(line.Grade);
+                ids.Add(line.Id);
                 if (fate.group != 0)
                 {
                     groups.Add(fate.group);
@@ -510,9 +516,10 @@ namespace MOD_sWP6UL
                 }
                 var grades = new List<int>();
                 var groups = new List<int>();
+                var ids = new List<int>();
                 foreach (var o in ExportFiles.Items(root, "fates"))
                 {
-                    preset.Fates.Add(ReadFate(o, grades, groups));
+                    preset.Fates.Add(ReadFate(o, grades, groups, ids));
                 }
                 // 구역이 통째로 없으면 그 구역은 건드리지 않는다. 있는데 객체가 아니면 쓸 수 없는 줄로 남긴다.
                 object raw;
@@ -833,7 +840,7 @@ namespace MOD_sWP6UL
             }
             if (stage.Fate != null)
             {
-                Tick(stage.Fate.Problem == null, FateNow(me, stage.Fate.Grade) == stage.Fate.Id, ref have, ref total);
+                Tick(stage.Fate.Problem == null, FateNow(me, stage.Fate.Grade) == stage.Fate.Id && LuckService.Has(me, stage.Fate.Id), ref have, ref total);
             }
             foreach (SkillLine line in stage.Skills)
             {

@@ -540,11 +540,44 @@ switch ($Part) {
       $r = Cmd "papply $($file.Name) full" 9000
       $run = Fields $r
       Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
+      $ids = ((Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).fates | ForEach-Object { $_.id }) -join ','
+      Check "$($file.BaseName.Substring(0, 2)): every fate luck of the preset is actually held" ((Cmd "phas $ids" 300) -match 'held=9 of=9') (Cmd "phas $ids" 300)
       $st = Fields (Cmd "pstage $($file.Name) 10" 500)
       Check "$($file.BaseName.Substring(0, 2)): the last stage reads as applied" ($st.state -eq 'Applied') (Cmd "pstage $($file.Name) 10" 500)
       Check "$($file.BaseName.Substring(0, 2)): ability points cover what is in use" ([int](State).used -le [int](State).ap) "used=$((State).used) ap=$((State).ap)"
     }
     Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'fate-dupe' {
+    # 한 프리셋에 같은 번호의 역천개명이 두 대경지에 있으면 둘째 줄은 쓸 수 없다(적용하면 두 칸이 서로를 비운다).
+    if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
+    WritePreset 'uicheck-dupe.json' '{ "format": 1, "kind": "preset", "name": "uicheck dupe", "fates": [ { "grade": 2, "id": 700044 }, { "grade": 3, "id": 700044 } ] }'
+    $c = Fields (Cmd 'pcheck uicheck-dupe.json' 600)
+    Check 'the same fate at two grades: the second line is unusable' ($c.problems -eq '1' -and $c.usable -eq '1') (Cmd 'pcheck uicheck-dupe.json' 600)
+    # 선천운명으로 붙이는 길도 계열을 본다. 고정본의 3:700040(귀일결)과 700058(귀일진결)은 계열 9다.
+    $r = Cmd 'pborn 700058' 800
+    Check 'a born luck of the same group as a held fate is refused' ((Cmd 'phas 700058' 200) -match 'held=0 ' -and (Cmd 'phas 700040' 200) -match 'held=1 ') $r
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'import-swap' {
+    # 캐릭터 가져오기의 역천개명 구역: 파일과 인물의 두 대경지가 서로 맞바뀌어 있어도 한 번에 들어가야 한다.
+    $exports = Join-Path $data 'exports\character'
+    function CleanExports { if (Test-Path -LiteralPath $exports) { Get-ChildItem -LiteralPath $exports -Filter 'uicheck-*' | ForEach-Object { [IO.File]::Delete($_.FullName) } } }
+    CleanExports
+    try {
+      Cmd 'pfateset 2 700017' 800 | Out-Null
+      Cmd 'pfateset 3 700016' 800 | Out-Null
+      Check 'the records are set up' ((State).fates -eq '2:700017,3:700016') (State).fates
+      Cmd 'cexport uicheck-swap' 1500 | Out-Null
+      Cmd 'pfateset 3 700040' 800 | Out-Null
+      Cmd 'pfateset 2 700016' 800 | Out-Null
+      Cmd 'pfateset 3 700017' 800 | Out-Null
+      Check 'the character now has the two swapped' ((State).fates -eq '2:700016,3:700017') (State).fates
+      $r = Cmd 'cimpfates uicheck-swap' 3000
+      Check 'importing the fates puts both without a failed line' ((State).fates -eq '2:700017,3:700016' -and $r -notmatch '못 넣음 [1-9]') $r
+      Check 'both fate lucks are actually held' ((Cmd 'phas 700017,700016' 200) -match 'held=2 of=2') (Cmd 'phas 700017,700016' 200)
+      Check 'no callback exception in the log' ((Traps) -eq 0)
+    } finally { CleanExports }
   }
   default { throw "알 수 없는 Part: $Part" }
 }
