@@ -48,7 +48,7 @@
 | 요수 하나 | `PotMonUnitData`: `id`(요수 종류), `soleId`, `grade`, `exp`, `health`, `state`, `converState`(인간형 전환), `battleSkills`·`battleSkillMax`, `lifeSkills`, `sex`, `fixName`, `furryGradeId`, `unitId` |
 | 관리 | `PotMonMgr`: `AddPotMon(id, grade, isAdd)`, `EquipPotMon`, `UnEquipPotMon`, `CollectMartial`, `Refining`(연화), `PotmonUpgrade`, `PotmonConver`, `PotmonContract`, `PotmonAddExp`, `PotmonGiveUp` |
 | 설정 | `DevilDemonBase`(단계 10: 모을 요수 10~28, 생활 팀 1~4, 연요 수 10~55), `DevilDemonParamer`(수리 1개월, 활동 60, 요수 수집 확률 50, 수리 최대 6), `DevilDemonTeam`(11), `DevilDemonWork`(14)·`WorkExp`(120: 파견), `DevilDemonAbsorb`(21) |
-| 요수 설정 | `PotmonBase`(45종, 예: 1001 상록의 요령(영어 Evergreen's Spirit)), `PotmonGradeLevel`(10단계, 경험치 0~203000), `PotmonFurryGradeLevel`(30), `PotmonSkill`(241), `PotmonBattleSkill`(163), `PotmonSkillLife`(492), `PotmonSkillStudy`(1717), `PotmonSkillAid`(113), `PotmonPropertyScale`(48), `PotmonParamer`(27: 처음 요수 1001, 처음 기술 2개, 계약 3, 경험치 약 2823001·승급 약 2823002·치료 약 2823003·전환 약 2823004) |
+| 요수 설정 | `PotmonBase`(45종, 예: 1001(영어 표기 Evergreen's Spirit. 한국어 표기 미확인)), `PotmonGradeLevel`(10단계, 경험치 0~203000), `PotmonFurryGradeLevel`(30), `PotmonSkill`(241), `PotmonBattleSkill`(163), `PotmonSkillLife`(492), `PotmonSkillStudy`(1717), `PotmonSkillAid`(113), `PotmonPropertyScale`(48), `PotmonParamer`(27: 처음 요수 1001, 처음 기술 2개, 계약 3, 경험치 약 2823001·승급 약 2823002·치료 약 2823003·전환 약 2823004) |
 
 ## 5. 모드 관리 데이터 — 무엇을 어떻게 바꿀 수 있나
 
