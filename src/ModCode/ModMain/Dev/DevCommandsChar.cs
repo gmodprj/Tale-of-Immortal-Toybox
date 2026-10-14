@@ -64,7 +64,7 @@ namespace MOD_sWP6UL
                         // 지금 대경지에서 뽑을 수 있는 역천개명 분류의 운명 가운데 가지지 않은 첫 번째를, 운명 탭의 "운명 추가"와 같은 길로 붙인다.
                         foreach (LuckService.LuckView view in FateService.Candidates(FateService.CurrentGrade(me), ""))
                         {
-                            if (!LuckService.Has(me, view.Id))
+                            if (!LuckService.Has(me, view.Id) && FateService.HeldElsewhere(me, 0, view.Id) == 0)
                             {
                                 return "id=" + view.Id + " has=" + LuckService.Has(me, view.Id) + " " + LuckService.Add(me, view.Id) + " has=" + LuckService.Has(me, view.Id);
                             }
@@ -77,7 +77,7 @@ namespace MOD_sWP6UL
                         int grade = int.Parse(p[1]);
                         foreach (LuckService.LuckView view in FateService.Candidates(grade, ""))
                         {
-                            if (!LuckService.Has(me, view.Id))
+                            if (!LuckService.Has(me, view.Id) && FateService.HeldElsewhere(me, grade, view.Id) == 0)
                             {
                                 return "alt=" + view.Id + " " + FateService.Set(me, grade, view.Id);
                             }

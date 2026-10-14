@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string preset = DevCommandsPreset.Execute(p);
+            if (preset != null)
+            {
+                return preset;
+            }
             string rate = DevCommandsRate.Execute(p);
             if (rate != null)
             {

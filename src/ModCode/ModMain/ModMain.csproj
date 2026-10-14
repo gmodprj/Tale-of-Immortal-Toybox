@@ -62,6 +62,10 @@
     <Compile Remove="Dev\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 기본 프리셋. DLL 안에 넣어 두고 presets 폴더가 없을 때 풀어 놓는다(산출물은 DLL 하나여야 한다). 이름은 "Presets/<파일 이름>"이다. -->
+    <EmbeddedResource Include="Presets\*.json" LogicalName="Presets/%(Filename)%(Extension)" />
+  </ItemGroup>
   <Target Name="CopyToEditorProject" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' And Exists('$(EditorReleaseDir)')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(EditorReleaseDir)" />
     <Message Importance="high" Text="copied $(TargetFileName) -> $(EditorReleaseDir)" />
