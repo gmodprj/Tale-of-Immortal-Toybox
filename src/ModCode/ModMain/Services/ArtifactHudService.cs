@@ -20,6 +20,8 @@ namespace MOD_sWP6UL
             private IntPtr failedScreen = IntPtr.Zero;
             private int lastMask = -1;
             private Vector2[] homes = new Vector2[0];
+            private Vector2[] targets = new Vector2[0];
+            private int driftLogs;
 
             public Row(string what, float step)
             {
@@ -46,10 +48,21 @@ namespace MOD_sWP6UL
                     }
                     if (screen == lastScreen && mask == lastMask)
                     {
-                        return;
+                        // 같은 화면에서 게임이 자리를 되돌렸으면(사용자가 실제 전투 뒤에 본 겹침. 그 경로는 재현하지 못했다) 다시 놓고 로그에 남긴다.
+                        string moved = Drift(items);
+                        if (moved == null)
+                        {
+                            return;
+                        }
+                        if (driftLogs < 5)
+                        {
+                            driftLogs++;
+                            MelonLogger.Msg("[TlToybox] artifact hud drift (" + what + ", mask=" + mask + "): " + moved);
+                        }
                     }
                     if (screen != lastScreen)
                     {
+                        driftLogs = 0;
                         // 새 화면: 게임이 둔 자리를 기억한다.
                         homes = new Vector2[items.Length];
                         for (int i = 0; i < items.Length; i++)
@@ -68,8 +81,29 @@ namespace MOD_sWP6UL
                 }
             }
 
+            // 놓아 둔 자리에서 벗어난 표시가 있으면 그 내용을, 없으면 null.
+            private string Drift(GameObject[] items)
+            {
+                string moved = null;
+                for (int i = 0; i < items.Length && i < targets.Length; i++)
+                {
+                    if (items[i] == null)
+                    {
+                        continue;
+                    }
+                    Vector2 now = items[i].GetComponent<RectTransform>().anchoredPosition;
+                    if ((now - targets[i]).sqrMagnitude > 0.25f)
+                    {
+                        moved = (moved == null ? "" : moved + ", ") + items[i].name + " " + now.x.ToString("0") + "," + now.y.ToString("0")
+                            + " (want " + targets[i].x.ToString("0") + "," + targets[i].y.ToString("0") + ")";
+                    }
+                }
+                return moved;
+            }
+
             private void Place(GameObject[] items, int mask)
             {
+                targets = new Vector2[items.Length];
                 int shown = 0;
                 for (int i = 0; i < items.Length; i++)
                 {
@@ -85,7 +119,8 @@ namespace MOD_sWP6UL
                     var rt = items[i].GetComponent<RectTransform>();
                     bool on = (mask & (1 << i)) != 0;
                     // 칸마다 게임이 둔 높이와 첫 칸과의 가로 차이는 지킨다(연요호 칸은 첫 칸보다 3 왼쪽, 7 위).
-                    rt.anchoredPosition = on && shown > 1 ? new Vector2(homes[i].x + step * slot, homes[i].y) : homes[i];
+                    targets[i] = on && shown > 1 ? new Vector2(homes[i].x + step * slot, homes[i].y) : homes[i];
+                    rt.anchoredPosition = targets[i];
                     if (on)
                     {
                         slot++;
