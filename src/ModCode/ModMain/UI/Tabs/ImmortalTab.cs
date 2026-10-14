@@ -52,9 +52,11 @@ namespace MOD_sWP6UL
             int total = ImmortalService.TotalPoint(target);
             Ui.Label(content, "본원 선력: " + ImmortalService.UsedPoint(target) + " / " + total, 0, 0, 260, 36, 20).gameObject.name = "ImmortalPointText";
             int max = PointDef.Max(g.conf.roleAttributeLimit);
-            Ui.Button("ImmortalPointMinus", content, "- 1", 270, 0, 80, 34, new Action(() => Say(EditService.SetAttribute(Target, PointDef, ImmortalService.TotalPoint(Target) - 1))), total > 0);
+            int min = PointDef.Min(g.conf.roleAttributeLimit);
+            // 상한을 넘은 값(예전 판의 경지 올리기로 생길 수 있었다)도 -1과 최대로 범위 안에 돌아올 수 있게 한다.
+            Ui.Button("ImmortalPointMinus", content, "- 1", 270, 0, 80, 34, new Action(() => Say(EditService.SetAttribute(Target, PointDef, Math.Min(max, ImmortalService.TotalPoint(Target) - 1)))), total > min);
             Ui.Button("ImmortalPointPlus", content, "+ 1", 356, 0, 80, 34, new Action(() => Say(EditService.SetAttribute(Target, PointDef, ImmortalService.TotalPoint(Target) + 1))), total < max);
-            Ui.Button("ImmortalPointMax", content, "최대(" + max + ")", 442, 0, 120, 34, new Action(() => Say(EditService.SetAttribute(Target, PointDef, max))), total < max);
+            Ui.Button("ImmortalPointMax", content, "최대(" + max + ")", 442, 0, 120, 34, new Action(() => Say(EditService.SetAttribute(Target, PointDef, max))), total != max);
             Ui.Wrapped(content, "선법 창과 장착은 등선경부터입니다(장착 칸: 초기 2, 중기 4, 후기 6). 장착은 게임의 선법 창에서 합니다.", 580, 0, ContentW - 760, 40, 15).color = Ui.Dim;
             Ui.Button("ImmortalAddOpen", content, "선법 추가", ContentW - 160, 0, 160, 34, new Action(() =>
             {
@@ -118,7 +120,7 @@ namespace MOD_sWP6UL
                 new Action(() => Say(ImmortalService.LearnAll(Target, ImmortalService.Find(human, kind, query)))));
             float top = y + 46;
             float descW = ContentW - Ui.ScrollBarWidth - 220;
-            addList.HeightOf = e => RowWithSecondLine(50, Ui.TextHeight(Second(e), descW, 15));
+            addList.HeightOf = e => RowWithSecondLine(50, Ui.TextHeight(Second(e), descW - 16, 15));
             addList.Build(content, 0, top, ContentW, ContentH - top, ImmortalService.Find(human, kind, query), DrawAddRow);
         }
 
@@ -134,6 +136,7 @@ namespace MOD_sWP6UL
             Ui.Label(row, e.Name + "  [" + e.CardId + "]  " + e.HumanName + " · " + (e.Active ? "주동" : "피동") + " · 필요 선력 " + e.Cost, 8, 0, descW, 26, 18);
             Text desc = Ui.Wrapped(row, Second(e), 24, SecondLineY, descW - 16, row.sizeDelta.y - SecondLineY - 4, 15, TextAnchor.UpperLeft);
             desc.color = Ui.Dim;
+            desc.gameObject.name = "ImmortalDesc" + e.CardId;
             float bx = ContentW - Ui.ScrollBarWidth - 200;
             Text state = Ui.Label(row, has ? "보유" : "미보유", bx, 7, 80, 36, 16);
             state.color = has ? Ui.Warn : Ui.Dim;

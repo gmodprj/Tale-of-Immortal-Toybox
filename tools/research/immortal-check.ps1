@@ -29,7 +29,7 @@ switch ($Part) {
     Check 'one immortal (1004) has six cards' ((Fields (Cmd 'icount 1004 0' 300)).count -eq '6') (Cmd 'icount 1004 0' 300)
     Check 'active only' ([int](Fields (Cmd 'icount 0 1' 300)).count -ge 7 -and [int](Fields (Cmd 'icount 0 1' 300)).count -le 10) (Cmd 'icount 0 1' 300)
     Check 'a name search finds the card' ((Fields (Cmd 'icount 0 0 천무절향' 300)).first -eq '5000') (Cmd 'icount 0 0 천무절향' 300)
-    Check 'every entry has a name' ((Cmd 'icount 0 0 ?noname' 300) -match 'count=0 ')
+    Check 'every entry has a translated name' ((Fields (Cmd 'inoname' 300)).count -eq '0') (Cmd 'inoname' 300)
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   'learn' {
@@ -71,7 +71,16 @@ switch ($Part) {
     Check 'max sets the game limit' ((Fields (Cmd 'ilist' 200)).total -eq '40') (Cmd 'ilist' 200)
     Press 'ImmortalPointMinus' | Out-Null
     Check 'minus one lowers it' ((Fields (Cmd 'ilist' 200)).total -eq '39') (Cmd 'ilist' 200)
+    # 상한(40)을 넘은 세이브(예전 판의 경지 올리기로 45가 될 수 있었다)에서도 최대로 40에 맞출 수 있어야 한다.
+    Cmd 'immset 45' 300 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null; Press 'Tab6' | Out-Null
+    try { Press 'ImmortalPointMax' | Out-Null } catch { }
+    Check 'max brings a total over the limit back to the limit' ((Fields (Cmd 'ilist' 200)).total -eq '40') (Cmd 'ilist' 200)
+    Cmd 'immset 39' 300 | Out-Null
+    Press 'Tab5' | Out-Null; Press 'Tab6' | Out-Null
     Press 'ImmortalAddOpen' | Out-Null
+    $fit = Fields (Cmd 'ifit ImmortalDesc' 300)
+    Check 'every description in the add list is whole' ([int]$fit.texts -ge 5 -and $fit.overflow -eq '0') (Cmd 'ifit ImmortalDesc' 300)
     Check 'the add page has the filters' ((IsAt 'ImmortalHuman0') -and (IsAt 'ImmortalHuman1004') -and (IsAt 'ImmortalKind2') -and (IsAt 'ImmortalLearnAll'))
     Press 'ImmortalHuman1004' | Out-Null
     Check 'filtering by an immortal shows its cards' ((IsAt 'ImmortalLearn5000') -and -not (IsAt 'ImmortalLearn6000'))
