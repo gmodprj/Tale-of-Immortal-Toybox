@@ -304,6 +304,7 @@ switch ($Part) {
 
     # 단계 3: 고정본의 역천개명 3(700040)을 바꾸게 되므로 미리 알린다.
     Check 'stage 3 would replace a fate' ((Fields (Cmd "preplaces $file 3" 300)).replaces -eq 'yes') (Cmd "preplaces $file 3" 300)
+    Check 'the full apply would replace fates too and says so' ((Fields (Cmd "preplaces $file full" 300)).replaces -eq 'yes') (Cmd "preplaces $file full" 300)
     $r = Cmd "papply $file 3" 4000
     $run = Fields $r
     $s = State
@@ -362,6 +363,9 @@ switch ($Part) {
     Check 'attack grew with the grade' ([int]$s.attack -gt [int]$s0.attack) "$($s0.attack) -> $($s.attack)"
     $wantFates = (2..10 | ForEach-Object { "$($_):$($picked.fates["$_"])" }) -join ','
     Check 'the fates of every major grade are the preset ones' ($s.fates -eq $wantFates) $s.fates
+    # 기록만이 아니라 운명의 효과가 실제로 붙어 있는지 본다(경지를 올린 뒤의 역천개명 적용이 앞 대경지의 것을 지우지 않는가).
+    $held = Fields (Cmd "phas $((2..10 | ForEach-Object { $picked.fates["$_"] }) -join ',')" 300)
+    Check 'every fate luck is actually held' ($held.held -eq '9' -and $held.of -eq '9') "held=$($held.held) of=$($held.of)"
     Check 'the elder is at its top level for major grade 10' ($s.elder -eq '1' -and $s.elderlv -eq '9') "elder=$($s.elder) lv=$($s.elderlv)"
     Check 'the wingman and its lists are the preset ones' ($s.wing -eq '1004' -and $s.effects -eq '100101,100102' -and $s.prefixes -eq '100401,100402') "wing=$($s.wing) $($s.effects) $($s.prefixes)"
     $copies = Copies 13111
@@ -473,6 +477,22 @@ switch ($Part) {
     Check 'the message area shows the result' ((Cmd 'uistate' 150) -match "message='[^']*uicheck preset")
     Check 'no callback exception' ((Traps) -eq $traps)
     Check 'no mod warning' (@(ModWarnings).Count -eq 0) ((ModWarnings) -join ' | ')
+  }
+  'fate-groups' {
+    # 게임은 같은 계열(fateFeature.group)의 역천개명을 하나만 둔다. 같은 계열을 또 붙이면 앞의 운명이 사라지고 기록만 남는다(실측).
+    # 700001과 700002는 계열 1이다(설정 표 FateFeature). 고정본의 기록은 2:700016(계열 없음), 3:700040(계열 9).
+    if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
+    WritePreset 'uicheck-group.json' '{ "format": 1, "kind": "preset", "name": "uicheck group", "fates": [ { "grade": 2, "id": 700001 }, { "grade": 3, "id": 700002 } ] }'
+    $c = Fields (Cmd 'pcheck uicheck-group.json' 600)
+    Check 'two fates of one group in a file: the second is unusable' ($c.problems -eq '1' -and $c.usable -eq '1') (Cmd 'pcheck uicheck-group.json' 600)
+    WritePreset 'uicheck-g3.json' '{ "format": 1, "kind": "preset", "name": "uicheck g3", "fates": [ { "grade": 3, "id": 700002 } ] }'
+    WritePreset 'uicheck-g2.json' '{ "format": 1, "kind": "preset", "name": "uicheck g2", "fates": [ { "grade": 2, "id": 700001 } ] }'
+    $r = Cmd 'papply uicheck-g3.json 3' 2000
+    Check 'a fate of group 1 is set at major grade 3' ((State).fates -eq '2:700016,3:700002' -and (Cmd 'phas 700002' 200) -match 'held=1 ') $r
+    $r = Cmd 'papply uicheck-g2.json 2' 2000
+    Check 'another fate of the same group at another grade is refused' ((Fields $r).failed -eq '1' -and (State).fates -eq '2:700016,3:700002') $r
+    Check 'the fate held before is still held' ((Cmd 'phas 700002,700016' 200) -match 'held=2 of=2')
+    Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   default { throw "알 수 없는 Part: $Part" }
 }

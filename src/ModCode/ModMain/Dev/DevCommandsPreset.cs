@@ -45,6 +45,17 @@ namespace MOD_sWP6UL
                 case "preplaces": return ReplacesInfo(p[1], p[2]);
                 case "pfatepick": return FatePick(me, int.Parse(p[1]), p.Length > 2 ? p[2] : "");
                 case "pbornpick": return BornPick(me);
+                case "phas":
+                    {
+                        // 그 번호의 운명들 가운데 실제로 가지고 있는 수(효과가 붙어 있는가). 기록만 보는 검사를 보완한다.
+                        int held = 0;
+                        int[] ids = Ints(p[1]);
+                        foreach (int id in ids)
+                        {
+                            held += LuckService.Has(me, id) ? 1 : 0;
+                        }
+                        return "held=" + held + " of=" + ids.Length;
+                    }
                 default: return null;
             }
         }
@@ -492,17 +503,31 @@ namespace MOD_sWP6UL
             {
                 return "no preset " + fileName;
             }
-            string replaces = what == "all" ? PresetService.ReplacesAll(preset) : PresetService.ReplacesStage(preset, int.Parse(what));
+            string replaces = what == "all" ? PresetService.ReplacesAll(preset)
+                : what == "full" ? PresetService.ReplacesFull(preset) : PresetService.ReplacesStage(preset, int.Parse(what));
             return "replaces=" + (replaces == null ? "no" : "yes") + " | " + replaces;
         }
 
         // 그 대경지에서 고를 수 있는 역천개명 가운데 가지고 있지 않고 빼낼 목록에도 없는 첫 번째. 검사가 프리셋 파일을 만들 때 쓴다.
         private static string FatePick(WorldUnitBase me, int grade, string exclude)
         {
+            // 게임은 같은 계열(fateFeature.group)의 역천개명을 하나만 둔다. 이미 고른 것, 지금 기록에 있는 것과 계열이 겹치지 않게 고른다.
             var skip = new List<int>(Ints(exclude));
+            var taken = new List<int>(skip);
+            taken.AddRange(FateService.Records(me).Values);
+            var groups = new List<int>();
+            foreach (int id in taken)
+            {
+                ConfFateFeatureItem conf = g.conf.fateFeature.GetItem(id);
+                if (conf != null && conf.group != 0)
+                {
+                    groups.Add(conf.group);
+                }
+            }
             foreach (LuckService.LuckView view in FateService.Candidates(grade, ""))
             {
-                if (!LuckService.Has(me, view.Id) && !skip.Contains(view.Id))
+                ConfFateFeatureItem conf = g.conf.fateFeature.GetItem(view.Id);
+                if (!LuckService.Has(me, view.Id) && !skip.Contains(view.Id) && (conf.group == 0 || !groups.Contains(conf.group)))
                 {
                     return "id=" + view.Id;
                 }

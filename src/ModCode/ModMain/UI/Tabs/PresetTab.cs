@@ -109,8 +109,10 @@ namespace MOD_sWP6UL
                     preset.Name + ": 지금의 " + replaces + "을(를) 프리셋의 것으로 바꿉니다. \"정말 적용\"을 한 번 더 누르세요.",
                     new Action(() => Say(PresetService.ApplyAll(preset))));
             }
+            string replacesFull = PresetService.ReplacesFull(preset);
             Confirm.Button("PresetFull" + index, row, "최종 단계까지", "정말 적용", right - 154, 3, 150, 34, "preset-full:" + preset.File,
-                preset.Name + ": 경지를 등선 후기까지 올린 뒤 모든 단계를 적용합니다. 게임의 돌파 절차를 거치지 않으며 능력치는 돌파 증가분만큼 오릅니다. \"정말 적용\"을 한 번 더 누르세요.",
+                preset.Name + ": 경지를 등선 후기까지 올린 뒤 모든 단계를 적용합니다. 게임의 돌파 절차를 거치지 않으며 능력치는 돌파 증가분만큼 오릅니다."
+                + (replacesFull == null ? "" : " 지금의 " + replacesFull + "을(를) 프리셋의 것으로 바꿉니다.") + " \"정말 적용\"을 한 번 더 누르세요.",
                 new Action(() => Say(PresetService.ApplyFull(preset))));
         }
 

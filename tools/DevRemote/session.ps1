@@ -115,6 +115,8 @@ if ($Begin) {
   $bak = Join-Path $dir "save-backup-$Begin"
   if (Test-Path $bak) { throw "복사본이 이미 있습니다: $bak (다른 이름을 씁니다)" }
   if (Test-Path $keptDll) { throw "끝내지 않은 회차의 흔적이 있습니다($keptDll). 원인을 확인합니다." }
+  # 남아 있는 프리셋 보관본은 사용자의 프리셋의 유일한 사본일 수 있다(-End가 끝까지 가지 못했거나 다른 판의 스크립트로 끝낸 경우). 덮어쓰지 않는다.
+  if ((Test-Path -LiteralPath $keptPresets) -or (Test-Path $noPresets)) { throw "끝내지 않은 회차의 프리셋 보관본이 있습니다($keptPresets 또는 $noPresets). presets 폴더와 비교해 되돌린 뒤 지우고 다시 시작합니다." }
   $proj = Join-Path $repo 'src\ModCode\ModMain\ModMain.csproj'
   if ($DryRun) {
     $dll = $null
@@ -142,8 +144,6 @@ if ($Begin) {
   DeleteFiles $keptConfig
   if (Test-Path -LiteralPath $configFile) { Copy-Item -LiteralPath $configFile -Destination $keptConfig }
   # 프리셋 폴더는 세이브 밖에 있다. 검사(preset-check.ps1)가 폴더를 지우고 다시 만들므로 회차 전의 것을 떠 둔다.
-  if (Test-Path -LiteralPath $keptPresets) { [IO.Directory]::Delete($keptPresets, $true) }
-  DeleteFiles $noPresets
   if (Test-Path -LiteralPath $presetsDir) { Copy-Item -LiteralPath $presetsDir -Destination $keptPresets -Recurse } else { [IO.File]::WriteAllText($noPresets, '') }
   # 회차 전부터 있던 자동 백업의 이름을 적어 둔다. -End가 그 밖의 것(회차 동안 생긴 것)만 지운다.
   $names = @(if (Test-Path -LiteralPath $backups) { Get-ChildItem -LiteralPath $backups | ForEach-Object Name })

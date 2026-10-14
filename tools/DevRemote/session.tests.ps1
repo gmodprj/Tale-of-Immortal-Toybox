@@ -172,6 +172,12 @@ $b = NewBox
 [IO.File]::WriteAllText("$($b.data)\presets\uicheck-preset.json", 'left by a check')
 $o = Run $b $none @{ End = 'x' }
 Check 'End removes a presets folder the session made' ($o -match 'PRESETS RESTORED' -and -not (Test-Path "$($b.data)\presets") -and -not (Test-Path "$($b.work)\session-presets.absent")) $o
+# 20. 열린 회차가 없는데 프리셋 보관본이 남아 있으면 -Begin이 멈춘다(그 보관본이 사용자의 프리셋의 유일한 사본일 수 있다)
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.work)\session-presets")
+[IO.File]::WriteAllText("$($b.work)\session-presets\mine.json", 'the only copy')
+$o = Run $b $none @{ Begin = 'x' }
+Check 'Begin refuses to overwrite a leftover presets copy' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session-presets\mine.json") -and -not (Test-Path "$($b.work)\session.name")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }

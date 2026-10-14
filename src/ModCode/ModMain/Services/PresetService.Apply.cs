@@ -118,10 +118,25 @@ namespace MOD_sWP6UL
                 text = label + ": " + line.Problem;
                 return Outcome.Failed;
             }
-            if (FateNow(me, line.Grade) == line.Id)
+            if (FateNow(me, line.Grade) == line.Id && LuckService.Has(me, line.Id))
             {
                 text = label;
                 return Outcome.Skipped;
+            }
+            // 같은 계열의 역천개명을 다른 대경지에 가지고 있으면 붙이지 않는다. 붙이면 게임이 그쪽의 운명을 없애고 기록만 남긴다(실측, 회차 ptab23).
+            if (line.Group != 0)
+            {
+                foreach (var pair in FateService.Records(me))
+                {
+                    ConfFateFeatureItem other = pair.Key == line.Grade ? null : g.conf.fateFeature.GetItem(pair.Value);
+                    if (other != null && other.group == line.Group && LuckService.Has(me, pair.Value))
+                    {
+                        ConfRoleCreateFeatureItem held = g.conf.roleCreateFeature.GetItem(pair.Value);
+                        text = label + ": 같은 계열의 역천개명(" + (held == null ? pair.Value.ToString() : GameTool.LS(held.name)) + ")을 " + StageName(pair.Key)
+                            + "에 가지고 있어 함께 둘 수 없습니다. 그 경지의 역천개명을 먼저 바꾸세요";
+                        return Outcome.Failed;
+                    }
+                }
             }
             // 다른 대경지의 기록은 FateService.Set이 지킨다(docs/05 30·31절).
             text = FateService.Set(me, line.Grade, line.Id);
@@ -190,22 +205,29 @@ namespace MOD_sWP6UL
             }
             // 칸을 비운다. 게임은 찬 칸(코드 3)과 같은 유형의 심법이 장착된 것(코드 63)을 거부한다(실측).
             string other = line.Type == MartialType.Ability ? MartialService.EquippedAbility(me, line.AbilityType) : MartialService.EquippedIn(me, line.Type);
-            if (other != null)
+            string result = label;
+            try
             {
-                MartialService.Unequip(me, other);
-            }
-            if (line.Type == MartialType.Ability)
-            {
-                RaisePoints(me, sole, points);
-            }
-            string result = MartialService.Equip(me, sole);
-            if (!MartialService.IsEquipped(me, sole))
-            {
-                // 장착하지 못했다. 비운 칸을 빈 채로 두지 않는다.
                 if (other != null)
+                {
+                    MartialService.Unequip(me, other);
+                }
+                if (line.Type == MartialType.Ability)
+                {
+                    RaisePoints(me, sole, points);
+                }
+                result = MartialService.Equip(me, sole);
+            }
+            finally
+            {
+                // 장착하지 못했으면(게임이 거부했거나 중간에 예외가 났으면) 비운 칸을 빈 채로 두지 않는다.
+                if (other != null && !MartialService.IsEquipped(me, sole) && !MartialService.IsEquipped(me, other))
                 {
                     MartialService.Equip(me, other);
                 }
+            }
+            if (!MartialService.IsEquipped(me, sole))
+            {
                 text = result;
                 return Outcome.Failed;
             }
@@ -479,6 +501,12 @@ namespace MOD_sWP6UL
         public static string ReplacesStage(Preset preset, int grade)
         {
             return Replaces(preset, grade, grade, grade);
+        }
+
+        // 최종 단계까지 적용할 때 바꾸게 될 것: 모든 대경지의 역천개명과 신혼·명우.
+        public static string ReplacesFull(Preset preset)
+        {
+            return Replaces(preset, FateService.FirstGrade, StageCount, StageCount);
         }
 
         public static string ReplacesAll(Preset preset)
