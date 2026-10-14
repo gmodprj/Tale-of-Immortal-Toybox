@@ -38,6 +38,31 @@ namespace MOD_sWP6UL
                         }
                         return "pisces=" + On(map.playerInfo.btnPiscesPendant) + " godEye=" + On(map.playerInfo.btnGodEye) + " devil=" + On(map.playerInfo.btnDevilDemon);
                     }
+                case "bwpos":
+                    {
+                        // 전투 화면 신기 칸의 자리(부모 기준 x,y). 꺼진 칸은 off.
+                        UIBattleInfo ui = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
+                        if (ui == null || ui.info == null)
+                        {
+                            return "battle=null";
+                        }
+                        return "pisces=" + Slot(ui.info.goPiscesPendant) + " godEye=" + Slot(ui.info.goGodEye) + " devil=" + Slot(ui.info.goDevilDemon);
+                    }
+                case "pigive":
+                    {
+                        // 검사 준비: 쌍어패 반쪽을 가장 가까운 NPC 목록의 첫 사람에게 준 것으로 기록한다(전투의 쌍어패 칸이 켜진다).
+                        var units = g.world.unit.GetUnits(false);
+                        string me = g.world.playerUnit.data.unitData.unitID;
+                        for (int i = 0; i < units.Count; i++)
+                        {
+                            if (units[i].data.unitData.unitID != me)
+                            {
+                                g.data.world.piscesData.GivePisces(units[i]);
+                                return "given=" + units[i].data.unitData.unitID + " IsGive=" + g.data.world.piscesData.IsGive;
+                            }
+                        }
+                        return "no npc";
+                    }
                 case "awpos":
                     {
                         // 지도 화면 신기 버튼의 자리(부모 기준 x,y)와 게임 좌표(1920x1080, 왼쪽 위 기준)의 가운데.
@@ -134,6 +159,16 @@ namespace MOD_sWP6UL
             UnityEngine.Vector2 screen = UnityEngine.RectTransformUtility.WorldToScreenPoint(cam, rect.TransformPoint(new UnityEngine.Vector3(r.center.x, r.center.y, 0f)));
             return UnityEngine.Mathf.RoundToInt(rect.anchoredPosition.x) + "," + UnityEngine.Mathf.RoundToInt(rect.anchoredPosition.y)
                 + "@" + UnityEngine.Mathf.RoundToInt(screen.x) + "," + UnityEngine.Mathf.RoundToInt(UnityEngine.Screen.height - screen.y);
+        }
+
+        private static string Slot(UnityEngine.GameObject go)
+        {
+            if (go == null || !go.activeInHierarchy)
+            {
+                return "off";
+            }
+            var rect = go.GetComponent<UnityEngine.RectTransform>();
+            return UnityEngine.Mathf.RoundToInt(rect.anchoredPosition.x) + "," + UnityEngine.Mathf.RoundToInt(rect.anchoredPosition.y);
         }
 
         private static string On(UnityEngine.UI.Button b)

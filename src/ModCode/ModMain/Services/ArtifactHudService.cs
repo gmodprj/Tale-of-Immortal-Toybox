@@ -1,93 +1,134 @@
 using System;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 지도 화면 초상 왼쪽 아래의 신기 버튼(쌍어패·호천안·연요호)을 나란히 놓는다.
-    // 게임은 신기를 하나만 가진다고 보고 셋을 같은 자리(-240,-93)에 둔다. 둘 이상 켜져 있으면 쌍어패 → 호천안 → 연요호 순서로 오른쪽으로 46씩 놓는다.
-    // 아래로는 화면 끝에 잘리고 위에는 운명 표시가 있어 같은 높이에서 오른쪽으로 놓는다(05 문서 37절).
-    // 전투를 다녀오면 지도 화면이 새로 만들어져 게임의 자리로 돌아가므로, 지도 화면이나 켜진 버튼이 바뀌면 다시 맞춘다. 세이브와 게임 자료는 바꾸지 않는다.
+    // 게임 화면의 신기 표시(쌍어패·호천안·연요호)를 나란히 놓는다. 게임은 신기를 하나만 가진다고 보고 셋을 같은 자리에 두어, 둘 이상이면 겹친다(05 문서 37절).
+    // - 지도 화면 초상 왼쪽 아래의 버튼: 게임의 자리 -240,-93. 오른쪽으로 46씩(아래로는 화면 끝에 잘리고 위에는 운명 표시가 있다).
+    // - 전투 화면 오른쪽 아래의 칸: 게임의 자리 쌍어패·호천안 493,58, 연요호 490,65. 오른쪽으로 60씩. 칸은 조건이 맞을 때만 켜진다
+    //   (연요호: 가지면, 호천안: 기술을 장착하면, 쌍어패: 반쪽을 준 NPC가 있으면).
+    // 켜진 것이 둘 이상이면 쌍어패 → 호천안 → 연요호 순서로 놓고, 하나뿐이거나 꺼진 것은 게임의 자리에 둔다.
+    // 화면이 새로 만들어지거나(전투를 다녀온 지도, 새 전투) 켜진 것이 바뀔 때만 옮긴다. 세이브와 게임 자료는 바꾸지 않는다.
     internal static class ArtifactHudService
     {
-        private const float Step = 46f;
-
-        private static IntPtr lastMap = IntPtr.Zero;
-        private static int lastMask = -1;
-        private static IntPtr failedMap = IntPtr.Zero;
-        private static Vector2 home;
-
-        public static void Tick()
+        private sealed class Row
         {
-            UIMapMain map = null;
-            try
+            private readonly string what;
+            private readonly float step;
+            private IntPtr lastScreen = IntPtr.Zero;
+            private IntPtr failedScreen = IntPtr.Zero;
+            private int lastMask = -1;
+            private Vector2[] homes = new Vector2[0];
+
+            public Row(string what, float step)
             {
-                if (g.ui == null)
+                this.what = what;
+                this.step = step;
+            }
+
+            // screen은 그 화면의 포인터(새로 만들어졌는지 가린다), items는 쌍어패·호천안·연요호 순서의 표시들.
+            public void Update(IntPtr screen, GameObject[] items)
+            {
+                if (screen == failedScreen)
                 {
                     return;
                 }
-                map = g.ui.GetUI<UIMapMain>(UIType.MapMain);
-                if (map == null || map.playerInfo == null || map.Pointer == failedMap)
+                try
                 {
-                    return;
-                }
-                var pi = map.playerInfo;
-                Button[] buttons = { pi.btnPiscesPendant, pi.btnGodEye, pi.btnDevilDemon };
-                int mask = 0;
-                for (int i = 0; i < buttons.Length; i++)
-                {
-                    if (buttons[i] != null && buttons[i].gameObject.activeSelf)
+                    int mask = 0;
+                    for (int i = 0; i < items.Length; i++)
                     {
-                        mask |= 1 << i;
+                        if (items[i] != null && items[i].activeSelf)
+                        {
+                            mask |= 1 << i;
+                        }
+                    }
+                    if (screen == lastScreen && mask == lastMask)
+                    {
+                        return;
+                    }
+                    if (screen != lastScreen)
+                    {
+                        // 새 화면: 게임이 둔 자리를 기억한다.
+                        homes = new Vector2[items.Length];
+                        for (int i = 0; i < items.Length; i++)
+                        {
+                            homes[i] = items[i] == null ? Vector2.zero : items[i].GetComponent<RectTransform>().anchoredPosition;
+                        }
+                    }
+                    lastScreen = screen;
+                    lastMask = mask;
+                    Place(items, mask);
+                }
+                catch (Exception e)
+                {
+                    failedScreen = screen;
+                    MelonLogger.Msg("[TlToybox] " + what + " 신기 표시 배치 실패(이 화면에서는 다시 하지 않음): " + e.Message);
+                }
+            }
+
+            private void Place(GameObject[] items, int mask)
+            {
+                int shown = 0;
+                for (int i = 0; i < items.Length; i++)
+                {
+                    shown += (mask & (1 << i)) != 0 ? 1 : 0;
+                }
+                int slot = 0;
+                for (int i = 0; i < items.Length; i++)
+                {
+                    if (items[i] == null)
+                    {
+                        continue;
+                    }
+                    var rt = items[i].GetComponent<RectTransform>();
+                    bool on = (mask & (1 << i)) != 0;
+                    // 칸마다 게임이 둔 높이와 첫 칸과의 가로 차이는 지킨다(연요호 칸은 첫 칸보다 3 왼쪽, 7 위).
+                    rt.anchoredPosition = on && shown > 1 ? new Vector2(homes[i].x + step * slot, homes[i].y) : homes[i];
+                    if (on)
+                    {
+                        slot++;
                     }
                 }
-                if (map.Pointer == lastMap && mask == lastMask)
-                {
-                    return;
-                }
-                if (map.Pointer != lastMap)
-                {
-                    // 새 지도 화면: 게임이 둔 자리(셋 모두 같다)를 기준으로 삼는다.
-                    home = buttons[0] != null ? buttons[0].GetComponent<RectTransform>().anchoredPosition : new Vector2(-240f, -93f);
-                }
-                lastMap = map.Pointer;
-                lastMask = mask;
-                Place(buttons, mask);
-            }
-            catch (Exception e)
-            {
-                failedMap = map == null ? IntPtr.Zero : map.Pointer;
-                MelonLogger.Msg("[TlToybox] 신기 버튼 배치 실패(이 지도 화면에서는 다시 하지 않음): " + e.Message);
             }
         }
 
-        private static void Place(Button[] buttons, int mask)
+        private static readonly Row MapRow = new Row("지도 화면", 46f);
+        private static readonly Row BattleRow = new Row("전투 화면", 60f);
+
+        public static void Tick()
         {
-            int shown = 0;
-            for (int i = 0; i < buttons.Length; i++)
+            if (g.ui == null)
             {
-                if ((mask & (1 << i)) != 0)
-                {
-                    shown++;
-                }
+                return;
             }
-            int slot = 0;
-            for (int i = 0; i < buttons.Length; i++)
+            UIMapMain map;
+            UIBattleInfo battle;
+            try
             {
-                if (buttons[i] == null)
-                {
-                    continue;
-                }
-                var rt = buttons[i].GetComponent<RectTransform>();
-                bool on = (mask & (1 << i)) != 0;
-                // 하나뿐이거나 꺼진 버튼은 게임의 자리로 둔다.
-                rt.anchoredPosition = on && shown > 1 ? new Vector2(home.x + Step * slot, home.y) : home;
-                if (on)
-                {
-                    slot++;
-                }
+                map = g.ui.GetUI<UIMapMain>(UIType.MapMain);
+                battle = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
             }
+            catch (Exception)
+            {
+                return;
+            }
+            if (map != null && map.playerInfo != null)
+            {
+                var pi = map.playerInfo;
+                MapRow.Update(map.Pointer, new[] { Go(pi.btnPiscesPendant), Go(pi.btnGodEye), Go(pi.btnDevilDemon) });
+            }
+            if (battle != null && battle.info != null)
+            {
+                var inf = battle.info;
+                BattleRow.Update(battle.Pointer, new[] { inf.goPiscesPendant, inf.goGodEye, inf.goDevilDemon });
+            }
+        }
+
+        private static GameObject Go(Component c)
+        {
+            return c == null ? null : c.gameObject;
         }
     }
 }
