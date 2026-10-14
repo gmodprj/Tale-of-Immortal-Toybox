@@ -16,7 +16,7 @@ namespace MOD_sWP6UL
 
         protected override void Draw()
         {
-            Ui.Panel("RateBox", content, 0, 0, ContentW, 60 + 8 * RowH + 16, Ui.Section);
+            Ui.Panel("RateBox", content, 0, 0, ContentW, 60 + 11 * RowH + 16, Ui.Section);
             Ui.Label(content, "배율", 16, 6, 200, 36, 21);
             Ui.Button("RateReset", content, "모두 1배로", 100, 6, 150, 38, new Action(() => Say(RateService.Reset())));
             Ui.Label(content, "게임을 다시 켜면 모두 꺼진 상태로 시작합니다. 켜 둔 것은 화면 위쪽 가운데에 표시됩니다.", 270, 10, 1010, 30, 15).color = Ui.Dim;

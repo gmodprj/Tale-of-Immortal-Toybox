@@ -344,6 +344,51 @@ switch ($Part) {
     Check 'the keys are written to config.txt' (@(Get-Content -LiteralPath (Join-Path $data 'config.txt') -Encoding UTF8 | Where-Object { $_ -match '^artifactkey3=K$' }).Count -eq 1)
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'costs' {
+    # 배율 탭의 신기 쿨타임·영력 소모·집중력 소모. 기술마다의 값(회차 rate-1014b의 실측)에 곱하고, 1배로 돌리면 되돌린다.
+    function IntoBattle { Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 2500 | Out-Null; Cmd 'bgod on' 300 | Out-Null }
+    function LeaveBattle {
+      Cmd 'bend' 500 | Out-Null
+      for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      Start-Sleep -Seconds 2
+      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+      Start-Sleep -Seconds 3
+    }
+    function Num([string]$text, [string]$key) { if ($text -match "\b$key=(-?\d+)") { [int]$Matches[1] } else { -999 } }
+    Cmd 'awset 1,2,3' 300 | Out-Null
+    Cmd 'potadd 1001 1' 500 | Out-Null; Cmd 'potequip' 500 | Out-Null
+    Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    Cmd 'rset artifactCooldown 1' 300 | Out-Null   # x0.5
+    Cmd 'rset mpCost 1' 300 | Out-Null             # x0.5
+    Cmd 'rset spCost 1' 300 | Out-Null             # x0.5
+    IntoBattle
+    Start-Sleep -Milliseconds 500
+    $c = Cmd 'bcost' 200
+    Check 'the right-skill mana cost is halved' ((Num $c 's1Mp') -eq 6) $c
+    Check 'the god eye skill mana cost and cooldown are halved' ((Num $c 'eyeMp') -eq 15 -and (Num $c 'eyeCd') -eq 12500) $c
+    Check 'the gourd focus cost and cooldown are halved' ((Num $c 'devilSp') -eq 6 -and (Num $c 'devilCd') -eq 25) $c
+    Check 'the ultimate and step mana costs are halved' ((Num $c 'ultMp') -eq 13 -and (Num $c 'stepMp') -eq 13) $c
+    $mp = Num $c 'mp'; $sp = Num $c 'sp'
+    Cmd 'bcast 2' 1500 | Out-Null
+    $c2 = Cmd 'bcost' 200
+    Check 'casting the right skill spends the halved mana' ($mp - (Num $c2 'mp') -eq 6) "$c | $c2"
+    Cmd 'afire 3' 1500 | Out-Null
+    $c3 = Cmd 'bcost' 200
+    Check 'the gourd spends the halved focus' ($sp - (Num $c3 'sp') -eq 6) "$c2 | $c3"
+    Cmd 'rset mpCost 0' 300 | Out-Null; Cmd 'rset spCost 0' 300 | Out-Null; Cmd 'rset artifactCooldown 0' 300 | Out-Null
+    Start-Sleep -Milliseconds 500
+    $c = Cmd 'bcost' 200
+    Check 'back to x1 restores every value' ((Num $c 's1Mp') -eq 11 -and (Num $c 'eyeMp') -eq 30 -and (Num $c 'eyeCd') -eq 25000 -and (Num $c 'devilSp') -eq 12 -and (Num $c 'devilCd') -eq 50) $c
+    Cmd 'rset mpCost 4' 300 | Out-Null    # 없음
+    Start-Sleep -Milliseconds 500
+    $c = Cmd 'bcost' 200
+    Check 'none makes mana costs 0' ((Num $c 's1Mp') -eq 0 -and (Num $c 'eyeMp') -eq 0) $c
+    Cmd 'rset mpCost 0' 300 | Out-Null
+    LeaveBattle
+    Cmd 'bgod off' 300 | Out-Null
+    Check 'the status line lists nothing after reset' ((Cmd 'uistate' 200) -match 'status=\[hidden\]') (Cmd 'uistate' 200)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   'keys-ui' {
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab7' | Out-Null
