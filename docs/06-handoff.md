@@ -9,7 +9,7 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 여섯(`feat/*-research`), 그리고 병합을 마친 `feat/preset-tab`(지워도 되는지 사용자에게 물었다. 답을 받으면 지운다)이다.
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 일곱(`feat/*-research`)뿐이다(병합을 마친 작업 브랜치는 2026-10-14 사용자 확인 뒤 지웠다).
 - 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-14 14:32 설치, 선법 탭(36절)까지).
 - **직전 작업**: 2026-10-13에 사용자가 새로 요청한 둘(프리셋 탭, 배율 탭)을 모두 끝냈다. 배율 탭은 05 문서 32·33절, **프리셋 탭(묶음 F2)은 34절**이다(2026-10-14). 프리셋 탭을 하며 역천개명의 계열 규칙을 찾아 운명 탭과 캐릭터 가져오기에도 넣었다. 이어서 사용자가 알린 "프리셋 적용 뒤 선력 0/0"을 고치며, 경지 올리기가 정식 돌파와 다르게 놓친 것을 모두 찾아 넣었다(35절: 선력, 등선 진입의 선법, 돌파 임무, 칭호, 체력 채우기). 그 뒤 사용자 요청으로 프리셋 상세보기의 머리글을 고치고(35절 끝), 선법 탭을 만들었다(36절). **정해진 다음 일은 없다.** 8.3절의 후보에서 사용자가 고르거나, 사용자가 써 보고 알려 오는 것을 먼저 한다.
 
@@ -367,7 +367,7 @@ PowerShell과 도구:
 
 ### 8.7 남겨 둔 것
 
-- 실험 브랜치 여섯(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
+- 실험 브랜치 일곱(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
