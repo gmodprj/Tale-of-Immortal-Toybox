@@ -41,6 +41,10 @@ namespace MOD_sWP6UL
                 case "pcheck": return CheckPresets(p.Length > 1 ? p[1] : null);
                 case "prestore": return PresetService.RestoreDefaults();
                 case "pstage": return StageInfo(p[1], int.Parse(p[2]));
+                case "papply": return ApplyPreset(p[1], p[2]);
+                case "preplaces": return ReplacesInfo(p[1], p[2]);
+                case "pfatepick": return FatePick(me, int.Parse(p[1]), p.Length > 2 ? p[2] : "");
+                case "pbornpick": return BornPick(me);
                 default: return null;
             }
         }
@@ -465,6 +469,58 @@ namespace MOD_sWP6UL
             int have, total;
             PresetService.StageState state = PresetService.StateOf(stage, PresetService.Snapshot(), out have, out total);
             return "state=" + state + " have=" + have + " total=" + total + " | " + PresetService.StageText(stage).Replace("\n", " / ");
+        }
+
+        private static string ApplyPreset(string fileName, string what)
+        {
+            PresetService.Preset preset = PresetNamed(fileName);
+            if (preset == null)
+            {
+                return "refused=True | no preset " + fileName;
+            }
+            int grade;
+            string result = what == "all" ? PresetService.ApplyAll(preset)
+                : what == "full" ? PresetService.ApplyFull(preset)
+                : int.TryParse(what, out grade) ? PresetService.ApplyStage(preset, grade) : "unknown " + what;
+            return (PresetService.LastRun.Length == 0 ? "refused=True" : PresetService.LastRun) + " | " + result;
+        }
+
+        private static string ReplacesInfo(string fileName, string what)
+        {
+            PresetService.Preset preset = PresetNamed(fileName);
+            if (preset == null)
+            {
+                return "no preset " + fileName;
+            }
+            string replaces = what == "all" ? PresetService.ReplacesAll(preset) : PresetService.ReplacesStage(preset, int.Parse(what));
+            return "replaces=" + (replaces == null ? "no" : "yes") + " | " + replaces;
+        }
+
+        // 그 대경지에서 고를 수 있는 역천개명 가운데 가지고 있지 않고 빼낼 목록에도 없는 첫 번째. 검사가 프리셋 파일을 만들 때 쓴다.
+        private static string FatePick(WorldUnitBase me, int grade, string exclude)
+        {
+            var skip = new List<int>(Ints(exclude));
+            foreach (LuckService.LuckView view in FateService.Candidates(grade, ""))
+            {
+                if (!LuckService.Has(me, view.Id) && !skip.Contains(view.Id))
+                {
+                    return "id=" + view.Id;
+                }
+            }
+            return "id=0";
+        }
+
+        // 가지고 있지 않은 선천 분류(1)의 운명 가운데 첫 번째.
+        private static string BornPick(WorldUnitBase me)
+        {
+            foreach (LuckService.LuckView view in LuckService.Candidates(1, ""))
+            {
+                if (!LuckService.Has(me, view.Id) && !LuckService.IsSystem(view.Id))
+                {
+                    return "id=" + view.Id;
+                }
+            }
+            return "id=0";
         }
     }
 }
