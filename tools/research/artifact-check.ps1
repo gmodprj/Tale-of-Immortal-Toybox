@@ -98,6 +98,100 @@ switch ($Part) {
     Check 'the change log has the gourd line' (LogHas '연요호')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'ui' {
+    Cmd 'awset 1' 300 | Out-Null
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab7' | Out-Null
+    Check 'the artifact tab is the eighth' (IsAt 'ArtifactPoint')
+    Check 'the last artifact cannot be turned off' ((IsOff 'ArtifactOff1') -and (Cmd 'uitext ArtifactLast' 150) -match '하나 이상')
+    Check 'details of a missing artifact are off' (IsOff 'ArtifactOpen2')
+    Press 'ArtifactOn2' 1200 | Out-Null
+    Check 'turning on adds it' ((Fields (Cmd 'aw' 200)).weapons -eq '1,2') (Cmd 'aw' 200)
+    Press 'ArtifactOn3' 1200 | Out-Null
+    Press 'ArtifactOff3' | Out-Null
+    Check 'turning off asks first' ((Fields (Cmd 'aw' 200)).weapons -eq '1,2,3')
+    Press 'ArtifactOff3' 1200 | Out-Null
+    Check 'the second press turns it off' ((Fields (Cmd 'aw' 200)).weapons -eq '1,2') (Cmd 'aw' 200)
+    Press 'ArtifactOn3' 1200 | Out-Null
+    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd 'ui set ArtifactPoint 25' | Out-Null; Key 0x0D
+    Check 'the point field sets the point on Enter' ((Fields (Cmd 'aw' 200)).point -eq '25') (Cmd 'aw' 200)
+    Press 'ArtifactPointPlus10' | Out-Null
+    Press 'ArtifactPointMinus1' | Out-Null
+    Check 'plus ten and minus one' ((Fields (Cmd 'aw' 200)).point -eq '34') (Cmd 'aw' 200)
+    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd 'ui set ArtifactPoint -5' | Out-Null; Key 0x0D
+    Check 'a negative point becomes 0' ((Fields (Cmd 'aw' 200)).point -eq '0') (Cmd 'aw' 200)
+    Cmd 'uifocus ArtifactPoint' | Out-Null; Cmd 'ui set ArtifactPoint 99999' | Out-Null; Key 0x0D
+    Check 'a point over the limit becomes 9999' ((Fields (Cmd 'aw' 200)).point -eq '9999') (Cmd 'aw' 200)
+    Press 'ArtifactOpen2' | Out-Null
+    Check 'the god eye page has its controls' ((IsAt 'GodEyeUnlockAll') -and (IsAt 'GodEyeSearch') -and (IsAt 'GodEyeBoss7010'))
+    Check 'repair is off without damage' (IsOff 'GodEyeRepair')
+    Check 'an unlearned skill cannot be equipped' (IsOff 'GodEyeEquip100721')
+    Press 'GodEyeBoss7010' 1200 | Out-Null
+    Check 'unlock from the page' ((Fields (Cmd 'geboss 7010' 200)).learned -eq '3/3' -and (Cmd 'uitext GodEyeState7010' 150) -match '해금') (Cmd 'geboss 7010' 200)
+    Press 'GodEyeEquip100721' 1200 | Out-Null
+    Check 'equip from the page' ((Fields (Cmd 'gestate' 200)).equip -eq '100721' -and (Cmd 'uitext GodEyeEquipText' 150) -match '유서불풍') (Cmd 'gestate' 200)
+    $fit = Fields (Cmd 'ifit GodEyeDesc' 300)
+    Check 'every skill description is whole' ([int]$fit.texts -ge 3 -and $fit.overflow -eq '0') (Cmd 'ifit GodEyeDesc' 300)
+    Shot 'artifact-godeye-page'
+    Press 'Back' | Out-Null
+    Press 'ArtifactOpen3' | Out-Null
+    Check 'the gourd page has its controls' ((IsAt 'PotmonGrade10') -and (IsAt 'PotmonSearch') -and (IsAt 'PotmonAdd1001'))
+    Check 'the count starts at zero' ((Cmd 'uitext DevilCount' 150) -match '0 / 28')
+    Press 'PotmonGrade2' | Out-Null
+    Press 'PotmonAdd1001' 1200 | Out-Null
+    $p = Fields (Cmd 'potlist' 200)
+    Check 'add from the page uses the chosen grade' ($p.count -eq '1' -and $p.grade -eq '2') (Cmd 'potlist' 200)
+    Press "PotmonExp$($p.first)" 1200 | Out-Null
+    Check 'fill exp from the page' ((Fields (Cmd 'potlist' 200)).exp -eq '18000') (Cmd 'potlist' 200)
+    Check 'the fill button is off at the boundary' (IsOff "PotmonExp$($p.first)")
+    Check 'the count is shown' ((Cmd 'uitext DevilCount' 150) -match '1 / 28')
+    Shot 'artifact-gourd-page'
+    Press 'Back' | Out-Null
+    Shot 'artifact-tab'
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'game' {
+    # 게임 화면에 나오는지(캡처로 본다): 호천안 요수 기능, 연요호 모든 호요, 부활 정보의 점수.
+    Cmd 'awset 1,2,3' 300 | Out-Null
+    Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    Cmd 'potadd 1001 3' 400 | Out-Null
+    Cmd 'apoint 12' 300 | Out-Null
+    Cmd 'uiopen GodEye' 1500 | Out-Null
+    Rc 'click 1379 851' 1500 | Out-Null
+    Check 'the game god eye skill page opened' ((Cmd 'uilist' 200) -match 'GodEyeBossSkill')
+    Shot 'artifact-game-godeye'
+    Cmd 'uiclose GodEyeBossSkill' 500 | Out-Null; Cmd 'uiclose GodEye' 800 | Out-Null
+    Cmd 'uiopen DevilDemon' 1500 | Out-Null
+    Rc 'click 1362 897' 1500 | Out-Null
+    Check 'the game potmon list opened' ((Cmd 'uilist' 200) -match 'PotmonList')
+    Shot 'artifact-game-gourd'
+    Cmd 'uiclose PotmonList' 500 | Out-Null; Cmd 'uiclose DevilDemon' 800 | Out-Null
+    Cmd 'uiopen ResurgeInfo' 1500 | Out-Null
+    Shot 'artifact-game-point'
+    Cmd 'uiclose ResurgeInfo' 800 | Out-Null
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'persist' {
+    # 이 뒤에 session.ps1 -Restart, 그 뒤에 restart 부분을 돌린다.
+    Cmd 'awset 1' 300 | Out-Null
+    Cmd 'aon 2' 400 | Out-Null; Cmd 'aon 3' 400 | Out-Null
+    Cmd 'apoint 12' 300 | Out-Null
+    Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    Cmd 'potadd 1001 3' 400 | Out-Null
+    Check 'the map buttons do not change before reloading' ((Cmd 'awbtn' 200) -match 'godEye=off' -and (Cmd 'awbtn' 200) -match 'devil=off') (Cmd 'awbtn' 200)
+    Cmd 'save' 2500 | Out-Null
+    Start-Sleep -Seconds 6   # 저장이 끝나기 전에 재시작하면 남지 않았다(07 문서 7.2절)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'restart' {
+    Check 'the artifacts are kept' ((Fields (Cmd 'aw' 200)).weapons -eq '1,2,3' -and (Fields (Cmd 'aw' 200)).point -eq '12') (Cmd 'aw' 200)
+    Check 'the map shows all three buttons after reloading' ((Cmd 'awbtn' 200) -match 'pisces=on godEye=on devil=on') (Cmd 'awbtn' 200)
+    Check 'the god eye boss and the equipped skill are kept' ((Fields (Cmd 'geboss 7010' 200)).learned -eq '3/3' -and (Fields (Cmd 'gestate' 200)).equip -eq '100721') (Cmd 'gestate' 200)
+    $p = Fields (Cmd 'potlist' 200)
+    Check 'the potmon is kept' ($p.count -eq '1' -and $p.grade -eq '3') (Cmd 'potlist' 200)
+    # 호천안을 가진 세이브는 불러올 때 호천안 화면이 저절로 열린다(원인 미확인, 07 문서 7.2절). 다음 검사를 위해 닫는다.
+    if ((Cmd 'uilist' 200) -match 'GodEye') { Cmd 'uiclose GodEye' 800 | Out-Null }
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
