@@ -242,6 +242,13 @@ switch ($Part) {
         Cmd "uiclose $($pair[1])" 800 | Out-Null
       } else { Check "the $($pair[0]) button has a position" $false $p }
     }
+    # 같은 지도 화면에서 게임이 자리를 되돌리면(사용자가 실제 전투 뒤에 본 겹침, 경로 미확인) 다시 나란히 놓여야 한다.
+    Cmd 'awreset' 200 | Out-Null
+    Start-Sleep -Milliseconds 500
+    $p = Cmd 'awpos' 200
+    Check 'the buttons are placed again after the game moves them back' ($p -match 'pisces=-240,-93@' -and $p -match 'godEye=-194,-93@' -and $p -match 'devil=-148,-93@') $p
+    $fs = [IO.File]::Open($log, 'Open', 'Read', 'ReadWrite'); $sr = New-Object IO.StreamReader($fs, [Text.Encoding]::GetEncoding(949)); $logText = $sr.ReadToEnd(); $sr.Close()
+    Check 'the mod logs that the game moved them back' ($logText -match '\[TlToybox\] artifact hud drift') ''
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   'hud-battle' {

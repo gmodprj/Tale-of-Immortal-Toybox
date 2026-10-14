@@ -63,6 +63,20 @@ namespace MOD_sWP6UL
                         }
                         return "no npc";
                     }
+                case "awreset":
+                    {
+                        // 검사용: 게임이 자리를 되돌린 것처럼 지도 화면 신기 버튼 셋을 게임의 자리(-240,-93)로 옮긴다.
+                        UIMapMain map = g.ui.GetUI<UIMapMain>(UIType.MapMain);
+                        if (map == null || map.playerInfo == null)
+                        {
+                            return "map=null";
+                        }
+                        foreach (UnityEngine.UI.Button b in new[] { map.playerInfo.btnPiscesPendant, map.playerInfo.btnGodEye, map.playerInfo.btnDevilDemon })
+                        {
+                            b.GetComponent<UnityEngine.RectTransform>().anchoredPosition = new UnityEngine.Vector2(-240f, -93f);
+                        }
+                        return "reset";
+                    }
                 case "awpos":
                     {
                         // 지도 화면 신기 버튼의 자리(부모 기준 x,y)와 게임 좌표(1920x1080, 왼쪽 위 기준)의 가운데.
