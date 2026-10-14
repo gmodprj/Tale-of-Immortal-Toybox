@@ -45,6 +45,12 @@ namespace MOD_sWP6UL
                 case "preplaces": return ReplacesInfo(p[1], p[2]);
                 case "pfatepick": return FatePick(me, int.Parse(p[1]), p.Length > 2 ? p[2] : "");
                 case "pbornpick": return BornPick(me);
+                case "pfind": return Each(p, FindSkill);
+                case "pfate": return Each(p, FindFate);
+                case "pluck": return Each(p, FindLuck);
+                case "psuits": return p.Length > 1 ? Each(p, FindSuit) : FindSuit("");
+                case "pconf": return Conf(p[1]);
+                case "popts": return OptionList(int.Parse(p[1]));
                 case "pfateset": return FateService.Set(me, int.Parse(p[1]), int.Parse(p[2]));
                 case "pluckadd": return LuckService.Add(me, int.Parse(p[1]));
                 case "phas":
@@ -548,6 +554,157 @@ namespace MOD_sWP6UL
                 }
             }
             return "id=0";
+        }
+
+        private static string Each(string[] p, Func<string, string> find)
+        {
+            var sb = new StringBuilder();
+            for (int i = 1; i < p.Length; i++)
+            {
+                sb.Append("\n").Append(p[i]).Append(" => ").Append(find(p[i]));
+            }
+            return sb.ToString();
+        }
+
+        private static string Name(string key)
+        {
+            return EditService.Compact(GameTool.LS(key));
+        }
+
+        private static string FindSkill(string name)
+        {
+            var sb = new StringBuilder();
+            for (int kind = 0; kind < SkillCatalog.Kinds.Length; kind++)
+            {
+                foreach (SkillCatalog.Entry entry in SkillCatalog.Find(kind, name))
+                {
+                    sb.Append('[').Append(kind).Append(' ').Append(entry.BaseId).Append(' ').Append(entry.Name)
+                        .Append(" g").Append(entry.GradeMin).Append('-').Append(entry.GradeMax).Append("] ");
+                }
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString();
+        }
+
+        private static string FindFate(string name)
+        {
+            var sb = new StringBuilder();
+            var all = g.conf.fateFeature._allConfList;
+            for (int i = 0; i < all.Count; i++)
+            {
+                ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(all[i].id);
+                if (conf == null || !Name(conf.name).Contains(name))
+                {
+                    continue;
+                }
+                sb.Append('[').Append(conf.id).Append(' ').Append(Name(conf.name)).Append(" g").Append(all[i].gradeMin).Append('-')
+                    .Append(all[i].gradeMax).Append(" group").Append(all[i].group).Append(" lv").Append(conf.level).Append("] ");
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString();
+        }
+
+        private static string FindLuck(string name)
+        {
+            var sb = new StringBuilder();
+            var all = g.conf.roleCreateFeature._allConfList;
+            int shown = 0;
+            for (int i = 0; i < all.Count && shown < 12; i++)
+            {
+                if (!Name(all[i].name).Contains(name))
+                {
+                    continue;
+                }
+                sb.Append('[').Append(all[i].id).Append(' ').Append(Name(all[i].name)).Append(" type").Append(all[i].type)
+                    .Append(" lv").Append(all[i].level).Append("] ");
+                shown++;
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString();
+        }
+
+        private static string FindSuit(string name)
+        {
+            var sb = new StringBuilder();
+            var all = g.conf.battleAbilitySuitBase._allConfList;
+            for (int i = 0; i < all.Count; i++)
+            {
+                string suit = Name(all[i].suitName);
+                if (name.Length > 0 && !suit.Contains(name))
+                {
+                    continue;
+                }
+                sb.Append("\n[").Append(all[i].id).Append(' ').Append(suit).Append(" type").Append(all[i].suitType)
+                    .Append(" member=").Append(all[i].suitMember).Append(" cond=").Append(all[i].suitCondition).Append(']');
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString();
+        }
+
+        private static string Conf(string what)
+        {
+            var sb = new StringBuilder();
+            if (what == "elder")
+            {
+                var all = g.conf.elderBase._allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    sb.Append('[').Append(all[i].id).Append(' ').Append(Name(all[i].name)).Append(" item").Append(all[i].item)
+                        .Append(' ').Append(all[i].growAttr).Append("] ");
+                }
+            }
+            else if (what == "sprite")
+            {
+                var all = g.conf.artifactSprite._allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    sb.Append('[').Append(all[i].id).Append(' ').Append(Name(all[i].name)).Append("] ");
+                }
+            }
+            else if (what == "wing")
+            {
+                var all = g.conf.wingmanBase._allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    sb.Append('[').Append(all[i].id).Append(' ').Append(Name(all[i].name)).Append("] ");
+                }
+            }
+            else if (what == "heart")
+            {
+                var all = g.conf.taoistHeart._allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    sb.Append('[').Append(all[i].id).Append(' ').Append(Name(all[i].heartName)).Append("] ");
+                }
+            }
+            return sb.Length == 0 ? "unknown table" : sb.ToString();
+        }
+
+        // 그 기술에 넣을 수 있는 옵션마다: 번호, 중복 한도, 선행(양수)·배타(음수) 조건, 나올 수 있는 자리(1부터), 설명.
+        // 프리셋의 options를 쓸 때 본다. 자리는 설정 표의 weight1~weight11이 0보다 큰 칸이다.
+        private static string OptionList(int baseId)
+        {
+            MartialType type;
+            SkillCatalog.Entry entry = EntryOf(baseId, out type);
+            if (entry == null)
+            {
+                return "no skill " + baseId;
+            }
+            var sb = new StringBuilder(entry.Name + " type=" + (int)type);
+            var items = g.conf.battleSkillPrefixValue.GetItems((int)type, baseId);
+            for (int i = 0; items != null && i < items.Count; i++)
+            {
+                ConfBattleSkillPrefixValueItem item = items[i];
+                int[] weights = { item.weight1, item.weight2, item.weight3, item.weight4, item.weight5, item.weight6,
+                    item.weight7, item.weight8, item.weight9, item.weight10, item.weight11 };
+                var slots = new StringBuilder();
+                for (int slot = 0; slot < weights.Length; slot++)
+                {
+                    if (weights[slot] > 0)
+                    {
+                        slots.Append(slots.Length == 0 ? "" : ",").Append(slot + 1);
+                    }
+                }
+                sb.Append("\n#").Append(item.number).Append(" multi=").Append(item.multi).Append(" require=").Append(item.require)
+                    .Append(" slots=").Append(slots).Append(' ').Append(MartialService.CleanDesc(GameTool.LS(item.desc)).Replace('\n', ' '));
+            }
+            return sb.ToString();
         }
     }
 }

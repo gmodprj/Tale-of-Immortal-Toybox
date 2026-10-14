@@ -220,6 +220,9 @@ switch ($Part) {
     Check 'the folder is made with the defaults in it' ($onDisk.Count -eq $n) "files=$($onDisk.Count)"
     Check 'the list has one readable line per default' ([int]$l.count -eq $n -and $l.unreadable -eq '0') "count=$($l.count) unreadable=$($l.unreadable)"
     Check 'the defaults have no unusable line' ((Fields (Cmd 'pcheck' 600)).problems -eq '0') (Cmd 'pcheck' 600)
+    Check 'the name search finds a skill by its shown name' ((Cmd 'pfind 13111' 300) -match '\[0 13111 \S+ g1-10\]') (Cmd 'pfind 13111' 300)
+    Check 'the option list of a skill is printed' ((Cmd 'popts 13111' 300) -match '#1 multi=\d+ require=\S* slots=[\d,]+ ') (Cmd 'popts 13111' 300)
+    Check 'an ability is shown with its number' ((Cmd "pstage $(($onDisk | Sort-Object Name | Select-Object -First 1).Name) 3" 400) -match '\(81001\)') (Cmd "pstage $(($onDisk | Sort-Object Name | Select-Object -First 1).Name) 3" 400)
     Check 'nothing is reported as changed' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0')
 
     # 기본 파일을 고치면 알리고, 되돌리기가 돌려놓는다. 사용자가 넣은 파일은 그대로다.

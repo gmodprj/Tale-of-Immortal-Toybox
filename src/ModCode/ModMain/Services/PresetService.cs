@@ -273,7 +273,8 @@ namespace MOD_sWP6UL
                 line.Problem = KnownSkill(line.BaseId) ? "이 칸에 넣을 수 없는 기술입니다" : Unknown;
                 return;
             }
-            line.Name = entry.Name;
+            // 심법의 목록 이름은 유형의 끝 글자("경", "식")뿐이라 번호를 붙여 구별한다.
+            line.Name = line.Type == MartialType.Ability ? entry.Name + "(" + line.BaseId + ")" : entry.Name;
             line.GradeMin = entry.GradeMin;
             line.GradeMax = entry.GradeMax;
             line.Problem = duplicate ? "같은 칸의 줄이 이미 있습니다" : MartialService.OptionProblem(line.Type, line.BaseId, line.Options);
