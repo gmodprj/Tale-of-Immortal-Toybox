@@ -9,10 +9,9 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 일곱(`feat/*-research`)뿐이다(병합을 마친 작업 브랜치는 2026-10-14 사용자 확인 뒤 지웠다).
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 여덟(`feat/*-research`, 마지막이 `feat/artifact-research`), 그리고 병합을 마친 `docs/divine-artifacts`(지워도 되는지 사용자에게 물었다)다. 그 밖의 병합한 작업 브랜치는 2026-10-14 사용자 확인 뒤 지웠다.
 - 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(2026-10-14 14:32 설치, 선법 탭(36절)까지).
-- **직전 작업**: 2026-10-13에 사용자가 새로 요청한 둘(프리셋 탭, 배율 탭)을 모두 끝냈다. 배율 탭은 05 문서 32·33절, **프리셋 탭(묶음 F2)은 34절**이다(2026-10-14). 프리셋 탭을 하며 역천개명의 계열 규칙을 찾아 운명 탭과 캐릭터 가져오기에도 넣었다. 이어서 사용자가 알린 "프리셋 적용 뒤 선력 0/0"을 고치며, 경지 올리기가 정식 돌파와 다르게 놓친 것을 모두 찾아 넣었다(35절: 선력, 등선 진입의 선법, 돌파 임무, 칭호, 체력 채우기). 그 뒤 사용자 요청으로 프리셋 상세보기의 머리글을 고치고(35절 끝), 선법 탭을 만들었다(36절). **정해진 다음 일은 없다.** 8.3절의 후보에서 사용자가 고르거나, 사용자가 써 보고 알려 오는 것을 먼저 한다.
-
+- **직전 작업(2026-10-14)**: 프리셋 탭(05 문서 34절), 사용자가 써 보고 알린 것의 수정(35절: 경지 올리기가 정식 돌파와 다르게 놓친 선력·선법·돌파 임무·칭호·체력, 능력치 탭의 본원 선력, 프리셋 상세보기의 머리글), 선법 탭(36절)을 끝내고 설치했다. 마지막으로 사용자 요청 **"시작 신기 셋과 모드 관리 데이터 조사"**를 했다(`docs/07-divine-artifacts.md`). 설정 표와 어셈블리로 쌍어패·호천안·연요호의 구조를 정리했고, **게임 안 확인은 하지 못했다**(사용자의 게임이 켜져 있었다). **다음 세션은 07 문서 7절의 게임 확인부터 한다**(8.3절).
 - 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 지금 세이브는 **달의 첫날(2년 3월 1일)에 멈춰 있어** 세계에 들어오면 월말 기록 창이 뜬다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
 
@@ -57,6 +56,7 @@
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
 | `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~36절). 기능을 바꾸면 절을 추가한다 |
 | `docs/06-handoff.md` | 이 문서 |
+| `docs/07-divine-artifacts.md` | 시작 신기 셋(쌍어패·호천안·연요호)과 특수 선천운명 셋(식혼검·음양안·연화검의)의 조사. 게임 안 확인은 7절에 남아 있다 |
 | `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
 | `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리)도 여기 있다 |
@@ -174,6 +174,8 @@
 - 실패의 원인을 세이브 탓으로 돌리기 전에 고정본에서 다시 돌려 본다. 고정본에서도 실패하면 코드나 검사의 문제다.
 - 검사는 앞 검사가 남긴 화면 상태를 물려받는다. 보관함은 마지막에 본 쪽(가방/캐릭터)과 이름 칸의 글을 기억하고, 창 위치는 `config.txt`에 남는다. 검사는 자기가 필요한 상태를 직접 만들고 시작한다(`vault`는 `가방`을 누르고 이름 칸을 비운다).
 - **회차와 검사는 한 번에 하나만 돌린다.** 오래 걸리는 검사를 백그라운드로 돌려 놓고 끊긴 줄 알고 다른 회차를 열어 두 실행이 같은 게임을 건드렸고, 실패 여럿이 그 때문이었다(32절). 도구의 한 번 실행은 10분이 한계이므로 회차를 그 안에 끝나게 나눈다(`-Begin` + 검사 서너 부분 + `-End`).
+- **사용자가 말한 대상을 게임 화면이나 사용자의 캡처로 먼저 확정한다.** "시작 신기 셋"을 설정 표 이름만 보고 특수 선천운명 셋(식혼검·음양안·연화검의)으로 잘못 보고했다가, 사용자가 보낸 신기 선택 화면(호천안·쌍어패·연요호)으로 바로잡았다. 게임의 열거형(`GameAnimaWeapon`)처럼 게임이 직접 묶어 둔 목록을 먼저 찾는다.
+- 사용자의 게임이 켜져 있으면 `session.ps1 -Begin`이 시작 전에 멈춘다(세이브는 건드리지 않는다). 그 뒤 `mod.ps1`을 부르면 `.devremote\mod-cmd.txt`가 남으니 지운다(개발 빌드 회차가 열리면 그 명령이 실행된다).
 - **기록만 보는 검사는 실제 보유를 놓친다.** 프리셋의 역천개명 검사가 경지별 기록만 봐서, 아홉을 적용했는데 운명은 넷만 붙어 있는 것을 놓쳤다(같은 계열을 게임이 지웠다. 34절). 검토자가 찾았다. 게임이 여러 곳에 적는 값은 효과가 나는 쪽(운명의 보유 `phas`)을 본다.
 - 검사 스크립트 안에서 `check-lib.ps1`의 변수(`$log`, `$data`, `$work`)와 같은 이름의 변수를 만들지 않는다. `$log`를 덮어써 `Traps`가 깨진 적이 있다.
 - `session.ps1 -Begin`은 스스로 개발 빌드를 만든다. "고치기 전의 DLL로 검사가 실패하는 것을 본다"를 하려면 코드를 고치기 전에 회차를 열어야 한다(프리셋 열 개의 검사는 이 때문에 실패를 보지 못했다).
@@ -293,10 +295,24 @@ PowerShell과 도구:
     2 배율탭 추가
     2-1) 전투중 공법등의 경험치나 이동중 시간 흐름등 배율을 설정할수 있는 상황과 환경을 리서치하고 배율을 적용할수 있는지
 
-### 8.3 다음 후보
+### 8.3 다음: 시작 신기 조사의 게임 확인
 
-사용자가 요청한 것은 모두 끝났다. 정해진 다음 일은 없다. 프리셋 탭에서 사용자가 정한 것(2026-10-13~14)은 스펙 4절에 있다: 풀셋은 기령·명우·신혼까지, 목록의 버튼은 `적용`(지금 경지까지)과 `최종 단계까지` 둘, 모자란 조건(수도 점수)은 필요한 만큼 자동으로 올림, 프리셋은 외부 JSON 파일, 계열 보호는 운명 탭과 캐릭터 가져오기에도.
+사용자 요청(2026-10-14): "게임 시작시 얻는 3가지 신기와 신기 정보를 확인하고 신기 기능 등에 대한 모드 관리 데이터 리서치". 설정 표와 어셈블리로 한 조사는 `docs/07-divine-artifacts.md` 1~6절이다. 요점:
 
+- 신기는 열거형 `GameAnimaWeapon`(1 쌍어패 `PiscesPendant`, 2 호천안 `HootinEye`, 3 연요호 `DevilDemon`)이고, 가진 신기는 `DataWorld.World.animaWeapons`(목록)에 있다.
+- 신기마다 세계 자료: 쌍어패 `piscesData`(+ 부활 점수로 보이는 `resurgeCount`·`resurgePower1/2`), 호천안 `godEyeData`(설정 표 `GodEye*`), 연요호 `devilDemonData.potmonData`(요수, 설정 표 `DevilDemon*`·`Potmon*`).
+
+**다음 세션은 07 문서 7절을 게임에서 확인한다**(사용자의 게임이 꺼져 있을 때, 고정본 회차):
+
+1. 고정본의 `animaWeapons`와 세 자료의 값. 실험 명령 `wsnap <g.world의 필드> [깊이]`(브랜치 `feat/artifact-research`의 `Dev/DevCommandsSnap.cs`)는 `g.world`의 필드를 뜬다. 세 자료는 `g.world`가 아니라 `g.data.world`(`DataWorld.World`) 쪽이므로, 그 자료를 뜨는 명령을 더해야 한다(예: `g.data.world.godEyeData`. `g.data.world`는 `FateService`가 `g.data.world.playerLog`로 쓰는 경로다).
+2. 한국어 표기: `pdump animaWeapon`, `pdump godEyeSkills`, `pdump potmonBase`.
+3. `animaWeapons`에 신기를 더했을 때 그 기능(화면, 전투, 세계 처리 `WorldSpecialGodEye`·`WorldSpecialPiscesPendant`)이 열리는지.
+4. 부활 점수(`resurge*`)의 뜻.
+5. 정식 함수(`GodEyeData.Repair`, `PotMonMgr.AddPotMon`, `PiscesData.GivePisces`)의 결과.
+
+확인한 뒤 07 문서를 고치고(`docs/divine-artifacts` 브랜치가 이미 `develop`에 병합돼 있으면 새 `docs/*` 브랜치에서), 편집기 기능으로 만들지와 범위를 사용자와 정한다(선택지 예: 신기 목록 바꾸기, 호천안 단계·기술·수리, 연요호 요수 추가·승급, 쌍어패 대기·부활 점수).
+
+그 밖의 다음 후보:
 프리셋 탭에서 이어질 수 있는 것:
 
 | 후보 | 내용 |
@@ -367,11 +383,11 @@ PowerShell과 도구:
 
 ### 8.7 남겨 둔 것
 
-- 실험 브랜치 일곱(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
+- 실험 브랜치 여덟(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
-- 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함). 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
+- 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `art-1014a`(게임이 켜져 있어 열리지 않았다. 다시 쓰지 않는다), `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함). 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
 
 ## 9. 작업 규칙 요약
 
