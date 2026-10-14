@@ -442,6 +442,10 @@ switch ($Part) {
     # 상세보기: 결정 초기(대경지 3)에서 단계 1~3은 적용, 4는 경지 올리기.
     $idx = PresetIndex 'uicheck-preset.json'
     Press "PresetDetail$idx" | Out-Null
+    # 머리글: 제목은 프리셋 이름만, 설명과 출처는 표 위의 줄바꿈되는 글(사용자 보고: 긴 제목이 돌아가기 밑으로 넘어갔다).
+    Check 'the sub-page title is the preset name only' ((Cmd 'uitext SubTitle' 150) -match "SubTitle text='uicheck preset'") (Cmd 'uitext SubTitle' 150)
+    Check 'the summary and the source are shown under the title' ((Cmd 'uitext PresetSummary' 150) -match "PresetSummary text='check .+check") (Cmd 'uitext PresetSummary' 150)
+    Check 'the back button is not covered' (IsAt 'Back')
     Check 'stages 1 to 3 can be applied' ((IsAt 'StageApply1') -and (IsAt 'StageApply2') -and (IsAt 'StageApply3'))
     Check 'stage 4 is locked and offers the raise' ((IsAt 'StageRaise4') -and -not (IsAt 'StageApply4'))
     Check 'every shown stage has a state label' ((Cmd 'uitext StageState3' 150) -match "StageState3 text='[^']+'")

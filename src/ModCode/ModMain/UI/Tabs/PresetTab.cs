@@ -95,7 +95,7 @@ namespace MOD_sWP6UL
             {
                 opened = preset;
                 stages.Reset();
-                Push(() => opened.Name + (opened.Summary.Length > 0 ? " — " + opened.Summary : "") + (opened.Source.Length > 0 ? " (출처: " + opened.Source + ")" : ""), DrawDetail);
+                Push(() => opened.Name, DrawDetail);
             }));
             // 지금의 역천개명·신혼·명우를 바꾸게 될 때만 두 번 눌러 확인한다(스펙 4절).
             string replaces = PresetService.ReplacesAll(preset);
@@ -128,6 +128,14 @@ namespace MOD_sWP6UL
             float textW = right - StageTextX - 400;
             // 쓸 수 없는 줄을 위에 모아 알린다. 대경지가 틀린 역천개명처럼 어느 단계에도 들지 않는 줄은 여기에만 나온다.
             float top = SubTop;
+            // 설명과 출처는 제목 줄에 넣지 않고 여기서 줄바꿈해 보인다(제목 줄은 한 줄이라 긴 글이 돌아가기 밑으로 넘어갔다).
+            string about = opened.Summary + (opened.Source.Length > 0 ? (opened.Summary.Length > 0 ? " " : "") + "(출처: " + opened.Source + ")" : "");
+            if (about.Length > 0)
+            {
+                float aboutH = Math.Max(28, (float)Math.Ceiling(Ui.TextHeight(about, ContentW, 16)) + 6);
+                Ui.Wrapped(content, about, 0, top, ContentW, aboutH, 16).gameObject.name = "PresetSummary";
+                top += aboutH + 4;
+            }
             List<string> problems = PresetService.Problems(opened);
             if (problems.Count > 0)
             {
