@@ -45,6 +45,8 @@ namespace MOD_sWP6UL
                 case "preplaces": return ReplacesInfo(p[1], p[2]);
                 case "pfatepick": return FatePick(me, int.Parse(p[1]), p.Length > 2 ? p[2] : "");
                 case "pbornpick": return BornPick(me);
+                case "pfateset": return FateService.Set(me, int.Parse(p[1]), int.Parse(p[2]));
+                case "pluckadd": return LuckService.Add(me, int.Parse(p[1]));
                 case "phas":
                     {
                         // 그 번호의 운명들 가운데 실제로 가지고 있는 수(효과가 붙어 있는가). 기록만 보는 검사를 보완한다.

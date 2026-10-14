@@ -214,6 +214,11 @@ namespace MOD_sWP6UL
             {
                 return "운명 " + GameTool.LS(conf.name) + ": 이미 가지고 있습니다.";
             }
+            // 역천개명 분류(3)는 같은 계열을 하나만 둘 수 있다. 붙이면 게임이 같은 계열의 역천개명을 없애고 그 경지의 기록만 남긴다(실측).
+            if (conf.type == 3 && FateService.HeldElsewhere(unit, 0, id) != 0)
+            {
+                return "운명 " + GameTool.LS(conf.name) + ": 같은 계열의 역천개명을 이미 가지고 있어 함께 둘 수 없습니다. 운명 탭의 역천개명에서 그 경지의 것을 바꾸세요.";
+            }
             string backupError = SaveBackup.EnsureOnce();
             if (backupError != null)
             {

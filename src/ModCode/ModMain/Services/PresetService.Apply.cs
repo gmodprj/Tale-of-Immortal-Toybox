@@ -110,7 +110,8 @@ namespace MOD_sWP6UL
             return IsBorn(me, line.Id) ? Outcome.Done : Outcome.Failed;
         }
 
-        private static Outcome PutFate(WorldUnitBase me, FateLine line, out string text)
+        // replacing: 이번 적용이 정할 대경지들. 함께 둘 수 없는 것을 가진 대경지가 여기 있으면 그 칸을 먼저 비운다(곧 다른 것으로 정해진다).
+        private static Outcome PutFate(WorldUnitBase me, FateLine line, List<int> replacing, out string text)
         {
             string label = Named(line.Name, line.Id);
             if (line.Problem != null)
@@ -123,22 +124,20 @@ namespace MOD_sWP6UL
                 text = label;
                 return Outcome.Skipped;
             }
-            // 같은 계열의 역천개명을 다른 대경지에 가지고 있으면 붙이지 않는다. 붙이면 게임이 그쪽의 운명을 없애고 기록만 남긴다(실측, 회차 ptab23).
-            if (line.Group != 0)
+            // 같은 번호나 같은 계열을 다른 대경지에 가지고 있으면 함께 둘 수 없다(게임이 앞의 운명을 없애고 기록만 남긴다).
+            for (int tries = 0; tries < StageCount; tries++)
             {
-                foreach (var pair in FateService.Records(me))
+                int clash = FateService.HeldElsewhere(me, line.Grade, line.Id);
+                if (clash == 0)
                 {
-                    ConfFateFeatureItem other = pair.Key == line.Grade ? null : g.conf.fateFeature.GetItem(pair.Value);
-                    if (other != null && other.group == line.Group && LuckService.Has(me, pair.Value))
-                    {
-                        ConfRoleCreateFeatureItem held = g.conf.roleCreateFeature.GetItem(pair.Value);
-                        text = label + ": 같은 계열의 역천개명(" + (held == null ? pair.Value.ToString() : GameTool.LS(held.name)) + ")을 " + StageName(pair.Key)
-                            + "에 가지고 있어 함께 둘 수 없습니다. 그 경지의 역천개명을 먼저 바꾸세요";
-                        return Outcome.Failed;
-                    }
+                    break;
+                }
+                if (!replacing.Contains(clash) || !FateService.Release(me, clash))
+                {
+                    text = label + ": " + StageName(clash) + "의 역천개명과 같은 계열이라 함께 둘 수 없습니다. 그 경지의 역천개명을 먼저 바꾸세요";
+                    return Outcome.Failed;
                 }
             }
-            // 다른 대경지의 기록은 FateService.Set이 지킨다(docs/05 30·31절).
             text = FateService.Set(me, line.Grade, line.Id);
             return FateNow(me, line.Grade) == line.Id && LuckService.Has(me, line.Id) ? Outcome.Done : Outcome.Failed;
         }
@@ -329,14 +328,23 @@ namespace MOD_sWP6UL
                     borns.Count(Named(line.Name, line.Id), (out string text) => PutBorn(me, line, out text));
                 }
             }
+            var replacing = new List<int>();
+            foreach (FateLine each in preset.Fates)
+            {
+                if (each.Problem == null && each.Grade >= fateFrom && each.Grade <= fateTo)
+                {
+                    replacing.Add(each.Grade);
+                }
+            }
             foreach (FateLine each in preset.Fates)
             {
                 FateLine line = each;
                 if (line.Grade >= fateFrom && line.Grade <= fateTo)
                 {
-                    fates.Count(Named(line.Name, line.Id), (out string text) => PutFate(me, line, out text));
+                    fates.Count(Named(line.Name, line.Id), (out string text) => PutFate(me, line, replacing, out text));
                 }
             }
+
             foreach (SkillLine each in preset.Skills)
             {
                 SkillLine line = each;

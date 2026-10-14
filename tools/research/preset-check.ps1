@@ -494,6 +494,38 @@ switch ($Part) {
     Check 'the fate held before is still held' ((Cmd 'phas 700002,700016' 200) -match 'held=2 of=2')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'fate-set' {
+    # 운명 탭과 캐릭터 가져오기가 쓰는 FateService.Set, 운명 추가가 쓰는 LuckService.Add의 계열 보호.
+    $r = Cmd 'pfateset 3 700002' 800
+    Check 'a fate of group 1 is set at major grade 3' ((State).fates -eq '2:700016,3:700002' -and (Cmd 'phas 700002' 200) -match 'held=1 ') $r
+    $r = Cmd 'pfateset 2 700001' 800
+    Check 'a fate of the same group at another grade is refused' ((State).fates -eq '2:700016,3:700002' -and (Cmd 'phas 700002,700016' 200) -match 'held=2 of=2') $r
+    $r = Cmd 'pluckadd 700001' 800
+    Check 'adding a fate luck of the same group is refused' ((Cmd 'phas 700001' 200) -match 'held=0 ' -and (Cmd 'phas 700002' 200) -match 'held=1 ') $r
+    $r = Cmd 'pfateset 3 700001' 800
+    Check 'the same group at the same grade replaces' ((State).fates -eq '2:700016,3:700001' -and (Cmd 'phas 700001' 200) -match 'held=1 ' -and (Cmd 'phas 700002' 200) -match 'held=0 ') $r
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'apply-switch' {
+    # 프리셋에서 프리셋으로: A를 최종 단계까지 적용한 뒤, 역천개명 둘이 서로 맞바뀐 B를 적용한다. 못 넣음 없이 B의 것이 모두 실제로 붙어야 한다.
+    if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
+    $picked = NewTestPreset
+    $file = 'uicheck-preset.json'
+    $r = Cmd "papply $file full" 9000
+    Check 'preset A is applied' ((Fields $r).failed -eq '0') $r
+    $a = [IO.File]::ReadAllText((Join-Path $presetDir $file))
+    $nine = $picked.fates['9']; $ten = $picked.fates['10']
+    $swapped = $a.Replace('"uicheck preset"', '"uicheck swapped"').Replace("{ `"grade`": 9, `"id`": $nine }", "{ `"grade`": 9, `"id`": $ten }").Replace("{ `"grade`": 10, `"id`": $ten }", "{ `"grade`": 10, `"id`": $nine }")
+    WritePreset 'uicheck-swapped.json' $swapped
+    Check 'the swapped preset reads without unusable lines' ((Fields (Cmd 'pcheck uicheck-swapped.json' 600)).problems -eq '0') (Cmd 'pcheck uicheck-swapped.json' 600)
+    $r = Cmd 'papply uicheck-swapped.json all' 6000
+    Check 'preset B is applied without a failed line' ((Fields $r).failed -eq '0') $r
+    $want = ((2..8 | ForEach-Object { "$($_):$($picked.fates["$_"])" }) + "9:$ten", "10:$nine") -join ','
+    Check 'the two fates are swapped in the records' ((State).fates -eq $want) (State).fates
+    $ids = (2..10 | ForEach-Object { $picked.fates["$_"] }) -join ','
+    Check 'every fate luck is actually held' ((Cmd "phas $ids" 300) -match 'held=9 of=9') (Cmd "phas $ids" 300)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

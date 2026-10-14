@@ -138,6 +138,48 @@ namespace MOD_sWP6UL
             return result;
         }
 
+        // 그 운명과 함께 둘 수 없는 역천개명을 실제로 가진 다른 대경지. 없으면 0.
+        // 게임은 같은 계열(fateFeature.group, 0이 아님)의 역천개명을 하나만 둔다. 같은 계열을 또 붙이면 앞의 운명이 사라지고
+        // 경지별 기록만 남아 겉으로는 정상으로 보인다(실측, 프리셋 스펙 3절). 같은 번호를 두 대경지에 둘 수도 없다.
+        public static int HeldElsewhere(WorldUnitBase unit, int exceptGrade, int newId)
+        {
+            ConfFateFeatureItem fate = g.conf.fateFeature.GetItem(newId);
+            foreach (var pair in Records(unit))
+            {
+                if (pair.Key == exceptGrade || pair.Value == 0 || !LuckService.Has(unit, pair.Value))
+                {
+                    continue;
+                }
+                ConfFateFeatureItem other = g.conf.fateFeature.GetItem(pair.Value);
+                if (pair.Value == newId || (fate != null && other != null && fate.group != 0 && other.group == fate.group))
+                {
+                    return pair.Key;
+                }
+            }
+            return 0;
+        }
+
+        // 그 대경지의 역천개명의 효과를 떼고 기록의 번호를 0으로 한다. 곧 다른 것으로 정할 칸을 먼저 비울 때 쓴다.
+        // 번호를 남겨 두면, 그 번호를 다른 대경지에 다시 붙인 뒤 이 칸을 정할 때 Set이 "이전 것"으로 보고 지운다.
+        public static bool Release(WorldUnitBase unit, int grade)
+        {
+            var log = Log(unit);
+            if (log == null || !log.ContainsKey(grade))
+            {
+                return false;
+            }
+            int id = log[grade].luck;
+            if (id != 0 && LuckService.Has(unit, id))
+            {
+                unit.CreateAction(new UnitActionLuckDel(id), false);
+            }
+            if (id != 0 && LuckService.Has(unit, id))
+            {
+                return false;
+            }
+            log[grade].luck = 0;
+            return true;
+        }
         // 그 경지의 역천개명을 newId로 정한다. 이전 것이 있으면 효과를 끄고 바꾼다.
         public static string Set(WorldUnitBase unit, int grade, int newId)
         {
@@ -160,6 +202,13 @@ namespace MOD_sWP6UL
             if (LuckService.Has(unit, newId))
             {
                 return name + ": 이미 가지고 있습니다.";
+            }
+            int clash = HeldElsewhere(unit, grade, newId);
+            if (clash != 0)
+            {
+                ConfRoleCreateFeatureItem held = g.conf.roleCreateFeature.GetItem(Records(unit)[clash]);
+                return name + ": 같은 계열의 역천개명(" + (held == null ? "?" : GameTool.LS(held.name)) + ")을 " + GradeName(clash)
+                    + "에 가지고 있어 함께 둘 수 없습니다. 그 경지의 역천개명을 먼저 바꾸세요.";
             }
             var log = Log(unit);
             if (log == null)
