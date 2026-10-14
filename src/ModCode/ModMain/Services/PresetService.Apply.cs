@@ -438,6 +438,12 @@ namespace MOD_sWP6UL
                     return raised.TrimEnd();
                 }
             }
+            else
+            {
+                // 이미 등선 후기다. 예전 판의 경지 올리기로 올라가 선력·선법이 빠진 인물이면 채운다.
+                string settled = GradeService.Settle(Me);
+                raised = settled == null ? "" : settled + " ";
+            }
             return raised + ApplyAll(preset);
         }
 

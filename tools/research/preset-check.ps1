@@ -403,6 +403,8 @@ switch ($Part) {
     $now = (@($s.abilities -split ',') | Sort-Object) -join ','
     $then = (@($before.abilities -split ',') | Sort-Object) -join ','
     Check 'the abilities and their suit numbers are kept' ($now -eq $then) "have $now want $then"
+    $i = Fields (Cmd 'imm' 200)
+    Check 'the immortal power and the first immortal art are kept after a restart' ($i.immortalPoint -eq '6' -and $i.cards -eq '5') (Cmd 'imm' 200)
   }
   'ui' {
     $traps = Traps
@@ -461,6 +463,9 @@ switch ($Part) {
     Check 'raise asks first' ((State).major -eq '3')
     Press 'StageRaise4' 3000 | Out-Null
     Check 'the second press raises to major grade 4' ((State).major -eq '4')
+    # 경지 올리기는 정식 돌파처럼 돌파 임무를 진행시켜, 게임의 대화 사건(금단경 돌파 축하 등)이 편집기를 가릴 수 있다. 닫고 본다.
+    for ($n = 0; $n -lt 5 -and (Cmd 'uilist' 200) -match 'DramaDialogue'; $n++) { Cmd 'uiclose DramaDialogue' 800 | Out-Null }
+    Check 'no game dialogue is left over the editor' ((Cmd 'uilist' 200) -notmatch 'DramaDialogue') (Cmd 'uilist' 200)
     Check 'stage 4 can now be applied' ((IsAt 'StageApply4') -and -not (IsAt 'StageRaise4'))
 
     # 목록의 적용: 대경지 2의 역천개명(700016)을 바꾸므로 먼저 묻는다. 지금 대경지(4)까지의 역천개명이 모두 정해진다.
@@ -578,6 +583,39 @@ switch ($Part) {
       Check 'both fate lucks are actually held' ((Cmd 'phas 700017,700016' 200) -match 'held=2 of=2') (Cmd 'phas 700017,700016' 200)
       Check 'no callback exception in the log' ((Traps) -eq 0)
     } finally { CleanExports }
+  }
+  'grade-full' {
+    # 경지 올리기가 게임의 정식 돌파와 같은 것을 남기는지(회차 grade-1014a~f에서 정식 돌파와 비교해 찾은 것).
+    # 등선 중기·후기의 선력(3+3), 등선 진입의 선법(금홍파효 카드 5장)과 숨은 운명 10001, 돌파 임무(1111007 금단경 돌파)의 정리,
+    # 경지에 묶인 칭호(2001 영단도인은 구령경에서 잃는다)의 정리, 현재 체력·영력·집중력을 최대로.
+    $r = Cmd 'pgraise 44' 4000
+    $i = Fields (Cmd 'imm' 200)
+    Check 'the immortal power of the last two steps is given' ($i.immortalPoint -eq '6') "imm: $(Cmd 'imm' 200)"
+    Check 'the first immortal art is given' ($i.cards -eq '5') "imm: $(Cmd 'imm' 200)"
+    Check 'the hidden luck of the last realm is held' ((Cmd 'phas 10001' 200) -match 'held=1 ') (Cmd 'phas 10001' 200)
+    $t = Cmd 'utask' 200
+    Check 'the task to break through to golden core is no longer open' ($t -notmatch '\[1111007 ') $t
+    Check 'the title lost at the fifth realm is gone' ($t -notmatch 'titles=.*\b2001,') $t
+    $h = Cmd 'hpstate' 200
+    $ok = $true
+    foreach ($m in [regex]::Matches($h, '(\d+)/(\d+)')) { if ($m.Groups[1].Value -ne $m.Groups[2].Value) { $ok = $false } }
+    Check 'vitality, energy and focus are full' $ok $h
+    Cmd 'uiclose GetImmortalSkill' 500 | Out-Null
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'grade-settle' {
+    # 예전 판으로 올려 둔 인물(경지 번호만 등선 후기이고 선력·선법이 없다)을 경지 올리기와 최종 단계 적용이 채운다.
+    Cmd 'setgrade 44' 500 | Out-Null
+    Check 'the character starts without immortal power' ((Fields (Cmd 'imm' 200)).immortalPoint -eq '0') (Cmd 'imm' 200)
+    $r = Cmd 'pgraise 44' 3000
+    $i = Fields (Cmd 'imm' 200)
+    Check 'raising to the same step fills the immortal power and the first art' ($i.immortalPoint -eq '6' -and $i.cards -eq '5') "$r | imm: $(Cmd 'imm' 200)"
+    Check 'the hidden luck of the last realm is held' ((Cmd 'phas 10001' 200) -match 'held=1 ') (Cmd 'phas 10001' 200)
+    $r = Cmd 'pgraise 44' 3000
+    $i = Fields (Cmd 'imm' 200)
+    Check 'doing it again adds nothing' ($i.immortalPoint -eq '6' -and $i.cards -eq '5') "imm: $(Cmd 'imm' 200)"
+    Cmd 'uiclose GetImmortalSkill' 500 | Out-Null
+    Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   default { throw "알 수 없는 Part: $Part" }
 }
