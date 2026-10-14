@@ -68,6 +68,20 @@ namespace MOD_sWP6UL
             Def(1, "moveSpeed", "이동속도", p => p.moveSpeed, (p, v) => p.moveSpeed = v, d => d.moveSpeed, l => l.moveSpeedMin, l => l.moveSpeedMax),
             Def(1, "critValue", "치명타 배수(%)", p => p.critValue, (p, v) => p.critValue = v, d => d.critValue, l => l.critValueMin, l => l.critValueMax),
             Def(1, "guardValue", "치명타 저항 배수(%)", p => p.guardValue, (p, v) => p.guardValue = v, d => d.guardValue, l => l.guardValueMin, l => l.guardValueMax),
+            // 선법의 본원 선력 총량. 저장값이 PropertyData가 아니라 인물의 선법 자료(immortalCard)에 있고 보정이 없다(docs/05 35절).
+            // 게임 화면은 선법 창의 "본원 선력: 쓴 양/총량"의 뒤 숫자다.
+            new AttributeDef
+            {
+                Category = 1,
+                Key = "immortalPoint",
+                Label = "본원 선력",
+                Get = p => ImmortalPoint(p.unit == null ? null : p.unit.data.unitData),
+                Set = (p, v) => SetImmortalPoint(p.unit == null ? null : p.unit.data.unitData, v),
+                DynBase = d => ImmortalPoint(d.unitData),
+                DynValue = d => ImmortalPoint(d.unitData),
+                Min = l => l.immortalPointMin,
+                Max = l => l.immortalPointMax,
+            },
 
             // 공법 자질
             Def(2, "basisBlade", "도법", p => p.basisBlade, (p, v) => p.basisBlade = v, d => d.basisBlade, l => l.basisBladeMin, l => l.basisBladeMax),
@@ -94,6 +108,19 @@ namespace MOD_sWP6UL
             Def(4, "herbal", "약재", p => p.herbal, (p, v) => p.herbal = v, d => d.herbal, l => l.herbalMin, l => l.herbalMax),
             Def(4, "mine", "광재", p => p.mine, (p, v) => p.mine = v, d => d.mine, l => l.mineMin, l => l.mineMax),
         };
+
+        private static int ImmortalPoint(DataUnit.UnitInfoData data)
+        {
+            return data == null || data.immortalCard == null ? 0 : data.immortalCard.immortalPoint;
+        }
+
+        private static void SetImmortalPoint(DataUnit.UnitInfoData data, int value)
+        {
+            if (data != null && data.immortalCard != null)
+            {
+                data.immortalCard.immortalPoint = value;
+            }
+        }
 
         private static AttributeDef Def(int category, string key, string label, Func<DataUnit.PropertyData, int> get, Action<DataUnit.PropertyData, int> set,
             Func<WorldUnitDynData, DynInt> dyn, Func<ConfRoleAttributeLimit, int> min, Func<ConfRoleAttributeLimit, int> max, bool ownLimit = false)
