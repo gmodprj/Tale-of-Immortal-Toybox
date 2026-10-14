@@ -259,6 +259,37 @@ switch ($Part) {
     Check 'the buttons are side by side again after a battle' ($p -match 'pisces=-240,-93@' -and $p -match 'godEye=-194,-93@' -and $p -match 'devil=-148,-93@') $p
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'hud-battle-slots' {
+    # 전투 화면의 신기 칸. 연요호 칸은 연요호를 가지면, 호천안 칸은 기술을 장착하면, 쌍어패 칸은 반쪽을 준 NPC가 있으면 켜진다.
+    # 게임은 셋을 거의 같은 자리(쌍어패·호천안 493,58, 연요호 490,65)에 둔다. 둘 이상이면 오른쪽으로 60씩 나란히 놓여야 한다.
+    function IntoBattle { Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null }
+    function LeaveBattle {
+      Rc 'click 956 749' 1500 | Out-Null
+      Cmd 'bend' 500 | Out-Null
+      for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      Start-Sleep -Seconds 2
+      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+      Start-Sleep -Seconds 3
+    }
+    Cmd 'awset 1,3' 300 | Out-Null
+    IntoBattle
+    $p = Cmd 'bwpos' 200
+    Check 'with only the gourd slot on it stays where the game put it' ($p -match 'pisces=off' -and $p -match 'godEye=off' -and $p -match 'devil=490,65') $p
+    LeaveBattle
+    Cmd 'awset 1,2,3' 300 | Out-Null
+    Cmd 'geunlock 7010' 400 | Out-Null; Cmd 'geequip 100721' 400 | Out-Null
+    Cmd 'pigive' 400 | Out-Null
+    IntoBattle
+    $p = Cmd 'bwpos' 200
+    Check 'the three battle slots sit side by side' ($p -match 'pisces=493,58' -and $p -match 'godEye=553,58' -and $p -match 'devil=610,65') $p
+    Shot 'artifact-battle-slots'
+    Rc 'click 956 749' 2000 | Out-Null
+    $p = Cmd 'bwpos' 200
+    Check 'they stay side by side after the battle starts' ($p -match 'pisces=493,58' -and $p -match 'godEye=553,58' -and $p -match 'devil=610,65') $p
+    LeaveBattle
+    Check 'back on the map' ((Cmd 'uilist' 200) -match '  MapMain layer') (Cmd 'uilist' 200)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
