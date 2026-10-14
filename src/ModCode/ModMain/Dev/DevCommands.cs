@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string artifact = DevCommandsArtifact.Execute(p);
+            if (artifact != null)
+            {
+                return artifact;
+            }
             string immortal = DevCommandsImmortal.Execute(p);
             if (immortal != null)
             {
