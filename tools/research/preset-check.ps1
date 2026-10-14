@@ -71,6 +71,30 @@ switch ($Part) {
     Check 'attack grew again' ([int]$s2.attack -gt 766) $s2.attack
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'martial' {
+    $n0 = [int](State).martials
+    $pick = Fields (Cmd 'poptpick 13111 4' 200)
+    Check 'four options are picked for 13111' (@($pick.opts -split ',').Count -eq 4 -and $pick.gmin -eq '1' -and $pick.gmax -eq '10') "opts=$($pick.opts)"
+    $m = Fields (Cmd "pmake 13111 3 $($pick.opts)" 500)
+    Check 'the skill is made' ($m.result -eq 'ok' -and [int](State).martials -eq $n0 + 1) "result=$($m.result)"
+    $made = @((Cmd 'pmartial 13111' 200) -split ' \| ' | Where-Object { $_ -match "sole=$($m.sole) " })
+    Check 'it has the options asked for, in order' ($made.Count -eq 1 -and $made[0] -match " nums=$([regex]::Escape($pick.opts)) ") ($made -join '')
+    Check 'every option is at its max quality' ($made[0] -match 'atmax=True')
+    Check 'it is grade 3 and not equipped' ($made[0] -match ' g=3 eq=False ')
+    $m10 = Fields (Cmd "pmake 13111 10 $($pick.opts)" 500)
+    Check 'a grade 10 copy is made' ($m10.result -eq 'ok' -and (Cmd 'pmartial 13111' 200) -match "sole=$($m10.sole) g=10 ")
+    $m0 = Fields (Cmd 'pmake 13111 3 -' 500)
+    Check 'a skill without options is made' ($m0.result -eq 'ok' -and (Cmd 'pmartial 13111' 200) -match "sole=$($m0.sole) g=3 eq=False suit=0 lv=\d+ cost=0 nums= ")
+    $n1 = [int](State).martials
+    Check 'an option the skill does not have is refused' ((Fields (Cmd 'pmake 13111 3 99' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'twelve options are refused' ((Fields (Cmd 'pmake 13111 3 1,2,3,4,5,6,7,8,9,10,11,12' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'an unknown skill is refused' ((Fields (Cmd 'pmake 999999 3 -' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'a grade outside the range of the skill is refused' ((Fields (Cmd 'pmake 23116 1 -' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'the suit number is written and read back' ((Cmd 'psuit 81001 10006' 200) -match 'ok=True suit=10006')
+    Check 'the state shows the suit' ((State).abilities -match '81001:10006')
+    Check 'the suit number is not written on a skill that is not an ability' ((Cmd 'psuit 14111 10006' 200) -match 'ok=False')
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

@@ -368,13 +368,21 @@ namespace MOD_sWP6UL
         // 실패하면 이유를, 넣었으면 null을 돌려준다. 게임이 알아보지 못해 깨진 것은 바로 지운다(읽는 것만으로 예외가 난다).
         public static string AddFromValues(WorldUnitBase unit, int[] tail, int exp, int expectBaseId)
         {
+            string soleId;
+            return AddFromValues(unit, tail, exp, expectBaseId, out soleId);
+        }
+
+        // 위와 같고, 넣은 공법의 고유 번호를 돌려준다. 넣지 못했으면 soleId는 null이다.
+        public static string AddFromValues(WorldUnitBase unit, int[] tail, int exp, int expectBaseId, out string soleId)
+        {
+            soleId = null;
             if (tail == null || tail.Length < 3)
             {
                 return "값이 모자랍니다";
             }
             var data = unit.data.unitData;
             int before = data.allActionMartial.Count;
-            string soleId = null;
+            string made = null;
             string error;
             try
             {
@@ -383,22 +391,23 @@ namespace MOD_sWP6UL
                 {
                     values[i] = tail[i];
                 }
-                DataProps.PropsData made = DataProps.PropsData.New(0, 1, DataProps.PropsDataType.Martial, values);
-                soleId = made.soleID;
-                data.StudyActionMartialProp(made);
+                DataProps.PropsData props = DataProps.PropsData.New(0, 1, DataProps.PropsDataType.Martial, values);
+                made = props.soleID;
+                data.StudyActionMartialProp(props);
                 if (data.allActionMartial.Count != before + 1)
                 {
                     error = "게임이 배우게 하지 않았습니다";
                 }
                 else
                 {
-                    DataProps.MartialData martial = data.GetActionMartial(soleId).data.To<DataProps.MartialData>();
+                    DataProps.MartialData martial = data.GetActionMartial(made).data.To<DataProps.MartialData>();
                     if (martial.baseID == expectBaseId && !string.IsNullOrEmpty(martial.martialInfo.name))
                     {
                         if (exp > 0)
                         {
-                            data.GetActionMartial(soleId).exp = exp;
+                            data.GetActionMartial(made).exp = exp;
                         }
+                        soleId = made;
                         return null;
                     }
                     error = "게임이 알아보지 못하는 공법이라 넣지 않았습니다";
@@ -411,9 +420,9 @@ namespace MOD_sWP6UL
             // 실패한 경로는 어느 것이든, 만들던 공법이 목록에 들어가 있으면 지운다(게임이 넣은 뒤에 예외를 던졌을 수도 있다).
             try
             {
-                if (soleId != null && data.allActionMartial.Count != before)
+                if (made != null && data.allActionMartial.Count != before)
                 {
-                    data.DelActionMartial(soleId);
+                    data.DelActionMartial(made);
                 }
             }
             catch (Exception)
@@ -421,6 +430,205 @@ namespace MOD_sWP6UL
             }
             return data.allActionMartial.Count == before ? error : error + ". 깨진 공법이 남았을 수 있습니다. 저장하지 말고 공법 탭을 확인하세요";
         }
+
+        // 익힌 공법의 옵션 번호를 자리 순서대로.
+        public static int[] OptionNumbers(DataProps.MartialData martial)
+        {
+            List<PrefixView> views = Prefixes(martial);
+            views.Sort((a, b) => a.Index.CompareTo(b.Index));
+            var numbers = new int[views.Count];
+            for (int i = 0; i < views.Count; i++)
+            {
+                numbers[i] = views[i].Number;
+            }
+            return numbers;
+        }
+
+        // 옵션 번호 목록(자리 순서)을 그 기술에 쓸 수 없는 이유. 쓸 수 있으면 null.
+        // 규칙은 옵션 교체(ReplaceBlockReason)와 같다: 그 기술의 번호, 자리의 가중치, 중복 한도, 선행(양수)·배타(음수) 조건.
+        // 실측: 규칙 없이도 게임은 12개까지 만들어 준다. 설정 표에 자리의 가중치가 11번째까지만 있어 11개로 막는다.
+        public static string OptionProblem(MartialType type, int baseId, int[] options)
+        {
+            if (options.Length > 11)
+            {
+                return "옵션은 11개까지입니다";
+            }
+            var valid = new List<ConfBattleSkillPrefixValueItem>();
+            var items = g.conf.battleSkillPrefixValue.GetItems((int)type, baseId);
+            for (int i = 0; items != null && i < items.Count; i++)
+            {
+                valid.Add(items[i]);
+            }
+            var numbers = new List<int>(options);
+            for (int i = 0; i < options.Length; i++)
+            {
+                int number = options[i];
+                ConfBattleSkillPrefixValueItem item = valid.Find(v => v.number == number);
+                if (item == null)
+                {
+                    return "이 기술에 없는 옵션입니다(" + number + ")";
+                }
+                if (Weight(item, i) <= 0)
+                {
+                    return "옵션 " + (i + 1) + ": 이 자리에는 나올 수 없는 옵션";
+                }
+                if (numbers.FindAll(n => n == number).Count > item.multi)
+                {
+                    return "옵션 " + (i + 1) + ": 중복 한도 " + item.multi + "개 초과";
+                }
+                foreach (int require in Requires(item))
+                {
+                    if (require > 0 && !numbers.Contains(require))
+                    {
+                        return "옵션 " + number + "번에 필요한 " + require + "번 옵션이 없음";
+                    }
+                    if (require < 0 && numbers.Contains(-require))
+                    {
+                        return "옵션 " + number + "번과 " + (-require) + "번은 함께 둘 수 없음";
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 옵션을 지정해 공법을 만들어 배운 상태로 넣고, 옵션마다 게임이 허용하는 최고 품질로 맞춘다.
+        // 넣었으면 null과 고유 번호를, 아니면 이유를 돌려준다. 규칙을 어긴 옵션으로는 만들지 않는다.
+        public static string Make(WorldUnitBase unit, MartialType type, int baseId, int grade, int[] options, out string soleId)
+        {
+            soleId = null;
+            string problem = OptionProblem(type, baseId, options);
+            if (problem != null)
+            {
+                return problem;
+            }
+            var tail = new List<int> { (int)type, baseId, grade };
+            if (options.Length > 0)
+            {
+                tail.AddRange(options);
+                tail.Add(-1);
+                for (int i = 0; i < options.Length; i++)
+                {
+                    tail.Add(1);
+                }
+            }
+            string made;
+            string error = AddFromValues(unit, tail.ToArray(), 0, baseId, out made);
+            if (error != null)
+            {
+                return error;
+            }
+            try
+            {
+                DataProps.MartialData martial = Martial(unit, made);
+                int[] read = OptionNumbers(martial);
+                bool same = martial.grade == grade && read.Length == options.Length;
+                for (int i = 0; same && i < read.Length; i++)
+                {
+                    same = read[i] == options[i];
+                }
+                if (same)
+                {
+                    foreach (PrefixView view in Prefixes(martial))
+                    {
+                        int raw = TopRawOfLevel(martial, view.Index, view.MaxLevel);
+                        if (raw >= 0)
+                        {
+                            martial.SetPrefixLevel(view.Index, raw);
+                        }
+                    }
+                    soleId = made;
+                    return null;
+                }
+            }
+            catch (Exception)
+            {
+            }
+            // 게임이 다르게 읽었거나 읽다가 예외가 났다. 남기지 않는다.
+            try
+            {
+                unit.data.unitData.DelActionMartial(made);
+            }
+            catch (Exception)
+            {
+            }
+            return "게임이 옵션이나 경지를 다르게 읽어 넣지 않았습니다";
+        }
+
+        // 심법 비급의 세트 번호. 세트가 없거나 심법이 아니면 0.
+        public static int SuitOf(DataProps.PropsData props)
+        {
+            try
+            {
+                DataProps.PropsAbilityData ability = props.To<DataProps.PropsAbilityData>();
+                return ability == null ? 0 : ability.suitID;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        // 심법 비급에 세트 번호를 쓴다. 실측: 세트 번호는 값 배열이 아니라 valuesStr의 JSON {"suitID":번호}에 있고,
+        // 장착한 심법의 종류가 아니라 이 번호로 세트가 켜진다(프리셋 스펙 3절). 다른 글이 적혀 있으면 건드리지 않는다.
+        public static bool SetSuit(DataProps.PropsData props, int suitId)
+        {
+            try
+            {
+                if (props.To<DataProps.MartialData>().martialType != MartialType.Ability)
+                {
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            string now = props.valuesStr ?? "";
+            if (now.Length > 0 && !Regex.IsMatch(now, "^\\{\"suitID\":\\d+\\}$"))
+            {
+                return false;
+            }
+            props.valuesStr = "{\"suitID\":" + suitId + "}";
+            return SuitOf(props) == suitId;
+        }
+
+        // 그 종류의 장착 칸(무예·절기·신법·신통)에 든 공법의 고유 번호. 비어 있으면 null.
+        public static string EquippedIn(WorldUnitBase unit, MartialType type)
+        {
+            var data = unit.data.unitData;
+            string sole = type == MartialType.SkillLeft ? data.skillLeft
+                : type == MartialType.SkillRight ? data.skillRight
+                : type == MartialType.Step ? data.step
+                : type == MartialType.Ultimate ? data.ultimate : null;
+            return string.IsNullOrEmpty(sole) ? null : sole;
+        }
+
+        // 심법의 유형(battleAbilityBase.type, 1~8). 심법이 아니면 0. 유형마다 하나만 장착할 수 있다.
+        public static int AbilityType(int baseId)
+        {
+            ConfBattleAbilityBaseItem conf = g.conf.battleAbilityBase.GetItem(baseId);
+            return conf == null ? 0 : conf.type;
+        }
+
+        // 장착한 심법 가운데 그 유형의 것. 없으면 null.
+        public static string EquippedAbility(WorldUnitBase unit, int abilityType)
+        {
+            var data = unit.data.unitData;
+            for (int i = 0; data.abilitys != null && i < data.abilitys.Length; i++)
+            {
+                if (string.IsNullOrEmpty(data.abilitys[i]))
+                {
+                    continue;
+                }
+                DataProps.MartialData martial = Martial(unit, data.abilitys[i]);
+                if (martial != null && AbilityType(martial.baseID) == abilityType)
+                {
+                    return data.abilitys[i];
+                }
+            }
+            return null;
+        }
+
         // 익힌 공법을 지운다(게임의 기술 망각 행동).
         public static string Forget(WorldUnitBase unit, string soleId)
         {

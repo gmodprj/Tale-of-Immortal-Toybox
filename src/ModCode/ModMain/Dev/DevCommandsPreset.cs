@@ -23,6 +23,9 @@ namespace MOD_sWP6UL
                 case "pgpath": return GradePath(me, int.Parse(p[1]));
                 case "pgsum": return GradeSum(me, int.Parse(p[1]));
                 case "pgraise": return GradeService.RaiseTo(me, int.Parse(p[1]));
+                case "poptpick": return OptionPick(int.Parse(p[1]), int.Parse(p[2]));
+                case "pmake": return MakeSkill(me, int.Parse(p[1]), int.Parse(p[2]), p[3]);
+                case "psuit": return WriteSuit(me, int.Parse(p[1]), int.Parse(p[2]));
                 default: return null;
             }
         }
@@ -288,6 +291,107 @@ namespace MOD_sWP6UL
                 points += row.abilityPoint;
             }
             return "attack=" + attack + " defense=" + defense + " hpMax=" + hpMax + " life=" + life + " ap=" + points;
+        }
+
+        // 쉼표로 이은 번호들. "-"나 빈 글은 빈 배열.
+        private static int[] Ints(string csv)
+        {
+            var list = new List<int>();
+            foreach (string part in (csv ?? "").Split(','))
+            {
+                int value;
+                if (int.TryParse(part, out value))
+                {
+                    list.Add(value);
+                }
+            }
+            return list.ToArray();
+        }
+
+        // 그 기술 번호의 분류와 목록의 항목. 없으면 null.
+        private static SkillCatalog.Entry EntryOf(int baseId, out MartialType type)
+        {
+            type = MartialType.SkillLeft;
+            for (int kind = 0; kind < SkillCatalog.Kinds.Length; kind++)
+            {
+                foreach (SkillCatalog.Entry entry in SkillCatalog.Find(kind, baseId.ToString()))
+                {
+                    if (entry.BaseId == baseId)
+                    {
+                        type = SkillCatalog.Kinds[kind].Type;
+                        return entry;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 그 기술에 쓸 수 있는 옵션을 자리마다 하나씩 골라 count개. 검사가 프리셋 파일을 만들 때 쓴다.
+        private static string OptionPick(int baseId, int count)
+        {
+            MartialType type;
+            SkillCatalog.Entry entry = EntryOf(baseId, out type);
+            if (entry == null)
+            {
+                return "no skill " + baseId;
+            }
+            var picked = new List<int>();
+            var items = g.conf.battleSkillPrefixValue.GetItems((int)type, baseId);
+            for (int slot = 0; slot < count; slot++)
+            {
+                for (int i = 0; items != null && i < items.Count; i++)
+                {
+                    var candidate = new List<int>(picked);
+                    candidate.Add(items[i].number);
+                    if (MartialService.OptionProblem(type, baseId, candidate.ToArray()) == null)
+                    {
+                        picked = candidate;
+                        break;
+                    }
+                }
+            }
+            var sb = new StringBuilder();
+            for (int i = 0; i < picked.Count; i++)
+            {
+                sb.Append(i == 0 ? "" : ",").Append(picked[i]);
+            }
+            return "type=" + (int)type + " gmin=" + entry.GradeMin + " gmax=" + entry.GradeMax + " opts=" + sb;
+        }
+
+        private static string MakeSkill(WorldUnitBase me, int baseId, int grade, string options)
+        {
+            MartialType type;
+            SkillCatalog.Entry entry = EntryOf(baseId, out type);
+            if (entry == null)
+            {
+                return "result=fail | no skill " + baseId;
+            }
+            if (grade < entry.GradeMin || grade > entry.GradeMax)
+            {
+                return "result=fail | grade out of range " + entry.GradeMin + "-" + entry.GradeMax;
+            }
+            string sole;
+            string error = MartialService.Make(me, type, baseId, grade, Ints(options), out sole);
+            return error == null ? "result=ok sole=" + sole : "result=fail | " + error;
+        }
+
+        private static string WriteSuit(WorldUnitBase me, int baseId, int suitId)
+        {
+            foreach (var pair in me.data.unitData.allActionMartial)
+            {
+                try
+                {
+                    if (pair.Value.data.To<DataProps.MartialData>().baseID == baseId)
+                    {
+                        bool ok = MartialService.SetSuit(pair.Value.data, suitId);
+                        return "ok=" + ok + " suit=" + MartialService.SuitOf(pair.Value.data);
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            return "not learned " + baseId;
         }
     }
 }
