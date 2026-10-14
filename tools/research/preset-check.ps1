@@ -413,9 +413,9 @@ switch ($Part) {
     $picked = NewTestPreset
     $n = [int](Fields (Cmd 'pdefaults' 200)).embedded
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab14' | Out-Null
+    Check 'the safety tab is the fifteenth' (IsAt 'BackupNow')
     Press 'Tab13' | Out-Null
-    Check 'the safety tab is the fourteenth' (IsAt 'BackupNow')
-    Press 'Tab12' | Out-Null
     Check 'the preset tab is drawn' (IsAt 'PresetRestore')
     $shown = $true
     foreach ($i in 0..$n) { $shown = $shown -and (IsAt "PresetDetail$i") -and (IsAt "PresetApply$i") -and (IsAt "PresetFull$i") }
@@ -424,7 +424,7 @@ switch ($Part) {
 
     # 읽을 수 없는 파일은 줄만 있고 버튼이 없다. 탭에 다시 들어오면 폴더를 다시 읽는다.
     WritePreset 'uicheck-zz-broken.json' '{ "format": 1, '
-    Press 'Tab13' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'Tab14' | Out-Null; Press 'Tab13' | Out-Null
     $bad = PresetIndex 'uicheck-zz-broken.json'
     Check 'an unreadable file has no buttons' ($bad -ge 0 -and -not (IsAt "PresetApply$bad") -and -not (IsAt "PresetDetail$bad") -and (IsAt "PresetApply$(PresetIndex 'uicheck-preset.json')"))
     [IO.File]::Delete((Join-Path $presetDir 'uicheck-zz-broken.json'))
@@ -432,7 +432,7 @@ switch ($Part) {
     # 기본 파일을 고치면 알림이 뜨고, 되돌리기는 두 번 눌러야 한다.
     $first = Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike 'uicheck-*' } | Sort-Object Name | Select-Object -First 1
     WritePreset $first.Name '{ "format": 1, "kind": "preset", "name": "uicheck changed" }'
-    Press 'Tab13' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'Tab14' | Out-Null; Press 'Tab13' | Out-Null
     Check 'the note reports one changed default' ((Cmd 'uitext PresetNote' 150) -match "text='[^']*1[^']*'") (Cmd 'uitext PresetNote' 150)
     Press 'PresetRestore' | Out-Null
     Check 'restore asks first' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')

@@ -94,7 +94,7 @@ switch ($Part) {
     Check 'the owned list shows the cards' (IsAt 'ImmortalOwnedList')
     Shot 'immortal-tab'
     # NPC: 선법 자료가 없거나 비어 있어도 예외 없이 그려진다.
-    Press 'Tab9' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null
+    Press 'Tab10' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null
     Press 'Tab6' | Out-Null
     Check 'an NPC target draws without an exception' ((IsAt 'ImmortalAddOpen') -or (IsAt 'ImmortalNoData'))
     Press 'ToPlayer' | Out-Null
