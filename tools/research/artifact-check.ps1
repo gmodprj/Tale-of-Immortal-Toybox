@@ -363,6 +363,13 @@ switch ($Part) {
     }
     $s = Cmd 'bfired' 200
     Check 'the god eye is not fired by those clicks' ($s -match 'godEye=False') $s
+    # 호천안 칸: 실제 클릭은 게임의 기술 그림 단추(GodEyeSkillItem/btnIcon)에 도착하지만 그 단추는 기술을 쓰지 않는다(click-1014a).
+    $p = Cmd 'bslot godEye' 200
+    if ($p -match '@(\d+),(\d+)') {
+      $o = Cmd "brclick $($Matches[1]) $($Matches[2])" 2500
+      $s = Cmd 'bfired' 200
+      Check 'a real click on the god eye slot fires it' ($s -match 'godEye=True') "$o | $s"
+    } else { Check 'the god eye slot is on' $false $p }
     Cmd 'bend' 500 | Out-Null
     for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
     Start-Sleep -Seconds 2

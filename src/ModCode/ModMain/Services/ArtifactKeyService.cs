@@ -280,13 +280,26 @@ namespace MOD_sWP6UL
         private static void AttachClicks()
         {
             UIBattleInfo ui = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
-            if (ui == null || ui.info == null || ui.Pointer == clickScreen)
+            if (ui == null || ui.info == null || (ui.Pointer == clickScreen && Time.frameCount % 30 != 0))
             {
                 return;
             }
-            clickScreen = ui.Pointer;
-            Attach(ui.info.goPiscesPendant, 1);
-            Attach(ui.info.imgPotmonHead == null ? null : ui.info.imgPotmonHead.gameObject, 3);
+            if (ui.Pointer != clickScreen)
+            {
+                clickScreen = ui.Pointer;
+                Attach(ui.info.goPiscesPendant, 1);
+                Attach(ui.info.imgPotmonHead == null ? null : ui.info.imgPotmonHead.gameObject, 3);
+            }
+            // 호천안 칸: 실제 클릭은 게임의 기술 그림 단추(goGodEyeSkillPosi 아래 GodEyeSkillItem의 btnIcon)에 도착하지만
+            // 그 단추는 기술을 쓰지 않는다(click-1014a). 그림은 기술을 바꾸면 새로 만들어질 수 있어 매번 확인한다(이미 달았으면 Attach가 건너뛴다).
+            GameObject eyeRoot = ui.info.goGodEyeSkillPosi;
+            if (eyeRoot != null && eyeRoot.activeInHierarchy)
+            {
+                foreach (Button b in eyeRoot.GetComponentsInChildren<Button>(false))
+                {
+                    Attach(b.gameObject, 2);
+                }
+            }
         }
 
         private static void Attach(GameObject go, int id)
