@@ -26,6 +26,14 @@ namespace MOD_sWP6UL
                 case "poptpick": return OptionPick(int.Parse(p[1]), int.Parse(p[2]));
                 case "pmake": return MakeSkill(me, int.Parse(p[1]), int.Parse(p[2]), p[3]);
                 case "psuit": return WriteSuit(me, int.Parse(p[1]), int.Parse(p[2]));
+                case "psprite":
+                    {
+                        bool changed;
+                        string result = SpriteService.Apply(me, int.Parse(p[1]), int.Parse(p[2]), out changed);
+                        return "changed=" + changed + " | " + result;
+                    }
+                case "pelder": return ElderService.Set(me, int.Parse(p[1]));
+                case "pwing": return WingmanService.Set(me, int.Parse(p[1]), Ints(p[2]), Ints(p[3]));
                 default: return null;
             }
         }

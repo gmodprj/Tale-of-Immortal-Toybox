@@ -95,6 +95,73 @@ switch ($Part) {
     Check 'the suit number is not written on a skill that is not an ability' ((Cmd 'psuit 14111 10006' 200) -match 'ok=False')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'extras' {
+    # 결정 경지(대경지 3): 신혼과 명우는 쓰지 않는다. 결정에서 신혼을 쓰면 게임이 예외를 낸다(스펙 3절).
+    $r = Cmd 'pelder 1' 300
+    Check 'the elder is not written below major grade 7' ((State).elder -eq '0') $r
+    $r = Cmd 'pwing 1004 100101,100102 100401,100402' 300
+    Check 'the wingman is not written below major grade 9' ((State).wing -eq '0') $r
+
+    $r = Cmd 'psprite 1002 3031101' 800
+    $s = State
+    Check 'artifact 3031101 is equipped and holds sprite 1002' ($s.artifact -eq '3031101' -and $s.sprite -eq '1002' -and $s.sprites -eq '1') $r
+    Check 'only the shown talents are on' ($s.talents -eq '49/49' -and $s.talentsall -eq '49/53') "talents=$($s.talents) all=$($s.talentsall)"
+    Check 'one artifact was given' ((Cmd 'count 3031101' 150) -match 'count=1\b')
+    $r = Cmd 'psprite 1002 3031101' 800
+    $s = State
+    Check 'applying it again changes nothing' ($r -match 'changed=False' -and $s.sprites -eq '1' -and $s.talents -eq '49/49' -and (Cmd 'count 3031101' 150) -match 'count=1\b') $r
+    # 같은 번호의 기령을 다른 법보에: 게임은 같은 번호의 기령을 하나 더 만들지 않고, 든 기령을 옮기면 두 법보가 같은 기령을 가리킨다(실측).
+    # 그래서 거부하고 아무것도 주거나 바꾸지 않는다.
+    $r = Cmd 'psprite 1002 3031102' 800
+    $s = State
+    Check 'a sprite held by another artifact is not moved or doubled' ($r -match 'changed=False' -and $s.artifact -eq '3031101' -and $s.sprite -eq '1002' -and $s.sprites -eq '1' -and $s.dupes -eq '0' -and (Cmd 'count 3031102' 150) -match 'count=0\b') $r
+    Cmd 'psprite 9999 3031102' 300 | Out-Null
+    Cmd 'psprite 1002 10001' 300 | Out-Null
+    Check 'an unknown sprite and a non-artifact item are refused' ((State).sprites -eq '1' -and (State).artifact -eq '3031101')
+
+    Cmd 'pgraise 27' 500 | Out-Null
+    $a0 = [int](State).attackv
+    $r = Cmd 'pelder 1' 500
+    $s = State
+    Check 'elder 1 is at level 3, the top for major grade 7' ($s.elder -eq '1' -and $s.elderlv -eq '3') $r
+    Check 'attack rose with the elder' ([int]$s.attackv -gt $a0) "$a0 -> $($s.attackv)"
+    $r = Cmd 'pelder 2' 500
+    Check 'the elder is switched and keeps its level' ((State).elder -eq '2' -and (State).elderlv -eq '3') $r
+    $r = Cmd 'pelder 99' 300
+    Check 'an unknown elder is refused' ((State).elder -eq '2') $r
+    $r = Cmd 'pwing 1004 100101 100401' 300
+    Check 'the wingman is still not written at major grade 7' ((State).wing -eq '0') $r
+
+    Cmd 'pgraise 36' 500 | Out-Null
+    $r = Cmd 'pelder 2' 500
+    Check 'the elder grows to level 7 at major grade 9' ((State).elderlv -eq '7') $r
+    $r = Cmd 'pwing 1004 100101,100102 100401,100402' 500
+    $s = State
+    Check 'the wingman and its lists are written' ($s.wing -eq '1004' -and $s.effects -eq '100101,100102' -and $s.prefixes -eq '100401,100402') $r
+    $r = Cmd 'pwing 1004 100101 100101' 300      # 100101은 명우 1001의 옵션이다
+    Check 'an option of another wingman is refused' ((State).prefixes -eq '100401,100402') $r
+    $r = Cmd 'pwing 9999 - -' 300
+    Check 'an unknown wingman is refused' ((State).wing -eq '1004') $r
+
+    # 가방이 가득 차면 법보를 줄 수 없다. 기령을 만들지 않고 끝나야 한다. 가방을 채우므로 이 부분의 마지막에 둔다.
+    Cmd 'gridfill 600 5' 4000 | Out-Null
+    $r = Cmd 'psprite 1003 3031103' 800
+    $s = State
+    Check 'a full bag fails cleanly' ($s.sprites -eq '1' -and $s.artifact -eq '3031101' -and (Cmd 'count 3031103' 150) -match 'count=0\b') $r
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'extras-battle' {
+    # extras 바로 뒤에 돌린다. 명우가 전투에 나오는지 본다. 법보는 도구 칸의 아이콘이라 캡처로 본다.
+    Into 20
+    Start-Sleep -Seconds 2
+    $o = Cmd 'pbattle' 200
+    $b = Fields $o
+    Check 'the battle is entered' ($b.ContainsKey('wing')) $o
+    Check 'the wingman is in the battle' ($b.wing -eq '1004' -and [int]$b.wingobjs -ge 1) $o
+    Shot 'preset-extras-battle'
+    Leave
+    Check 'back on the map' ((Cmd 'uilist' 200) -match 'MapMain')
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
