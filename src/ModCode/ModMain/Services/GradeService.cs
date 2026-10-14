@@ -5,11 +5,14 @@ using System.Text;
 namespace MOD_sWP6UL
 {
     // 경지를 게임의 돌파 절차 없이 올린다. 한 줄씩 올라가며 게임이 돌파 때 더하는 능력치(UnitActionRoleUpGrade.GetAddAttr)를 저장값에 더한다.
+    // 정식 돌파와 비교해 찾은 나머지도 한다(docs/05 35절): 줄의 선력(immortalPoint)을 선법의 총량에 더하고, 줄마다 게임의 돌파 마무리
+    // (ActionUpGradeComplete: 돌파 임무, 등선 진입의 선법과 숨은 운명, 역천개명 기록 칸)를 부르고, 끝나면 경지에 묶인 칭호를 다시 판정하고
+    // 현재 체력·영력·집중력을 최대로 채운다.
     // "경지 번호를 직접 쓰지 않는다"(docs/05 3절)의 두 번째 예외다. 첫 번째는 캐릭터 가져오기이고, 그쪽은 능력치를 더하지 않는다.
     // 근거: docs/superpowers/specs/2026-10-14-preset-tab-design.md 3절(경지)과 5.3절.
     internal static class GradeService
     {
-        // GetAddAttr의 키 → AttributeDef.Key. immortalPoint는 저장되는 곳을 확인하지 못해 더하지 않는다.
+        // GetAddAttr의 키 → AttributeDef.Key. immortalPoint는 능력치가 아니라 선법의 선력 총량(unitData.immortalCard.immortalPoint)에 더한다.
         private static readonly Dictionary<string, string> GrowKeys = new Dictionary<string, string>
         {
             { "atk", "attack" }, { "def", "defense" }, { "hpMax", "hpMax" }, { "mpMax", "mpMax" }, { "spMax", "spMax" },
@@ -120,6 +123,137 @@ namespace MOD_sWP6UL
             return sb.Append(", 수명 ").Append(saved.life / MonthsPerYear).Append("년").ToString();
         }
 
+        private static void AddImmortalPoint(WorldUnitBase unit, int amount)
+        {
+            var card = unit.data.unitData.immortalCard;
+            if (card != null && amount > 0)
+            {
+                card.immortalPoint += amount;
+            }
+        }
+
+        // 게임의 돌파 마무리. 기록은 남기지 않는다(addLog를 참으로 주면 대화 사건이 뜬다. 회차 grade-1014e).
+        // 등선 진입에서는 게임의 "선법 획득" 창이 뜬다. 정식 돌파에서도 뜨는 창이다.
+        private static void Complete(WorldUnitBase unit, ConfRoleGradeItem row)
+        {
+            try
+            {
+                UnitActionRoleUpGrade.ActionUpGradeComplete(unit, row, false);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        // 경지에 묶인 칭호를 게임의 규칙으로 다시 판정한다(정식 돌파가 하는 일. 예: 영단도인은 구령경에서 잃는다).
+        private static void DropTitles(WorldUnitBase unit)
+        {
+            var titles = unit.appellation == null ? null : unit.appellation.allAppellations;
+            if (titles == null)
+            {
+                return;
+            }
+            // 판정이 칭호를 지우면 목록이 바뀌므로 먼저 떠 둔다.
+            var drops = new List<WorldUnitAppellationDrop1>();
+            for (int i = 0; i < titles.Count; i++)
+            {
+                WorldUnitAppellationDrop1 drop = titles[i] == null || titles[i].dropBase == null ? null : titles[i].dropBase.TryCast<WorldUnitAppellationDrop1>();
+                if (drop != null)
+                {
+                    drops.Add(drop);
+                }
+            }
+            foreach (WorldUnitAppellationDrop1 drop in drops)
+            {
+                try
+                {
+                    drop.UpdateGrade();
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        // 정식 돌파는 현재 체력·영력·집중력을 최대로 채운다.
+        private static void Refill(WorldUnitBase unit)
+        {
+            try
+            {
+                unit.UpdateConf();
+            }
+            catch (Exception)
+            {
+            }
+            var saved = unit.data.unitData.propertyData;
+            var dyn = unit.data.dynUnitData;
+            saved.hp = dyn.hpMax.value;
+            saved.mp = dyn.mpMax.value;
+            saved.sp = dyn.spMax.value;
+        }
+
+        // 지금 경지까지 지나온 단계의 선력 합. 단계마다 품질이 가장 높은 줄의 값이다(선력이 있는 줄은 등선 중기·후기뿐이고 품질이 하나다).
+        private static int ImmortalPointUpTo(ConfRoleGradeItem current)
+        {
+            int sum = 0;
+            for (int grade = 1; grade <= current.grade; grade++)
+            {
+                for (int phase = 1; phase <= 3; phase++)
+                {
+                    if (grade == current.grade && phase > current.phase)
+                    {
+                        break;
+                    }
+                    ConfRoleGradeItem row = RowOf(grade, phase);
+                    sum += row == null ? 0 : row.immortalPoint;
+                }
+            }
+            return sum;
+        }
+
+        // 예전 판의 경지 올리기나 캐릭터 가져오기로 경지만 올라간 인물에게 빠진 것을 채운다: 선력 총량이 지나온 단계의 합보다 적으면 그 합으로,
+        // 등선인데 선법이 하나도 없으면 등선 진입의 마무리를 부른다. 경지에 묶인 칭호도 다시 판정한다. 채운 것이 없으면 null.
+        public static string Settle(WorldUnitBase unit)
+        {
+            var saved = unit.data.unitData.propertyData;
+            ConfRoleGradeItem current = g.conf.roleGrade.GetItem(saved.gradeID);
+            var card = unit.data.unitData.immortalCard;
+            if (current == null || card == null)
+            {
+                return null;
+            }
+            var done = new List<string>();
+            int want = ImmortalPointUpTo(current);
+            ConfRoleGradeItem first = FirstRowOf(LastRow().grade);
+            bool noArts = current.grade >= first.grade && (card.cardDatas == null || card.cardDatas.Count == 0);
+            if (card.immortalPoint < want || noArts)
+            {
+                string backupError = SaveBackup.EnsureOnce();
+                if (backupError != null)
+                {
+                    return backupError + " 채우지 않았습니다.";
+                }
+            }
+            if (card.immortalPoint < want)
+            {
+                done.Add("선력 " + card.immortalPoint + " -> " + want);
+                card.immortalPoint = want;
+            }
+            if (noArts)
+            {
+                Complete(unit, first);
+                done.Add("등선 진입의 선법 " + (card.cardDatas == null ? 0 : card.cardDatas.Count) + "장");
+            }
+            DropTitles(unit);
+            if (done.Count == 0)
+            {
+                return null;
+            }
+            string text = "경지에 따라 빠져 있던 것을 채웠습니다: " + string.Join(", ", done.ToArray()) + ".";
+            ChangeLog.Add(EditService.NameOf(unit), "경지에 따른 보충", "-", string.Join(", ", done.ToArray()), true);
+            return text;
+        }
+
         // 목표 줄까지 올린다. 능력치는 지나는 줄마다 게임의 돌파 증가분만큼 오른다.
         public static string RaiseTo(WorldUnitBase unit, int targetId)
         {
@@ -131,7 +265,8 @@ namespace MOD_sWP6UL
             List<ConfRoleGradeItem> path = Path(saved.gradeID, targetId);
             if (path.Count == 0)
             {
-                return "경지 올리기: 이미 " + EditService.GradeName(targetId) + " 이상입니다.";
+                string settled = Settle(unit);
+                return "경지 올리기: 이미 " + EditService.GradeName(targetId) + " 이상입니다." + (settled == null ? "" : " " + settled);
             }
             string backupError = SaveBackup.EnsureOnce();
             if (backupError != null)
@@ -169,7 +304,11 @@ namespace MOD_sWP6UL
                 saved.life = Math.Min(LifeMaxMonths, saved.life + row.growAddLife);
                 Add(saved, limit, "abilityPoint", row.abilityPoint, capped);
                 saved.SetGradeID(row.id);
+                AddImmortalPoint(unit, row.immortalPoint);
+                Complete(unit, row);
             }
+            DropTitles(unit);
+            Refill(unit);
             bool ok = saved.gradeID == targetId;
             string name = EditService.NameOf(unit);
             ChangeLog.Add(name, "경지 올리기", EditService.GradeName(fromId) + "(" + fromId + ")", EditService.GradeName(saved.gradeID) + "(" + saved.gradeID + ")", ok);

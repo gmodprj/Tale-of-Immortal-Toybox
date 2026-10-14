@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string snap = g.world == null || g.world.playerUnit == null ? null : DevCommandsSnap.Handle(g.world.playerUnit, p);
+            if (snap != null)
+            {
+                return snap;
+            }
             string preset = DevCommandsPreset.Execute(p);
             if (preset != null)
             {
