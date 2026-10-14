@@ -500,7 +500,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
     Press 'Tab9' | Out-Null; Press 'NpcRefresh' | Out-Null; Press (Pos 'Pick*').name | Out-Null; Press 'EditNpc' | Out-Null
     Press 'Tab6' | Out-Null
     Check 'an NPC target draws without an exception' ((IsAt 'ImmortalAddOpen') -or (IsAt 'ImmortalNoData'))
-    Press 'EditPlayer' | Out-Null
+    Press 'ToPlayer' | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   'game' {
@@ -516,7 +516,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   }
 ```
 
-`EditPlayer`, `EditNpc`, `NpcRefresh`, `Pick*`는 기존 NPC 탭의 요소 이름이다(`ui-check.ps1`이 쓴다). NPC 탭은 탭이 하나 밀려 `Tab9`가 된다.
+`ToPlayer`(제목 줄의 플레이어로), `EditNpc`, `NpcRefresh`, `Pick*`는 기존 NPC 탭의 요소 이름이다(`ui-check.ps1`이 쓴다). NPC 탭은 탭이 하나 밀려 `Tab9`가 된다.
 
 - [ ] **Step 2: 검사가 실패하는 것을 본다**
 
@@ -696,7 +696,7 @@ foreach ($f in 'ui-check.ps1', 'datebag-check.ps1', 'preset-check.ps1') {
 }
 ```
 
-`immortal-check.ps1`의 `Tab6`(선법)과 `Tab9`(NPC)는 이미 새 번호다. 이 단계의 바꾸기는 그 파일에 하지 않는다.
+`immortal-check.ps1`의 `Tab6`(선법)과 `Tab9`(NPC)는 이미 새 번호다. 이 단계의 바꾸기는 그 파일에 하지 않는다. `ui-check.ps1`의 `$tabProbe`(탭마다 보이는 요소)에 `'SkillAddOpen'` 다음으로 `'ImmortalAddOpen'`을 넣고, `preset-check.ps1`의 "the safety tab is the thirteenth"는 "fourteenth"로 고친다.
 
 - [ ] **Step 5: 빌드하고 검사가 통과하는 것을 본다**
 
