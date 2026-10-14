@@ -378,7 +378,37 @@ switch ($Part) {
     Cmd 'bgod off' 300 | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
-  'costs' {
+  'typing' {
+    # 편집기의 입력 칸에 글자를 치는 동안 게임의 단축키(B: 가방)가 같이 반응하지 않아야 한다. 칸을 벗어나면 다시 듣는다.
+    # 화면 밖 게임에 보낸 키가 회차 내내 빠질 때가 있다(인계 문서 6절). B가 칸에 쳐지지 않으면 판정하지 않고 INFO를 남긴다.
+    function Screens { ((Cmd 'uilist' 200) -replace "`n", ' ') }
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab1' | Out-Null
+    $typed = $false
+    for ($try = 1; $try -le 2 -and -not $typed; $try++) {
+      Cmd 'uifocus ItemQuery' 300 | Out-Null
+      Key 0x42 1200
+      $typed = (Cmd 'uitext ItemQuery' 150) -match "text='[^']*[bB]"
+      if (-not $typed) { "INFO the B key did not reach the game window (try $try)" }
+    }
+    if ($typed) {
+      Check 'the game keys are blocked while typing' ((Cmd 'iguard' 200) -match 'blocking=True') (Cmd 'iguard' 200)
+      Check 'typing B in the search box does not open the game bag' ((Screens) -notmatch 'PlayerInfo|PlayerBag') (Screens)
+      foreach ($u in 'PlayerInfo', 'PlayerBag') { Cmd "uiclose $u" 300 | Out-Null }
+      # 편집기를 닫으면(개발 명령, 키가 빠지는 것을 피한다) 키 설정이 돌아오고 B가 다시 듣는다.
+      Cmd 'uitoggle' 500 | Out-Null
+      Start-Sleep -Milliseconds 500
+      Check 'the editor is closed' ((Cmd 'uistate' 200) -match 'open=False') (Cmd 'uistate' 200)
+      Check 'the game keys are restored after leaving the box' ((Cmd 'iguard' 200) -match 'blocking=False') (Cmd 'iguard' 200)
+      if ((Screens) -match 'GameMemu') { Rc 'click 959 391' 800 | Out-Null }
+      Key 0x42 1500
+      $after = Screens
+      if ($after -match 'PlayerInfo|PlayerBag') { Check 'B opens the game bag again after leaving the box' $true $after }
+      else { "INFO B did not open the bag after leaving the box ($after); key delivery or game state" }
+      foreach ($u in 'PlayerInfo', 'PlayerBag') { Cmd "uiclose $u" 300 | Out-Null }
+    }
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }  'costs' {
     # 배율 탭의 신기 쿨타임·영력 소모·집중력 소모. 기술마다의 값(회차 rate-1014b의 실측)에 곱하고, 1배로 돌리면 되돌린다.
     function IntoBattle { Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 2500 | Out-Null; Cmd 'bgod on' 300 | Out-Null }
     function LeaveBattle {
