@@ -128,7 +128,8 @@ namespace MOD_sWP6UL
             var card = unit.data.unitData.immortalCard;
             if (card != null && amount > 0)
             {
-                card.immortalPoint += amount;
+                // 게임의 상한(roleAttributeLimit.immortalPointMax, 40)을 넘기지 않는다.
+                card.immortalPoint = Math.Min(g.conf.roleAttributeLimit.immortalPointMax, card.immortalPoint + amount);
             }
         }
 

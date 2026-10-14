@@ -134,6 +134,19 @@ namespace MOD_sWP6UL
             return height;
         }
 
+        // 그 글을 한 줄로 쓸 때의 너비. 글에 맞춘 버튼의 너비를 정하는 데 쓴다.
+        public static float TextWidth(string value, int size)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 0f;
+            }
+            TextHeight("가", 100f, size);   // 자를 만든다
+            ruler.fontSize = size;
+            TextGenerationSettings settings = ruler.GetGenerationSettings(new Vector2(10000f, 0f));
+            return ruler.cachedTextGeneratorForLayout.GetPreferredWidth(value, settings) / ruler.pixelsPerUnit;
+        }
+
         public static Button Button(string name, Transform parent, string label, float x, float y, float w, float h,
             Action onClick, bool enabled = true, bool active = false)
         {
