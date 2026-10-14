@@ -34,6 +34,13 @@ namespace MOD_sWP6UL
                     }
                 case "pelder": return ElderService.Set(me, int.Parse(p[1]));
                 case "pwing": return WingmanService.Set(me, int.Parse(p[1]), Ints(p[2]), Ints(p[3]));
+                case "pdefaults":
+                    return "embedded=" + PresetService.DefaultCount + " changed=" + PresetService.DefaultsChanged()
+                        + " dir=" + System.IO.Directory.Exists(PresetService.Dir);
+                case "plist": return ListPresets();
+                case "pcheck": return CheckPresets(p.Length > 1 ? p[1] : null);
+                case "prestore": return PresetService.RestoreDefaults();
+                case "pstage": return StageInfo(p[1], int.Parse(p[2]));
                 default: return null;
             }
         }
@@ -400,6 +407,64 @@ namespace MOD_sWP6UL
                 }
             }
             return "not learned " + baseId;
+        }
+
+        private static PresetService.Preset PresetNamed(string fileName)
+        {
+            return PresetService.List().Find(x => System.IO.Path.GetFileName(x.File) == fileName);
+        }
+
+        private static string ListPresets()
+        {
+            List<PresetService.Preset> presets = PresetService.List();
+            var names = new StringBuilder();
+            int unreadable = 0;
+            for (int i = 0; i < presets.Count; i++)
+            {
+                unreadable += presets[i].Error == null ? 0 : 1;
+                names.Append(i == 0 ? "" : ";").Append(i).Append(':').Append(System.IO.Path.GetFileName(presets[i].File));
+            }
+            return "count=" + presets.Count + " unreadable=" + unreadable + " | " + names;
+        }
+
+        // 폴더의 프리셋(파일 이름을 주면 그것만)의 쓸 수 없는 줄을 센다. 기본 프리셋은 0이어야 한다.
+        private static string CheckPresets(string fileName)
+        {
+            int count = 0, unreadable = 0, usable = 0;
+            var problems = new List<string>();
+            foreach (PresetService.Preset preset in PresetService.List())
+            {
+                if (fileName != null && System.IO.Path.GetFileName(preset.File) != fileName)
+                {
+                    continue;
+                }
+                count++;
+                if (preset.Error != null)
+                {
+                    unreadable++;
+                    continue;
+                }
+                usable += PresetService.Usable(preset);
+                foreach (string problem in PresetService.Problems(preset))
+                {
+                    problems.Add(System.IO.Path.GetFileName(preset.File) + " " + problem);
+                }
+            }
+            return "presets=" + count + " unreadable=" + unreadable + " problems=" + problems.Count + " usable=" + usable
+                + " | " + string.Join(" / ", problems.ToArray());
+        }
+
+        private static string StageInfo(string fileName, int grade)
+        {
+            PresetService.Preset preset = PresetNamed(fileName);
+            if (preset == null || preset.Error != null)
+            {
+                return "no readable preset " + fileName;
+            }
+            PresetService.Stage stage = PresetService.StageOf(preset, grade);
+            int have, total;
+            PresetService.StageState state = PresetService.StateOf(stage, PresetService.Snapshot(), out have, out total);
+            return "state=" + state + " have=" + have + " total=" + total + " | " + PresetService.StageText(stage).Replace("\n", " / ");
         }
     }
 }

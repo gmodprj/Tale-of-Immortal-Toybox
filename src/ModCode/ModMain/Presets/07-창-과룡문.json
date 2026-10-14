@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "kind": "preset",
+  "name": "창 — 과룡문",
+  "summary": "천심모·질룡파·패왕순과 과룡문 세트 (초안)",
+  "source": "무협게임 마이너 갤러리 23356",
+  "skills": [
+    { "slot": "left", "baseId": 13111, "name": "천심모", "options": [] },
+    { "slot": "right", "baseId": 23116, "name": "질룡파", "options": [] },
+    { "slot": "ultimate", "baseId": 35111, "name": "패왕순", "options": [] }
+  ],
+  "abilities": [
+    { "baseId": 81001, "options": [], "suit": 10016 },
+    { "baseId": 83001, "options": [], "suit": 10016 },
+    { "baseId": 84001, "options": [], "suit": 10016 },
+    { "baseId": 86002, "options": [], "suit": 10016 },
+    { "baseId": 87002, "options": [], "suit": 10016 },
+    { "baseId": 88002, "options": [], "suit": 10016 }
+  ]
+}

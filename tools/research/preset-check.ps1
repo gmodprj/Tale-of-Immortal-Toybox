@@ -31,6 +31,17 @@ function Leave {
   Start-Sleep -Seconds 3
 }
 
+function WritePreset([string]$fileName, [string]$json) {
+  [void][IO.Directory]::CreateDirectory($presetDir)
+  [IO.File]::WriteAllText((Join-Path $presetDir $fileName), $json, (New-Object Text.UTF8Encoding $false))
+}
+# plist의 " | " 뒤는 "순번:파일 이름;…"이다. 그 파일의 순번(목록의 버튼 이름에 붙는 번호)을 돌려준다. 없으면 -1.
+function PresetIndex([string]$fileName) {
+  $o = Cmd 'plist' 300
+  $names = (($o -split ' \| ', 2)[1]) -split ';'
+  foreach ($entry in $names) { if ($entry -match "^(\d+):$([regex]::Escape($fileName))\s*$") { return [int]$Matches[1] } }
+  -1
+}
 switch ($Part) {
   'state' {
     $s = State
@@ -161,6 +172,83 @@ switch ($Part) {
     Shot 'preset-extras-battle'
     Leave
     Check 'back on the map' ((Cmd 'uilist' 200) -match 'MapMain')
+  }
+  'files' {
+    if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
+    $n = [int](Fields (Cmd 'pdefaults' 200)).embedded
+    Check 'the mod carries default presets' ($n -ge 1) "embedded=$n"
+    $l = Fields (Cmd 'plist' 400)
+    $onDisk = @(Get-ChildItem -LiteralPath $presetDir -Filter *.json -ErrorAction SilentlyContinue)
+    Check 'the folder is made with the defaults in it' ($onDisk.Count -eq $n) "files=$($onDisk.Count)"
+    Check 'the list has one readable line per default' ([int]$l.count -eq $n -and $l.unreadable -eq '0') "count=$($l.count) unreadable=$($l.unreadable)"
+    Check 'the defaults have no unusable line' ((Fields (Cmd 'pcheck' 600)).problems -eq '0') (Cmd 'pcheck' 600)
+    Check 'nothing is reported as changed' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0')
+
+    # 기본 파일을 고치면 알리고, 되돌리기가 돌려놓는다. 사용자가 넣은 파일은 그대로다.
+    $first = $onDisk | Sort-Object Name | Select-Object -First 1
+    $original = [IO.File]::ReadAllText($first.FullName)
+    WritePreset $first.Name '{ "format": 1, "kind": "preset", "name": "uicheck changed" }'
+    WritePreset 'uicheck-user.json' '{ "format": 1, "kind": "preset", "name": "uicheck user", "skills": [ { "slot": "left", "baseId": 13111, "options": [] } ] }'
+    Check 'a changed default is counted' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
+    Check 'the user file is listed' ([int](Fields (Cmd 'plist' 400)).count -eq $n + 1 -and (PresetIndex 'uicheck-user.json') -ge 0)
+    Cmd 'prestore' 400 | Out-Null
+    Check 'restore writes the default back' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0' -and [IO.File]::ReadAllText($first.FullName).Replace("`r", '').Trim() -eq $original.Replace("`r", '').Trim())
+    Check 'restore leaves the user file alone' (Test-Path -LiteralPath (Join-Path $presetDir 'uicheck-user.json'))
+    # 폴더가 이미 있으면 지워진 기본 파일을 다시 풀지 않는다(사용자가 지운 것일 수 있다). 대신 알린다.
+    [IO.File]::Delete($first.FullName)
+    Check 'a deleted default is not written again by listing' ([int](Fields (Cmd 'plist' 400)).count -eq $n -and -not (Test-Path -LiteralPath $first.FullName))
+    Check 'a deleted default is counted' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
+    Cmd 'prestore' 400 | Out-Null
+
+    # 읽을 수 없는 파일
+    WritePreset 'uicheck-broken.json' '{ "format": 1, "kind": "preset", '
+    WritePreset 'uicheck-bag.json' '{ "format": 1, "kind": "bag", "name": "x", "items": [] }'
+    WritePreset 'uicheck-format.json' '{ "format": 2, "kind": "preset", "name": "x" }'
+    $l = Fields (Cmd 'plist' 400)
+    Check 'three unreadable files are listed as unreadable' ([int]$l.count -eq $n + 4 -and $l.unreadable -eq '3') "count=$($l.count) unreadable=$($l.unreadable)"
+
+    # 틀린 줄: 그 줄만 쓸 수 없고 나머지는 쓸 수 있다. 줄마다의 뜻은 아래 JSON의 순서대로:
+    # 없는 기술 / 칸이 다른 기술 / 없는 옵션 / (쓸 수 있음) / 같은 칸 둘째 / 글자가 든 번호,
+    # (쓸 수 있음) / 같은 유형 둘째 / 구성원이 아닌 세트 / 없는 세트, 역천개명이 아닌 번호 / 없는 대경지, 없는 기령, 없는 신혼, 남의 명우 옵션
+    WritePreset 'uicheck-lines.json' @'
+{
+  "format": 1, "kind": "preset", "name": "uicheck lines",
+  "skills": [
+    { "slot": "left", "baseId": 999999, "options": [] },
+    { "slot": "left", "baseId": 22111, "options": [] },
+    { "slot": "right", "baseId": 22111, "options": [99] },
+    { "slot": "step", "baseId": 510021, "options": [] },
+    { "slot": "step", "baseId": 510021, "options": [] },
+    { "slot": "ultimate", "baseId": "x" }
+  ],
+  "abilities": [
+    { "baseId": 81001, "options": [] },
+    { "baseId": 81001, "options": [] },
+    { "baseId": 82001, "options": [], "suit": 10016 },
+    { "baseId": 83001, "options": [], "suit": 99999 }
+  ],
+  "fates": [ { "grade": 2, "id": 1 }, { "grade": 11, "id": 700016 } ],
+  "sprite": { "id": 9999, "artifact": 3031101 },
+  "elder": { "id": 99 },
+  "wingman": { "id": 1004, "effects": [100101], "prefixes": [100101] }
+}
+'@
+    $c = Fields (Cmd 'pcheck uicheck-lines.json' 600)
+    Check 'thirteen bad lines are found and two lines stay usable' ($c.problems -eq '13' -and $c.usable -eq '2') (Cmd 'pcheck uicheck-lines.json' 600)
+
+    # 단계: 결정 초기(대경지 3)에서 1~3은 열려 있고 4부터는 경지 미달이다. 23116은 경지 3부터의 기술이라 단계 1·2에는 없다.
+    WritePreset 'uicheck-stages.json' '{ "format": 1, "kind": "preset", "name": "uicheck stages", "skills": [ { "slot": "left", "baseId": 14111, "options": [] }, { "slot": "right", "baseId": 23116, "options": [] } ], "elder": { "id": 1 }, "wingman": { "id": 1004, "effects": [], "prefixes": [] } }'
+    $st1 = Fields (Cmd 'pstage uicheck-stages.json 1' 400)
+    $st3 = Fields (Cmd 'pstage uicheck-stages.json 3' 400)
+    $st4 = Fields (Cmd 'pstage uicheck-stages.json 4' 400)
+    $st9 = Fields (Cmd 'pstage uicheck-stages.json 9' 400)
+    Check 'stage 1 has one line, the skill that exists at grade 1' ($st1.total -eq '1' -and $st1.state -eq 'None') "state=$($st1.state) total=$($st1.total)"
+    Check 'stage 3 has both skills' ($st3.total -eq '2' -and $st3.state -eq 'None') "state=$($st3.state) total=$($st3.total)"
+    Check 'stage 4 is locked' ($st4.state -eq 'Locked')
+    Check 'stage 9 adds the elder and the wingman' ($st9.total -eq '4' -and $st9.state -eq 'Locked') "total=$($st9.total)"
+
+    foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter 'uicheck-*.json') { [IO.File]::Delete($file.FullName) }
+    Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   default { throw "알 수 없는 Part: $Part" }
 }
