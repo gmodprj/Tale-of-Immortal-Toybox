@@ -212,6 +212,53 @@ switch ($Part) {
     # 호천안을 가진 세이브는 불러올 때 호천안 화면이 저절로 열린다(원인 미확인, 07 문서 7.2절). 다음 검사를 위해 닫는다.
     if ((Cmd 'uilist' 200) -match 'GodEye') { Cmd 'uiclose GodEye' 800 | Out-Null }
   }
+  'hud-one' {
+    # 고정본(쌍어패만): 쌍어패는 원래 자리(-240,-93) 그대로.
+    $p = Cmd 'awpos' 200
+    Check 'with one artifact the pendant stays where the game put it' ($p -match 'pisces=-240,-93@' -and $p -match 'godEye=off' -and $p -match 'devil=off') $p
+    # 이 뒤에 셋을 켜고 저장한다. session.ps1 -Restart 뒤에 hud를 돌린다.
+    Cmd 'awset 1' 300 | Out-Null
+    Cmd 'aon 2' 400 | Out-Null; Cmd 'aon 3' 400 | Out-Null
+    Cmd 'save' 2500 | Out-Null
+    Start-Sleep -Seconds 6
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'hud' {
+    # 호천안을 가진 세이브는 불러올 때 호천안 화면이 열린다(07 문서 7.2절). 먼저 닫는다.
+    # 그 화면은 세계에 들어온 뒤 조금 늦게 열린다. 열렸다가 닫힐 때까지(최대 10초) 기다리며 닫는다.
+    for ($i = 0; $i -lt 20; $i++) {
+      if ((Cmd 'uilist' 200) -match '  GodEye layer') { Cmd 'uiclose GodEye' 800 | Out-Null; if ((Cmd 'uilist' 200) -notmatch '  GodEye layer') { break } }
+      Start-Sleep -Milliseconds 300
+    }
+    Check 'only the map is open before clicking' ((Cmd 'uilist' 200) -notmatch '  (GodEye|DevilDemon|PiscesPendant) layer') (Cmd 'uilist' 200)
+    $p = Cmd 'awpos' 200
+    Check 'the three buttons sit side by side' ($p -match 'pisces=-240,-93@' -and $p -match 'godEye=-194,-93@' -and $p -match 'devil=-148,-93@') $p
+    Shot 'artifact-hud'
+    foreach ($pair in @(@('pisces', 'PiscesPendant'), @('godEye', 'GodEye'), @('devil', 'DevilDemon'))) {
+      if ($p -match "$($pair[0])=[-\d]+,[-\d]+@(\d+),(\d+)") {
+        $o = Rc "click $($Matches[1]) $($Matches[2])" 1500
+        $ui = Cmd 'uilist' 200
+        Check "the $($pair[0]) button opens its own screen" ($o -match "Button\.onClick: G:btn" -and $ui -match "  $($pair[1]) layer") "$o | $ui"
+        Cmd "uiclose $($pair[1])" 800 | Out-Null
+      } else { Check "the $($pair[0]) button has a position" $false $p }
+    }
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'hud-battle' {
+    # 전투를 다녀오면 지도 화면이 새로 만들어진다. 다시 나란히 놓여야 한다.
+    # 들어가기와 나오기는 ui-check.ps1 combat의 Into·Leave와 같다(결과 창과 지도가 돌아올 때까지 기다린다).
+    Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 4000 | Out-Null
+    Check 'in battle' ((Cmd 'uilist' 200) -match 'BattleInfo') (Cmd 'uilist' 200)
+    Cmd 'bend' 500 | Out-Null
+    for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+    Start-Sleep -Seconds 2
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+    Start-Sleep -Seconds 3
+    Check 'back on the map' ((Cmd 'uilist' 200) -match '  MapMain layer') (Cmd 'uilist' 200)
+    $p = Cmd 'awpos' 200
+    Check 'the buttons are side by side again after a battle' ($p -match 'pisces=-240,-93@' -and $p -match 'godEye=-194,-93@' -and $p -match 'devil=-148,-93@') $p
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
