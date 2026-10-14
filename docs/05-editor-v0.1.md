@@ -1630,3 +1630,54 @@
 ### 프리셋 상세보기의 머리글 (같은 날, 사용자 보고)
 
 하위 화면의 제목 줄은 한 줄이라, 상세보기 제목에 넣은 설명과 출처가 길면 `돌아가기` 밑으로 넘어갔다. 제목에는 프리셋 이름만 두고, 설명과 출처는 단계 표 위에 줄바꿈해 보인다(요소 이름 `PresetSummary`, 하위 화면 제목은 `SubTitle`). 검사 `ui`에 세 줄을 더했다(고치기 전 FAIL 2, 회차 `hdr-1014a`, 고친 뒤 FAIL 0, `hdr-1014b`).
+
+## 36. 선법 탭 (2026-10-14 추가)
+
+사용자 요청: 선법 탭을 두고 공법의 기술 추가처럼 전체 선법을 익히는 화면. 스펙 `docs/superpowers/specs/2026-10-14-immortal-tab-design.md`, 계획 `docs/superpowers/plans/2026-10-14-immortal-tab.md`.
+
+### 쓰는 법
+
+탭 "선법"(공법 다음, `Tab6`). 편집 대상은 플레이어 또는 고른 NPC다.
+
+- 첫 화면: "본원 선력: 쓴 양 / 총량"과 `-1`, `+1`, `최대(40)`. 능력치 탭의 "본원 선력"과 같은 값이다. 상한을 넘은 값은 `-1`이나 `최대`로 범위 안에 돌아온다. 가진 선법 목록(선인, 이름, 주동/피동, 필요 선력, 장착 중).
+- `선법 추가`(하위 화면): 선인 버튼 줄(전체와 선인들), 종류(전체·주동·피동), 이름 검색(이름이나 선인 이름의 일부). 줄마다 이름, 번호, 선인, 종류, 필요 선력, 설명과 획득 경로, 보유/미보유, `익히기`. `보이는 선법 모두 익히기`는 두 번 눌러 확인하고 이미 가진 것은 건너뛴다.
+- 장착과 지우기는 없다. 장착은 게임의 선법 창(등선경)에서 한다.
+
+### 규칙과 실측
+
+| 항목 | 내용 |
+|---|---|
+| 목록 | 선인 표(`immortalHuman`)에서 만든다. 선인마다 주동 카드(`activeSkills`, 표 `immortalMethod`)와 피동 카드들(`passiveSkills`, 표 `passiveMethod`의 `passiveId`). 표에 없는 번호는 빼고, 같은 카드가 두 선인에 있으면 첫 선인의 것만(지금 표에는 그런 카드가 없다). 지금 목록은 62장이다 |
+| 익히기 | `ImmortalCard.AddImmortalCard(카드, 선인)`. 선법 창에 바로 나오고 선인 옆 수집 수가 오른다(동방명설 6/6). 같은 카드는 더해지지 않는다. 저장 후 재시작해도 남는다. 등선 전에도 데이터는 들어간다 |
+| 장착을 하지 않는 이유 | 데이터로 장착(`ImmortalCard.EquipCard`)하면 선법 창을 열 때 예외가 났다(회차 `grade-1014f`) |
+| 장착 칸 | 표 `immortalSlot`: 등선 초기 2, 중기 4, 후기 6 |
+| 선력 | 총량 `immortalCard.immortalPoint`, 상한 `roleAttributeLimit.immortalPointMax` 40. 쓴 양은 장착한 카드들의 필요 선력의 합 |
+
+### 구조
+
+- `Services/ImmortalService.cs`(목록 캐시, 거르기, 보유, 장착 여부, 쓴 선력, 익히기, 모두 익히기), `UI/Tabs/ImmortalTab.cs`, `Ui.TextWidth`(선인 버튼의 너비).
+- 탭이 14개가 됐다. 검증 스크립트의 탭 이름이 `Tab6`부터 하나씩 밀렸다(선법 `Tab6`, 운명 `Tab7`, 기예 `Tab8`, NPC `Tab9`, 세계 `Tab10`, 배율 `Tab11`, 프리셋 `Tab12`, 안전 `Tab13`). `ui-check.ps1`의 탭 반복은 `$tabProbe.Count`를 쓴다.
+- 요소 이름: `ImmortalPointText`·`Minus`·`Plus`·`Max`, `ImmortalAddOpen`, `ImmortalNoData`, `ImmortalOwnedList`, `ImmortalHuman<번호>`(0 전체), `ImmortalKind<0|1|2>`, `ImmortalSearch`, `ImmortalLearnAll`, `ImmortalLearn<카드>`, `ImmortalState<카드>`, `ImmortalDesc<카드>`.
+- 개발 명령(`Dev/DevCommandsImmortal.cs`): `ilist`, `icount <선인> <종류> [검색어]`, `ilearn <카드>`, `ilearnall <선인> <종류>`, `ihas <카드>`, `inoname`(번역되지 않은 이름의 수), `ifit <요소 이름 앞머리>`(칸보다 높아 잘리는 글의 수).
+- 함께 고친 것: 경지 올리기가 선력을 상한(40)을 넘겨 더하던 것(35절의 경지 올리기. 39에서 등선 후기로 올리면 45가 됐다).
+
+### 검증 (고정본, `tools/research/immortal-check.ps1`)
+
+| 부분 | 보는 것 | 결과 |
+|---|---|---|
+| `catalog` | 목록 수가 게임 설정 표(JSON)에서 센 수와 같음, 선인 1004의 6장, 주동만, 이름 검색, 번역되지 않은 이름 0 | 고치기 전 FAIL 5(`immtab1`), 고친 뒤 FAIL 0 |
+| `learn` → 재시작 → `restart` | 하나 익히기, 다시 익히면 그대로, 피동 카드, 변경 이력, 저장 후 유지 | FAIL 0(`immtab2d`) |
+| `learn-all` | 거른 목록만 익힘(익힘+건너뜀 = 6), 다시 누르면 모두 건너뜀 | FAIL 0 |
+| `ui` | 탭 위치, 선력 표시와 ±1·최대, 상한을 넘은 값을 최대로 40에, 설명 글이 잘리지 않음, 거르기 버튼, 익히기와 상태, 모두 익히기의 두 번 확인, NPC 대상, 콜백 예외 | FAIL 0(`immfix2`) |
+| `game` | 등선 후기에서 익힌 카드가 게임의 선법 창에 나옴(캡처: 동방명설 6/6), 경지 올리기 뒤 선력이 상한 안 | 상한 줄은 고치기 전 FAIL(`immtab4b`, 45), 고친 뒤 FAIL 0 |
+| 기존 `base`·`tabs`·`confirm`·`wrap`·`fateguard`, `rates`·`vault`·`charvault`, 프리셋 `files`·`ui` | 탭 이름이 밀린 뒤에도 그대로 | FAIL 0(`immtab5`~`7`) |
+| 배포 구성 | 두 구성 경고·오류 0, DLL 하나, 배포 구성으로 띄워 선법 탭(`Tab6`)이 그려짐, "trampoline" 없음 | 통과(`immtab8`) |
+
+검토(브랜치 전체, 한 명)에서 나온 것: 설명 줄의 높이를 그리는 너비보다 넓게 재서 끝줄이 잘릴 수 있었다(같은 너비로 재게 고침), 이름 검사가 아무것도 보지 않았다(번역 여부를 보게 고침), 상한을 넘은 선력을 이 탭에서 내릴 수 없었다(`최대`와 `-1`로 돌아오게 고침).
+
+### 확인하지 못한 것, 한계
+
+- `passiveMethod.exclusiveImmortal`의 뜻.
+- NPC가 선법을 쓰는지(NPC에게 익히는 것은 데이터로 된다).
+- 수집 목록(`collectID`)에 없는 선인(부서진 제단, 식혼탑, 장삼)의 카드가 선법 창의 어디에 나오는지.
+- 고치지 않은 사소한 것: 경지 올리기가 선력을 상한으로 자를 때 결과 문장에 알리지 않는다 / 검색 문자열이 이름과 선인 이름을 구분자 없이 잇는다 / 주동·피동 번호가 겹치면 보유 판정이 섞인다(지금 표에는 겹침이 없다) / 목록은 처음 만들 때의 번역을 기억한다 / `datebag-check.ps1`의 BOM이 빠졌다(동작에는 영향 없음).
