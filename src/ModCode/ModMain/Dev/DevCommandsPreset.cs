@@ -51,6 +51,7 @@ namespace MOD_sWP6UL
                 case "psuits": return p.Length > 1 ? Each(p, FindSuit) : FindSuit("");
                 case "pconf": return Conf(p[1]);
                 case "popts": return OptionList(int.Parse(p[1]));
+                case "pdump": return Dump(p[1]);
                 case "pfateset": return FateService.Set(me, int.Parse(p[1]), int.Parse(p[2]));
                 case "pluckadd": return LuckService.Add(me, int.Parse(p[1]));
                 case "phas":
@@ -705,6 +706,84 @@ namespace MOD_sWP6UL
                     .Append(" slots=").Append(slots).Append(' ').Append(MartialService.CleanDesc(GameTool.LS(item.desc)).Replace('\n', ' '));
             }
             return sb.ToString();
+        }
+
+        // 프리셋을 쓸 때 대조할 표를 파일로 내보낸다(.devremote\dump-<이름>.txt). 이름은 fates, skills, opts이거나 g.conf의 표 이름이다.
+        private static string Dump(string what)
+        {
+            var sb = new StringBuilder();
+            if (what == "fates")
+            {
+                var all = g.conf.fateFeature._allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(all[i].id);
+                    if (conf != null)
+                    {
+                        sb.Append(conf.id).Append('\t').Append(Name(conf.name)).Append("\tg").Append(all[i].gradeMin).Append('-').Append(all[i].gradeMax)
+                            .Append("\tgroup").Append(all[i].group).Append("\tlv").Append(conf.level).Append('\t')
+                            .Append(MartialService.CleanDesc(GameTool.LS(conf.tips)).Replace('\n', ' ')).Append('\n');
+                    }
+                }
+            }
+            else if (what == "skills" || what == "opts")
+            {
+                for (int kind = 0; kind < SkillCatalog.Kinds.Length; kind++)
+                {
+                    foreach (SkillCatalog.Entry entry in SkillCatalog.Find(kind, ""))
+                    {
+                        if (what == "skills")
+                        {
+                            sb.Append(kind).Append('\t').Append(entry.BaseId).Append('\t').Append(entry.Name).Append("\tg").Append(entry.GradeMin).Append('-')
+                                .Append(entry.GradeMax).Append('\t').Append((entry.Desc ?? "").Replace('\n', ' ')).Append('\n');
+                        }
+                        else
+                        {
+                            sb.Append("== ").Append(entry.BaseId).Append(' ').Append(OptionList(entry.BaseId)).Append('\n');
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // 표의 줄마다 정수·실수·글자 속성을 모두 적는다. 글자는 게임의 번역을 거친다.
+                System.Reflection.PropertyInfo table = typeof(ConfMgr).GetProperty(what);
+                object conf = table == null ? null : table.GetValue(g.conf, null);
+                System.Reflection.PropertyInfo listProperty = conf == null ? null : conf.GetType().GetProperty("_allConfList");
+                object list = listProperty == null ? null : listProperty.GetValue(conf, null);
+                if (list == null)
+                {
+                    return "unknown table " + what;
+                }
+                int count = (int)list.GetType().GetProperty("Count").GetValue(list, null);
+                System.Reflection.PropertyInfo item = list.GetType().GetProperty("Item");
+                for (int i = 0; i < count; i++)
+                {
+                    object row = item.GetValue(list, new object[] { i });
+                    foreach (System.Reflection.PropertyInfo property in row.GetType().GetProperties(System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.Instance))
+                    {
+                        Type type = property.PropertyType;
+                        if (type != typeof(int) && type != typeof(float) && type != typeof(string))
+                        {
+                            continue;
+                        }
+                        object value = property.GetValue(row, null);
+                        string text = value == null ? "" : value.ToString();
+                        if (type == typeof(string) && text.Length > 0)
+                        {
+                            // 번역이 없는 글자(번호를 이은 값 등)는 원문 그대로 적는다.
+                            string shown = MartialService.CleanDesc(GameTool.LS(text)).Replace('\n', ' ');
+                            text = shown.Length == 0 ? text : shown;
+                        }
+                        sb.Append(property.Name).Append('=').Append(text).Append('\t');
+                    }
+                    sb.Append('\n');
+                }
+            }
+            string path = System.IO.Path.Combine(@"E:\TlToybox\.devremote", "dump-" + what + ".txt");
+            System.IO.File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+            return "dumped=" + what + " chars=" + sb.Length;
         }
     }
 }
