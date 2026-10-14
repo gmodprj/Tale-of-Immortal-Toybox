@@ -433,7 +433,7 @@ namespace MOD_sWP6UL
             Button collapse = Ui.Button("Collapse", window, "접기", Width - 196, 8, 90, 36, new Action(() => SetCollapsed(!collapsed)));
             collapseLabel = collapse.GetComponentInChildren<Text>();
             Ui.Button("Close", window, "닫기", Width - 100, 8, 84, 36, new Action(Close));
-            tabBar = Ui.Rect("Tabs", window, 16, ContentY, 150, 12 * 52);
+            tabBar = Ui.Rect("Tabs", window, 16, ContentY, 150, 13 * 52);
             content = Ui.Rect("Content", window, ContentX, ContentY, ContentW, ContentH);
             RectTransform box = Ui.Panel("MessageBox", window, 16, Height - MessageH - 8, Width - 32, MessageH, Ui.Section);
             messageBox = box.GetComponent<Image>();
@@ -445,7 +445,7 @@ namespace MOD_sWP6UL
             tabs = new EditorTab[]
             {
                 new AttributesTab(), new ResourcesTab(), new CurrencyTab(), new VaultTab(), new GradeTab(), new MartialTab(), new LuckTab(),
-                new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new SafetyTab(),
+                new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new PresetTab(), new SafetyTab(),
             };
         }
 

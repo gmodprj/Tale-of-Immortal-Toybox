@@ -397,6 +397,83 @@ switch ($Part) {
     $then = (@($before.abilities -split ',') | Sort-Object) -join ','
     Check 'the abilities and their suit numbers are kept' ($now -eq $then) "have $now want $then"
   }
+  'ui' {
+    $traps = Traps
+    if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
+    Cmd 'plist' 400 | Out-Null          # 폴더를 만들고 기본 프리셋을 풀게 한다(검사 파일을 먼저 쓰면 풀지 않는다)
+    $picked = NewTestPreset
+    $n = [int](Fields (Cmd 'pdefaults' 200)).embedded
+    Check 'editor opens' ((Cmd 'editor') -match 'open=True')
+    Press 'Tab12' | Out-Null
+    Check 'the safety tab is the thirteenth' (IsAt 'BackupNow')
+    Press 'Tab11' | Out-Null
+    Check 'the preset tab is drawn' (IsAt 'PresetRestore')
+    $shown = $true
+    foreach ($i in 0..$n) { $shown = $shown -and (IsAt "PresetDetail$i") -and (IsAt "PresetApply$i") -and (IsAt "PresetFull$i") }
+    Check 'every preset has its three buttons' $shown
+    Check 'the note is empty while the defaults are untouched' ((Cmd 'uitext PresetNote' 150) -match "text=''")
+
+    # 읽을 수 없는 파일은 줄만 있고 버튼이 없다. 탭에 다시 들어오면 폴더를 다시 읽는다.
+    WritePreset 'uicheck-zz-broken.json' '{ "format": 1, '
+    Press 'Tab12' | Out-Null; Press 'Tab11' | Out-Null
+    $bad = PresetIndex 'uicheck-zz-broken.json'
+    Check 'an unreadable file has no buttons' ($bad -ge 0 -and -not (IsAt "PresetApply$bad") -and -not (IsAt "PresetDetail$bad") -and (IsAt "PresetApply$(PresetIndex 'uicheck-preset.json')"))
+    [IO.File]::Delete((Join-Path $presetDir 'uicheck-zz-broken.json'))
+
+    # 기본 파일을 고치면 알림이 뜨고, 되돌리기는 두 번 눌러야 한다.
+    $first = Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike 'uicheck-*' } | Sort-Object Name | Select-Object -First 1
+    WritePreset $first.Name '{ "format": 1, "kind": "preset", "name": "uicheck changed" }'
+    Press 'Tab12' | Out-Null; Press 'Tab11' | Out-Null
+    Check 'the note reports one changed default' ((Cmd 'uitext PresetNote' 150) -match "text='[^']*1[^']*'") (Cmd 'uitext PresetNote' 150)
+    Press 'PresetRestore' | Out-Null
+    Check 'restore asks first' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
+    Press 'PresetRestore' | Out-Null
+    Check 'the second press restores' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0')
+
+    # 상세보기: 결정 초기(대경지 3)에서 단계 1~3은 적용, 4는 경지 올리기.
+    $idx = PresetIndex 'uicheck-preset.json'
+    Press "PresetDetail$idx" | Out-Null
+    Check 'stages 1 to 3 can be applied' ((IsAt 'StageApply1') -and (IsAt 'StageApply2') -and (IsAt 'StageApply3'))
+    Check 'stage 4 is locked and offers the raise' ((IsAt 'StageRaise4') -and -not (IsAt 'StageApply4'))
+    Check 'every shown stage has a state label' ((Cmd 'uitext StageState3' 150) -match "StageState3 text='[^']+'")
+
+    # 단계 3은 고정본의 역천개명 3을 바꾸므로 먼저 묻는다.
+    $m0 = (State).martials
+    Press 'StageApply3' | Out-Null
+    Check 'apply asks first when it would replace a fate' ((State).martials -eq $m0 -and (State).fates -eq '2:700016,3:700040')
+    Press 'StageApply3' 4000 | Out-Null
+    $s = State
+    Check 'the second press applies the stage' ([int]$s.martials -eq [int]$m0 + 11 -and $s.fates -eq "2:700016,3:$($picked.fates['3'])" -and $s.left -eq '13111') "martials=$($s.martials) fates=$($s.fates)"
+    Check 'stage 3 reads as applied' ((Fields (Cmd 'pstage uicheck-preset.json 3' 400)).state -eq 'Applied')
+    # 단계 1은 바꿀 것이 없으므로 한 번에 적용된다.
+    $born0 = [int]$s.born
+    Press 'StageApply1' 3000 | Out-Null
+    Check 'a stage that replaces nothing applies at once' ([int](State).born -eq $born0 + 1)
+    # 경지 올리기는 두 번 눌러야 한다.
+    Press 'StageRaise4' | Out-Null
+    Check 'raise asks first' ((State).major -eq '3')
+    Press 'StageRaise4' 3000 | Out-Null
+    Check 'the second press raises to major grade 4' ((State).major -eq '4')
+    Check 'stage 4 can now be applied' ((IsAt 'StageApply4') -and -not (IsAt 'StageRaise4'))
+
+    # 목록의 적용: 대경지 2의 역천개명(700016)을 바꾸므로 먼저 묻는다. 지금 대경지(4)까지의 역천개명이 모두 정해진다.
+    Press 'Back' | Out-Null
+    Check 'back on the list' (IsAt 'PresetRestore')
+    Press "PresetApply$idx" | Out-Null
+    Check 'apply asks first' ((State).fates -match '^2:700016,')
+    Press "PresetApply$idx" 5000 | Out-Null
+    $s = State
+    Check 'apply sets the fates up to the current major grade' ($s.fates -eq "2:$($picked.fates['2']),3:$($picked.fates['3']),4:$($picked.fates['4'])") $s.fates
+    # 최종 단계까지: 두 번 눌러야 한다.
+    Press "PresetFull$idx" | Out-Null
+    Check 'the full apply asks first' ((State).major -eq '4')
+    Press "PresetFull$idx" 9000 | Out-Null
+    $s = State
+    Check 'the second press raises to the last row and applies everything' ($s.grade -eq '44' -and $s.wing -eq '1004' -and $s.elder -eq '1') "grade=$($s.grade) wing=$($s.wing) elder=$($s.elder)"
+    Check 'the message area shows the result' ((Cmd 'uistate' 150) -match "message='[^']*uicheck preset")
+    Check 'no callback exception' ((Traps) -eq $traps)
+    Check 'no mod warning' (@(ModWarnings).Count -eq 0) ((ModWarnings) -join ' | ')
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

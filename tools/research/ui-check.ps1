@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'PresetRestore', 'BackupNow')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -54,7 +54,7 @@ switch ($Part) {
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
-    for ($i = 0; $i -lt 12; $i++) {
+    for ($i = 0; $i -lt 13; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
     }
@@ -75,7 +75,7 @@ switch ($Part) {
     Check 'title shows the target' ((Cmd 'uitext Title') -match '편집 대상: .+\(플레이어\)')
     $p = Pos 'ToPlayer'
     Check 'ToPlayer is off while the target is the player' ((Rc "click $($p.x) $($p.y)" 300) -match 'not interactable')
-    for ($i = 0; $i -lt 12; $i++) {
+    for ($i = 0; $i -lt 13; $i++) {
       Press "Tab$i" | Out-Null
       Check "tab $i is selected" ((Cmd 'uistate') -match "tab=$i ")
       Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
@@ -324,7 +324,7 @@ switch ($Part) {
     # 스펙 6절 18번. 안전 탭의 변경 이력 전체 보기. 방금 한 변경이 맨 위에 오는지 보려고 먼저 하나를 만든다.
     $traps = Traps
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null; Press 'Restore' | Out-Null
-    Press 'Tab11' | Out-Null
+    Press 'Tab12' | Out-Null
     $o = Cmd 'uitext HistoryRange'
     if ($o -notmatch '전체 (\d+)개') { throw "이력 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]
@@ -705,7 +705,7 @@ switch ($Part) {
     $n = @((Cmd 'uidescs SkillDesc' 300) -split "`n" | Where-Object { $_ -match '^SkillDesc' })
     Check 'skill descriptions are whole' ($n.Count -ge 3 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Press 'Back' | Out-Null
-    Press 'Tab11' | Out-Null
+    Press 'Tab12' | Out-Null
     $n = @((Cmd 'uidescs HistoryLine' 300) -split "`n" | Where-Object { $_ -match '^HistoryLine' })
     Check 'history lines are whole' ($n.Count -ge 1 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Shot 'wrap-history'
@@ -1173,7 +1173,7 @@ switch ($Part) {
     Check 'overlay is hidden after reset' ((Cmd 'uistate') -match 'status=\[hidden\] ')
     $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null
     Check 'steps cost again after reset' ((MoveDay) -ne $d0 -or (WorldDayNow) -gt $day0)
-    Press 'Tab11' | Out-Null
+    Press 'Tab12' | Out-Null
     $lines = (Cmd 'uidescs HistoryLine' 300)
     Check 'changes are in the history' ($lines -match '배율' -and $lines -match '수련치 획득')
     Shot 'rates'
