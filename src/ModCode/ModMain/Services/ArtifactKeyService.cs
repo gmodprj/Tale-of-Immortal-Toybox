@@ -273,7 +273,10 @@ namespace MOD_sWP6UL
             }
         }
 
-        // 전투 화면의 쌍어패·연요호 칸에 클릭을 단다(호천안 칸은 게임의 기술 단추가 있다).
+        // 전투 화면의 쌍어패·연요호 칸에 클릭을 단다(호천안 칸은 게임의 기술 단추가 있다). 회차 click-1014a~h.
+        // 쌍어패 칸(goPiscesPendant)에는 레이캐스트 대상이 없어 투명한 그림을 더해 클릭을 받는다.
+        // 연요호 칸의 그림(imgPotmonHead)에는 게임의 마우스 처리기(UIEventListener, 설명 표시)가 있어 실제 클릭이 거기서 멈춘다.
+        // 그래서 부모가 아니라 클릭이 도착하는 그 그림에 EventTrigger를 더한다(한 요소의 클릭 처리기는 모두 불린다).
         private static void AttachClicks()
         {
             UIBattleInfo ui = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
@@ -283,26 +286,29 @@ namespace MOD_sWP6UL
             }
             clickScreen = ui.Pointer;
             Attach(ui.info.goPiscesPendant, 1);
-            Attach(ui.info.goDevilDemon, 3);
+            Attach(ui.info.imgPotmonHead == null ? null : ui.info.imgPotmonHead.gameObject, 3);
         }
 
         private static void Attach(GameObject go, int id)
         {
-            if (go == null || go.GetComponent<Button>() != null)
+            if (go == null || go.GetComponent<UnityEngine.EventSystems.EventTrigger>() != null)
             {
                 return;
             }
-            Image image = go.GetComponent<Image>();
-            if (image == null)
+            Graphic graphic = go.GetComponent<Graphic>();
+            if (graphic == null)
             {
-                image = go.AddComponent<Image>();
+                Image image = go.AddComponent<Image>();
                 image.color = new Color(0f, 0f, 0f, 0f);
+                graphic = image;
             }
-            image.raycastTarget = true;
-            Button button = go.AddComponent<Button>();
-            button.targetGraphic = image;
-            button.transition = Selectable.Transition.None;
-            button.onClick.AddListener(new Action(() => Fire(id)));
+            graphic.raycastTarget = true;
+            var trigger = go.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var entry = new UnityEngine.EventSystems.EventTrigger.Entry();
+            entry.eventID = UnityEngine.EventSystems.EventTriggerType.PointerClick;
+            entry.callback = new UnityEngine.EventSystems.EventTrigger.TriggerEvent();
+            entry.callback.AddListener(new Action<UnityEngine.EventSystems.BaseEventData>(e => Fire(id)));
+            trigger.triggers.Add(entry);
         }
 
         private static string ConfigPath

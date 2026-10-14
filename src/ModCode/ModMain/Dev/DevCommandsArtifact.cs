@@ -63,6 +63,53 @@ namespace MOD_sWP6UL
                         }
                         return "no npc";
                     }
+                case "bslotinfo":
+                    {
+                        // bslotinfo <pisces|devil>: 칸의 레이캐스트 대상 그림들(켜짐, raycastTarget, 색 알파, 크기)과 단추.
+                        UIBattleInfo ui = g.ui.GetUI<UIBattleInfo>(UIType.BattleInfo);
+                        UnityEngine.GameObject root = p[1] == "pisces" ? ui.info.goPiscesPendant : ui.info.goDevilDemon;
+                        var sb = new StringBuilder();
+                        foreach (UnityEngine.UI.Graphic gr in root.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+                        {
+                            if (!gr.raycastTarget)
+                            {
+                                continue;
+                            }
+                            var rt = gr.rectTransform;
+                            sb.Append(gr.gameObject.name).Append(" on=").Append(gr.isActiveAndEnabled).Append(" a=").Append(gr.color.a.ToString("0.00"))
+                                .Append(" size=").Append(rt.rect.width.ToString("0")).Append('x').Append(rt.rect.height.ToString("0"))
+                                .Append(" cull=").Append(gr.canvasRenderer.cull).Append(" depth=").Append(gr.depth).Append("; ");
+                        }
+                        UnityEngine.UI.Button b = root.GetComponent<UnityEngine.UI.Button>();
+                        sb.Append("button=").Append(b == null ? "none" : "inter=" + b.IsInteractable());
+                        UnityEngine.CanvasGroup cg = root.GetComponentInParent<UnityEngine.CanvasGroup>();
+                        sb.Append(" cg=").Append(cg == null ? "none" : cg.alpha + "/" + cg.blocksRaycasts);
+                        return sb.ToString();
+                    }
+                case "brclick":
+                    {
+                        // brclick <x> <y>: 실제 마우스와 같은 경로(맨 위 요소에서 누름·뗌·클릭을 보냄)로 누른다.
+                        // rc.ps1의 click은 부모의 단추를 찾아 직접 부르므로 클릭이 중간에서 멈추는 경우를 놓친다(05 문서 37절).
+                        int x = int.Parse(p[1]), y = int.Parse(p[2]);
+                        var es = UnityEngine.EventSystems.EventSystem.current;
+                        var pointer = new UnityEngine.EventSystems.PointerEventData(es) { position = new UnityEngine.Vector2(x, UnityEngine.Screen.height - y), button = UnityEngine.EventSystems.PointerEventData.InputButton.Left };
+                        var results = new Il2CppSystem.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+                        es.RaycastAll(pointer, results);
+                        if (results.Count == 0)
+                        {
+                            return "no hit";
+                        }
+                        UnityEngine.GameObject hit = results[0].gameObject;
+                        pointer.pointerCurrentRaycast = results[0];
+                        pointer.pointerPressRaycast = results[0];
+                        UnityEngine.GameObject down = UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(hit, pointer, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler);
+                        UnityEngine.GameObject click = UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.IPointerClickHandler>(hit);
+                        pointer.pointerPress = down ?? click;
+                        pointer.rawPointerPress = hit;
+                        UnityEngine.EventSystems.ExecuteEvents.Execute(pointer.pointerPress, pointer, UnityEngine.EventSystems.ExecuteEvents.pointerUpHandler);
+                        bool sent = click != null && click == pointer.pointerPress && UnityEngine.EventSystems.ExecuteEvents.Execute(click, pointer, UnityEngine.EventSystems.ExecuteEvents.pointerClickHandler);
+                        return "top=" + hit.name + " click=" + (click == null ? "null" : click.name) + " sent=" + sent;
+                    }
                 case "rset":
                     {
                         // rset <배율 key> <단계 번호>: 배율을 그 단계로(0이 1배). 화면의 단추처럼 이력에 남는다.
