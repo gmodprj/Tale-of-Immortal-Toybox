@@ -255,6 +255,89 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'appellation' {
+    # 도호 관리 스펙 5절: 서비스. 고정본 인물은 결정(대경지 3)이고 영단도인(2001)을 장착했다. 끝에서 저장한다(appellation-restart가 본다).
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "(?:^|\s)$key=([^\s|]*)") { $Matches[1] } else { '' } }
+    function St { Cmd 'ttl' 300 }
+    function Owns([string]$s, [int]$id) { ",$(Field $s 'owned')," -match ",$id," }
+    function TitleLines([string]$pattern) { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match $pattern }).Count }
+    $s = St
+    $me = Field $s 'me'
+    Check 'the fixture has 2001 equipped' ((Field $s 'equipped') -eq '2001') $s
+    $talent = [int](Field $s 'talent')
+    $silenced = [int](Field $s 'silenced')
+    # 주기: 장착은 그대로, 획득 창은 편집기가 확인을 눌러 닫는다
+    $logged = TitleLines '도호 풍류도인\(1502\)'
+    $o = Cmd 'ttlgive 1502' 1500
+    Start-Sleep -Seconds 3
+    $s = St
+    Check 'giving adds the title and keeps the equipped one' ($o -match 'ok=True' -and (Owns $s 1502) -and (Field $s 'equipped') -eq '2001') "$o | $s"
+    Check 'the editor closes its own title popup' ((Field $s 'popup') -eq 'False' -and [int](Field $s 'silenced') -gt $silenced) $s
+    Check 'the change log has the gift' ((TitleLines '도호 풍류도인\(1502\)') -eq $logged + 1)
+    # Review Focus 1: 이미 가진 도호
+    $o = Cmd 'ttlgive 1502' 600
+    Check 'giving a title already held is refused' ($o -match 'ok=False' -and $o -match '이미 가졌습니다') $o
+    # Review Focus 4: 게임 표에 없는 번호
+    $o = Cmd 'ttlgive 999999' 600
+    Check 'a number the game does not have is refused' ($o -match 'ok=False' -and $o -match '게임에 없는 번호') $o
+    # '제일' 도호. Review Focus 2: 두 NPC가 함께 가졌으면 둘 다에게서 뺀다
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'an NPC holds 1404 in the fixture' ((Field $h 'holders') -eq '1' -and $h -notmatch "\($me\)") $h
+    $o = Cmd 'ttlnpcgive any 1404' 600
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'two NPCs hold 1404 before the gift' ($o -match 'ok=True' -and (Field $h 'holders') -eq '2') "$o | $h"
+    $logged = TitleLines '도호 팔황 제일권수\(1404\)'
+    $o = Cmd 'ttlgive 1404' 1500
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'a first title moves from every NPC holder' ($o -match 'ok=True' -and $o -match '에게서 옮김' -and (Field $h 'holders') -eq '1' -and $h -match "\($me\)") "$o | $h"
+    Check 'the change log has the gift and both removals' ((TitleLines '도호 팔황 제일권수\(1404\)') -eq $logged + 3)
+    # 경지 밖: 결정경 인물에게 영녕 제일도수(결정경에 이르면 잃는다)
+    $o = Cmd 'ttlgive 1001' 1500
+    Check 'a title lost at this grade is given with a notice' ($o -match 'ok=True' -and $o -match '다음 돌파 때 잃습니다') $o
+    # 장착·해제
+    $o = Cmd 'ttlequip 1502' 600
+    Check 'equip switches the title' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '1502') $o
+    $o = Cmd 'ttlunequip' 600
+    Check 'unequip leaves none' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '0') $o
+    $o = Cmd 'ttlunequip' 600
+    Check 'unequip with none is refused' ($o -match 'ok=False' -and $o -match '장착한 도호가 없습니다') $o
+    # Review Focus 3: 장착한 것이 없을 때 주면 게임이 장착하고 효과가 든다(어계천존 talent_1_40)
+    $o = Cmd 'ttlgive 2111' 1500
+    $s = St
+    Check 'a gift with nothing equipped is equipped and says so' ($o -match '장착됨' -and (Field $s 'equipped') -eq '2111') "$o | $s"
+    Check 'the equipped effect applies (talent +40)' ([int](Field $s 'talent') -eq $talent + 40) "before=$talent | $s"
+    # 장착한 것을 빼면 장착이 빈다
+    $o = Cmd 'ttldel 2111' 600
+    $s = St
+    Check 'removing the equipped title empties the slot' ($o -match 'ok=True' -and $o -match '장착이 비었습니다' -and -not (Owns $s 2111) -and (Field $s 'equipped') -eq '0') "$o | $s"
+    Check 'the effect goes with it' ([int](Field $s 'talent') -eq $talent) $s
+    $o = Cmd 'ttldel 1601' 600
+    Check 'removing a title not held is refused' ($o -match 'ok=False' -and $o -match '갖고 있지 않습니다') $o
+    $o = Cmd 'ttlequip 1601' 600
+    Check 'equipping a title not held is refused' ($o -match 'ok=False' -and $o -match '갖고 있지 않습니다') $o
+    $o = Cmd 'ttlgive 2601' 1500
+    Check 'a story title is given with its notice' ($o -match 'ok=True' -and $o -match '이야기와 묶인 효과라 확인하지 못했습니다') $o
+    $o = Cmd 'ttlequip 2001' 600
+    Check 'equip back to 2001' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '2001') $o
+    Start-Sleep -Seconds 3
+    Check 'no title popup is left open' ((Field (St) 'popup') -eq 'False') (St)
+    Check 'save is called' ((Cmd 'save' 4000) -match 'SaveData called')
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'appellation-restart' {
+    # 도호 관리 스펙 5절: appellation 부분이 저장한 뒤 -Restart 하고 돌린다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "(?:^|\s)$key=([^\s|]*)") { $Matches[1] } else { '' } }
+    $s = Cmd 'ttl' 300
+    $me = Field $s 'me'
+    $owned = ",$(Field $s 'owned'),"
+    Check 'the given titles are still held' ($owned -match ',1001,' -and $owned -match ',1404,' -and $owned -match ',1502,' -and $owned -match ',2001,' -and $owned -notmatch ',2111,') $s
+    Check 'the equipped title is still 2001' ((Field $s 'equipped') -eq '2001') $s
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'the moved first title has one holder' ((Field $h 'holders') -eq '1' -and $h -match "\($me\)") $h
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
   'favstore' {
     # 자원 탭 개편 스펙 3.3절: 즐겨찾기 파일의 읽기·쓰기. 경고를 일부러 남기므로 회차에서 이 부분 뒤에는 -Restart한다.
     $traps = Traps
