@@ -117,7 +117,8 @@ namespace MOD_sWP6UL
         {
             bool nameFromCh, descFromCh;
             string name = EditService.Compact(ResolveText(nameKey, out nameFromCh));
-            if (!isMod && (gradeMax < 1 || name.Length == 0 || name == EditService.Compact(nameKey)))
+            // 기본 행은 한국어 이름이 풀린 것만(전과 같다. ch로 대신 채운 것도 뺀다).
+            if (!isMod && (gradeMax < 1 || name.Length == 0 || nameFromCh || name == EditService.Compact(nameKey)))
             {
                 return;
             }
@@ -309,9 +310,9 @@ namespace MOD_sWP6UL
 
         // 모드 공법의 비급 값(인계 8.3e절의 실측): 같은 분류의 기본 기술(원본)을 뽑아 0번(기술 번호)만 모드 번호로 바꾸고,
         // 가방에 넣기 전에 읽어 본다. 게임이 읽지 못하는 조합(무예는 넷에 하나꼴로 읽혔다)이면 버리고 다시 뽑는다. 최대 ModRollMax번.
-        internal static Il2CppStructArray<int> RollValuesForMod(int kindIndex, Entry mod, int grade, Func<DataProps.MartialData, bool> accept, out int tries, out string reason)
+        // 품질은 보지 않는다: 모드 공법의 품질은 뽑은 옵션과 무관하게 게임이 정한다(실측, 05 문서 42절).
+        internal static Il2CppStructArray<int> RollValuesForMod(int kindIndex, Entry mod, int grade, out string reason)
         {
-            tries = 0;
             reason = null;
             Kind kind = Kinds[kindIndex];
             Entry source = SourceFor(kindIndex, mod, grade);
@@ -320,7 +321,7 @@ namespace MOD_sWP6UL
                 reason = "원본으로 쓸 기본 공법이 없습니다";
                 return null;
             }
-            for (tries = 1; tries <= ModRollMax; tries++)
+            for (int tries = 1; tries <= ModRollMax; tries++)
             {
                 Il2CppStructArray<int> rolled = RollValues(kind, source.BaseId, grade, RollMax, null);
                 if (rolled == null)
@@ -335,7 +336,7 @@ namespace MOD_sWP6UL
                 try
                 {
                     DataProps.MartialData martial = DataProps.PropsData.NewMartial(kind.Type, values).To<DataProps.MartialData>();
-                    if (martial.baseID == mod.BaseId && !string.IsNullOrEmpty(martial.martialInfo.name) && (accept == null || accept(martial)))
+                    if (martial.baseID == mod.BaseId && !string.IsNullOrEmpty(martial.martialInfo.name))
                     {
                         return values;
                     }
@@ -345,7 +346,6 @@ namespace MOD_sWP6UL
                     // 게임이 읽지 못하는 조합. 다시 뽑는다.
                 }
             }
-            tries = ModRollMax;
             reason = "모드 공법의 값을 게임이 읽지 못했습니다(" + ModRollMax + "회 시도)";
             return null;
         }

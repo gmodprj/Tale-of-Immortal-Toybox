@@ -100,10 +100,9 @@ namespace MOD_sWP6UL
                     Il2CppStructArray<int> values;
                     if (entry.IsMod)
                     {
-                        int tries;
                         string reason;
                         // 모드 공법의 품질은 뽑은 옵션과 무관하게 게임이 정한다(실측: 절기는 늘 3, 무예는 늘 5). 최소 품질을 걸면 끝내 나오지 않으므로 걸지 않는다.
-                        values = SkillCatalog.RollValuesForMod(kindIndex, entry, grade, null, out tries, out reason);
+                        values = SkillCatalog.RollValuesForMod(kindIndex, entry, grade, out reason);
                         if (values == null)
                         {
                             stop = reason;
