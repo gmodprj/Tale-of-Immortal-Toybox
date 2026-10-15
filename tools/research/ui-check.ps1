@@ -238,7 +238,7 @@ switch ($Part) {
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
     Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null
     Check 'the group button shows a count' ((Cmd 'uitext ResGroupManual') -match "text='기술 서적 [1-9]\d*'") (Cmd 'uitext ResGroupManual')
-    Check 'six kind chips' ((Cmd 'uitext ResKind0') -match "text='전체 \(" -and (Cmd 'uitext ResKind5') -match "text='신통 \(" -and (Cmd 'uipos ResKind6') -match 'no element named')
+    Check 'seven kind chips' ((Cmd 'uitext ResKind0') -match "text='전체 \(" -and (Cmd 'uitext ResKind5') -match "text='신통 \(" -and (Cmd 'uitext ResKind6') -match "text='모드만 \(" -and (Cmd 'uipos ResKind7') -match 'no element named')
     $r = Pos 'Row0'
     Rc "click $($r.x) $($r.y)" 600 | Out-Null
     Check 'the grade starts at the current grade' ((Cmd 'uitext ItemDetail') -match '지급하면: 경지 3, 품질 1 이상') (Cmd 'uitext ItemDetail')
