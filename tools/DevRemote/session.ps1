@@ -4,6 +4,7 @@
 #   -Restart        이 스크립트가 띄운 게임을 닫고 다시 띄운다(세이브와 설치된 DLL은 그대로). 저장 후 재시작 확인용
 #   -End <이름>     이 스크립트가 띄운 게임을 닫고 → 세이브를 복사본으로 되돌려 일치를 확인
 #                   → bag-slots.txt, favorites.txt, config.txt, presets 폴더와 설치돼 있던 DLL을 되돌린다
+#                   → 회차 동안 ModExportData에 생긴 폴더(창작마당 모드)를 지운다
 #   -Fixture <이름> -Begin과 함께 쓴다. 사용자의 세이브를 복사해 둔 뒤, 회차 동안만 세이브 폴더를 고정본(.devremote\fixtures\<이름>)으로
 #                   바꿔 띄운다. 검사가 사용자의 지금 세이브 상태(떠 있는 창, 진행 중인 사건)에 흔들리지 않게 한다. -End는 똑같이 사용자의 세이브를 되돌린다
 #   -MakeFixture <이름> -From <폴더>   세이브 폴더의 복사본(예: .devremote\save-backup-<회차>)으로 고정본을 만든다
@@ -43,6 +44,8 @@ $flag = Join-Path $dir 'park.flag'
 $fixtures = Join-Path $dir 'fixtures'
 $backups = Join-Path $data 'backups'                 # 모드가 값을 바꾸기 전에 만드는 세이브 자동 백업
 $keptBackups = Join-Path $dir 'session-backups.txt'  # 회차 전부터 있던 자동 백업의 이름들
+$modsDir = Join-Path $GameDir 'ModExportData'            # 게임의 로컬 모드 폴더(편집기와 창작마당 모드)
+$keptModFolders = Join-Path $dir 'session-modfolders.txt'  # 회차 전부터 ModExportData에 있던 폴더 이름들
 $configFile = Join-Path $data 'config.txt'
 $keptConfig = Join-Path $dir 'session-config.txt'      # 회차 전의 config.txt(창 위치 등)
 $presetsDir = Join-Path $data 'presets'
@@ -170,6 +173,9 @@ if ($Begin) {
   # 회차 전부터 있던 자동 백업의 이름을 적어 둔다. -End가 그 밖의 것(회차 동안 생긴 것)만 지운다.
   $names = @(if (Test-Path -LiteralPath $backups) { Get-ChildItem -LiteralPath $backups | ForEach-Object Name })
   [IO.File]::WriteAllText($keptBackups, ($names -join "`n"))
+  # 회차 전부터 게임의 로컬 모드 폴더에 있던 폴더 이름을 적어 둔다. -End가 그 밖의 것(회차 동안 설치한 창작마당 모드)만 지운다.
+  $modNames = @(if (Test-Path -LiteralPath $modsDir) { Get-ChildItem -LiteralPath $modsDir -Directory | ForEach-Object Name })
+  [IO.File]::WriteAllText($keptModFolders, ($modNames -join "`n"))
   [IO.File]::WriteAllText($marker, $Begin)
   if ($Fixture) {
     # 표식을 남긴 뒤에 바꾼다. 여기서 멈춰도 -End가 사용자의 세이브를 복사본으로 되돌린다.
@@ -247,6 +253,22 @@ if ($End) {
     'PRESETS RESTORED (there was no folder)'
   }
   DeleteFiles $noPresets
+  # 회차 동안 ModExportData에 생긴 폴더(회차 안에서 설치한 창작마당 모드)를 지운다. 회차 전부터 있던 것과 편집기(Mod_<ModId>)는 남긴다.
+  if (Test-Path $keptModFolders) {
+    $keepMods = @([IO.File]::ReadAllText($keptModFolders) -split "`n" | Where-Object { $_ })
+    $removedMods = 0
+    if (Test-Path -LiteralPath $modsDir) {
+      foreach ($entry in Get-ChildItem -LiteralPath $modsDir -Directory) {
+        if ($keepMods -notcontains $entry.Name -and $entry.Name -ne "Mod_$ModId" -and $entry.FullName.StartsWith($modsDir + '\')) {
+          [IO.Directory]::Delete($entry.FullName, $true)
+          $removedMods++
+        }
+      }
+    }
+    [IO.File]::Delete($keptModFolders)
+    "WORKSHOP FOLDERS REMOVED: $removedMods"
+  }
+
   [IO.File]::Delete($marker)
 
   # 회차 동안 모드가 만든 세이브 자동 백업을 지운다(시험 중의 세이브를 뜬 것이라 쓸모가 없다). 회차 전부터 있던 것은 남긴다.
