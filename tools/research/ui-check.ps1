@@ -183,7 +183,7 @@ switch ($Part) {
     $made = Cmd 'rbook 1 984555698 10 1 1' 20000
     Check 'a mod book at grade 10' ($made -match 'made=1' -and (Cmd 'rbooks 984555698' 300) -match ':984555698:10:') $made
     $made = Cmd 'rbook 1 984555698 3 6 1' 60000
-    Check 'a mod book with minimum quality 6' ($made -match 'made=1' -and (Cmd 'rbooks 984555698' 300) -match ':984555698:3:6:') $made
+    Check 'a mod book with minimum quality 6 is made and says the quality is the game''s' ($made -match 'made=1' -and $made -match '최소 품질을 적용하지 않았습니다') $made
     $ok = 0
     for ($i = 0; $i -lt 3; $i++) { if ((Cmd 'rbook 0 3535351 3 1 1' 60000) -match 'made=1') { $ok++ } }
     Check 'the mod martial art is made three times out of three (retries)' ($ok -eq 3) "ok=$ok"
@@ -200,7 +200,7 @@ switch ($Part) {
     Check 'the mod-only chip shows five rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
-    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '한글 이름이 없어 중국어 이름을' -and $d -match '지급하면: 경지 3, 품질 1 이상' -and $d -match '모드 공법: 같은 종류의 기본 공법을 뽑아') $d
+    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '한글 이름이 없어 중국어 이름을' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '모드 공법: 같은 종류의 기본 공법을 뽑아') $d
     $p = Pos 'BookGive59898952'
     Check 'the mod ultimate cannot be given from the row' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: BookGive59898952')
     Press 'BookName59898952' | Out-Null

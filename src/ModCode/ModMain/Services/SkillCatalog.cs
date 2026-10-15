@@ -305,6 +305,51 @@ namespace MOD_sWP6UL
             return null;
         }
 
+        public const int ModRollMax = 50;
+
+        // 모드 공법의 비급 값(인계 8.3e절의 실측): 같은 분류의 기본 기술(원본)을 뽑아 0번(기술 번호)만 모드 번호로 바꾸고,
+        // 가방에 넣기 전에 읽어 본다. 게임이 읽지 못하는 조합(무예는 넷에 하나꼴로 읽혔다)이면 버리고 다시 뽑는다. 최대 ModRollMax번.
+        internal static Il2CppStructArray<int> RollValuesForMod(int kindIndex, Entry mod, int grade, Func<DataProps.MartialData, bool> accept, out int tries, out string reason)
+        {
+            tries = 0;
+            reason = null;
+            Kind kind = Kinds[kindIndex];
+            Entry source = SourceFor(kindIndex, mod, grade);
+            if (source == null)
+            {
+                reason = "원본으로 쓸 기본 공법이 없습니다";
+                return null;
+            }
+            for (tries = 1; tries <= ModRollMax; tries++)
+            {
+                Il2CppStructArray<int> rolled = RollValues(kind, source.BaseId, grade, RollMax, null);
+                if (rolled == null)
+                {
+                    continue;
+                }
+                var values = new Il2CppStructArray<int>(rolled.Length);
+                for (int i = 0; i < rolled.Length; i++)
+                {
+                    values[i] = i == 0 ? mod.BaseId : rolled[i];
+                }
+                try
+                {
+                    DataProps.MartialData martial = DataProps.PropsData.NewMartial(kind.Type, values).To<DataProps.MartialData>();
+                    if (martial.baseID == mod.BaseId && !string.IsNullOrEmpty(martial.martialInfo.name) && (accept == null || accept(martial)))
+                    {
+                        return values;
+                    }
+                }
+                catch (Exception)
+                {
+                    // 게임이 읽지 못하는 조합. 다시 뽑는다.
+                }
+            }
+            tries = ModRollMax;
+            reason = "모드 공법의 값을 게임이 읽지 못했습니다(" + ModRollMax + "회 시도)";
+            return null;
+        }
+
         private static bool Accepts(Kind kind, Il2CppStructArray<int> values, int baseId, Func<DataProps.MartialData, bool> accept)
         {
             DataProps.MartialData martial = DataProps.PropsData.NewMartial(kind.Type, values).To<DataProps.MartialData>();
