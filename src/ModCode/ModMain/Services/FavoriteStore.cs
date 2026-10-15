@@ -131,6 +131,17 @@ namespace MOD_sWP6UL
             SkippedLines = 0;
         }
 
+        // 읽기 오류가 있었으면 바꾸기 전에 다시 읽는다. 잠금이 풀렸는데 빈 목록으로 판단하면 같은 번호가 두 줄이 된다(검토에서 나온 것).
+        private static void Recover()
+        {
+            Load();
+            if (readError != null)
+            {
+                list = null;
+                Load();
+            }
+        }
+
         private static string Label(int id)
         {
             ItemCatalog.Entry entry = ItemCatalog.Get(id);
@@ -144,13 +155,20 @@ namespace MOD_sWP6UL
                 text = AmountRule;
                 return false;
             }
+            Recover();
             if (Has(id))
             {
                 text = "즐겨찾기: " + Label(id) + "은(는) 이미 있습니다.";
                 return false;
             }
             string error;
-            if (!Change(next => next.Add(new Favorite { Id = id, Amount = amount }), out error))
+            if (!Change(next =>
+            {
+                if (!next.Exists(f => f.Id == id))
+                {
+                    next.Add(new Favorite { Id = id, Amount = amount });
+                }
+            }, out error))
             {
                 text = "즐겨찾기: " + error;
                 return false;
@@ -161,6 +179,7 @@ namespace MOD_sWP6UL
 
         public static bool Remove(int id, out string text)
         {
+            Recover();
             if (!Has(id))
             {
                 text = "즐겨찾기: " + Label(id) + "은(는) 즐겨찾기에 없습니다.";
@@ -183,6 +202,7 @@ namespace MOD_sWP6UL
                 text = AmountRule;
                 return false;
             }
+            Recover();
             int old = AmountOf(id);
             if (old == 0)
             {

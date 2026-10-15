@@ -146,6 +146,12 @@ switch ($Part) {
     } finally { $lock.Dispose() }
     Check 'a locked file reads as empty' ($o1 -match 'count=0 ') $o1
     Check 'a locked file is not overwritten' ((FavText) -eq $before -and $o2 -match '읽지 못해') $o2
+    # 검토에서 나온 것: 잠긴 채 읽어 빈 목록이 된 뒤 잠금이 풀리면, 이미 있는 번호를 넣어도 두 줄이 되지 않아야 한다
+    $lock = [IO.File]::Open($fav, 'Open', 'Read', 'None')
+    try { Cmd 'rfav reload' 300 | Out-Null } finally { $lock.Dispose() }
+    $o = Cmd 'rfav add 1011011 1' 300
+    $same = @(((FavText) -split "`n") | Where-Object { $_ -match '^1011011 ' }).Count
+    Check 'after a lock, adding an item already in the file is refused' ($o -match '이미' -and $o -match 'count=2 ' -and $same -eq 1) "$o | lines=$same"
     $o = Cmd 'rfav reload' 300
     Check 'after the lock is gone the list is back' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
     Check 'no callback exception in the log' ((Traps) -eq $traps)

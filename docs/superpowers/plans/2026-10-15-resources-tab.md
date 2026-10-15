@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 자원 탭의 아이템을 편집기가 정한 용도 그룹 11개로 나눠 보이고, 아이템과 수량을 저장하는 즐겨찾기(모두 지급 포함)를 더한다.
+**Goal:** 자원 탭의 아이템을 편집기가 정한 용도 그룹 10개(9개와 기타. 처음에 11개로 잘못 적었다)로 나눠 보이고, 아이템과 수량을 저장하는 즐겨찾기(모두 지급 포함)를 더한다.
 
 **Architecture:** 분류 표는 새 `ItemGroups`(게임 세부 분류 번호 → 그룹·종류)가 맡고, `ItemCatalog`가 아이템마다 그룹·종류를 붙여 거르기와 개수를 낸다. 즐겨찾기는 새 `FavoriteStore`가 `TlToybox\favorites.txt`에 원자적으로 쓴다. `ResourcesTab`은 그리기만 한다(왼쪽 그룹 목록, 오른쪽 종류 칩·필터·표·설명). 검증은 개발 명령(`rgroups`, `rfav`)과 게임 안 검사(`ui-check.ps1`)로 한다.
 
@@ -59,7 +59,7 @@
 **Interfaces:**
 - Produces:
   - `ItemGroups.Group { string Key; string Name; int Order; List<Kind> Kinds; }`, `ItemGroups.Kind { string Name; List<int> Classes; int Order; }`
-  - `ItemGroups.FavKey = "Fav"`, `AllKey = "All"`, `OtherKey = "Other"`, `ItemGroups.Groups : List<Group>`(표의 11개, 순서대로), `ItemGroups.ByKey(string) : Group`, `ItemGroups.Duplicates : int`, `ItemGroups.Place(int className, int itemId, out Group, out Kind)`, `ItemGroups.SortOther()`
+  - `ItemGroups.FavKey = "Fav"`, `AllKey = "All"`, `OtherKey = "Other"`, `ItemGroups.Groups : List<Group>`(표의 10개, 순서대로), `ItemGroups.ByKey(string) : Group`, `ItemGroups.Duplicates : int`, `ItemGroups.Place(int className, int itemId, out Group, out Kind)`, `ItemGroups.SortOther()`
   - `ItemCatalog.Entry`에 `ItemGroups.Group Group; ItemGroups.Kind Kind; int TableIndex; bool Missing;`
   - `ItemCatalog.Filter { string Query; string Group; ItemGroups.Kind Kind; int Quality; bool OwnedOnly; string Needle; bool IsId; int Id; }`
   - `ItemCatalog.Select(Filter, HashSet<int> owned) : List<Entry>`, `Passes(Entry, Filter, HashSet<int>) : bool`, `CountByGroup(Filter, HashSet<int>) : Dictionary<string,int>`(키는 그룹 키와 `AllKey`), `CountByKind(Group, Filter, HashSet<int>) : int[]`(그룹의 `Kinds` 순서), `Get(int id) : Entry`(없으면 null), `OwnedIds(WorldUnitBase) : HashSet<int>`, `CategoryName(int) : string`(internal)
@@ -2078,7 +2078,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 `docs/05-editor-v0.1.md` 끝에 `## 38. 자원 탭 개편 — 즐겨찾기와 용도별 분류 (2026-10-15 추가)`를 더한다. 소절과 담을 것:
 
-- `### 바꾼 것`: 용도 그룹 11개와 종류(스펙 4절의 표를 링크하고 표 자체는 옮기지 않는다), 화면 배치(스펙 3.4절에서 바꾼 맨 위 두 줄의 배치와 그 이유), 품질 필터(게임의 `level`, 단약 이름의 n품과 반대), 보유 중만, 초기화, 즐겨찾기(넣기·빼기·수량·모두 지급), 즐겨찾기 파일(`favorites.txt`의 형식, 원자적 쓰기, `.bak`, 잠긴 파일).
+- `### 바꾼 것`: 용도 그룹 10개와 종류(스펙 4절의 표를 링크하고 표 자체는 옮기지 않는다), 화면 배치(스펙 3.4절에서 바꾼 맨 위 두 줄의 배치와 그 이유), 품질 필터(게임의 `level`, 단약 이름의 n품과 반대), 보유 중만, 초기화, 즐겨찾기(넣기·빼기·수량·모두 지급), 즐겨찾기 파일(`favorites.txt`의 형식, 원자적 쓰기, `.bak`, 잠긴 파일).
 - `### 게임에서 확인한 것`: 회차 이름과 부분별 결과. `rgroups`의 실측(전체 수, 그룹별 수, `other`). 캡처로 본 것(★·☆ 표시 등). `wrap`에서 실측한 한 화면의 줄 수.
 - `### 확인하지 못한 것, 한계`: 실제 마우스로 별 누르기, 한글 입력기로 검색(도구로 할 수 없다), 모두 지급으로 수십 종류를 줄 때의 시간, 작은 종류 이름(대비무·호요·체질 개선·천명 전용)이 게임 화면의 이름과 같은지, 창작마당 모드의 아이템이 `기타`에 들어가는 것(모드가 없어 확인 못 함. G2에서 본다).
 - 실행 중에 정한 것(`File.Replace` 대체, ★ 대체, `wrap` 기준 변경, `기타`에 나온 번호)이 있었으면 그 사실과 이유.
@@ -2088,7 +2088,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 `docs/06-handoff.md`:
 
 - 머리 줄 `# 06. 작업 인계 (2026-10-15 기준)`는 그대로 두고, 1절의 "직전 작업"을 이번 일(자원 탭 개편, 38절)로 바꾼다. "열린 일 하나"(8.3a)는 그대로 둔다.
-- 2절 표의 자원 줄: 기능을 "영석 추가, 지급 수량, 가방 칸, 용도 그룹 11개(왼쪽 목록)와 종류 칩, 이름·품질·보유 중만 거르기, 즐겨찾기(아이템+수량, 모두 지급)"로, 코드에 `ItemGroups`, `FavoriteStore`를, 실험 기록에 38절을 더한다.
+- 2절 표의 자원 줄: 기능을 "영석 추가, 지급 수량, 가방 칸, 용도 그룹 10개(왼쪽 목록)와 종류 칩, 이름·품질·보유 중만 거르기, 즐겨찾기(아이템+수량, 모두 지급)"로, 코드에 `ItemGroups`, `FavoriteStore`를, 실험 기록에 38절을 더한다.
 - 2절 공통 규칙의 모드 파일 목록에 `favorites.txt`(자원 탭 즐겨찾기, 모든 세이브 공통)를 더한다.
 - 5절 `-End`가 되돌리는 것에 `favorites.txt`(와 `.bak`)를 더한다. 자동 검증 표에 `groups`, `favstore` → `-Restart` → `favstore-restart`, `favorites`, `favorites-corrupt`(회차의 마지막)를 더한다. `items`의 "보는 것"에 그룹·종류·품질·보유 중만을 더한다.
 - 5절 "회차 안에서 쓰는 도구"의 개발 명령에 `rgroups`, `rfav [reset|reload|add|set|del]`를 더한다.

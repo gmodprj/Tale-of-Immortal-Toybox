@@ -411,6 +411,7 @@ namespace MOD_sWP6UL
         }
 
         // 보이는(걸러진) 즐겨찾기 가운데 게임에 있는 것을 저장된 수량으로 차례로 준다.
+        // 줄마다 예외를 막는다. 밖으로 나가면 버튼 콜백에서 사라져 결과 문장 없이 일부만 들어가고, 다시 누르면 앞의 것을 또 준다(BagExportService.Put과 같은 이유).
         private void GiveAll()
         {
             int given = 0;
@@ -421,14 +422,21 @@ namespace MOD_sWP6UL
                 {
                     continue;
                 }
-                string text;
-                if (EditService.TryGiveItem(Player, entry.Id, FavoriteStore.AmountOf(entry.Id), out text))
+                try
                 {
-                    given++;
+                    string text;
+                    if (EditService.TryGiveItem(Player, entry.Id, FavoriteStore.AmountOf(entry.Id), out text))
+                    {
+                        given++;
+                    }
+                    else
+                    {
+                        failed.Add(entry.Name);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    failed.Add(entry.Name);
+                    failed.Add(entry.Name + " — " + e.GetType().Name);
                 }
             }
             Say(given + failed.Count == 0 ? "즐겨찾기 모두 지급: 줄 수 있는 아이템이 없습니다."
