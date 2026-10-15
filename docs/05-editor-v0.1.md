@@ -2126,9 +2126,40 @@
 
 - 무예의 치환 뽑기 성공률(실험 1/4, 검사 3/3)과 50회 한도. 시도 수는 결과 문장에 없어 미기록.
 - 만든 모드 비급을 게임에서 학습해 전투에서 쓸 때(사용자 확인 항목). 옵션이 원본 기술의 것이라 어색할 수 있다.
-- 게임이 보이는 비급 이름은 G2c 전까지 "<옵션 접두>0"이다.
+- 게임이 보이는 비급 이름은 G2c 전까지 "<옵션 접두>0"이었다(43절에서 한글 이름으로).
 - 다른 공법 모드(신통이 되는 모드가 있을 수 있다). `isModExtend`는 이 모드의 행에서만 봤다.
 - 모드를 뺀 세이브에 남은 모드 비급은 게임이 깨진 아이템으로 다룰 수 있다.
 - 모드 공법의 품질이 왜 고정인지(모드가 `BattleSkillPrefixValue`·`BattleSkillCombine`을 어떻게 썼는지)는 미확인.
 - 검토자 보류(2026-10-16, 고치지 않음): 프리셋 파일에 모드 공법 번호를 적으면 `PresetService`가 카탈로그에서 찾아 평범한 값으로 바로 배우게 할 수 있다(깨진 것은 `MartialService.AddFromValues`가 지운다. 공법 탭의 거부 문장은 이 길에서 안 보인다) / 공법 탭의 모드 줄은 `[모드]` 꼬리표가 없고 모드 신통은 "강제 추가" 확인 버튼이 뜨지만 `Learn`이 거부한다, `모두 배우기`는 모드 건너뛰기를 "경지 범위 밖"으로 센다 / 즐겨찾기의 모드 비급 줄은 "품질 n 이상"을 보이고 `[모드]`가 없으며 막힌 모드 신통도 ★로 넣을 수 있다(기본 행도 같다) / 검사 `modbooks`에 없는 것: 강제 추가 경로, `모두 배우기`, `모드만` 칩에서 검색한 칩 글, 모드 신통 즐겨찾기 줄 / 첫 카탈로그 생성 때 LocalText 전체를 한 번 훑는다(`rmods` 3초 안쪽).
 - 기본 행의 이름 풀기는 전과 같다: `ch`로 대신 채운 기본 행은 넣지 않는다(검토 뒤 고침. 회차 `ws-1016n`의 `pdump skills`가 기본 201 + 모드 5 = 206줄).
+
+## 43. 창작마당 모드 한글화(G2c) (2026-10-16 추가)
+
+스펙 `docs/superpowers/specs/2026-10-16-mod-korean-design.md`(부록 A가 번역표 59행), 계획 `plans/2026-10-16-mod-korean.md`. 설계 전 실험은 인계 8.3e절(`wssetkr`)과 회차 `ws-1016o`(모드 글 62행 실측).
+
+### 규칙
+
+- 번역 파일 `src/ModCode/ModMain/Translations/mods.txt`(키<TAB>한국어, `#` 주석, `\n` 두 글자가 줄바꿈, 자리 표시 `$…$`·`&…&`·`{…}`·`<…>`는 원문 그대로)를 DLL에 리소스 `Translations/mods.txt`로 내장하고, `TranslationService.EnsureFile()`이 모드 데이터 폴더 `TlToybox\translations\mods.txt`에 없을 때만 풀어 둔다. 사용자가 고친 파일은 덮지 않는다. 새 판의 번역을 받으려면 그 파일을 지운다.
+- `ModMain.Init`마다 `TranslationService.Apply()`: LocalText의 모드 행(`isModExtend`)만, 사전에 키가 있으면 `kr`을 번역으로, 없고 `kr`이 "0"이거나 비었으면 `ch`로 덮는다. 기본 행은 건드리지 않는다(파일에 기본 키가 있어도 `unused`로 셀 뿐). 끝에 `SkillCatalog.Reset()`. 결과는 `Latest.log`의 `[TlToybox] translations: file=… rows=… applied=… fallback=… unused=… broken=…`(`file`은 `있음`·`풀어 둠`·`없음`·`읽기 실패 …`). 파일을 읽다 예외가 나도 `Init`은 이어진다.
+- `Load`: `#` 줄과 빈 줄은 무시, 탭이 없는 줄은 `broken`, 키·글의 앞뒤 공백은 지움, 같은 키는 뒤의 것, BOM·CRLF 허용.
+- 새 모드의 글을 번역하는 절차: 회차에서 `rloc dump` → `TlToybox\translations\untranslated.txt`(키<TAB><TAB>중국어) → 번역해 `src/ModCode/ModMain/Translations/mods.txt`와 데이터 폴더의 `mods.txt`에 합친다 → 스펙 부록 A에도 적는다.
+- 개발 명령 `rloc`(마지막 적용 결과), `rloc apply`, `rloc dump`, `rloc key <키>`(`ls=… kr=… ch=…`). 검사 `ui-check.ps1 -Part translation`. 회차 스크립트가 `translations` 폴더를 프리셋과 같은 규칙으로 보관·복원한다(`TRANSLATIONS RESTORED`, 없었으면 `(there was no folder)`. 남은 보관본 `.devremote\session-translations`가 있으면 `-Begin`이 멈춘다. 시험 27·28).
+- `check-lib.ps1`의 `ModWarnings`는 정보 줄 `[TlToybox] translations: `를 경고로 세지 않는다(`translations failed: `는 경고).
+
+### 실측·검증 (회차 `ws-1016o`, `ws-1016p`~`q`)
+
+- 모드 글 62행: 공법 모드 `3390738990`의 이름 5·설명 5·옵션 글 46, 외형 모드 안내문 1(`utg7MubS`), 영어 플래그 1(`0lkK4v`=`exists`), 빈 글 2. 모두 `kr`이 "0"이었다.
+- 회차 `ws-1016p`(구현 전): `rloc`가 `UNKNOWN`, 데이터 폴더에 파일 없음, 카탈로그·비급·줄의 이름이 중국어. `translation` 검사는 PASS 1·FAIL 11 뒤 파일 수정 검사에서 파일이 없어 멈췄고, 기대값을 바꾼 `modbooks`는 FAIL 3.
+- 회차 `ws-1016q`: 게임을 켠 뒤 첫 적용이 `Latest.log`에 `[TlToybox] translations: file=풀어 둠 rows=59 applied=59 fallback=1 unused=0 broken=0`(`fallback` 1은 영어 플래그 `0lkK4v`). 파일에 줄을 바꾸고 깨진 줄·모르는 키·기본 키·공백 키를 더한 뒤 `rloc apply`가 `file=있음 rows=61 applied=59 fallback=0 unused=2 broken=1`, 되돌리면 `rows=59 applied=59 fallback=0 unused=0 broken=0`. `rloc dump`는 `written=1`(`0lkK4v`). 파일을 지우면 다시 `풀어 둠`. 주석만 있는 파일은 `rows=0 applied=0 fallback=0 unused=0 broken=0`.
+- 검사: `translation` 21/21, `modbooks` 26/26(기대값을 한글 이름·`NameFromCh=False`·아래 칸의 "한글 이름이 없어" 안내 없음으로 바꿈), `base` 23/23, `tabs` 59/59. 회차 시험 `session.tests.ps1` 34/34.
+- 이름: `rbook 1 984555698 3 1 1`의 결과 문장에 "열염장(품질"이 들어 있다. 자원 탭 `모드만` 칩의 다섯 줄이 적염검·열염장·장기광도·풍선용권·천살신창. 한글 "열염"과 중국어 "烈炎" 검색이 둘 다 그 줄 하나를 찾는다. 캡처 `.devremote\check-translation.png`(git 제외).
+- `base`·`tabs`의 "no warning from the mod"가 처음에 `translations:` 줄을 경고로 세어 실패했다. `ModWarnings`의 허용 목록에 넣고 통과(규칙 참고).
+- 개발·배포 구성 모두 경고 0·오류 0. 배포 DLL은 하나이고 번역 파일이 그 안에 있다.
+- `-End ws-1016p`·`ws-1016q` 모두 `SAVE RESTORED AND IDENTICAL`과 `TRANSLATIONS RESTORED (there was no folder)`(회차 전에 폴더가 없었다).
+
+### 확인하지 못한 것, 한계
+
+- 번역 문장은 제가 썼다. 게임 화면(기술 창·비급 설명)에서 자리 표시가 풀린 전체 문장은 사용자 확인 항목(인계 8.5절).
+- `Apply()`는 `Init`마다 LocalText 전체(55,267행)를 한 번 돈다. 비용은 재지 않았다(`rmods`의 같은 훑기가 3초 안쪽).
+- `fallback`은 게임을 켠 뒤 첫 적용에서만 1이다(두 번째부터는 `kr`이 이미 `ch`라 0). 이미 덮은 `kr`은 파일에서 줄을 지워도 되돌아가지 않는다(게임을 다시 켜야 한다).
+- 모드 자체의 이름(모드 화면)은 바꾸지 않는다. 다른 창작마당 모드의 글은 번역표에 없으므로 중국어로 보인다(`rloc dump`로 뽑아 번역표에 더한다).
