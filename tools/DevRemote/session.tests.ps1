@@ -230,6 +230,28 @@ $lock.Dispose()
 Check 'End that cannot remove a workshop folder keeps the session open' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session.name") -and (Test-Path "$($b.work)\session-modfolders.txt")) $o
 $o = Run $b $none @{ End = 'x' }
 Check 'End run again removes the folder and closes the session' ($o -match 'WORKSHOP FOLDERS REMOVED: 1' -and -not (Test-Path "$($b.game)\ModExportData\2876769227") -and -not (Test-Path "$($b.work)\session.name")) $o
+# 27. -End는 번역 폴더(translations)를 회차 전의 내용으로 되돌린다. 검사가 파일을 지우고 바꿔도 사용자가 고친 번역이 남는다
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.data)\translations")
+[IO.File]::WriteAllText("$($b.data)\translations\mods.txt", "k`tedited by the user")
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\translations\mods.txt", "k`toverwritten by a check")
+[IO.File]::WriteAllText("$($b.data)\translations\untranslated.txt", 'left by a check')
+$o = Run $b $none @{ End = 'x' }
+Check 'End restores the translations folder' ($o -match 'TRANSLATIONS RESTORED' -and (Tree "$($b.data)\translations") -eq "\mods.txt=k`tedited by the user" -and -not (Test-Path "$($b.work)\session-translations")) $o
+
+# 28. 회차 전에 번역 폴더가 없었으면 -End 뒤에도 없다(다음 Init 때 내장본이 풀린다). 남은 보관본이 있으면 -Begin이 멈춘다
+$b = NewBox
+[void](Run $b $none @{ Begin = 'x' })
+[void][IO.Directory]::CreateDirectory("$($b.data)\translations")
+[IO.File]::WriteAllText("$($b.data)\translations\mods.txt", 'extracted during the session')
+$o = Run $b $none @{ End = 'x' }
+Check 'End removes a translations folder the session made' ($o -match 'TRANSLATIONS RESTORED \(there was no folder\)' -and -not (Test-Path "$($b.data)\translations") -and -not (Test-Path "$($b.work)\session-translations.absent")) $o
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.work)\session-translations")
+[IO.File]::WriteAllText("$($b.work)\session-translations\mods.txt", 'the only copy')
+$o = Run $b $none @{ Begin = 'x' }
+Check 'Begin refuses to overwrite a leftover translations copy' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session-translations\mods.txt") -and -not (Test-Path "$($b.work)\session.name")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
