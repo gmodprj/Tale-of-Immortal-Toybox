@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'ImmortalAddOpen', 'ArtifactPoint', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'PresetRestore', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'ImmortalAddOpen', 'ArtifactPoint', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'PresetRestore', 'BackupNow', 'AplClassAll')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -337,6 +337,87 @@ switch ($Part) {
     $h = Cmd 'ttlholders 1404' 300
     Check 'the moved first title has one holder' ((Field $h 'holders') -eq '1' -and $h -match "\($me\)") $h
     Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'appellation-ui' {
+    # 도호 관리 스펙 5절: 화면. 고정본 인물은 결정(대경지 3)이고 영단도인(2001)을 장착했다. 관산이 팔황 제일권수(1404)를 가졌다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "(?:^|\s)$key=([^\s|]*)") { $Matches[1] } else { '' } }
+    function Num([string]$name) { if ((Cmd "uitext $name") -match "text='[^']*?(\d+)'") { [int]$Matches[1] } else { -1 } }
+    function Shown { $t = Cmd 'uitext AplTableRange'; if ($t -match '전체 (\d+)개') { [int]$Matches[1] } elseif ($t -match "text='0개'") { 0 } else { -1 } }
+    function Owns([int]$id) { ",$(Field (Cmd 'ttl' 300) 'owned')," -match ",$id," }
+    # 도호를 받으면 근처 NPC가 그 도호로 말을 거는 대화가 편집기 위에 뜰 수 있다(게임의 동작, 스펙 3.2). 떠 있으면 넘긴다.
+    function SkipDialogue { for ($i = 0; $i -lt 8 -and (Cmd 'uilist' 200) -match 'DramaDialogue'; $i++) { Rc 'click 958 552' 1000 | Out-Null } }
+    # 도호를 빼면 게임의 "도호 상실" 창(GetReward)이 편집기 위에 뜬다(게임의 동작). 떠 있으면 확인을 누른다.
+    function SkipReward { for ($i = 0; $i -lt 4 -and (Cmd 'uilist' 200) -match 'GetReward'; $i++) { Rc 'click 959 662' 1000 | Out-Null } }
+    $me = Field (Cmd 'ttl' 300) 'me'
+    Cmd 'editor' | Out-Null; Press 'Tab15' | Out-Null
+    Check 'the top line shows the equipped title and its effect' ((Cmd 'uitext AplEquipped') -match '영단도인 — .+') (Cmd 'uitext AplEquipped')
+    Check 'All counts 100' ((Num 'AplClassAll') -eq 100) (Cmd 'uitext AplClassAll')
+    $sum = 0
+    foreach ($k in 'First', 'Romance', 'Champion', 'Spender', 'Dress', 'Free', 'Alchemy', 'Forge', 'Supreme', 'Ending', 'Other') { $n = Num "AplClass$k"; if ($n -gt 0) { $sum += $n } }
+    Check 'the class chips add up to 100' ($sum -eq 100) "sum=$sum"
+    Check 'First has 60 and Owned has 1' ((Num 'AplClassFirst') -eq 60 -and (Num 'AplClassOwned') -eq 1)
+    Check 'the table lists all 100' ((Shown) -eq 100) (Cmd 'uitext AplTableRange')
+    # 검색과 가진 것만. Review Focus 5: 번호로 찾기
+    Cmd 'ui set AplQuery 권수' | Out-Null
+    $n = Shown
+    Check 'searching narrows the table' ($n -gt 0 -and $n -lt 100) "shown=$n"
+    Cmd 'ui set AplQuery 1404' | Out-Null
+    Check 'a number finds that title' ((Shown) -eq 1 -and (Cmd 'uipos AplName1404') -match ' at ') (Cmd 'uitext AplTableRange')
+    Press 'AplQueryClear' | Out-Null
+    Press 'AplOwnedOnly' | Out-Null
+    Check 'owned only shows the held title as equipped' ((Shown) -eq 1 -and (Cmd 'uitext AplState2001') -match "text='★'") (Cmd 'uitext AplTableRange')
+    Press 'AplClear' | Out-Null
+    Check 'clear restores the full table' ((Shown) -eq 100)
+    # 잃는 경지 경고
+    Cmd 'ui set AplQuery 1001' | Out-Null
+    Check 'a title lost at this grade warns' ((Cmd 'uitext AplLoss1001') -match '다음 돌파') (Cmd 'uitext AplLoss1001')
+    # '제일' 도호 가져오기: 두 번 눌러야 옮긴다
+    $h = Cmd 'ttlholders 1404' 300
+    $holder = if ($h -match 'names=([^(]+)\(') { $Matches[1] } else { '?' }
+    Cmd 'ui set AplQuery 1404' | Out-Null
+    Check 'the holder column and the give button name the holder' ((Cmd 'uitext AplHolder1404') -match $holder -and (Cmd 'uitext AplGive1404') -match "$($holder)에게서 가져오기") "$(Cmd 'uitext AplHolder1404') | $(Cmd 'uitext AplGive1404')"
+    $silenced = [int](Field (Cmd 'ttl' 300) 'silenced')
+    Press 'AplGive1404' | Out-Null
+    Check 'one press does not move it' (-not (Owns 1404))
+    Press 'AplGive1404' 1500 | Out-Null
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'the second press moves it to the player' ((Field $h 'holders') -eq '1' -and $h -match "\($me\)") $h
+    Check 'the result names the holder' ((Cmd 'uistate') -match '에게서 옮김') (Cmd 'uistate')
+    Start-Sleep -Seconds 3
+    $s = Cmd 'ttl' 300
+    Check 'its popup was closed by the editor' ((Field $s 'popup') -eq 'False' -and [int](Field $s 'silenced') -gt $silenced) $s
+    SkipDialogue
+    # 아래 칸
+    Press 'AplName1404' | Out-Null
+    $d = Cmd 'uitext AplDetail'
+    Check 'the detail shows effect, how to get it and the holder' ($d -match '효과: .*권법' -and $d -match '얻는 법: ' -and $d -match '보유자: 나') $d
+    Check 'the detail has no raw text keys' ($d -notmatch '\$') $d
+    # 빼기도 두 번
+    Press 'AplRemove1404' | Out-Null
+    Check 'one press does not remove it' (Owns 1404)
+    Press 'AplRemove1404' | Out-Null
+    Check 'the second press removes it' (-not (Owns 1404))
+    Start-Sleep -Seconds 1
+    "INFO game windows after removal: $((Cmd 'uilist' 200) -replace "`n", ' |')"
+    SkipReward
+    SkipDialogue
+    # 장착 칸과 줄의 장착
+    Press 'AplClear' | Out-Null
+    Press 'AplUnequip' | Out-Null
+    Check 'unequip empties the top line' ((Cmd 'uitext AplEquipped') -match '장착한 도호가 없습니다') (Cmd 'uitext AplEquipped')
+    Cmd 'ui set AplQuery 2001' | Out-Null
+    Press 'AplEquip2001' | Out-Null
+    Check 'equip from the row' ((Cmd 'uitext AplEquipped') -match '영단도인' -and (Cmd 'uitext AplEquip2001') -match '장착 중') "$(Cmd 'uitext AplEquipped') | $(Cmd 'uitext AplEquip2001')"
+    # 이야기 도호 안내
+    Cmd 'ui set AplQuery 2601' | Out-Null
+    Press 'AplName2601' | Out-Null
+    Check 'a story title says its effect is unverified' ((Cmd 'uitext AplDetail') -match '이야기와 묶인 효과라 확인하지 못했습니다') (Cmd 'uitext AplDetail')
+    Press 'AplClear' | Out-Null
+    Shot 'appellation-ui'
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
   'favstore' {
     # 자원 탭 개편 스펙 3.3절: 즐겨찾기 파일의 읽기·쓰기. 경고를 일부러 남기므로 회차에서 이 부분 뒤에는 -Restart한다.
