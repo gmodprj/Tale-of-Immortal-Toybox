@@ -75,6 +75,13 @@ switch ($Part) {
     Cmd 'uifocus ItemQuery' | Out-Null
     Key 0x31 350; Key 0x30 350
     $typed = Cmd 'uitext ItemQuery'
+    # 화면 밖 게임에 보낸 키가 통째로 빠질 때가 있다(인계 6절). 하나도 닿지 않았으면 한 번 다시 보낸다.
+    if ($typed -match "text=''") {
+      "INFO the keys did not reach the search box; sending them once more"
+      Cmd 'uifocus ItemQuery' | Out-Null
+      Key 0x31 350; Key 0x30 350
+      $typed = Cmd 'uitext ItemQuery'
+    }
     $left = Cmd 'uitext ResGroupAll'
     Check 'typing keeps the focus while counts change' ($typed -match "text='10'" -and $left -notmatch "text='전체 $total'") "$typed | $left"
     Press 'ItemQueryClear' | Out-Null
