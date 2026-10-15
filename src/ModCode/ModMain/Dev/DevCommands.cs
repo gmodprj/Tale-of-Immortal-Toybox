@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string translation = DevCommandsTranslation.Execute(p);
+            if (translation != null)
+            {
+                return translation;
+            }
             string workshop = DevCommandsWorkshop.Execute(p);
             if (workshop != null)
             {

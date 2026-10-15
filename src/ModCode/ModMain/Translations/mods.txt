@@ -1,0 +1,61 @@
+# 창작마당 모드의 글 한글화. 키<TAB>한국어. # 줄은 주석. 한국어 안의 줄바꿈은 \n 두 글자. 자리 표시($…$, &…&, {…}, <…>)는 원문 그대로.
+# 출처: docs/superpowers/specs/2026-10-16-mod-korean-design.md 부록 A. 고쳐 쓰려면 모드 데이터 폴더의 translations\mods.txt를 고친다(이 파일은 처음 한 번만 풀린다).
+utg7MubS	용모를 바꾸시겠습니까?
+skill_name_middle59898952	천살신창
+skill_attack_desc59898952	$s_shenqiang$ 상태에 들어간 뒤에 이 신통을 펼칠 수 있다. 대량의 신창을 계속 소환해 천살창진을 펼치며, 신창은 전장의 모든 적을 추적해 공격하고 부딪힌 적에게 위력 &59898952_dmg&의 $s_qiang$ 피해를 주며 $s_qiansha$ 표식을 새긴다.
+s_shenqiang	신창
+effect_descshenqiang	전장에 적이 하나뿐이거나 전투 시작 &59898952_qzsj&초 뒤\n신창 상태에 들어가며, 받는 무법 피해를 반드시 상쇄한다
+s_59898952_mpCost	이 기술의 영력 소모 &59898952_mpCost&점.
+s_59898952_cd	이 기술의 쿨타임 &59898952_cd&초.
+s_664997436_tssh	이 신통을 펼칠 때 전장에 적이 하나뿐이면 이 기술의 피해 +&664997436_tssh&%.
+s_68675244_qsj	이 기술의 지속 시간 &68675244_qsj&초.
+s_265874779_ysjd	이 기술의 피해를 받은 적은 이동속도 &265874779_ysjd&%, &265874779_jssj&초 지속.
+s_457824468_msbl	이 신통의 지속 시간 동안 자신이 받는 피해 &457824468_msbl&%.
+skillCondition445657899	필요 신창 중첩 수:
+effect_desc665988763qztj	봉
+s_qiansha	천살
+effect_descqiansha	표식이 {icon_diejiacengshu}<y>10</y>층 쌓이면 천살 효과가 발동해, 표식된 대상에게 최대 생명의 {icon_zhijieshanghai}<y>1</y>% 고정 피해를 주고 표식 중첩을 지운다
+skill_name_middle984555698	열염장
+skill_attack_desc984555698	$s_xueli984555698$ {icon_chixushijian}<y>1.5</y>초, 전방에 사거리 &984555698_range&의 열염장을 &984555698_ddsl&갈래 발사해 부딪힌 적에게 위력 &984555698_dmg&의 $s_zhang$ 피해를 준다. 충전이 최대 시간에 이른 뒤 펼치면 완전 충전이 되어 $s_huo$의 열염장을 {icon_dandaoshuliang}<y>2</y>번 더 발사한다.
+s_984555698_mpCost	이 기술의 영력 소모 &984555698_mpCost&점.
+s_984555698_cd	이 기술의 쿨타임 &984555698_cd&초.
+s_984555698_neishang	대상에게 $s_neishang$이 있으면 대상의 모든 $s_neishang$을 터뜨리며, $s_neishang$ 한 층을 터뜨릴 때마다 &984555698_zfgl&%의 확률로 대상의 발밑에 $s_zhangfeng$을 하나 만든다.
+s_984555698_zhengfeng2	자신에게 $s_neijing$이 있으면 자신의 모든 $s_neijing$을 소모하며, $s_neijing$ 한 층을 소모할 때마다 &984555698_zfgl2&%의 확률로 자신의 발밑에 $s_zhangfeng$을 하나 만든다.
+s_984555698_zsyb	대상에게 $s_zhuoshao$이 있으면 대상의 모든 $s_zhuoshao$을 터뜨리며, $s_zhuoshao$ 한 층을 터뜨릴 때마다 &355557521_hygl&%의 확률로 대상의 발밑에 $s_lieyan$을 하나 만든다.
+s_984555698_xhrh	자신에게 $s_ranhun$이 있으면 자신의 모든 $s_ranhun$을 소모하며, $s_ranhun$ 한 층을 소모할 때마다 &355557521_hygl2&%의 확률로 자신의 발밑에 $s_lieyan$을 하나 만든다.
+s_984555698_ddzj	충전하는 동안 열염장의 탄도 수가 계속 늘며, 최대 &984555698_zjdd&번 는다.
+s_984555698_ctcs	열염장의 관통 횟수 &984555698_ctcs&.
+s_xueli984555698	충전 시전
+s_xueli984555698_desc	마우스를 누르고 있으면 충전을 시작하고, 떼면 충전을 멈추고 기술을 펼친다. 충전 시간이 길수록 기술의 위력이 높아지고 사거리(범위)가 커진다.
+skill_name_middle353535	장기광도
+skill_attack_desc353535	전방으로 &353535_tjjl& 거리를 돌진하며 동시에 순간적으로 &353535_ddsl|x100|/300|f0&번 피해를 줄 수 있는 도광 세 줄기를 빠르게 베어 내, 범위 &353535_range& 안의 적에게 위력 &353535_dmg&의 $s_dao$ 피해를 준다.\n이 기술에는 $s_daoqi35226635$가 숨어 있어 추가 피해를 주며, 베기가 끝나면 자신의 이동속도가 {icon_yisu}<y>45</y>% 올라 {icon_chixushijian}<y>3</y>초 지속된다.
+s_353535_ybxr	대상의 $s_xueren$을 터뜨리며, 한 층을 터뜨릴 때마다 대상의 자리에 혈참을 한 줄기 떨어뜨려 범위 &22111_xzfw& 안의 적에게 &22111_xzsh|x22111_dmg|/100|f0& $s_dao$ 피해를 준다. 혈참이 준 피해의 &22111_xzxx&%를 흡혈한다.
+s_353535_xhjq	장기광도를 쓰면 자신의 모든 $s_jueqing$을 소모하며, $s_jueqing$ 한 층을 소모할 때마다 장기광도의 공격 거리가 &353535_mxbl&% 늘어 1초 지속된다
+s_353535_mpCost	이 기술의 영력 소모 &353535_mpCost&점.
+s_353535_cd	이 기술의 쿨타임 &353535_cd&초.
+s_353535_range	도광의 범위 &353535_range&.
+s_353535_zjcd	이 기술로 $s_xueren$을 &353535_xqcs&층 터뜨리면 무예의 쿨타임 &353535_zjcd&%, &22113_zjsj&초 지속.
+BattleEffectDesc35353584	이동속도{icon_yisu} <y>25%</y> 상승
+s_daoqi35226635	도기
+s_daoqi35226635_desc	숨은 도기가 위력 &353535_dmg&의 $s_dao$ 피해를 준다
+skill_name_middle3535351	적염검
+skill_attack_desc3535351	전방에 사거리 &3535351_range&의 현령검을 한 줄기 발사해 적에게 위력 &3535351_dmg&의 $s_jian$ 피해를 준다. 동시에 $s_huolingli353535$을 일으켜 현령검을 적염검으로 바꿔 적을 추적하게 하며, 적에게 맞으면 위력 &3535352_dmg&의 $s_huo$ 피해를 주고 확률적으로 검이 부서져 <r>적염폭</r>이 되어 피해를 한 번 더 준다.
+s_huolingli353535	화령력
+s_3535352_buffProb%1	현령검이 적에게 맞으면 &14111_buffProb%1&%의 확률로 적에게 $s_liuxue$을 한 층 쌓는다.\n적염검이 적에게 맞으면 &41111_buffProb%1&%의 확률로 적에게 $s_zhuoshao$을 한 층 쌓는다.
+s_3535352_buffProb%2	현령검이 맞으면 &14112_buffProb%1&%의 확률로 자신에게 $s_jianzhan$을 한 층 쌓는다.\n적염검이 맞으면 &41112_buffProb%1&%의 확률로 자신에게 $s_ranhun$을 한 층 쌓는다.
+s_3535351_cd	이 기술의 쿨타임 &3535351_cd&초.
+s_3535351_layCount	$s_liuxue$과 $s_zhuoshao$의 최대 중첩 수 &14111_layCount&층.
+s_3535351_layCount2	$s_jianzhan$과 $s_ranhun$의 최대 중첩 수 &14112_layCount&층.
+s_3535351_bszj	이 기술의 치명타 피해가 &3535351_bszj&% 는다
+s_3535351_range	현령검의 사거리 &3535351_range&.
+s_3535351_duration	$s_liuxue$과 $s_zhuoshao$의 지속 시간 &14111_duration&초.
+s_3535351_duration2	$s_jianzhan$과 $s_ranhun$의 지속 시간 &14112_duration&초.
+skill_name_middle844854565	풍선용권
+skill_attack_desc844854565	$s_chixushifa$ &844854565_sfsj&초, 대상 방향으로 풍선용권을 잇달아 소환해 적에게 위력 &844854565_dmg&의 $s_feng$ 피해를 준다.
+s_844854565_mpCost	이 기술의 영력 소모 &844854565_mpCost&점.
+s_844854565_cd	이 기술의 쿨타임 &844854565_cd&초.
+s_844854565_sfsj	이 기술의 시전 시간이 &844854565_sfsj&초 는다.
+s_844854565_yszj	자신에게 $s_lingfeng$이 있으면 자신의 모든 $s_lingfeng$을 소모하며, $s_lingfeng$ 한 층을 소모할 때마다 이동속도가 &844854565_yszj&점 늘고, 그 뒤 &844854565_ydjl&만큼 움직일 때마다 앞으로 나아가는 회오리를 하나 만든다. 시전이 끝나면 이동속도 상승과 회오리 생성 효과가 사라진다.
+s_844854565_ysjd	대상에게 $s_nifeng$이 있으면 그 모든 $s_nifeng$을 터뜨리며, $s_nifeng$ 한 층을 터뜨릴 때마다 대상에게 위력 &844854565_ewsh&의 $s_feng$ 피해를 한 번 더 준다.\n$s_nifeng$을 터뜨릴 때 대상의 이동속도 &844854565_ysjd&%, &844854565_jssj&초 지속.
+s_844854565_sbcs	이 기술을 시전하는 동안 처음 &844854565_sbcs&번 받는 피해를 회피한다.
+s_844854565_jdsh	이 기술이 적에게 맞으면 대상이 이어지는 &844854565_jdsj&초 동안 주는 피해 &844854565_jdsh&%.

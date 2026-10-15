@@ -12,6 +12,14 @@ namespace MOD_sWP6UL
         {
             MelonLogger.Msg("[TlToybox] Init");
             EditorHost.Ensure();
+            try
+            {
+                TranslationService.Apply();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] translations failed: " + e.GetType().Name + ": " + e.Message);
+            }
             BattleService.OnInit();
 #if DEVTOOLS
             StartDevPoll();
