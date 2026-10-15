@@ -22,6 +22,10 @@ namespace MOD_sWP6UL
             public int GradeMin;
             public int GradeMax;
             public string Search;
+            public int KindIndex;        // Kinds의 순번
+            public bool IsMod;           // 모드가 더한 행(ConfBaseItem.isModExtend). 경지 범위는 1~10으로 둔다
+            public bool NameFromCh;      // 한국어 이름이 없어 LocalText의 ch(중국어)로 채웠다
+            public string BasType;       // 무예·영술의 무기 종류(battleSkillAttack.basType). 그 밖은 ""
         }
 
         public static readonly Kind[] Kinds =
@@ -36,11 +40,84 @@ namespace MOD_sWP6UL
         private const int RollMax = 3000;
         private static readonly Dictionary<int, List<Entry>> cache = new Dictionary<int, List<Entry>>();
 
-        private static void Add(List<Entry> list, int id, string nameKey, string descKey, int gradeMin, int gradeMax)
+        private static Dictionary<string, string> chByKey;   // LocalText 키 → ch(중국어). 처음 한 번 만든다
+
+        // 한국어 글이 없으면("0"·빈 글·키 그대로) LocalText 행의 ch(중국어)를, 그것도 없으면 키를 돌려준다.
+        // 모드의 LocalText는 ch만 있고 kr이 "0"이다(실측, 인계 8.3e절). G2c가 kr을 덮으면 LS가 한글을 돌려주므로 그대로 따라온다.
+        internal static string ResolveText(string key, out bool fromCh)
         {
-            // 경지 범위가 0~0인 항목은 플레이어가 배우는 기술이 아니다(괴물용·부품).
-            string name = EditService.Compact(GameTool.LS(nameKey));
-            if (gradeMax < 1 || name.Length == 0 || name == EditService.Compact(nameKey))
+            fromCh = false;
+            string text = GameTool.LS(key);
+            if (!string.IsNullOrEmpty(text) && text != "0" && text != key)
+            {
+                return text;
+            }
+            string ch = ChOf(key);
+            if (!string.IsNullOrEmpty(ch))
+            {
+                fromCh = true;
+                return ch;
+            }
+            return key;
+        }
+
+        // LocalText 행의 ch. 없으면 "". (allText.TryGetValue는 Il2Cpp 제네릭 호출에서 MissingMethodException이 났다. 목록을 한 번 훑어 사전을 만든다.)
+        internal static string ChOf(string key)
+        {
+            if (chByKey == null)
+            {
+                chByKey = new Dictionary<string, string>();
+                var all = g.conf.localText.allConfList;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    ConfLocalTextItem item = all[i];
+                    if (item != null && item.key != null && !chByKey.ContainsKey(item.key))
+                    {
+                        chByKey[item.key] = item.ch ?? "";
+                    }
+                }
+            }
+            string found;
+            return key != null && chByKey.TryGetValue(key, out found) ? found : "";
+        }
+
+        // 목록과 LocalText 사전을 비운다. LocalText를 덮어쓴 뒤(G2c) 부른다.
+        public static void Reset()
+        {
+            cache.Clear();
+            chByKey = null;
+        }
+
+        // 모드 항목의 비급을 뽑을 원본: 같은 분류의 기본 항목 가운데 고른 경지를 범위에 포함하는 것.
+        // 무예·영술은 같은 basType을 먼저, 자기 묶음(OwnCombine)이 있는 것을 먼저 쓴다(뽑기가 한 번에 끝난다). 없으면 null.
+        internal static Entry SourceFor(int kindIndex, Entry mod, int grade)
+        {
+            Kind kind = Kinds[kindIndex];
+            Entry best = null;
+            int bestScore = -1;
+            foreach (Entry e in All(kindIndex))
+            {
+                if (e.IsMod || grade < e.GradeMin || grade > e.GradeMax)
+                {
+                    continue;
+                }
+                int score = (OwnCombine(kind, e.BaseId) != 0 ? 1 : 0) + (kind.Type == MartialType.SkillLeft && e.BasType == mod.BasType ? 2 : 0);
+                if (score > bestScore)
+                {
+                    best = e;
+                    bestScore = score;
+                }
+            }
+            return best;
+        }
+
+        // 기본 행: 경지 범위가 0~0인 항목은 플레이어가 배우는 기술이 아니다(괴물용·부품). 이름 키가 풀리지 않는 것도 뺀다.
+        // 모드 행(isModExtend): 경지 범위가 0~0이고 한국어 이름이 "0"이어도 넣는다(실측, 인계 8.3e절). 경지는 1~10.
+        private static void Add(List<Entry> list, int kindIndex, bool isMod, int id, string nameKey, string descKey, int gradeMin, int gradeMax, string basType)
+        {
+            bool nameFromCh, descFromCh;
+            string name = EditService.Compact(ResolveText(nameKey, out nameFromCh));
+            if (!isMod && (gradeMax < 1 || name.Length == 0 || name == EditService.Compact(nameKey)))
             {
                 return;
             }
@@ -48,10 +125,14 @@ namespace MOD_sWP6UL
             {
                 BaseId = id,
                 Name = name,
-                Desc = MartialService.CleanDesc(GameTool.LS(descKey)).Replace("\r", "").Replace('\n', ' '),
-                GradeMin = gradeMin,
-                GradeMax = gradeMax,
-                Search = name,
+                Desc = MartialService.CleanDesc(ResolveText(descKey, out descFromCh)).Replace("\r", "").Replace('\n', ' '),
+                GradeMin = isMod ? 1 : gradeMin,
+                GradeMax = isMod ? 10 : gradeMax,
+                Search = name + EditService.Compact(ChOf(nameKey)),
+                KindIndex = kindIndex,
+                IsMod = isMod,
+                NameFromCh = nameFromCh,
+                BasType = basType ?? "",
             });
         }
 
@@ -69,7 +150,7 @@ namespace MOD_sWP6UL
                 var all = g.conf.battleStepBase._allConfList;
                 for (int i = 0; i < all.Count; i++)
                 {
-                    Add(list, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax);
+                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "");
                 }
             }
             else if (kind.Type == MartialType.Ability)
@@ -77,7 +158,7 @@ namespace MOD_sWP6UL
                 var all = g.conf.battleAbilityBase._allConfList;
                 for (int i = 0; i < all.Count; i++)
                 {
-                    Add(list, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax);
+                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "");
                 }
             }
             else
@@ -91,7 +172,7 @@ namespace MOD_sWP6UL
                         : kind.Type == MartialType.SkillRight ? type == 3 : type == 4;
                     if (match)
                     {
-                        Add(list, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax);
+                        Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, all[i].basType);
                     }
                 }
             }
@@ -134,9 +215,17 @@ namespace MOD_sWP6UL
             return counts;
         }
 
-        // 지금 배울 수 없는 이유. 배울 수 있으면 null.
+        // 지금 배울(만들) 수 없는 이유. 할 수 있으면 null.
         public static string BlockReason(Entry entry, int grade)
         {
+            if (entry.IsMod)
+            {
+                if (Kinds[entry.KindIndex].Type == MartialType.Ultimate)
+                {
+                    return "이 모드의 신통은 줄 수 없습니다. 게임이 값을 읽지 못합니다(실측)";
+                }
+                return grade < 1 || grade > 10 ? "경지는 1~10입니다" : null;
+            }
             return grade < entry.GradeMin || grade > entry.GradeMax
                 ? "경지 " + entry.GradeMin + "~" + entry.GradeMax + "의 기술이라 경지 " + grade + "로는 만들 수 없습니다"
                 : null;
@@ -281,6 +370,10 @@ namespace MOD_sWP6UL
         public static string Learn(WorldUnitBase unit, int kindIndex, Entry entry, int grade, bool force)
         {
             Kind kind = Kinds[kindIndex];
+            if (entry.IsMod)
+            {
+                return entry.Name + ": 모드 공법은 자원 탭의 기술 서적에서 비급으로 받습니다.";
+            }
             string blocked = BlockReason(entry, grade);
             if (blocked != null && !force)
             {
@@ -320,6 +413,11 @@ namespace MOD_sWP6UL
             int learned = 0, plain = 0, refused = 0, skipped = 0;
             foreach (Entry entry in All(kindIndex))
             {
+                if (entry.IsMod)
+                {
+                    skipped++;
+                    continue;
+                }
                 if (have.ContainsKey(entry.BaseId))
                 {
                     continue;
