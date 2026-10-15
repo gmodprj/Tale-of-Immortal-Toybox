@@ -153,6 +153,80 @@ switch ($Part) {
     Check 'a full bag stops with the number put in' ($o -match '가방에 들어가지 않았습니다' -and (BookCount) -eq $count + $made) $o
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'modbooks' {
+    # 모드 공법의 비급 스펙 5절. 고정본 인물은 결정(대경지 3). 창작마당 모드 3390738990(공법 다섯)이 설치돼 있어야 한다.
+    # 회차의 -End가 세이브와 favorites.txt를 되돌린다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "$key=([^\s|]+)") { $Matches[1] } else { '' } }
+    function BookCount([int]$id) { [int](Field (Cmd "rbooks $id" 300) 'count') }
+    function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
+    # 1. 카탈로그(Task 2)
+    $mods = Cmd 'rmods' 3000
+    Check 'the catalog lists the five mod skills' ($mods -match 'count=5' -and $mods -match '1:984555698:' -and $mods -match '1:353535:' -and $mods -match '1:844854565:' -and $mods -match '0:3535351:' -and $mods -match '4:59898952:') $mods
+    Check 'mod skill names come from the Chinese column' ($mods -match '984555698:烈炎掌:' -and $mods -match '59898952:千杀神枪:' -and $mods -match '3535351:赤炎剑:basSword:True:') $mods
+    Check 'only the mod ultimate is blocked' ($mods -match '4:59898952:[^,]*:이 모드의 신통은 줄 수 없습니다[^,]*:' -and $mods -match '1:984555698:[^:]*:[^:]*:True:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:True:-:\d+') $mods
+    $s = Cmd 'rskill 1 984555698' 300
+    Check 'a mod skill has grade range 1~10' ($s -match 'min=1 max=10 name=烈炎掌') $s
+    $l = Cmd 'rlearn 1 984555698 3' 3000
+    Check 'learning a mod skill directly is refused with a hint' ($l -match '모드 공법은 자원 탭의 기술 서적에서 비급으로 받습니다' -and (Cmd 'cmartial 984555698' 300) -match 'n=0') $l
+    # 2. 비급(Task 3)
+    foreach ($id in 984555698, 353535, 844854565) {
+      $before = BookCount $id
+      $made = Cmd "rbook 1 $id 3 1 1" 20000
+      $books = Cmd "rbooks $id" 300
+      $sole = if ($books -match "([A-Za-z0-9]{6}):${id}:3:") { $Matches[1] } else { '' }
+      $study = if ($sole) { Cmd "rbookstudy $sole" 300 } else { 'no book' }
+      Check "a mod skill book is made and accepted ($id)" ($made -match 'made=1' -and (BookCount $id) -eq $before + 1 -and $study -match 'can=0') "$made | $study"
+    }
+    $made = Cmd 'rbook 1 984555698 1 1 1' 20000
+    Check 'a mod book at grade 1' ($made -match 'made=1' -and (Cmd 'rbooks 984555698' 300) -match ':984555698:1:') $made
+    $made = Cmd 'rbook 1 984555698 10 1 1' 20000
+    Check 'a mod book at grade 10' ($made -match 'made=1' -and (Cmd 'rbooks 984555698' 300) -match ':984555698:10:') $made
+    $made = Cmd 'rbook 1 984555698 3 6 1' 60000
+    Check 'a mod book with minimum quality 6 is made and says the quality is the game''s' ($made -match 'made=1' -and $made -match '최소 품질을 적용하지 않았습니다') $made
+    $ok = 0
+    for ($i = 0; $i -lt 3; $i++) { if ((Cmd 'rbook 0 3535351 3 1 1' 60000) -match 'made=1') { $ok++ } }
+    Check 'the mod martial art is made three times out of three (retries)' ($ok -eq 3) "ok=$ok"
+    $sole = if ((Cmd 'rbooks 3535351' 300) -match '([A-Za-z0-9]{6}):3535351:') { $Matches[1] } else { '' }
+    Check 'the mod martial art book reads like a base one' ($sole -ne '' -and (Cmd "rbookstudy $sole" 300) -match 'can=5') "sole=$sole"
+    $made = Cmd 'rbook 4 59898952 3 1 1' 3000
+    Check 'the mod ultimate is refused with the reason' ($made -match 'made=0' -and $made -match '이 모드의 신통은 줄 수 없습니다') $made
+    # 3. 화면(Task 4)
+    Cmd 'rfav reset' 300 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null
+    Check 'seven kind chips with the mod-only chip' ((Cmd 'uitext ResKind6') -match "text='모드만 \(5\)'" -and (Cmd 'uipos ResKind7') -match 'no element named') (Cmd 'uitext ResKind6')
+    Press 'ResKind6' | Out-Null
+    Check 'the mod-only chip shows five rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
+    Press 'BookName984555698' | Out-Null
+    $d = Cmd 'uitext ItemDetail'
+    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '한글 이름이 없어 중국어 이름을' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '모드 공법: 같은 종류의 기본 공법을 뽑아') $d
+    $p = Pos 'BookGive59898952'
+    Check 'the mod ultimate cannot be given from the row' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: BookGive59898952')
+    Press 'BookName59898952' | Out-Null
+    Check 'the box below gives the reason for the ultimate' ((Cmd 'uitext ItemDetail') -match '지급할 수 없습니다: 이 모드의 신통은 줄 수 없습니다') (Cmd 'uitext ItemDetail')
+    $before = BookCount 984555698
+    Press 'item1' | Out-Null
+    Press 'BookGive984555698' 20000 | Out-Null
+    Check 'giving from the row makes one mod book' ((BookCount 984555698) -eq $before + 1 -and (Cmd 'uitext BookBag984555698') -match "text='$($before + 1)'") (Cmd 'uitext BookBag984555698')
+    Cmd 'ui set ItemQuery 烈炎' | Out-Null
+    Check 'the Chinese name is searchable' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
+    Press 'ItemQueryClear' | Out-Null
+    Press 'ResBookFit' | Out-Null; Press 'ResBookFit' | Out-Null
+    Check 'this-grade-only keeps mod rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
+    Press 'ResClear' | Out-Null
+    Check 'clear releases the mod-only chip' ((Range) -gt 5 -and (Cmd 'uitext ResKind0') -match "text='전체 \(") (Cmd 'uitext ItemTableRange')
+    Press 'ResKind6' | Out-Null
+    Press 'BookStar984555698' | Out-Null
+    Check 'a mod book favorite is saved' ((Cmd 'rfav' 200) -match 'book:1:984555698:3:1:1') (Cmd 'rfav' 200)
+    Press 'ResGroupFav' | Out-Null
+    $before = BookCount 984555698
+    Press 'ResAllGive' | Out-Null; Press 'ResAllGive' 20000 | Out-Null
+    Check 'give all gives the mod book' ((BookCount 984555698) -eq $before + 1) "$before -> $(BookCount 984555698)"
+    Shot 'modbooks'
+    Cmd 'rfav reset' 300 | Out-Null
+    Check 'no new traps' ((Traps) -eq $traps)
+  }
   'books-ui' {
     # 기술 서적 스펙 5절: 화면. 고정본 인물은 결정(대경지 3). 회차의 -End가 favorites.txt를 되돌린다.
     $traps = Traps
@@ -164,7 +238,7 @@ switch ($Part) {
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
     Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null
     Check 'the group button shows a count' ((Cmd 'uitext ResGroupManual') -match "text='기술 서적 [1-9]\d*'") (Cmd 'uitext ResGroupManual')
-    Check 'six kind chips' ((Cmd 'uitext ResKind0') -match "text='전체 \(" -and (Cmd 'uitext ResKind5') -match "text='신통 \(" -and (Cmd 'uipos ResKind6') -match 'no element named')
+    Check 'seven kind chips' ((Cmd 'uitext ResKind0') -match "text='전체 \(" -and (Cmd 'uitext ResKind5') -match "text='신통 \(" -and (Cmd 'uitext ResKind6') -match "text='모드만 \(" -and (Cmd 'uipos ResKind7') -match 'no element named')
     $r = Pos 'Row0'
     Rc "click $($r.x) $($r.y)" 600 | Out-Null
     Check 'the grade starts at the current grade' ((Cmd 'uitext ItemDetail') -match '지급하면: 경지 3, 품질 1 이상') (Cmd 'uitext ItemDetail')

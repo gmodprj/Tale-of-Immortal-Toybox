@@ -16,6 +16,8 @@ namespace MOD_sWP6UL
     //   rbookstudy <soleID>  : 게임의 학습 행동(UnitActionPropMartialStudy)이 그 비급을 받아들이는지 can=<IsCreateAction>
     //   rskill <분류> <기술 번호> : min=<경지> max=<경지> name=<이름>
     //   rownskills <분류> <경지> : 그 기술 하나만 나오는 묶음이 있고 그 경지로 만들 수 있는 기술 ids=<번호>,…(표 순서, 열 개까지)
+    //   rmods : 카탈로그의 모드 항목 count=<수> items=<분류>:<번호>:<이름>:<basType>:<NameFromCh>:<막힘 이유(경지 3) 또는 ->:<원본 번호(경지 3) 또는 ->,…
+    //   rlearn <분류> <번호> <경지> : SkillCatalog.Learn의 문장(모드 항목은 거부 문장)
     internal static class DevCommandsResources
     {
         public static string Execute(string[] p)
@@ -26,6 +28,13 @@ namespace MOD_sWP6UL
                     return Groups();
                 case "rfav":
                     return Favorites(p);
+                case "rmods":
+                    return Mods();
+                case "rlearn":
+                    {
+                        SkillCatalog.Entry entry = SkillCatalog.Get(int.Parse(p[1]), int.Parse(p[2]));
+                        return entry == null ? "no skill " + p[2] : SkillCatalog.Learn(g.world.playerUnit, int.Parse(p[1]), entry, int.Parse(p[3]), false);
+                    }
                 case "rbook":
                     {
                         int kindIndex = int.Parse(p[1]);
@@ -148,6 +157,25 @@ namespace MOD_sWP6UL
             }
             string state = "count=" + items.Count + " skipped=" + FavoriteStore.SkippedLines + " items=" + string.Join(",", items.ToArray());
             return text == null ? state : text + " | " + state;
+        }
+
+        private static string Mods()
+        {
+            var items = new List<string>();
+            for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
+            {
+                foreach (SkillCatalog.Entry e in SkillCatalog.Find(k, ""))
+                {
+                    if (!e.IsMod)
+                    {
+                        continue;
+                    }
+                    string block = SkillCatalog.BlockReason(e, 3) ?? "-";
+                    SkillCatalog.Entry source = SkillCatalog.SourceFor(k, e, 3);
+                    items.Add(k + ":" + e.BaseId + ":" + e.Name + ":" + e.BasType + ":" + e.NameFromCh + ":" + block + ":" + (source == null ? "-" : source.BaseId.ToString()));
+                }
+            }
+            return "count=" + items.Count + " items=" + string.Join(",", items.ToArray());
         }
 
         private static string Books(int baseId)

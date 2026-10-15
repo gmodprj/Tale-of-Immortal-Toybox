@@ -10,7 +10,9 @@ namespace MOD_sWP6UL
     {
         private const string ManualKey = "Manual";
 
-        private int bookKind = -1;          // -1이면 다섯 분류 전부, 아니면 SkillCatalog.Kinds의 순번
+        private const int ModOnly = -2;     // bookKind가 이 값이면 모든 분류의 모드 공법만
+
+        private int bookKind = -1;          // -1이면 다섯 분류 전부, ModOnly면 모드 공법만, 아니면 SkillCatalog.Kinds의 순번
         private int bookGrade;              // 고른 경지. 0이면 고르지 않았다: 플레이어의 지금 대경지를 따른다
         private int playerGrade = 1;        // 플레이어의 지금 대경지(그릴 때마다 읽는다. 돌파하거나 다른 세이브를 불러도 따라간다)
         private int bookMinLevel = 1;
@@ -49,7 +51,13 @@ namespace MOD_sWP6UL
 
         private bool BookShown(SkillCatalog.Entry entry)
         {
-            return !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
+            // 모드 공법은 경지 범위가 없고(1~10) 막힌 신통도 이유를 읽을 수 있게 늘 보인다.
+            return entry.IsMod || !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
+        }
+
+        private bool BookInKind(SkillCatalog.Entry entry, int k)
+        {
+            return bookKind == ModOnly ? entry.IsMod : (bookKind < 0 || bookKind == k);
         }
 
         private List<Row> BookRows()
@@ -57,13 +65,9 @@ namespace MOD_sWP6UL
             var rows = new List<Row>();
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
-                if (bookKind >= 0 && bookKind != k)
-                {
-                    continue;
-                }
                 foreach (SkillCatalog.Entry entry in SkillCatalog.Find(k, filter.Query))
                 {
-                    if (BookShown(entry))
+                    if (BookInKind(entry, k) && BookShown(entry))
                     {
                         rows.Add(new Row { Skill = entry, SkillKind = k });
                     }
@@ -72,10 +76,10 @@ namespace MOD_sWP6UL
             return rows;
         }
 
-        // 분류마다 검색어와 "이 경지만"을 통과한 기술의 수(SkillCatalog.Kinds 순서).
+        // 분류마다 검색어와 "이 경지만"을 통과한 기술의 수(SkillCatalog.Kinds 순서) + 마지막에 모드 공법의 수.
         private int[] BookKindCounts()
         {
-            var counts = new int[SkillCatalog.Kinds.Length];
+            var counts = new int[SkillCatalog.Kinds.Length + 1];
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
                 foreach (SkillCatalog.Entry entry in SkillCatalog.Find(k, filter.Query))
@@ -83,6 +87,10 @@ namespace MOD_sWP6UL
                     if (BookShown(entry))
                     {
                         counts[k]++;
+                        if (entry.IsMod)
+                        {
+                            counts[SkillCatalog.Kinds.Length]++;
+                        }
                     }
                 }
             }
@@ -92,29 +100,31 @@ namespace MOD_sWP6UL
         private int BookCount()
         {
             int total = 0;
-            foreach (int n in BookKindCounts())
+            int[] counts = BookKindCounts();
+            for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
-                total += n;
+                total += counts[k];
             }
             return total;
         }
 
-        // 종류 칩 여섯(전체와 다섯 분류). 한 줄에 들어간다.
+        // 종류 칩 일곱(전체, 다섯 분류, 모드만). 한 줄에 들어간다.
         private float DrawBookKinds(float y)
         {
             int[] counts = BookKindCounts();
             int total = 0;
-            foreach (int n in counts)
+            for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
-                total += n;
+                total += counts[k];
             }
             float x = 0;
-            for (int i = 0; i <= SkillCatalog.Kinds.Length; i++)
+            for (int i = 0; i <= SkillCatalog.Kinds.Length + 1; i++)
             {
-                string name = i == 0 ? "전체" : SkillCatalog.Kinds[i - 1].Tab;
+                bool modChip = i == SkillCatalog.Kinds.Length + 1;
+                string name = i == 0 ? "전체" : modChip ? "모드만" : SkillCatalog.Kinds[i - 1].Tab;
                 int count = i == 0 ? total : counts[i - 1];
                 float w = Math.Max(70f, Ui.TextWidth(name + " (00000)", 19) + 28f);
-                int kindValue = i - 1;
+                int kindValue = modChip ? ModOnly : i - 1;
                 Button chip = Ui.Button("ResKind" + i, content, name + " (" + count + ")", RightX + x, y, w, ChipH,
                     new Action(() => { bookKind = kindValue; Changed(); }), true, bookKind == kindValue);
                 labels.Add(new CountLabel { Text = chip.GetComponentInChildren<Text>(), Name = name, Index = i });
@@ -166,8 +176,8 @@ namespace MOD_sWP6UL
             bool fav = FavoriteStore.HasBook(id, BookGrade, bookMinLevel);
             Ui.Button("BookStar" + id, row, fav ? "★" : "☆", ColStar, 2, 40, RowH - 4, new Action(() => ToggleBook(kindIndex, skill)), true, fav);
             WrapLabel(Ui.Button("BookName" + id, row, skill.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(SkillDetail(r)))));
-            Ui.Wrapped(row, SkillCatalog.Kinds[kindIndex].Tab, ColKind, 0, KindW, h, 16);
-            Ui.Label(row, skill.GradeMin + "~" + skill.GradeMax, ColLevel, 0, 50, h, 16);
+            Ui.Wrapped(row, SkillCatalog.Kinds[kindIndex].Tab + (skill.IsMod ? " [모드]" : ""), ColKind, 0, KindW, h, 16);
+            Ui.Label(row, skill.IsMod ? "모드" : skill.GradeMin + "~" + skill.GradeMax, ColLevel, 0, 50, h, 16);
             Ui.Label(row, learned.ContainsKey(id) ? "예" : "-", ColOwned, 0, 60, h, 16);
             Ui.Label(row, BagBooks(id).ToString(), ColOwned + 70, 0, 60, h, 16).gameObject.name = "BookBag" + id;
             int amount = Math.Min(AmountBar.Get("item"), MartialBookService.MaxPerGive);
@@ -209,8 +219,18 @@ namespace MOD_sWP6UL
         private string SkillDetail(Row r)
         {
             SkillCatalog.Entry skill = r.Skill;
-            return skill.Name + "  [" + skill.BaseId + "]  " + SkillCatalog.Kinds[r.SkillKind].Tab + ", 경지 " + skill.GradeMin + "~" + skill.GradeMax + "\n"
-                + MartialBookService.Describe(skill, BookGrade, bookMinLevel, AmountBar.Get("item")) + "\n" + skill.Desc;
+            string head = skill.Name + "  [" + skill.BaseId + "]  " + SkillCatalog.Kinds[r.SkillKind].Tab
+                + (skill.IsMod ? " [모드], 경지 1~10(모드 공법)" : ", 경지 " + skill.GradeMin + "~" + skill.GradeMax);
+            string note = "";
+            if (skill.IsMod)
+            {
+                if (skill.NameFromCh)
+                {
+                    note += "\n한글 이름이 없어 중국어 이름을 보입니다(게임 화면과 비급 이름에는 0으로 보일 수 있습니다. 한글화는 G2c).";
+                }
+                note += "\n모드 공법: 같은 종류의 기본 공법을 뽑아 번호만 바꿔 만듭니다. 옵션은 게임이 뽑은 것입니다.";
+            }
+            return head + "\n" + MartialBookService.Describe(skill, BookGrade, bookMinLevel, AmountBar.Get("item")) + note + "\n" + skill.Desc;
         }
 
         private string BookFavDetail(Row r)

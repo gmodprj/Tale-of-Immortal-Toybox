@@ -466,10 +466,12 @@ namespace MOD_sWP6UL
                 }
                 else if (kinds != null)
                 {
+                    // 기술 서적 그룹의 kinds는 다섯 분류 뒤에 "모드만"이 하나 더 있다. 전체 수에는 넣지 않는다(분류 수에 이미 들어 있다).
+                    int kindCount = groupKey == ManualKey ? SkillCatalog.Kinds.Length : kinds.Length;
                     int sum = 0;
-                    foreach (int n in kinds)
+                    for (int i = 0; i < kindCount; i++)
                     {
-                        sum += n;
+                        sum += kinds[i];
                     }
                     label.Set(label.Index == 0 ? sum : kinds[label.Index - 1]);
                 }

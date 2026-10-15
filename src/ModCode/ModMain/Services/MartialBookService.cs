@@ -52,6 +52,11 @@ namespace MOD_sWP6UL
                 return "지급할 수 없습니다: " + blocked + ".";
             }
             int n = Math.Max(1, Math.Min(count, MaxPerGive));
+            if (entry.IsMod)
+            {
+                return "지급하면: 경지 " + grade + "의 비급 " + n + "권(한 권마다 옵션을 따로 뽑습니다. 모드 공법의 품질은 게임이 정하므로 최소 품질을 적용하지 않습니다)"
+                    + (count > MaxPerGive ? ". 한 번에 " + MaxPerGive + "권까지 줍니다" : "") + ".";
+            }
             return "지급하면: 경지 " + grade + ", 품질 " + minLevel + " 이상의 비급 " + n + "권(한 권마다 옵션을 따로 뽑습니다)"
                 + (count > MaxPerGive ? ". 한 번에 " + MaxPerGive + "권까지 줍니다" : "") + ".";
         }
@@ -60,7 +65,7 @@ namespace MOD_sWP6UL
         // 게임이 던지는 예외는 여기서 잡는다(버튼 콜백 밖으로 나가면 결과 문장 없이 사라진다).
         public static int Make(WorldUnitBase unit, int kindIndex, SkillCatalog.Entry entry, int grade, int minLevel, int count, out string text)
         {
-            string label = entry.Name + " 비급";
+            string label = entry.Name + (entry.IsMod ? " [모드]" : "") + " 비급";
             string blocked = SkillCatalog.BlockReason(entry, grade);
             if (blocked != null)
             {
@@ -92,11 +97,26 @@ namespace MOD_sWP6UL
             {
                 try
                 {
-                    Il2CppStructArray<int> values = SkillCatalog.RollValues(kind, entry.BaseId, grade, RollMax, m => m.martialInfo.level >= minLevel);
-                    if (values == null)
+                    Il2CppStructArray<int> values;
+                    if (entry.IsMod)
                     {
-                        stop = "경지 " + grade + "에서 품질 " + minLevel + " 이상이 나오지 않았습니다";
-                        break;
+                        string reason;
+                        // 모드 공법의 품질은 뽑은 옵션과 무관하게 게임이 정한다(실측: 절기는 늘 3, 무예는 늘 5). 최소 품질을 걸면 끝내 나오지 않으므로 걸지 않는다.
+                        values = SkillCatalog.RollValuesForMod(kindIndex, entry, grade, out reason);
+                        if (values == null)
+                        {
+                            stop = reason;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        values = SkillCatalog.RollValues(kind, entry.BaseId, grade, RollMax, m => m.martialInfo.level >= minLevel);
+                        if (values == null)
+                        {
+                            stop = "경지 " + grade + "에서 품질 " + minLevel + " 이상이 나오지 않았습니다";
+                            break;
+                        }
                     }
                     DataProps.PropsData props = DataProps.PropsData.NewMartial(kind.Type, values);
                     int before = bag.allProps.Count;
@@ -114,7 +134,7 @@ namespace MOD_sWP6UL
                     {
                         // 이름과 품질을 읽지 못해도 넣은 것은 센다.
                     }
-                    ChangeLog.Add(EditService.NameOf(unit), "비급 " + name + "(" + entry.BaseId + ")", "-", "경지 " + grade + " 품질 " + level, ok);
+                    ChangeLog.Add(EditService.NameOf(unit), "비급 " + name + (entry.IsMod ? " [모드]" : "") + "(" + entry.BaseId + ")", "-", "경지 " + grade + " 품질 " + level, ok);
                     if (!ok)
                     {
                         stop = "가방에 들어가지 않았습니다(빈 칸을 확인하세요)";
@@ -129,6 +149,7 @@ namespace MOD_sWP6UL
             }
             text = label + " " + made.Count + "권" + (made.Count > 0 ? ": " + string.Join(", ", made.ToArray()) : "")
                 + (count > MaxPerGive ? " (한 번에 " + MaxPerGive + "권까지 줍니다)" : "")
+                + (entry.IsMod && minLevel > 1 && made.Count > 0 ? " (모드 공법의 품질은 게임이 정합니다. 최소 품질을 적용하지 않았습니다)" : "")
                 + (stop != null ? ". 멈춤: " + stop : "") + ".";
             return made.Count;
         }
