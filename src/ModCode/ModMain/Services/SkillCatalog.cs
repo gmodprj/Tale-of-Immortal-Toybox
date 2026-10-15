@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnhollowerBaseLib;
 
@@ -166,7 +167,7 @@ namespace MOD_sWP6UL
         private static Dictionary<int, int> ownCombines;
 
         // 무예·영술·절기·신통 가운데 "이 기술 하나만" 나오는 묶음의 번호. 없으면 0.
-        private static int OwnCombine(Kind kind, int baseId)
+        internal static int OwnCombine(Kind kind, int baseId)
         {
             if (kind.Type == MartialType.Step || kind.Type == MartialType.Ability)
             {
@@ -189,33 +190,55 @@ namespace MOD_sWP6UL
             return ownCombines.TryGetValue(baseId, out combine) ? combine : 0;
         }
 
+        // 그 기술이 나오고 accept를 통과하는 뽑기 값. 그 기술 하나만 나오는 묶음이 있으면(입문 무예·영술 등) 먼저 쓰고,
+        // 그다음 분류 전체의 묶음에서 maxTries번까지 다시 뽑는다. 없으면 null. 기술 추가(accept null)와 비급 지급이 함께 쓴다.
+        // 그 기술만의 묶음은 한 번만 뽑는다. 분류 전체의 묶음에서 나오지 않는 입문 무예·영술(경지 1 전용, 05 문서 24절)은
+        // 그 묶음에서 품질 1로만 나온다(2만 번 다시 뽑아도 품질 2 이상 0번, 회차 book-1015l). 다시 뽑아도 소용없어 한 번으로 둔다.
+        internal static Il2CppStructArray<int> RollValues(Kind kind, int baseId, int grade, int maxTries, Func<DataProps.MartialData, bool> accept)
+        {
+            int own = OwnCombine(kind, baseId);
+            if (own != 0)
+            {
+                Il2CppStructArray<int> fixedRoll = RewardTool.GetSkillReward(own, grade, null);
+                if (fixedRoll != null && Contains(fixedRoll, baseId) && (accept == null || Accepts(kind, fixedRoll, baseId, accept)))
+                {
+                    return fixedRoll;
+                }
+            }
+            for (int tries = 0; tries < maxTries; tries++)
+            {
+                Il2CppStructArray<int> rolled = Roll(kind, grade);
+                if (rolled != null && Contains(rolled, baseId) && Accepts(kind, rolled, baseId, accept))
+                {
+                    return rolled;
+                }
+            }
+            return null;
+        }
+
+        private static bool Accepts(Kind kind, Il2CppStructArray<int> values, int baseId, Func<DataProps.MartialData, bool> accept)
+        {
+            DataProps.MartialData martial = DataProps.PropsData.NewMartial(kind.Type, values).To<DataProps.MartialData>();
+            return martial.baseID == baseId && (accept == null || accept(martial));
+        }
+
+        // 그 분류의 그 번호 기술. 없으면 null(즐겨찾기의 비급 줄이 쓴다).
+        public static Entry Get(int kindIndex, int baseId)
+        {
+            if (kindIndex < 0 || kindIndex >= Kinds.Length)
+            {
+                return null;
+            }
+            return All(kindIndex).Find(e => e.BaseId == baseId);
+        }
+
         private enum Outcome { Rolled, Plain, Refused }
 
         // 기술 하나를 배운 상태로 넣는다. 옵션은 게임의 뽑기가 정한다: 원하는 기술이 나올 때까지 묶음에서 다시 뽑고,
         // 끝내 나오지 않거나(강제 추가처럼) 뽑기 대상이 아니면 옵션 없는 기술로 만든다.
         private static Outcome LearnNow(WorldUnitBase unit, Kind kind, Entry entry, int grade, bool roll)
         {
-            Il2CppStructArray<int> values = null;
-            // 그 기술 하나만 나오는 묶음이 있으면(입문 무예·영술 등) 그것을 먼저 쓴다.
-            int own = roll ? OwnCombine(kind, entry.BaseId) : 0;
-            if (own != 0)
-            {
-                Il2CppStructArray<int> fixedRoll = RewardTool.GetSkillReward(own, grade, null);
-                if (fixedRoll != null && Contains(fixedRoll, entry.BaseId))
-                {
-                    values = fixedRoll;
-                }
-            }
-            for (int tries = 0; roll && values == null && tries < RollMax; tries++)
-            {
-                Il2CppStructArray<int> rolled = Roll(kind, grade);
-                if (rolled != null && Contains(rolled, entry.BaseId)
-                    && DataProps.PropsData.NewMartial(kind.Type, rolled).To<DataProps.MartialData>().baseID == entry.BaseId)
-                {
-                    values = rolled;
-                    break;
-                }
-            }
+            Il2CppStructArray<int> values = roll ? RollValues(kind, entry.BaseId, grade, RollMax, null) : null;
             bool plain = values == null;
             if (plain)
             {

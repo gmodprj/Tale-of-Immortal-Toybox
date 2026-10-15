@@ -100,6 +100,161 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'books' {
+    # 기술 서적(비급) 지급 스펙 5절: 서비스. 가방을 채우는 검사가 끝에 있으므로 회차의 마지막에 돌린다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "$key=([^\s|]+)") { $Matches[1] } else { '' } }
+    function BookCount { [int](Field (Cmd 'rbooks 23116' 300) 'count') }
+    function BookLines { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '비급 ' }).Count }
+    $skill = Cmd 'rskill 1 23116' 300
+    Check 'the skill table has 23116' ($skill -match 'min=\d+ max=\d+') $skill
+    $min = [int](Field $skill 'min'); $max = [int](Field $skill 'max')
+    $grade = [Math]::Max($min, [Math]::Min($max, 3))
+    $before = BookCount
+    $logged = BookLines
+    $o = Cmd "rbook 1 23116 $grade 1 1" 3000
+    $after = Cmd 'rbooks 23116' 300
+    Check 'one book goes into the bag' ($o -match 'made=1 ' -and (BookCount) -eq $before + 1) "$o | $after"
+    Check 'the new book is that skill and grade' ($after -match ":23116:$($grade):[1-6]:") $after
+    $o = Cmd "rbook 1 23116 $grade 6 3" 20000
+    $books = Cmd 'rbooks 23116' 300
+    $six = @([regex]::Matches($books, ":23116:$($grade):6:([^,\s]+)") | ForEach-Object { $_.Groups[1].Value })
+    Check 'three books of quality 6' ($o -match 'made=3 ' -and $six.Count -ge 3) "$o | $books"
+    Check 'their options are not all the same' (@($six | Select-Object -Unique).Count -ge 2) ($six -join ' ')
+    $out = if ($max -lt 10) { $max + 1 } else { $min - 1 }
+    $count = BookCount
+    $o = Cmd "rbook 1 23116 $out 1 1" 1000
+    Check 'a grade outside the range is refused' ($o -match 'made=0 ' -and (BookCount) -eq $count) $o
+    # Review Focus 3: 20권을 넘겨 청하면 20권과 안내
+    $count = BookCount
+    $o = Cmd "rbook 1 23116 $grade 1 25" 20000
+    Check 'more than twenty gives twenty with a notice' ($o -match 'made=20 ' -and $o -match '20권까지' -and (BookCount) -eq $count + 20) $o
+    Check 'the change log has a line per book' ((BookLines) -eq $logged + 24) "before=$logged after=$(BookLines)"
+    $mine = @([regex]::Matches((Cmd 'rbooks 23116' 300), '(?:items=|,)([^:,]+):23116:') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -ne 'kEWxCN' })
+    $study = if ($mine.Count -gt 0) { Cmd "rbookstudy $($mine[0])" 300 } else { '' }
+    Check 'the game study accepts a made book' ($study -match 'can=0') "$($mine -join ',') | $study"
+    # 검토에서 나온 것: 입문 무예·영술(경지 1 전용. 분류 전체의 묶음에서 나오지 않고 그 기술만의 묶음에서 나온다, 05 문서 24절)은
+    # 그 묶음에서 품질 1로만 나온다(회차 book-1015l에서 2만 번). 품질 1은 여러 권 되고, 품질 2 이상은 이유와 함께 멈춘다
+    $own = Cmd 'rownskills 0 1' 300
+    $ownId = (Field $own 'ids').Split(',')[0]
+    Check 'there is an entry skill with its own combine' ($ownId -match '^\d+$') $own
+    $o = Cmd "rbook 0 $ownId 1 1 3" 6000
+    $ownBooks = Cmd "rbooks $ownId" 300
+    Check 'an entry skill gives three books of quality 1' ($o -match 'made=3 ' -and [regex]::Matches($ownBooks, ":$($ownId):1:1:").Count -ge 3) "$o | $ownBooks"
+    $count = [int](Field $ownBooks 'count')
+    $o = Cmd "rbook 0 $ownId 1 2 1" 20000
+    Check 'an entry skill above quality 1 stops with the reason' ($o -match 'made=0 ' -and $o -match '품질 2 이상이 나오지 않았습니다' -and [int](Field (Cmd "rbooks $ownId" 300) 'count') -eq $count) $o
+    # Review Focus 2: 가방이 찬 채로 청하면 멈추고 넣은 권수만 늘어난다
+    Cmd 'gridfill 600 5' 6000 | Out-Null
+    Check 'the bag is full' ((Cmd 'gridfill 1 5' 1500) -match 'given=0 ')
+    $count = BookCount
+    $o = Cmd "rbook 1 23116 $grade 1 5" 6000
+    $made = [int](Field $o 'made')
+    Check 'a full bag stops with the number put in' ($o -match '가방에 들어가지 않았습니다' -and (BookCount) -eq $count + $made) $o
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'books-ui' {
+    # 기술 서적 스펙 5절: 화면. 고정본 인물은 결정(대경지 3). 회차의 -End가 favorites.txt를 되돌린다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "$key=([^\s|]+)") { $Matches[1] } else { '' } }
+    function BookCount { [int](Field (Cmd 'rbooks 23116' 300) 'count') }
+    function Held([int]$id) { if ((Cmd "count $id") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 } }
+    function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
+    Cmd 'rfav reset' 300 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null
+    Check 'the group button shows a count' ((Cmd 'uitext ResGroupManual') -match "text='기술 서적 [1-9]\d*'") (Cmd 'uitext ResGroupManual')
+    Check 'six kind chips' ((Cmd 'uitext ResKind0') -match "text='전체 \(" -and (Cmd 'uitext ResKind5') -match "text='신통 \(" -and (Cmd 'uipos ResKind6') -match 'no element named')
+    $r = Pos 'Row0'
+    Rc "click $($r.x) $($r.y)" 600 | Out-Null
+    Check 'the grade starts at the current grade' ((Cmd 'uitext ItemDetail') -match '지급하면: 경지 3, 품질 1 이상') (Cmd 'uitext ItemDetail')
+    $fit = Range
+    Press 'ResBookFit' | Out-Null
+    $every = Range
+    Check 'turning off "this grade only" shows more skills' ($fit -gt 0 -and $every -gt $fit) "fit=$fit all=$every"
+    $outside = $null
+    foreach ($c in @(@(0, 17111), @(2, 510021), @(0, 11423), @(0, 44112))) {
+      $s = Cmd "rskill $($c[0]) $($c[1])" 200
+      if ($s -match 'min=(\d+) max=(\d+)' -and (3 -lt [int]$Matches[1] -or 3 -gt [int]$Matches[2])) { $outside = $c[1]; break }
+    }
+    if ($outside) {
+      Cmd "ui set ItemQuery $outside" | Out-Null
+      $p = Pos "BookGive$outside"
+      Check 'a skill outside the grade cannot be given' ((Rc "click $($p.x) $($p.y)" 400) -notmatch "Button\.onClick: BookGive$outside")
+      Press 'ItemQueryClear' | Out-Null
+    } else { 'INFO no candidate skill outside grade 3' }
+    Press 'ResBookFit' | Out-Null
+    # Review Focus 5: 경지를 바꾼 뒤 초기화하면 지금 경지로
+    Press 'ResGrade5' | Out-Null; Press 'ResMinLevel4' | Out-Null
+    Press 'ResClear' | Out-Null
+    $r = Pos 'Row0'
+    Rc "click $($r.x) $($r.y)" 600 | Out-Null
+    Check 'clear brings back the current grade and quality 1' ((Cmd 'uitext ItemDetail') -match '지급하면: 경지 3, 품질 1 이상') (Cmd 'uitext ItemDetail')
+    # 최소 품질 6으로 지급
+    Cmd 'ui set ItemQuery 23116' | Out-Null
+    Press 'ResMinLevel6' | Out-Null
+    Press 'item1' | Out-Null
+    $before = BookCount
+    Press 'BookGive23116' 3000 | Out-Null
+    $books = Cmd 'rbooks 23116' 300
+    Check 'giving makes a quality 6 book of that skill' ((BookCount) -eq $before + 1 -and $books -match ':23116:3:6:') $books
+    Check 'the bag column counts the books' ((Cmd 'uitext BookBag23116') -match "text='$($before + 1)'") (Cmd 'uitext BookBag23116')
+    Press 'BookName23116' | Out-Null
+    Check 'the box below tells what will be made' ((Cmd 'uitext ItemDetail') -match '지급하면: 경지 3, 품질 6 이상의 비급 1권') (Cmd 'uitext ItemDetail')
+    Press 'BookStar23116' | Out-Null
+    Check 'the star saves the book with grade and quality' ((Cmd 'rfav' 200) -match 'book:1:23116:3:6:1') (Cmd 'rfav' 200)
+    Check 'the star is filled' ((Cmd 'uitext BookStar23116') -match "text='★'")
+    Press 'ItemQueryClear' | Out-Null
+    # 아이템 하나를 함께 넣고 즐겨찾기 보기로
+    Press 'ResGroupAll' | Out-Null
+    Cmd 'ui set ItemQuery 1011011' | Out-Null
+    Press 'ResStar1011011' | Out-Null
+    Press 'ItemQueryClear' | Out-Null
+    Press 'ResGroupFav' | Out-Null
+    Check 'the favorites view has the book row' ((Cmd 'uitext FavBookName23116_3_6') -match '비급 \(경지 3, 품질 6 이상\)') (Cmd 'uitext FavBookName23116_3_6')
+    Cmd 'uifocus FavBookAmount23116_3_6' | Out-Null; Cmd 'ui set FavBookAmount23116_3_6 21' | Out-Null; Key 0x0D
+    Check 'a book amount above 20 is refused' ((Cmd 'rfav' 200) -match 'book:1:23116:3:6:1(\s|,|$)' -and (Cmd 'uistate') -match '비급 수량은 1~20') (Cmd 'uistate')
+    Cmd 'uifocus FavBookAmount23116_3_6' | Out-Null; Cmd 'ui set FavBookAmount23116_3_6 5' | Out-Null; Key 0x0D
+    Check 'the book amount is saved' ((Cmd 'rfav' 200) -match 'book:1:23116:3:6:5') (Cmd 'rfav' 200)
+    $before = BookCount
+    Press 'FavBookGive23116_3_6' 5000 | Out-Null
+    Check 'the book row gives its saved amount' ((BookCount) -eq $before + 5) "$before -> $(BookCount)"
+    $before = BookCount; $had = Held 1011011
+    Press 'ResAllGive' | Out-Null; Press 'ResAllGive' 8000 | Out-Null
+    Check 'give all gives items and books' ((Held 1011011) -eq $had + 1 -and (BookCount) -eq $before + 5 -and (Cmd 'uistate') -match "message='즐겨찾기 모두 지급: 넣음 2, 못 넣음 0") "$(Cmd 'uistate')"
+    Shot 'books-ui'
+    Press 'FavBookStar23116_3_6' | Out-Null
+    Check 'the book favorite can be removed' ((Cmd 'rfav' 200) -notmatch 'book:') (Cmd 'rfav' 200)
+    # Review Focus 1: 게임에 없는 기술의 비급 즐겨찾기
+    Cmd 'rfav addbook 1 99999 3 6 1' 300 | Out-Null
+    Press 'ResQuality2' | Out-Null
+    Check 'a missing skill book favorite is shown under a filter' ((Cmd 'uitext FavBookName99999_3_6') -match '게임에 없는 기술 \(99999\)') (Cmd 'uitext FavBookName99999_3_6')
+    $p = Pos 'FavBookGive99999_3_6'
+    Check 'its give button is off' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: FavBookGive99999_3_6')
+    Press 'FavBookStar99999_3_6' | Out-Null
+    Check 'and it can be removed' ((Cmd 'rfav' 200) -notmatch '99999') (Cmd 'rfav' 200)
+    Press 'ResClear' | Out-Null
+    # 검토에서 나온 것: 경지를 고르지 않았으면 지금 경지를 따라간다(돌파하거나 다른 세이브를 불러도). 고른 경지는 남는다
+    function ManualDetail { Press 'ResGroupManual' | Out-Null; $r = Pos 'Row0'; Rc "click $($r.x) $($r.y)" 600 | Out-Null; Cmd 'uitext ItemDetail' }
+    $gid = if ((Cmd 'stats' 300) -match 'gradeID=(\d+)') { [int]$Matches[1] } else { 0 }
+    $d3 = ManualDetail
+    # 경지 번호는 대경지마다 칸 수가 달라, 대경지가 오를 때까지 하나씩 올린다
+    $raised = 0
+    for ($id = $gid + 1; $id -le $gid + 8 -and $raised -le 3; $id++) {
+      $up = Cmd "setgrade $id" 300
+      $raised = if ($up -match '\(grade=(\d+) ') { [int]$Matches[1] } else { 0 }
+    }
+    $d4 = ManualDetail
+    Press 'ResGrade5' | Out-Null
+    Cmd "setgrade $gid" 300 | Out-Null
+    $d5 = ManualDetail
+    Check 'an unchosen grade follows the current grade' ($gid -gt 0 -and $d3 -match '지급하면: 경지 3,' -and $raised -gt 3 -and $d4 -match "지급하면: 경지 $raised,") "gid=$gid | $d3 | $up | $d4"
+    Check 'a chosen grade stays when the current grade changes' ($d5 -match '지급하면: 경지 5,') $d5
+    Press 'ResClear' | Out-Null
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'favstore' {
     # 자원 탭 개편 스펙 3.3절: 즐겨찾기 파일의 읽기·쓰기. 경고를 일부러 남기므로 회차에서 이 부분 뒤에는 -Restart한다.
     $traps = Traps
@@ -123,6 +278,18 @@ switch ($Part) {
     Check 'a number the game does not have is kept' ($o -match 'items=1011011:25,99999999:3:missing') $o
     $o = Cmd 'rfav del 99999999' 300
     Check 'removing works' ($o -match 'count=1 ' -and (FavText) -notmatch '99999999') $o
+    # 비급 줄(기술 서적 스펙 3.3절). Review Focus 4: 같은 기술이라도 경지·최소 품질이 다르면 다른 즐겨찾기
+    $o = Cmd 'rfav addbook 1 23116 3 6 4' 300
+    Check 'a book favorite is written as a book line' ($o -match 'book:1:23116:3:6:4' -and (FavText) -match "(?m)^book 1 23116 3 6 4\r?$") $o
+    $o = Cmd 'rfav addbook 1 23116 3 6 2' 300
+    Check 'the same book (skill, grade, quality) is refused' ($o -match '이미' -and $o -match 'book:1:23116:3:6:4') $o
+    $o = Cmd 'rfav addbook 1 23116 3 5 2' 300
+    Check 'another minimum quality is another favorite' ($o -match 'book:1:23116:3:6:4' -and $o -match 'book:1:23116:3:5:2') $o
+    $o = Cmd 'rfav setbook 23116 3 6 21' 300
+    Check 'a book amount above 20 is refused' ($o -match '1~20' -and $o -match 'book:1:23116:3:6:4') $o
+    $o = Cmd 'rfav delbook 23116 3 5' 300
+    Check 'a book favorite can be removed' ($o -notmatch 'book:1:23116:3:5' -and (FavText) -notmatch 'book 1 23116 3 5') $o
+    Check 'item lines are kept beside book lines' ($o -match 'items=1011011:25,book:1:23116:3:6:4') $o
 
     # 깨진 줄, 같은 번호의 줄, 범위 밖의 수량이 섞인 파일
     [IO.File]::WriteAllText($fav, "# test`n1011011 5`nnot a line`n1011011 7`n1011012 5000000`n1011013 abc`n", [Text.UTF8Encoding]::new($false))
@@ -154,6 +321,13 @@ switch ($Part) {
     Check 'after a lock, adding an item already in the file is refused' ($o -match '이미' -and $o -match 'count=2 ' -and $same -eq 1) "$o | lines=$same"
     $o = Cmd 'rfav reload' 300
     Check 'after the lock is gone the list is back' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
+    # 비급 줄의 읽기: 수량은 20으로 맞추고, 분류가 범위 밖이거나 칸 수가 다른 줄은 건너뛴다. 아이템 줄과 섞여도 순서를 지킨다
+    $keep = FavText
+    [IO.File]::WriteAllText($fav, "1011011 5`nbook 1 23116 3 6 25`nbook 9 23116 3 6 1`nbook 1 23116`n1011012 8`n", [Text.UTF8Encoding]::new($false))
+    $o = Cmd 'rfav reload' 300
+    Check 'book lines are read, capped and checked' ($o -match 'count=3 skipped=2 items=1011011:5,book:1:23116:3:6:20,1011012:8') $o
+    [IO.File]::WriteAllText($fav, $keep, [Text.UTF8Encoding]::new($false))
+    Cmd 'rfav reload' 300 | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'favstore-restart' {

@@ -6,20 +6,36 @@ using MelonLoader;
 
 namespace MOD_sWP6UL
 {
-    // 자원 탭의 즐겨찾기: 아이템 번호와 지급 수량. 모든 세이브에 공통이고 TlToybox\favorites.txt에 둔다.
+    // 자원 탭의 즐겨찾기: 아이템 번호와 지급 수량, 또는 기술 서적(비급)의 분류·기술·경지·최소 품질과 권수. 모든 세이브에 공통이고 TlToybox\favorites.txt에 둔다.
     // 쓰기는 임시 파일에 쓴 뒤 바꿔치기한다. 깨진 줄이 있던 파일은 처음 덮어쓰기 전에 .bak으로 남긴다.
-    // 읽지 못한 파일은 덮어쓰지 않는다. 근거: docs/superpowers/specs/2026-10-15-resources-tab-design.md 3.2·3.3절, 6절.
+    // 읽지 못한 파일은 덮어쓰지 않는다. 근거: docs/superpowers/specs/2026-10-15-resources-tab-design.md 3.2·3.3절, 6절,
+    // 비급 줄은 2026-10-15-martial-books-design.md 3.3절.
     internal static class FavoriteStore
     {
         public sealed class Favorite
         {
-            public int Id;
+            public int Id;          // 아이템 번호, 비급이면 기술 번호
             public int Amount;
+            public bool Book;       // 기술 서적(비급) 줄
+            public int BookKind;    // SkillCatalog.Kinds의 순번(0~4)
+            public int Grade;       // 비급의 경지(1~10)
+            public int MinLevel;    // 비급의 최소 품질(1~6)
+
+            public bool Same(Favorite other)
+            {
+                return Book == other.Book && Id == other.Id && (!Book || (Grade == other.Grade && MinLevel == other.MinLevel));
+            }
+
+            public Favorite Copy()
+            {
+                return new Favorite { Id = Id, Amount = Amount, Book = Book, BookKind = BookKind, Grade = Grade, MinLevel = MinLevel };
+            }
         }
 
         public const int MaxAmount = AmountBar.Max;
         private const string FileName = "favorites.txt";
         private static readonly string AmountRule = "즐겨찾기: 수량은 1~" + MaxAmount + " 사이의 숫자로 입력하세요.";
+        private static readonly string BookAmountRule = "즐겨찾기: 비급 수량은 1~" + MartialBookService.MaxPerGive + " 사이의 숫자로 입력하세요.";
 
         private static List<Favorite> list;     // null이면 아직 읽지 않았다
         private static string readError;        // 파일을 읽지 못한 이유. 있으면 덮어쓰지 않는다
@@ -31,6 +47,29 @@ namespace MOD_sWP6UL
         private static string FilePath
         {
             get { return Path.Combine(ChangeLog.DataDir, FileName); }
+        }
+
+        private static int Clamp(int value, int max)
+        {
+            return Math.Max(1, Math.Min(max, value));
+        }
+
+        // 한 줄을 읽는다: "<번호> <수량>" 또는 "book <분류> <기술 번호> <경지> <최소 품질> <수량>". 읽지 못하면 null.
+        private static Favorite Parse(string[] parts)
+        {
+            int id, amount;
+            if (parts.Length == 2 && int.TryParse(parts[0], out id) && int.TryParse(parts[1], out amount))
+            {
+                return new Favorite { Id = id, Amount = Clamp(amount, MaxAmount) };
+            }
+            int kind, grade, minLevel;
+            if (parts.Length == 6 && parts[0] == "book" && int.TryParse(parts[1], out kind) && int.TryParse(parts[2], out id)
+                && int.TryParse(parts[3], out grade) && int.TryParse(parts[4], out minLevel) && int.TryParse(parts[5], out amount)
+                && kind >= 0 && kind < SkillCatalog.Kinds.Length && grade >= 1 && grade <= 10 && minLevel >= 1 && minLevel <= 6)
+            {
+                return new Favorite { Book = true, BookKind = kind, Id = id, Grade = grade, MinLevel = minLevel, Amount = Clamp(amount, MartialBookService.MaxPerGive) };
+            }
+            return null;
         }
 
         private static void Load()
@@ -47,7 +86,6 @@ namespace MOD_sWP6UL
             {
                 if (File.Exists(FilePath))
                 {
-                    var seen = new HashSet<int>();
                     foreach (string line in File.ReadAllLines(FilePath, Encoding.UTF8))
                     {
                         string trimmed = line.Trim();
@@ -55,14 +93,13 @@ namespace MOD_sWP6UL
                         {
                             continue;
                         }
-                        string[] parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        int id, amount;
-                        if (parts.Length != 2 || !int.TryParse(parts[0], out id) || !int.TryParse(parts[1], out amount) || !seen.Add(id))
+                        Favorite favorite = Parse(trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
+                        if (favorite == null || list.Exists(f => f.Same(favorite)))
                         {
                             SkippedLines++;
                             continue;
                         }
-                        list.Add(new Favorite { Id = id, Amount = Math.Max(1, Math.Min(MaxAmount, amount)) });
+                        list.Add(favorite);
                     }
                 }
                 keepOriginal = SkippedLines > 0;
@@ -81,7 +118,7 @@ namespace MOD_sWP6UL
             noticePending = SkippedLines > 0 || readError != null;
         }
 
-        // 넣은 순서의 즐겨찾기. 고치지 말고 읽기만 한다.
+        // 넣은 순서의 즐겨찾기(아이템 줄과 비급 줄이 섞여 있다). 고치지 말고 읽기만 한다.
         public static List<Favorite> Entries
         {
             get
@@ -105,7 +142,24 @@ namespace MOD_sWP6UL
         private static Favorite Find(int id)
         {
             Load();
-            return list.Find(f => f.Id == id);
+            return list.Find(f => !f.Book && f.Id == id);
+        }
+
+        public static bool HasBook(int baseId, int grade, int minLevel)
+        {
+            return FindBook(baseId, grade, minLevel) != null;
+        }
+
+        public static int BookAmountOf(int baseId, int grade, int minLevel)
+        {
+            Favorite favorite = FindBook(baseId, grade, minLevel);
+            return favorite == null ? 0 : favorite.Amount;
+        }
+
+        private static Favorite FindBook(int baseId, int grade, int minLevel)
+        {
+            Load();
+            return list.Find(f => f.Book && f.Id == baseId && f.Grade == grade && f.MinLevel == minLevel);
         }
 
         // 건너뛴 줄이나 읽기 오류가 있었으면 한 번만 안내 문장을 돌려준다(자원 탭에 들어올 때).
@@ -148,6 +202,12 @@ namespace MOD_sWP6UL
             return entry != null ? entry.Name : "게임에 없는 아이템 (" + id + ")";
         }
 
+        public static string BookLabel(int kindIndex, int baseId, int grade, int minLevel)
+        {
+            SkillCatalog.Entry entry = SkillCatalog.Get(kindIndex, baseId);
+            return (entry != null ? entry.Name + " 비급" : "게임에 없는 기술 (" + baseId + ")") + " (경지 " + grade + ", 품질 " + minLevel + " 이상)";
+        }
+
         public static bool Add(int id, int amount, out string text)
         {
             if (amount < 1 || amount > MaxAmount)
@@ -164,7 +224,7 @@ namespace MOD_sWP6UL
             string error;
             if (!Change(next =>
             {
-                if (!next.Exists(f => f.Id == id))
+                if (!next.Exists(f => !f.Book && f.Id == id))
                 {
                     next.Add(new Favorite { Id = id, Amount = amount });
                 }
@@ -186,7 +246,7 @@ namespace MOD_sWP6UL
                 return false;
             }
             string error;
-            if (!Change(next => next.RemoveAll(f => f.Id == id), out error))
+            if (!Change(next => next.RemoveAll(f => !f.Book && f.Id == id), out error))
             {
                 text = "즐겨찾기: " + error;
                 return false;
@@ -210,12 +270,93 @@ namespace MOD_sWP6UL
                 return false;
             }
             string error;
-            if (!Change(next => next.Find(f => f.Id == id).Amount = amount, out error))
+            if (!Change(next => next.Find(f => !f.Book && f.Id == id).Amount = amount, out error))
             {
                 text = "즐겨찾기: " + error;
                 return false;
             }
             text = "즐겨찾기 수량: " + Label(id) + " " + old + " -> " + amount;
+            return true;
+        }
+
+        public static bool AddBook(int kindIndex, int baseId, int grade, int minLevel, int amount, out string text)
+        {
+            string label = BookLabel(kindIndex, baseId, grade, minLevel);
+            if (amount < 1 || amount > MartialBookService.MaxPerGive)
+            {
+                text = BookAmountRule;
+                return false;
+            }
+            if (kindIndex < 0 || kindIndex >= SkillCatalog.Kinds.Length || grade < 1 || grade > 10 || minLevel < 1 || minLevel > 6)
+            {
+                text = "즐겨찾기: " + label + "의 분류·경지·최소 품질이 범위 밖입니다.";
+                return false;
+            }
+            Recover();
+            if (HasBook(baseId, grade, minLevel))
+            {
+                text = "즐겨찾기: " + label + "은(는) 이미 있습니다.";
+                return false;
+            }
+            string error;
+            if (!Change(next =>
+            {
+                if (!next.Exists(f => f.Book && f.Id == baseId && f.Grade == grade && f.MinLevel == minLevel))
+                {
+                    next.Add(new Favorite { Book = true, BookKind = kindIndex, Id = baseId, Grade = grade, MinLevel = minLevel, Amount = amount });
+                }
+            }, out error))
+            {
+                text = "즐겨찾기: " + error;
+                return false;
+            }
+            text = "즐겨찾기에 넣었습니다: " + label + " x" + amount;
+            return true;
+        }
+
+        public static bool RemoveBook(int baseId, int grade, int minLevel, out string text)
+        {
+            Recover();
+            Favorite favorite = FindBook(baseId, grade, minLevel);
+            if (favorite == null)
+            {
+                text = "즐겨찾기: 그 비급(" + baseId + ", 경지 " + grade + ", 품질 " + minLevel + " 이상)은 즐겨찾기에 없습니다.";
+                return false;
+            }
+            string label = BookLabel(favorite.BookKind, baseId, grade, minLevel);
+            string error;
+            if (!Change(next => next.RemoveAll(f => f.Book && f.Id == baseId && f.Grade == grade && f.MinLevel == minLevel), out error))
+            {
+                text = "즐겨찾기: " + error;
+                return false;
+            }
+            text = "즐겨찾기에서 뺐습니다: " + label;
+            return true;
+        }
+
+        public static bool SetBookAmount(int baseId, int grade, int minLevel, int amount, out string text)
+        {
+            if (amount < 1 || amount > MartialBookService.MaxPerGive)
+            {
+                text = BookAmountRule;
+                return false;
+            }
+            Recover();
+            Favorite favorite = FindBook(baseId, grade, minLevel);
+            if (favorite == null)
+            {
+                text = "즐겨찾기: 그 비급(" + baseId + ", 경지 " + grade + ", 품질 " + minLevel + " 이상)은 즐겨찾기에 없습니다.";
+                return false;
+            }
+            int old = favorite.Amount;
+            string label = BookLabel(favorite.BookKind, baseId, grade, minLevel);
+            string error;
+            if (!Change(next => next.Find(f => f.Book && f.Id == baseId && f.Grade == grade && f.MinLevel == minLevel).Amount = amount, out error))
+            {
+                text = "즐겨찾기: " + error;
+                return false;
+            }
+            text = "즐겨찾기 수량: " + label + " " + old + " -> " + amount;
             return true;
         }
 
@@ -237,7 +378,7 @@ namespace MOD_sWP6UL
             var next = new List<Favorite>();
             foreach (Favorite f in list)
             {
-                next.Add(new Favorite { Id = f.Id, Amount = f.Amount });
+                next.Add(f.Copy());
             }
             edit(next);
             try
@@ -247,10 +388,17 @@ namespace MOD_sWP6UL
                 {
                     File.Copy(FilePath, FilePath + ".bak", true);
                 }
-                var sb = new StringBuilder("# TlToybox 자원 탭 즐겨찾기: 한 줄에 <아이템 번호> <수량>\n");
+                var sb = new StringBuilder("# TlToybox 자원 탭 즐겨찾기: 한 줄에 <아이템 번호> <수량>, 또는 book <분류> <기술 번호> <경지> <최소 품질> <수량>\n");
                 foreach (Favorite f in next)
                 {
-                    sb.Append(f.Id).Append(' ').Append(f.Amount).Append('\n');
+                    if (f.Book)
+                    {
+                        sb.Append("book ").Append(f.BookKind).Append(' ').Append(f.Id).Append(' ').Append(f.Grade).Append(' ').Append(f.MinLevel).Append(' ').Append(f.Amount).Append('\n');
+                    }
+                    else
+                    {
+                        sb.Append(f.Id).Append(' ').Append(f.Amount).Append('\n');
+                    }
                 }
                 string tmp = FilePath + ".tmp";
                 File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
