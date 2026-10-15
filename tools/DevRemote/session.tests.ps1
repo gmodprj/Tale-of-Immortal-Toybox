@@ -13,17 +13,18 @@ function Check([string]$name, [bool]$ok, [string]$detail = '') {
 # 세이브·작업·모드 데이터 폴더를 흉내 낸 임시 폴더 한 벌
 function NewBox {
   $root = Join-Path $env:TEMP ('tltoybox-session-tests-' + [guid]::NewGuid().ToString('N'))
-  $box = [pscustomobject]@{ root = $root; save = "$root\save\CacheData"; work = "$root\work"; data = "$root\data" }
-  foreach ($folder in "$($box.save)\slot1", $box.work, $box.data) { [void][IO.Directory]::CreateDirectory($folder) }
+  $box = [pscustomobject]@{ root = $root; save = "$root\save\CacheData"; work = "$root\work"; data = "$root\data"; game = "$root\game" }
+  foreach ($folder in "$($box.save)\slot1", $box.work, $box.data, "$($box.game)\ModExportData\Mod_sWP6UL") { [void][IO.Directory]::CreateDirectory($folder) }
   [IO.File]::WriteAllText("$($box.save)\DataGloble.cache", 'global-1')
   [IO.File]::WriteAllText("$($box.save)\slot1\a.cache", 'a-1')
+  [IO.File]::WriteAllText("$($box.game)\ModExportData\Mod_sWP6UL\ModExportData.cache", 'ours')
   $boxes.Add($root)
   $box
 }
 # session.ps1을 모의 실행한다. 던진 오류는 "THROWN: ..." 문자열로 돌려준다.
 function Run($box, [string]$process, [hashtable]$more) {
   try {
-    $out = & $session -DryRun -SaveDir $box.save -WorkDir $box.work -DataDir $box.data -ProcessName $process @more
+    $out = & $session -DryRun -SaveDir $box.save -WorkDir $box.work -DataDir $box.data -GameDir $box.game -ProcessName $process @more
     ($out -join "`n")
   } catch { 'THROWN: ' + $_.Exception.Message }
 }
@@ -204,6 +205,20 @@ $b = NewBox
 [IO.File]::WriteAllText("$($b.data)\favorites.txt.bak", "overwritten by a check`n")
 $o = Run $b $none @{ End = 'x' }
 Check 'End puts back a favorites .bak that was there before' ([IO.File]::ReadAllText("$($b.data)\favorites.txt.bak") -eq "old backup`n") $o
+# 24. 회차 동안 ModExportData에 생긴 폴더(창작마당 모드)는 -End가 지운다
+$b = NewBox
+[void](Run $b $none @{ Begin = 'x' })
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2876769227")
+[IO.File]::WriteAllText("$($b.game)\ModExportData\2876769227\ModExportData.cache", 'ws')
+$o = Run $b $none @{ End = 'x' }
+Check 'End removes a workshop folder the session installed' ($o -match 'WORKSHOP FOLDERS REMOVED: 1' -and -not (Test-Path "$($b.game)\ModExportData\2876769227") -and -not (Test-Path "$($b.work)\session-modfolders.txt")) $o
+
+# 25. 회차 전부터 있던 폴더와 편집기 폴더(Mod_sWP6UL)는 남긴다
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2819712935")
+[void](Run $b $none @{ Begin = 'x' })
+$o = Run $b $none @{ End = 'x' }
+Check 'End keeps folders that were there before and the editor folder' ($o -match 'WORKSHOP FOLDERS REMOVED: 0' -and (Test-Path "$($b.game)\ModExportData\2819712935") -and (Test-Path "$($b.game)\ModExportData\Mod_sWP6UL\ModExportData.cache")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
