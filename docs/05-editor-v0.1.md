@@ -2034,3 +2034,67 @@
 - NPC에게서 '제일' 도호를 뺀 뒤 도전·순위 같은 게임 흐름에 다른 영향이 있는지(보유자 목록이 바로 갱신되는 것만 봤다).
 - 편집기가 준 도호의 획득 창이 대화에 막혀 끝내 뜨지 않으면 그 번호가 기억에 남는다. 나중에 게임에서 같은 도호를 다시 얻으면 그 창 하나가 닫힌다(게임을 다시 켜면 비워진다).
 - 실제 마우스로 누르기, 한글 입력기로 검색.
+
+## 41. 창작마당 모드 받기·설치(G2a) (2026-10-15 추가)
+
+스펙 `docs/superpowers/specs/2026-10-15-workshop-install-design.md`, 계획 `plans/2026-10-15-workshop-install.md`. 사용자 요청 4(스팀 모드 반영)의 첫 묶음. 받는 길은 Steam 계정 `deepestlight`가 게임을 갖게 되면서 열렸다(2026-10-15 저녁, `app_status 1468810`이 `Subscribed,Permanent`). 설명을 읽어 고른 16개를 `E:\SteamCmd\steamapps\workshop\content\1468810\<ID>\`에 받았고(약 450MB), 그 가운데 `2945768219`(DLL 5개에 `MySql.Data.dll`)는 목록에서 뺐다. 사용자가 시험으로 받은 `3681025074`도 넣지 않는다.
+
+### 규칙
+
+- 게임은 `ModExportData\<폴더>\ModExportData.cache`만 읽는다(한 단계). 폴더 이름은 아무거나 되고 `Mod_` 접두는 필요 없다. 창작마당 항목의 `<ID>\debug\Mod_x\`는 꺼내 평평하게 넣어야 한다.
+- 도구는 `tools/workshop.ps1`(목록 `tools/workshop/mods.txt`, 15개). `-Status`, `-Download`, `-Install [-Yes]`, `-Uninstall [-Yes]`, `-Id a,b`로 고른 것만. `-Yes` 없이는 게임 폴더에 아무것도 쓰지 않는다(계획만 보인다). 설치 자리는 `ModExportData\<창작마당ID>\`, 설치 원본은 평평하면 `<ID>\` 전체, `debug` 모양이면 `<ID>\debug\Mod_*\`(cache가 있는 폴더가 하나일 때). 설치된 폴더를 덮을 때와 지울 때는 게임이 꺼져 있어야 하고, 새 폴더는 게임이 켜져 있어도 넣는다(다음 게임 시작부터 읽힌다). `Mod_*`와 목록에 없는 폴더는 건드리지 않는다. 설치 상태는 기록하지 않고 폴더 유무로 판정한다.
+- `-Download`는 SteamCMD(`E:\SteamCmd\steamcmd.exe`)의 캐시 로그인(`deepestlight`)으로 받지 않은 것만 받고, 실패한 것은 최대 세 번 다시 시도한다. 로그인이 풀려 있으면 사용자가 칠 명령(`E:\SteamCmd\steamcmd.exe +login deepestlight +quit`)을 보이고 멈춘다. 비밀번호는 받지 않는다.
+- 회차 스크립트의 `-Begin`이 `ModExportData\`의 폴더 이름을 적어 두고(`.devremote\session-modfolders.txt`), `-End`가 회차 중 생긴 폴더를 지운다(`WORKSHOP FOLDERS REMOVED: n`). `Mod_<ModId>`는 지우지 않는다.
+- 개발 명령 `wsmods`: `g.mod`의 경로·로드 목록(`paths`, 모드 ID와 폴더)·모드 자료(`mods`, 모드 ID:이름:판:창작마당 번호)·DLL 경로(`ns`)·순서 자료(`order`)를 한 줄에.
+- 시험: `pwsh tools/workshop.tests.ps1`(38줄, 가짜 받은 폴더·가짜 게임 폴더·가짜 SteamCMD), `pwsh tools/DevRemote/session.tests.ps1`(25개 + 검사 줄).
+
+### 실측 (회차 `ws-1015a`, 고정본, 실험 브랜치 `feat/workshop-research`)
+
+| 항목 | 실측 |
+|---|---|
+| 게임이 읽는 자리 | `ModMgr.pathModExportData`는 `<게임>/ModExportData`. 그 바로 아래 폴더의 `ModExportData.cache`만 읽는다(`Player.log`의 `加载模组：<경로>/ModExportData.cache` 줄, `g.mod.allModPaths`). 폴더 이름은 아무거나 된다(`2876769227`, `z_2876769227` 모두 로드) |
+| 한 단계 더 깊은 것 | `<ID>\debug\Mod_dVhgEv\ModExportData.cache`는 읽지 않는다. `Mod_dVhgEv`의 내용을 `<ID>\`로 꺼내 넣자 읽혔다 |
+| 받은 항목의 모양 | 평평한 것 12개(`<ID>\ModExportData.cache`, `ModAssets`, `ModExcel`, `ModRes`, `ModCode\dll\*.dll`), `debug` 모양 4개(`<ID>\debug\Mod_<모드ID>\` + 에디터 프로젝트 `ModProject\`): `2819712935`, `2929805068`, `2945768219`, `3390738990` |
+| 모드 ID와 창작마당 번호 | cache 안에 있다. 로드한 뒤 `g.mod.modDatas`의 `soleID`·`name`·`ver`·`publishedFileID`로 읽힌다. 모드 이름에 서식 태그(`<color>`, `<size>`, `<i>`)가 섞인 것이 있다 |
+| 새 모드의 기본 | 로드 순서 자료(`g.mod.GetLoadOrderData()`)에 없어도 로드된다. 순서 자료는 회차 내내 `Mod_sWP6UL=True` 하나였다 |
+| 로드 순서 | 2회차 `Mod_sWP6UL, 2876769227`, 3회차 `…, 2876769227, 2819712935`(이름순이면 2819가 앞), 4회차(2876769227을 `z_2876769227`로 바꿈) `…, 2819712935, z_2876769227`. 게임이 처음 발견한 순서를 적어 두고 새 폴더를 뒤에 붙이는 것으로 보인다. 회차 중 바뀐 파일은 세이브 폴더의 `Steam\CacheData\DataGloble.cache`뿐이라 거기 적히는 것으로 추정(암호화돼 미확인) |
+| 받기 | `steamcmd +login deepestlight +runscript <파일>`(줄마다 `workshop_download_item 1468810 <ID>`). 익명 로그인은 `failed (Failure)`. 라이선스가 없을 때는 `No workshop depot defined, skipping non-legacy item`(인계 8.3b절) |
+| DLL이 든 것 | `2814703549` Fatury(`Fatury.dll`, `UnityEngine.InputLegacyModule.dll`, `YamlDotNet.dll`), `2832167498`(`MOD_0lkK4v.dll`), `2839261049`(`MOD_uCKcKw.dll`), `3001496635`(`MOD_IoRGjg.dll`), `2945768219`(5, 제외) |
+
+### 검증 (회차 `ws-1015b`, 고정본)
+
+- 게임이 켜진 채 `-Install -Yes`로 15개를 넣었다(`INSTALLED` 15줄, "다음 게임 시작부터 읽힙니다", `설치 15개`). `-Restart` 뒤 `WORLD READY`(mod warning 창이 그대로 넘어갔다).
+- `Player.log`의 `加载模组` 줄 16개. 순서는 `Mod_sWP6UL` → 폴더 이름순(`2814703549`, `2814806198`, `2815562168`, `2819712935`, `2823930683`, `2832167498`, `2839261049`, `2874128983`, `2876769227`, `2929805068`, `2945768367`, `2993500314`, `3001496635`, `3200319699`, `3390738990`). 한 번에 여러 폴더를 처음 발견하면 이름순으로 붙는다. Fatury(`2814703549`)가 새 모드 가운데 첫째라 `2815562168`보다 앞이다.
+- `wsmods`: `loaded=16`, `ns`에 DLL 경로 6개(편집기 + Fatury 3 + 모드 DLL 3). 모드 ID(게임이 읽은 이름은 서식 태그를 뺀 것):
+
+| 창작마당 번호 | 모드 ID | 게임 안 이름 | 판 |
+|---|---|---|---|
+| 2814703549 | q9CYCo | 【Sorry】Fatury框架 | v1.0 |
+| 2814806198 | JprJWu | 【Sorry】过场图替换示例mod | v 1.0.0 |
+| 2815562168 | ymWzeD | 原版女性动态立绘替换 | v 1.0.0 |
+| 2819712935 | dVhgEv | 女npc颜值优化 | v 1.2.0 |
+| 2823930683 | 5AfmFP | 男性NPC颜值优化 | v 1.0.0 |
+| 2832167498 | 0lkK4v | 【含羞草】捏脸 | v 1.0.0 |
+| 2839261049 | uCKcKw | 【sigma】真.镇宗之宝：传承心法 | v 1.1.0 |
+| 2874128983 | L25r1F | 人物美化 .魅力与权重修改 | v 1.0.1 |
+| 2876769227 | FASRM7 | 【只有梦长】特殊服装解锁 | v 1.0.0 |
+| 2929805068 | cPugE8 | 【大姨夫】仙衣阁、美化 | v 1.0.6 |
+| 2945768367 | Z08Zhd | 【执余】大量生成美女2.0 | v 2.0.0 |
+| 2993500314 | FsilSZ | 发型美化-动态立绘能用版 | v 1.0.1 |
+| 3001496635 | IoRGjg | 【软甜废独家】《五官头饰动态立绘》-原创本人手画 | v 1.0.0 |
+| 3200319699 | 13mJF0 | 【木头】AI动态立绘 | v 2.0.0 |
+| 3390738990 | 7kyQkw | 【只有梦长】五本功法开源 | v 1.0.0 |
+
+- `MelonLoader\Latest.log`: 예외 한 번 — Fatury의 `ResLateLoadPatch.Postfix`(`UnityEngine.Resources.Load`의 Harmony 후위 패치)에서 `NullReferenceException`. 편집기와 무관하고 고치지 않았다. 모드 DLL마다 `No Compatibility Layer` 경고는 MelonLoader의 평소 안내다.
+- `ui-check.ps1 -Part base`·`tabs`: 둘 다 `FAILS=0`. 다른 모드 15개가 있어도 편집기가 열리고 탭이 그려진다.
+- 게임 모드 화면의 순서 캡처: 못 했다(미확인). `uiopen ModMainMgr`는 세계 안에서 프리팹이 없어(`The Object you want to instantiate is null`) 열리지 않고, HUD의 왼쪽 위·오른쪽 위 단추는 월말 기록·임무 토글이며, ESC는 전달되지 않고 `uipos`는 게임 UI 트리를 찾지 못한다. 사용자 확인 항목(인계 8.5절).
+- `-End ws-1015b`: `SAVE RESTORED AND IDENTICAL`, `WORKSHOP FOLDERS REMOVED: 15`, `ModExportData\`에 `Mod_sWP6UL`만.
+
+### 확인하지 못한 것, 한계
+
+- 로드 순서는 처음 발견한 순서(한 번에 여러 개면 이름순)를 게임이 적어 두는 것으로 보이며, 순서 바꾸기는 게임의 모드 화면이 한다. 순서가 세이브 폴더의 `DataGloble.cache`에 남는다는 것은 추정이다.
+- 실제 SteamCMD가 캐시가 풀렸을 때 내는 문구(스크립트는 `Cached credentials not found`, `Login Failure`, `FAILED (Invalid Password)`, `password:`를 본다). 표준 입력을 빈 파일로 주어 프롬프트에서 멈추지 않게 했지만 실제로는 미확인.
+- `robocopy /MIR` 갱신은 설치본에만 있던 파일을 지운다. 모드가 자기 폴더에 파일을 쓰는지 미확인.
+- DLL 모드 4개와 편집기의 충돌은 회차 한 번(세계 진입, `base`·`tabs`)으로만 봤다. 실제 플레이에서의 이상 여부는 사용자 확인 항목.
+- 게임 모드 화면에서 Fatury가 맨 위인지(위 "검증"의 미확인).
+- 회차 이름: `ws-1015a`(실험), `ws-1015b`(검증).
