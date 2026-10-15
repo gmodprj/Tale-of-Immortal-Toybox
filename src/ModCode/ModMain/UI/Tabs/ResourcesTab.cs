@@ -5,14 +5,16 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 자원 탭: 영석, 지급 수량과 가방 칸, 용도 그룹으로 나눈 아이템 표와 즐겨찾기.
-    // 설계: docs/superpowers/specs/2026-10-15-resources-tab-design.md 3·4절. 판단은 ItemCatalog·FavoriteStore가 하고 여기서는 그린다.
-    internal sealed class ResourcesTab : EditorTab
+    // 자원 탭: 영석, 지급 수량과 가방 칸, 용도 그룹으로 나눈 아이템 표, 기술 서적(비급) 지급, 즐겨찾기.
+    // 설계: docs/superpowers/specs/2026-10-15-resources-tab-design.md, 2026-10-15-martial-books-design.md.
+    // 판단은 ItemCatalog·FavoriteStore·MartialBookService가 하고 여기서는 그린다. 기술 서적 그룹은 ResourcesTab.Books.cs.
+    internal sealed partial class ResourcesTab : EditorTab
     {
         private const float RowH = 32;
         private const float DetailH = 150;              // 표에 설명 열이 없어 설명은 이 칸에서 본다. 넘치면 칸 안에서 스크롤한다
         private const float TopH = 92;                  // 1줄 영석, 2줄 지급 수량과 가방 칸
         private const float LeftW = 170;                // 그룹 목록
+        private const float GroupStep = 42;             // 그룹 버튼(높이 38)의 간격. 열네 개가 아래 설명 칸 위에 들어간다
         private const float RightX = 180;
         private const float RightW = ContentW - RightX; // 1124
         private const float ChipH = 34, ChipGap = 6;
@@ -23,6 +25,15 @@ namespace MOD_sWP6UL
         private const float NameW = 380, KindW = 160, GiveW = 116, AmountW = 90;
         private const float ColGive = RightW - Ui.ScrollBarWidth - GiveW - 4;   // 990
         private const float ColAmount = ColGive - AmountW - 6;                  // 894
+
+        // 표의 한 줄: 아이템(Item), 기술 서적 그룹의 기술(Skill), 즐겨찾기의 비급(Book) 가운데 하나.
+        private sealed class Row
+        {
+            public ItemCatalog.Entry Item;
+            public SkillCatalog.Entry Skill;            // 기술 줄과 비급 즐겨찾기 줄. 비급 즐겨찾기의 기술이 게임에 없으면 null
+            public int SkillKind;
+            public FavoriteStore.Favorite Book;
+        }
 
         // 검색어가 바뀌면 탭을 다시 그리지 않고(검색 칸의 포커스를 지킨다) 이 글들만 고친다.
         private sealed class CountLabel
@@ -37,13 +48,14 @@ namespace MOD_sWP6UL
             }
         }
 
-        private readonly ListView<ItemCatalog.Entry> list = new ListView<ItemCatalog.Entry>("ItemTable", RowH);
+        private readonly ListView<Row> list = new ListView<Row>("ItemTable", RowH);
         private readonly DetailPane detail = new DetailPane("ItemDetail", "줄을 누르면 여기에 전체 설명이 나옵니다.");
         private readonly ItemCatalog.Filter filter = new ItemCatalog.Filter();
         private readonly List<CountLabel> labels = new List<CountLabel>();
         private string groupKey = ItemGroups.AllKey;
         private float chipScrollY;
         private string bagInput = "";
+        private Dictionary<int, int> bagBooks = new Dictionary<int, int>();   // 가방의 기술별 비급 수(그릴 때마다 센다)
 
         public override string Title
         {
@@ -52,8 +64,8 @@ namespace MOD_sWP6UL
 
         public ResourcesTab()
         {
-            // 줄의 빈 곳을 눌러도 아래 칸에 설명이 나온다(아이템명 버튼과 같다).
-            list.OnSelect = entry => detail.Show(Detail(entry));
+            // 줄의 빈 곳을 눌러도 아래 칸에 설명이 나온다(이름 버튼과 같다).
+            list.OnSelect = row => detail.Show(DetailOf(row));
         }
 
         private bool IsFav
@@ -89,7 +101,7 @@ namespace MOD_sWP6UL
             Say(BagService.Change(delta));
         }
 
-        // 그룹·종류·품질·보유 중만을 바꾼다: 목록을 맨 위로, 설명 칸을 비우고 다시 그린다.
+        // 그룹·종류·품질·보유 중만 등을 바꾼다: 목록을 맨 위로, 설명 칸을 비우고 다시 그린다.
         private void Changed()
         {
             list.Reset();
@@ -111,6 +123,7 @@ namespace MOD_sWP6UL
             filter.Kind = null;
             filter.Quality = 0;
             filter.OwnedOnly = false;
+            ClearBookFilters();
             Changed();
         }
 
@@ -126,21 +139,67 @@ namespace MOD_sWP6UL
             };
         }
 
-        // 지금 보일 줄. 즐겨찾기 보기는 넣은 순서, 나머지는 그룹·종류·게임 표 순서.
-        private List<ItemCatalog.Entry> Rows(HashSet<int> owned)
+        private int BagBooks(int baseId)
         {
+            int n;
+            return bagBooks.TryGetValue(baseId, out n) ? n : 0;
+        }
+
+        private Row FavRow(FavoriteStore.Favorite favorite)
+        {
+            if (!favorite.Book)
+            {
+                return new Row { Item = ItemCatalog.Get(favorite.Id) ?? Missing(favorite.Id) };
+            }
+            return new Row { Book = favorite, SkillKind = favorite.BookKind, Skill = SkillCatalog.Get(favorite.BookKind, favorite.Id) };
+        }
+
+        // 즐겨찾기 줄의 거르기. 비급 줄: 검색은 기술 이름, 품질은 최소 품질이 같은 것, 보유 중만은 가방에 그 기술의 비급이 있는 것.
+        // 게임에 없는 아이템·기술은 늘 보인다(뺄 수 있게).
+        private bool FavPasses(Row row, HashSet<int> owned)
+        {
+            if (row.Item != null)
+            {
+                return ItemCatalog.Passes(row.Item, filter, owned);
+            }
+            if (row.Skill == null)
+            {
+                return true;
+            }
+            if (filter.Quality > 0 && row.Book.MinLevel != filter.Quality)
+            {
+                return false;
+            }
+            if (filter.OwnedOnly && BagBooks(row.Book.Id) == 0)
+            {
+                return false;
+            }
+            return filter.Needle.Length == 0 || row.Skill.Search.Contains(filter.Needle) || (filter.IsId && row.Skill.BaseId == filter.Id);
+        }
+
+        // 지금 보일 줄. 즐겨찾기 보기는 넣은 순서, 기술 서적은 분류·기술 표 순서, 나머지는 그룹·종류·게임 표 순서.
+        private List<Row> Rows(HashSet<int> owned)
+        {
+            if (groupKey == ManualKey)
+            {
+                return BookRows();
+            }
+            var rows = new List<Row>();
             if (!IsFav)
             {
                 filter.Group = groupKey;
-                return ItemCatalog.Select(filter, owned);
+                foreach (ItemCatalog.Entry entry in ItemCatalog.Select(filter, owned))
+                {
+                    rows.Add(new Row { Item = entry });
+                }
+                return rows;
             }
-            var rows = new List<ItemCatalog.Entry>();
             foreach (FavoriteStore.Favorite favorite in FavoriteStore.Entries)
             {
-                ItemCatalog.Entry entry = ItemCatalog.Get(favorite.Id) ?? Missing(favorite.Id);
-                if (ItemCatalog.Passes(entry, filter, owned))
+                Row row = FavRow(favorite);
+                if (FavPasses(row, owned))
                 {
-                    rows.Add(entry);
+                    rows.Add(row);
                 }
             }
             return rows;
@@ -151,8 +210,7 @@ namespace MOD_sWP6UL
             int count = 0;
             foreach (FavoriteStore.Favorite favorite in FavoriteStore.Entries)
             {
-                ItemCatalog.Entry entry = ItemCatalog.Get(favorite.Id) ?? Missing(favorite.Id);
-                if (ItemCatalog.Passes(entry, filter, owned))
+                if (FavPasses(FavRow(favorite), owned))
                 {
                     count++;
                 }
@@ -160,20 +218,59 @@ namespace MOD_sWP6UL
             return count;
         }
 
+        private string NameOf(Row row)
+        {
+            if (row.Item != null)
+            {
+                return row.Item.Name;
+            }
+            return row.Book != null ? BookFavName(row) : row.Skill.Name;
+        }
+
+        private static string KindOf(Row row)
+        {
+            if (row.Item != null)
+            {
+                return row.Item.Kind == null ? "-" : row.Item.Kind.Name;
+            }
+            string tab = SkillCatalog.Kinds[row.SkillKind].Tab;
+            return row.Book != null ? "비급·" + tab : tab;
+        }
+
+        private string DetailOf(Row row)
+        {
+            if (row.Item != null)
+            {
+                return Detail(row.Item);
+            }
+            return row.Book != null ? BookFavDetail(row) : SkillDetail(row);
+        }
+
         protected override void Draw()
         {
             WorldUnitBase player = Player;
             HashSet<int> owned = ItemCatalog.OwnedIds(player);
+            bagBooks = MartialBookService.CountAllInBag(player);
+            PrepareBooks(player);
             labels.Clear();
             DrawTop(player);
             DrawGroups(owned);
             float y = TopH + 8;
             y = DrawKinds(y, owned);
-            y = DrawFilters(y);
-            DrawHead(y);
+            y = groupKey == ManualKey ? DrawBookFilters(y) : DrawFilters(y);
+            if (groupKey == ManualKey)
+            {
+                DrawBookHead(y);
+            }
+            else
+            {
+                DrawHead(y);
+            }
             y += 32;
-            list.EmptyText = IsFav ? "즐겨찾기가 비어 있습니다. 표의 ☆를 눌러 넣습니다." : "조건에 맞는 아이템이 없습니다.";
-            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Name, NameW, 19), Ui.TextHeight(entry.Kind == null ? "-" : entry.Kind.Name, KindW, 16));
+            list.EmptyText = IsFav ? "즐겨찾기가 비어 있습니다. 표의 ☆를 눌러 넣습니다."
+                : groupKey == ManualKey ? "조건에 맞는 기술이 없습니다. '이 경지만'을 끄면 다른 경지의 기술도 보입니다."
+                : "조건에 맞는 아이템이 없습니다.";
+            list.HeightOf = row => RowFor(RowH, Ui.TextHeight(NameOf(row), NameW, 19), Ui.TextHeight(KindOf(row), KindW, 16));
             list.Build(content, RightX, y, RightW, ContentH - DetailH - 8 - y, Rows(owned), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
@@ -215,25 +312,34 @@ namespace MOD_sWP6UL
             Dictionary<string, int> counts = ItemCatalog.CountByGroup(filter, owned);
             float y = TopH + 8;
             GroupButton(ItemGroups.FavKey, "★ 즐겨찾기", FavCount(owned), y);
-            y += 44;
+            y += GroupStep;
             GroupButton(ItemGroups.AllKey, "전체", counts[ItemGroups.AllKey], y);
-            y += 44;
+            y += GroupStep;
             foreach (ItemGroups.Group group in ItemGroups.Groups)
             {
                 GroupButton(group.Key, group.Name, counts[group.Key], y);
-                y += 44;
+                y += GroupStep;
+                if (group.Key == "Book")
+                {
+                    GroupButton(ManualKey, "기술 서적", BookCount(), y);
+                    y += GroupStep;
+                }
             }
         }
 
         private void GroupButton(string key, string name, int count, float y)
         {
-            Button button = Ui.Button("ResGroup" + key, content, name + " " + count, 0, y, LeftW, 40, new Action(() => SetGroup(key)), true, groupKey == key);
+            Button button = Ui.Button("ResGroup" + key, content, name + " " + count, 0, y, LeftW, GroupStep - 4, new Action(() => SetGroup(key)), true, groupKey == key);
             labels.Add(new CountLabel { Text = button.GetComponentInChildren<Text>(), Name = name, Key = key });
         }
 
         // 종류 칩(그룹 보기), 모두 지급(즐겨찾기 보기) 또는 안내(전체 보기). 다음 줄의 y를 돌려준다.
         private float DrawKinds(float y, HashSet<int> owned)
         {
+            if (groupKey == ManualKey)
+            {
+                return DrawBookKinds(y);
+            }
             if (IsFav)
             {
                 Confirm.Button("ResAllGive", content, "모두 지급", "정말 모두 지급", RightX, y, 170, 38, "res-all-give",
@@ -339,13 +445,20 @@ namespace MOD_sWP6UL
             HashSet<int> owned = ItemCatalog.OwnedIds(Player);
             list.SetItems(Rows(owned));
             Dictionary<string, int> counts = ItemCatalog.CountByGroup(filter, owned);
-            int[] kinds = IsFav || groupKey == ItemGroups.AllKey ? null : ItemCatalog.CountByKind(ItemGroups.ByKey(groupKey), filter, owned);
+            int[] kinds = IsFav || groupKey == ItemGroups.AllKey ? null
+                : groupKey == ManualKey ? BookKindCounts()
+                : ItemCatalog.CountByKind(ItemGroups.ByKey(groupKey), filter, owned);
             int favCount = FavCount(owned);
+            int bookCount = BookCount();
             foreach (CountLabel label in labels)
             {
                 if (label.Key == ItemGroups.FavKey)
                 {
                     label.Set(favCount);
+                }
+                else if (label.Key == ManualKey)
+                {
+                    label.Set(bookCount);
                 }
                 else if (label.Key != null)
                 {
@@ -363,9 +476,25 @@ namespace MOD_sWP6UL
             }
         }
 
-        private void DrawRow(RectTransform row, ItemCatalog.Entry entry, int index)
+        private void DrawRow(RectTransform row, Row r, int index)
         {
             float h = row.sizeDelta.y;
+            if (r.Item != null)
+            {
+                DrawItemRow(row, r.Item, h);
+            }
+            else if (r.Book != null)
+            {
+                DrawBookFavRow(row, r, h);
+            }
+            else
+            {
+                DrawSkillRow(row, r, h);
+            }
+        }
+
+        private void DrawItemRow(RectTransform row, ItemCatalog.Entry entry, float h)
+        {
             int id = entry.Id;
             bool fav = FavoriteStore.Has(id);
             Ui.Button("ResStar" + id, row, fav ? "★" : "☆", ColStar, 2, 40, RowH - 4, new Action(() => ToggleFavorite(id)), true, fav);
@@ -409,33 +538,37 @@ namespace MOD_sWP6UL
             Say(text);
         }
 
-        // 보이는(걸러진) 즐겨찾기 가운데 게임에 있는 것을 저장된 수량으로 차례로 준다.
-        // 줄마다 예외를 막는다. 밖으로 나가면 버튼 콜백에서 사라져 결과 문장 없이 일부만 들어가고, 다시 누르면 앞의 것을 또 준다(BagExportService.Put과 같은 이유).
+        // 보이는(걸러진) 즐겨찾기 가운데 게임에 있는 것을 저장된 수량으로 차례로 준다. 비급 줄은 저장된 권수를 모두 넣었을 때 넣음이다.
+        // 줄마다 예외를 막는다. 밖으로 나가면 버튼 콜백에서 사라져 결과 문장 없이 일부만 들어가고, 다시 누르면 앞의 것을 또 준다.
         private void GiveAll()
         {
             int given = 0;
             var failed = new List<string>();
-            foreach (ItemCatalog.Entry entry in Rows(ItemCatalog.OwnedIds(Player)))
+            foreach (Row row in Rows(ItemCatalog.OwnedIds(Player)))
             {
-                if (entry.Missing)
+                if (row.Item != null ? row.Item.Missing : row.Skill == null)
                 {
                     continue;
                 }
+                string name = row.Item != null ? row.Item.Name : row.Skill.Name + " 비급";
                 try
                 {
                     string text;
-                    if (EditService.TryGiveItem(Player, entry.Id, FavoriteStore.AmountOf(entry.Id), out text))
+                    bool ok = row.Item != null
+                        ? EditService.TryGiveItem(Player, row.Item.Id, FavoriteStore.AmountOf(row.Item.Id), out text)
+                        : MartialBookService.Make(Player, row.Book.BookKind, row.Skill, row.Book.Grade, row.Book.MinLevel, row.Book.Amount, out text) == row.Book.Amount;
+                    if (ok)
                     {
                         given++;
                     }
                     else
                     {
-                        failed.Add(entry.Name);
+                        failed.Add(name);
                     }
                 }
                 catch (Exception e)
                 {
-                    failed.Add(entry.Name + " — " + e.GetType().Name);
+                    failed.Add(name + " — " + e.GetType().Name);
                 }
             }
             Say(given + failed.Count == 0 ? "즐겨찾기 모두 지급: 줄 수 있는 아이템이 없습니다."
