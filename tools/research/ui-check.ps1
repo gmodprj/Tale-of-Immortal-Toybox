@@ -165,6 +165,18 @@ switch ($Part) {
     Check 'a number the game does not have is kept' ($o -match 'items=1011011:25,99999999:3:missing') $o
     $o = Cmd 'rfav del 99999999' 300
     Check 'removing works' ($o -match 'count=1 ' -and (FavText) -notmatch '99999999') $o
+    # 비급 줄(기술 서적 스펙 3.3절). Review Focus 4: 같은 기술이라도 경지·최소 품질이 다르면 다른 즐겨찾기
+    $o = Cmd 'rfav addbook 1 23116 3 6 4' 300
+    Check 'a book favorite is written as a book line' ($o -match 'book:1:23116:3:6:4' -and (FavText) -match "(?m)^book 1 23116 3 6 4\r?$") $o
+    $o = Cmd 'rfav addbook 1 23116 3 6 2' 300
+    Check 'the same book (skill, grade, quality) is refused' ($o -match '이미' -and $o -match 'book:1:23116:3:6:4') $o
+    $o = Cmd 'rfav addbook 1 23116 3 5 2' 300
+    Check 'another minimum quality is another favorite' ($o -match 'book:1:23116:3:6:4' -and $o -match 'book:1:23116:3:5:2') $o
+    $o = Cmd 'rfav setbook 23116 3 6 21' 300
+    Check 'a book amount above 20 is refused' ($o -match '1~20' -and $o -match 'book:1:23116:3:6:4') $o
+    $o = Cmd 'rfav delbook 23116 3 5' 300
+    Check 'a book favorite can be removed' ($o -notmatch 'book:1:23116:3:5' -and (FavText) -notmatch 'book 1 23116 3 5') $o
+    Check 'item lines are kept beside book lines' ($o -match 'items=1011011:25,book:1:23116:3:6:4') $o
 
     # 깨진 줄, 같은 번호의 줄, 범위 밖의 수량이 섞인 파일
     [IO.File]::WriteAllText($fav, "# test`n1011011 5`nnot a line`n1011011 7`n1011012 5000000`n1011013 abc`n", [Text.UTF8Encoding]::new($false))
@@ -196,6 +208,13 @@ switch ($Part) {
     Check 'after a lock, adding an item already in the file is refused' ($o -match '이미' -and $o -match 'count=2 ' -and $same -eq 1) "$o | lines=$same"
     $o = Cmd 'rfav reload' 300
     Check 'after the lock is gone the list is back' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
+    # 비급 줄의 읽기: 수량은 20으로 맞추고, 분류가 범위 밖이거나 칸 수가 다른 줄은 건너뛴다. 아이템 줄과 섞여도 순서를 지킨다
+    $keep = FavText
+    [IO.File]::WriteAllText($fav, "1011011 5`nbook 1 23116 3 6 25`nbook 9 23116 3 6 1`nbook 1 23116`n1011012 8`n", [Text.UTF8Encoding]::new($false))
+    $o = Cmd 'rfav reload' 300
+    Check 'book lines are read, capped and checked' ($o -match 'count=3 skipped=2 items=1011011:5,book:1:23116:3:6:20,1011012:8') $o
+    [IO.File]::WriteAllText($fav, $keep, [Text.UTF8Encoding]::new($false))
+    Cmd 'rfav reload' 300 | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'favstore-restart' {

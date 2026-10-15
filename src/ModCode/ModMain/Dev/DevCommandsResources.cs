@@ -6,8 +6,10 @@ namespace MOD_sWP6UL
 {
     // 자원 탭의 검증용 명령(tools/research/ui-check.ps1의 groups·favstore·favorites 부분).
     //   rgroups : total=<전체> other=<기타 수> dupes=<표의 중복 번호 수> sum=<그룹 합> otherClasses=<번호,…> | <그룹 키>=<수> …
-    //   rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>]
+    //   rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>
+    //         |addbook <분류> <기술> <경지> <최소 품질> <수량>|setbook <기술> <경지> <최소 품질> <수량>|delbook <기술> <경지> <최소 품질>]
     //           : (동작이 있으면 "<문장> | ") + count=<수> skipped=<건너뛴 줄> items=<번호>:<수량>[:missing],…
+    //             비급 항목은 book:<분류>:<기술>:<경지>:<최소 품질>:<수량>[:missing]
     //             reset은 favorites.txt(.bak, .tmp 포함)를 지우고 다시 읽게 한다. reload는 파일을 그대로 두고 다시 읽게 한다
     //   rbook <분류> <기술 번호> <경지> <최소 품질> <권수> : made=<수> | <MartialBookService.Make의 문장>
     //   rbooks [기술 번호]   : 가방의 비급 count=<수> items=<soleID>:<기술 번호>:<경지>:<품질>:<이름>,…
@@ -111,11 +113,22 @@ namespace MOD_sWP6UL
                 case "del":
                     FavoriteStore.Remove(int.Parse(p[2]), out text);
                     break;
+                case "addbook":
+                    FavoriteStore.AddBook(int.Parse(p[2]), int.Parse(p[3]), int.Parse(p[4]), int.Parse(p[5]), int.Parse(p[6]), out text);
+                    break;
+                case "setbook":
+                    FavoriteStore.SetBookAmount(int.Parse(p[2]), int.Parse(p[3]), int.Parse(p[4]), int.Parse(p[5]), out text);
+                    break;
+                case "delbook":
+                    FavoriteStore.RemoveBook(int.Parse(p[2]), int.Parse(p[3]), int.Parse(p[4]), out text);
+                    break;
             }
             var items = new List<string>();
             foreach (FavoriteStore.Favorite f in FavoriteStore.Entries)
             {
-                items.Add(f.Id + ":" + f.Amount + (ItemCatalog.Get(f.Id) == null ? ":missing" : ""));
+                items.Add(f.Book
+                    ? "book:" + f.BookKind + ":" + f.Id + ":" + f.Grade + ":" + f.MinLevel + ":" + f.Amount + (SkillCatalog.Get(f.BookKind, f.Id) == null ? ":missing" : "")
+                    : f.Id + ":" + f.Amount + (ItemCatalog.Get(f.Id) == null ? ":missing" : ""));
             }
             string state = "count=" + items.Count + " skipped=" + FavoriteStore.SkippedLines + " items=" + string.Join(",", items.ToArray());
             return text == null ? state : text + " | " + state;
