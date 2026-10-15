@@ -253,21 +253,6 @@ if ($End) {
     'PRESETS RESTORED (there was no folder)'
   }
   DeleteFiles $noPresets
-  [IO.File]::Delete($marker)
-
-  # 회차 동안 모드가 만든 세이브 자동 백업을 지운다(시험 중의 세이브를 뜬 것이라 쓸모가 없다). 회차 전부터 있던 것은 남긴다.
-  if (Test-Path $keptBackups) {
-    $keep = @([IO.File]::ReadAllText($keptBackups) -split "`n" | Where-Object { $_ })
-    if (Test-Path -LiteralPath $backups) {
-      foreach ($entry in Get-ChildItem -LiteralPath $backups) {
-        if ($keep -notcontains $entry.Name -and $entry.FullName.StartsWith($backups + '\')) {
-          if ($entry.PSIsContainer) { [IO.Directory]::Delete($entry.FullName, $true) } else { [IO.File]::Delete($entry.FullName) }
-        }
-      }
-    }
-    [IO.File]::Delete($keptBackups)
-  }
-
   # 회차 동안 ModExportData에 생긴 폴더(회차 안에서 설치한 창작마당 모드)를 지운다. 회차 전부터 있던 것과 편집기(Mod_<ModId>)는 남긴다.
   if (Test-Path $keptModFolders) {
     $keepMods = @([IO.File]::ReadAllText($keptModFolders) -split "`n" | Where-Object { $_ })
@@ -282,6 +267,21 @@ if ($End) {
     }
     [IO.File]::Delete($keptModFolders)
     "WORKSHOP FOLDERS REMOVED: $removedMods"
+  }
+
+  [IO.File]::Delete($marker)
+
+  # 회차 동안 모드가 만든 세이브 자동 백업을 지운다(시험 중의 세이브를 뜬 것이라 쓸모가 없다). 회차 전부터 있던 것은 남긴다.
+  if (Test-Path $keptBackups) {
+    $keep = @([IO.File]::ReadAllText($keptBackups) -split "`n" | Where-Object { $_ })
+    if (Test-Path -LiteralPath $backups) {
+      foreach ($entry in Get-ChildItem -LiteralPath $backups) {
+        if ($keep -notcontains $entry.Name -and $entry.FullName.StartsWith($backups + '\')) {
+          if ($entry.PSIsContainer) { [IO.Directory]::Delete($entry.FullName, $true) } else { [IO.File]::Delete($entry.FullName) }
+        }
+      }
+    }
+    [IO.File]::Delete($keptBackups)
   }
 
   # 오래된 회차의 복사본을 지운다. 회차마다 save-backup-<이름>과 save-before-restore-<이름> 한 쌍이고, 최근 것만 남긴다.

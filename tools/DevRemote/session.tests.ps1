@@ -219,6 +219,17 @@ $b = NewBox
 [void](Run $b $none @{ Begin = 'x' })
 $o = Run $b $none @{ End = 'x' }
 Check 'End keeps folders that were there before and the editor folder' ($o -match 'WORKSHOP FOLDERS REMOVED: 0' -and (Test-Path "$($b.game)\ModExportData\2819712935") -and (Test-Path "$($b.game)\ModExportData\Mod_sWP6UL\ModExportData.cache")) $o
+# 26. 회차 중 생긴 폴더를 지우다 실패하면(파일이 잠김) 회차 표식이 남아 -End를 다시 할 수 있고, 그때 지워진다
+$b = NewBox
+[void](Run $b $none @{ Begin = 'x' })
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2876769227")
+[IO.File]::WriteAllText("$($b.game)\ModExportData\2876769227\ModExportData.cache", 'ws')
+$lock = [IO.File]::Open("$($b.game)\ModExportData\2876769227\ModExportData.cache", 'Open', 'Read', 'None')
+$o = Run $b $none @{ End = 'x' }
+$lock.Dispose()
+Check 'End that cannot remove a workshop folder keeps the session open' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session.name") -and (Test-Path "$($b.work)\session-modfolders.txt")) $o
+$o = Run $b $none @{ End = 'x' }
+Check 'End run again removes the folder and closes the session' ($o -match 'WORKSHOP FOLDERS REMOVED: 1' -and -not (Test-Path "$($b.game)\ModExportData\2876769227") -and -not (Test-Path "$($b.work)\session.name")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
