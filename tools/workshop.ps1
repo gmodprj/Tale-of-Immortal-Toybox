@@ -146,10 +146,55 @@ function DoUninstall($rows) {
   "지움 $($targets.Count)개"
 }
 
+# SteamCMD를 돌리고 출력 줄을 돌려준다. 표준 입력은 빈 파일이라 비밀번호를 물으면 바로 끝난다(멈춰 서지 않는다).
+# 시간을 넘기면 끊는다. -SteamCmd가 .ps1이면 pwsh로 돌린다(시험용 가짜).
+function RunSteamCmd([string[]]$arguments) {
+  $outFile = Join-Path $env:TEMP 'tltoybox-workshop-out.txt'
+  $inFile = Join-Path $env:TEMP 'tltoybox-workshop-in.txt'
+  [IO.File]::WriteAllText($inFile, '')
+  if (Test-Path -LiteralPath $outFile) { [IO.File]::Delete($outFile) }
+  $isScript = $SteamCmd.ToLower().EndsWith('.ps1')
+  $file = if ($isScript) { 'pwsh' } else { $SteamCmd }
+  $argList = if ($isScript) { @('-NoProfile', '-File', "`"$SteamCmd`"") + $arguments } else { $arguments }
+  $p = Start-Process -FilePath $file -ArgumentList $argList -WorkingDirectory $steamRoot -NoNewWindow -PassThru -RedirectStandardOutput $outFile -RedirectStandardInput $inFile
+  if (-not $p.WaitForExit($TimeoutMinutes * 60 * 1000)) {
+    $p.Kill()
+    return @{ Ok = $false; Lines = @(); Error = "TIMEOUT: $TimeoutMinutes 분 안에 끝나지 않아 끊었습니다(로그인 입력을 기다리는 것일 수 있습니다)" }
+  }
+  @{ Ok = $true; Lines = @(Get-Content -LiteralPath $outFile -ErrorAction SilentlyContinue); Error = '' }
+}
+
+function DoDownload($rows) {
+  $pending = @($rows | Where-Object { $Id -or -not (Downloaded $_.Id) })
+  if ($pending.Count -eq 0) { "받음 $($rows.Count)/$($rows.Count) (받을 것이 없습니다)"; return }
+  $script = Join-Path $env:TEMP 'tltoybox-workshop-run.txt'
+  for ($pass = 1; $pass -le 3 -and $pending.Count -gt 0; $pass++) {
+    "pass ${pass}: $($pending.Count)개"
+    [IO.File]::WriteAllLines($script, [string[]](@($pending | ForEach-Object { "workshop_download_item $AppId $($_.Id)" }) + @('quit')))
+    $res = RunSteamCmd @('+login', $Account, '+runscript', "`"$script`"", '+quit')
+    if (-not $res.Ok) { $res.Error; break }
+    $joined = $res.Lines -join "`n"
+    if ($joined -match 'Cached credentials not found|Login Failure|FAILED \(Invalid Password\)|password:') {
+      "로그인이 풀려 있습니다. 사용자가 아래 명령으로 한 번 로그인한 뒤(비밀번호·Steam Guard는 사용자가 입력) 다시 돌립니다:"
+      "  $SteamCmd +login $Account +quit"
+      return
+    }
+    if ($joined -match 'No workshop depot defined') { "이 계정($Account)은 게임($AppId)을 갖고 있지 않습니다. 게임을 가진 계정으로 로그인해야 받을 수 있습니다."; return }
+    foreach ($r in $pending) {
+      if ($joined -match "Success\. Downloaded item $($r.Id)\b") { "OK   $($r.Id) $($r.Korean)" } else { "FAIL $($r.Id) $($r.Korean)" }
+    }
+    $pending = @($pending | Where-Object { -not ($joined -match "Success\. Downloaded item $($_.Id)\b") })
+  }
+  $got = @($rows | Where-Object { Downloaded $_.Id }).Count
+  "받음 $got/$($rows.Count)"
+  if ($pending.Count -gt 0) { "받지 못함: $(($pending | ForEach-Object Id) -join ', ')" }
+}
+
 $chosen = Chosen (ReadList)
 $modes = @(@($Status, $Download, $Install, $Uninstall) | Where-Object { $_ }).Count
 if ($modes -ne 1) { throw '-Status, -Download, -Install, -Uninstall 가운데 하나를 고릅니다.' }
 if ($Status) { ShowStatus $chosen }
+elseif ($Download) { DoDownload $chosen }
 elseif ($Install) { DoInstall $chosen }
 elseif ($Uninstall) { DoUninstall $chosen }
 $global:LASTEXITCODE = 0

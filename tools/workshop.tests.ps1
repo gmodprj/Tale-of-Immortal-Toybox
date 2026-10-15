@@ -144,6 +144,25 @@ $b = NewBox
 $o = Run $b $none @{ Install = $true; Yes = $true }
 Check 'install refuses a folder without ModExportData' ($o -match '^THROWN.*ModExportData') $o
 
+# 10. -Download: 받지 않은 것만 받고, 실패한 것은 다시 시도한다(가짜 SteamCMD는 첫 호출에서 마지막 항목을 실패시킨다)
+$b = NewBox
+$o = Run $b $none @{ Download = $true }
+Check 'download asks only for the missing items' ($o -match 'pass 1: 2개') $o
+Check 'download reports the failed item and retries' ($o -match 'FAIL 555 다섯' -and $o -match 'pass 2: 1개' -and $o -match 'OK   555 다섯') $o
+Check 'download picks up a folder without a cache' ((Test-Path "$($b.content)\555\ModExportData.cache") -and [IO.File]::ReadAllText("$($b.content)\555\ModExportData.cache") -eq 'c555') $o
+Check 'download creates the missing folder' ((Test-Path "$($b.content)\444\ModExportData.cache") -and $o -match 'OK   444 넷') $o
+Check 'download ends with the count' ($o -match '받음 5/5') $o
+$o = Run $b $none @{ Download = $true }
+Check 'download with nothing missing does not run steamcmd' ($o -match '받음 5/5 \(받을 것이 없습니다\)') $o
+$o = Run $b $none @{ Download = $true; Id = '111' }
+Check 'download with -Id re-downloads that item' ($o -match 'pass 1: 1개' -and $o -match 'OK   111 하나') $o
+
+# 11. 로그인이 풀려 있으면 멈추고 사용자가 칠 명령을 보인다
+$b = NewBox
+WriteFile "$($b.root)\steam\expired.flag" ''
+$o = Run $b $none @{ Download = $true }
+Check 'an expired login stops the download and shows the login command' ($o -match '로그인이 풀려 있습니다' -and $o -match '\+login deepestlight \+quit' -and -not (Test-Path "$($b.content)\444")) $o
+
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-workshop-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
