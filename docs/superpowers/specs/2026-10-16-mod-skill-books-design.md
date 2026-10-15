@@ -64,7 +64,7 @@
 |---|---|
 | `src/ModCode/ModMain/Services/SkillCatalog.cs` | `Entry.IsMod`·`BasType`·`NameFromCh`, `Add`의 모드 규칙, `ResolveText`(키 → ch 사전), `Reset()`, `BlockReason`의 모드 규칙, `RollValuesForMod`, 원본 고르기 |
 | `src/ModCode/ModMain/Services/MartialBookService.cs` | `Make`가 `IsMod`이면 `RollValuesForMod`를 쓰고 멈춤 문장, 이력 이름에 ` [모드]` |
-| `src/ModCode/ModMain/UI/Tabs/ResourcesTab.Books.cs` | `ResKind6` 칩과 필터, 분류·경지 열, `BookFits`, 아래 칸 안내 |
+| `src/ModCode/ModMain/UI/Tabs/ResourcesTab.Books.cs` | `ResKind6` 칩과 필터, 분류·경지 열, `BookShown`, 아래 칸 안내 |
 | `src/ModCode/ModMain/Dev/DevCommandsResources.cs` | `rmods`: 카탈로그의 모드 항목(분류:번호:이름:basType:NameFromCh:막힘 이유)과 고른 원본. `rbook`·`rskill`·`rbooks`·`rbookstudy`는 그대로 모드 번호에 쓴다 |
 | `tools/research/ui-check.ps1` | 부분 `modbooks` |
 | `docs/05-editor-v0.1.md` 42절, `docs/06-handoff.md` | 6절 |
