@@ -153,6 +153,68 @@ switch ($Part) {
     Check 'a full bag stops with the number put in' ($o -match '가방에 들어가지 않았습니다' -and (BookCount) -eq $count + $made) $o
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'translation' {
+    # 한글화 스펙 5절. 창작마당 모드 3390738990이 설치돼 있어야 한다. 회차의 -End가 translations 폴더를 되돌린다.
+    $traps = Traps
+    $tdir = Join-Path $data 'translations'
+    $tfile = Join-Path $tdir 'mods.txt'
+    function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
+    $s = Cmd 'rloc' 300
+    # Init은 세이브 진입 전에 두 번 불릴 수 있다(인계 6절). 두 번째면 파일이 "있음"이고 exists 행은 이미 ch라 fallback이 0이다.
+    Check 'translations are applied on init' ($s -match 'file=(풀어 둠|있음) rows=59 applied=59 fallback=[01] unused=0 broken=0') $s
+    Check 'the translation file was written to the data folder' (Test-Path -LiteralPath $tfile) $tfile
+    $k = Cmd 'rloc key skill_name_middle984555698' 300
+    Check 'a mod skill name resolves to Korean' ($k -match 'ls=열염장 kr=열염장 ch=烈炎掌') $k
+    Check 'a mod term resolves to Korean' ((Cmd 'rloc key s_shenqiang' 300) -match 'ls=신창') (Cmd 'rloc key s_shenqiang' 300)
+    Check 'a backslash-n becomes a line break' ((Cmd 'rloc key effect_descshenqiang' 300) -match '초 뒤\s*신창 상태에 들어가며') (Cmd 'rloc key effect_descshenqiang' 300)
+    Check 'the English flag row falls back to its Chinese column' ((Cmd 'rloc key 0lkK4v' 300) -match 'ls=exists kr=exists') (Cmd 'rloc key 0lkK4v' 300)
+    $mods = Cmd 'rmods' 3000
+    Check 'the catalog shows Korean names without the ch fallback' ($mods -match '1:984555698:열염장:basPalm:False:' -and $mods -match '4:59898952:천살신창:' -and $mods -match '1:353535:장기광도:' -and $mods -match '1:844854565:풍선용권:') $mods
+    $made = Cmd 'rbook 1 984555698 3 1 1' 20000
+    Check 'a mod book is named in Korean' ($made -match 'made=1' -and $made -match '열염장\(품질') $made
+    Check 'the bag list names the mod book in Korean' ((Cmd 'rbooks 984555698' 3000) -match ':984555698:[^,]*열염장') (Cmd 'rbooks 984555698' 3000)
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null; Press 'ResKind6' | Out-Null
+    Check 'the row shows the Korean name' ((Cmd 'uitext BookName984555698') -match "text='열염장'") (Cmd 'uitext BookName984555698')
+    Press 'BookName984555698' | Out-Null
+    $d = Cmd 'uitext ItemDetail'
+    Check 'the box below no longer mentions a missing Korean name' ($d -notmatch '한글 이름이 없어' -and $d -match '열염장') $d
+    Cmd 'ui set ItemQuery 열염' | Out-Null
+    Check 'Korean search finds the mod skill' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
+    Cmd 'ui set ItemQuery 烈炎' | Out-Null
+    Check 'Chinese search still finds it' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
+    Press 'ItemQueryClear' | Out-Null
+    # 파일 수정 → rloc apply: 깨진 줄, 모르는 키, 기본 키, 공백 키, 한 줄 바꾸기
+    $backup = [IO.File]::ReadAllText($tfile)
+    $text = $backup.Replace("skill_name_middle984555698`t열염장", "skill_name_middle984555698`t열염장2") + "`nbroken line without tab`nno_such_key`t아무개`ns_liuxue`t엉뚱`n skill_name_middle353535 `t 장기광도3 `n"
+    [IO.File]::WriteAllText($tfile, $text)
+    $s = Cmd 'rloc apply' 3000
+    Check 'a broken line and unknown keys are counted, the rest applies' ($s -match 'rows=61 applied=59 fallback=0 unused=2 broken=1') $s
+    Check 'an edited line wins' ((Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장2') (Cmd 'rloc key skill_name_middle984555698' 300)
+    Check 'a base key in the file is ignored and counted as unused' ((Cmd 'rloc key s_liuxue' 300) -match 'ls=유혈 kr=유혈') (Cmd 'rloc key s_liuxue' 300)
+    Check 'spaces around a key are trimmed' ((Cmd 'rloc key skill_name_middle353535' 300) -match 'ls=장기광도3') (Cmd 'rloc key skill_name_middle353535' 300)
+    # BOM + CRLF로 저장해도 읽힌다
+    [IO.File]::WriteAllText($tfile, $backup.Replace("`n", "`r`n"), [Text.Encoding]::UTF8)
+    $s = Cmd 'rloc apply' 3000
+    Check 'a file with BOM and CRLF still applies' ($s -match 'rows=59 applied=59 fallback=0 unused=0 broken=0' -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장 ') $s
+    [IO.File]::WriteAllText($tfile, $backup)
+    Cmd 'rloc apply' 3000 | Out-Null
+    # 미번역 내보내기
+    $dumped = Cmd 'rloc dump' 3000
+    Check 'dump writes only the untranslated rows' ($dumped -match 'written=1' -and (Get-Content -LiteralPath (Join-Path $tdir 'untranslated.txt') -Raw) -match "0lkK4v`t`texists") $dumped
+    # 파일을 지우면 다시 풀린다
+    [IO.File]::Delete($tfile)
+    $s = Cmd 'rloc apply' 3000
+    Check 'a missing file is extracted again' ($s -match 'file=풀어 둠 rows=59 applied=59' -and (Test-Path -LiteralPath $tfile)) $s
+    # 주석만 있는 파일: 사전 0, 번역은 그대로 남는다(이미 덮은 kr은 되돌리지 않는다)
+    [IO.File]::WriteAllText($tfile, "# only a comment`n")
+    $s = Cmd 'rloc apply' 3000
+    Check 'a comment-only file applies nothing and breaks nothing' ($s -match 'rows=0 applied=0 fallback=0 unused=0 broken=0') $s
+    [IO.File]::WriteAllText($tfile, $backup)
+    Cmd 'rloc apply' 3000 | Out-Null
+    Shot 'translation'
+    Check 'no new traps' ((Traps) -eq $traps)
+  }
   'modbooks' {
     # 모드 공법의 비급 스펙 5절. 고정본 인물은 결정(대경지 3). 창작마당 모드 3390738990(공법 다섯)이 설치돼 있어야 한다.
     # 회차의 -End가 세이브와 favorites.txt를 되돌린다.
@@ -163,10 +225,10 @@ switch ($Part) {
     # 1. 카탈로그(Task 2)
     $mods = Cmd 'rmods' 3000
     Check 'the catalog lists the five mod skills' ($mods -match 'count=5' -and $mods -match '1:984555698:' -and $mods -match '1:353535:' -and $mods -match '1:844854565:' -and $mods -match '0:3535351:' -and $mods -match '4:59898952:') $mods
-    Check 'mod skill names come from the Chinese column' ($mods -match '984555698:烈炎掌:' -and $mods -match '59898952:千杀神枪:' -and $mods -match '3535351:赤炎剑:basSword:True:') $mods
-    Check 'only the mod ultimate is blocked' ($mods -match '4:59898952:[^,]*:이 모드의 신통은 줄 수 없습니다[^,]*:' -and $mods -match '1:984555698:[^:]*:[^:]*:True:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:True:-:\d+') $mods
+    Check 'mod skill names are Korean after translation' ($mods -match '984555698:열염장:' -and $mods -match '59898952:천살신창:' -and $mods -match '3535351:적염검:basSword:False:') $mods
+    Check 'only the mod ultimate is blocked' ($mods -match '4:59898952:[^,]*:이 모드의 신통은 줄 수 없습니다[^,]*:' -and $mods -match '1:984555698:[^:]*:[^:]*:False:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:False:-:\d+') $mods
     $s = Cmd 'rskill 1 984555698' 300
-    Check 'a mod skill has grade range 1~10' ($s -match 'min=1 max=10 name=烈炎掌') $s
+    Check 'a mod skill has grade range 1~10' ($s -match 'min=1 max=10 name=열염장') $s
     $l = Cmd 'rlearn 1 984555698 3' 3000
     Check 'learning a mod skill directly is refused with a hint' ($l -match '모드 공법은 자원 탭의 기술 서적에서 비급으로 받습니다' -and (Cmd 'cmartial 984555698' 300) -match 'n=0') $l
     # 2. 비급(Task 3)
@@ -200,7 +262,7 @@ switch ($Part) {
     Check 'the mod-only chip shows five rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
-    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '한글 이름이 없어 중국어 이름을' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '모드 공법: 같은 종류의 기본 공법을 뽑아') $d
+    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '모드 공법: 같은 종류의 기본 공법을 뽑아') $d
     $p = Pos 'BookGive59898952'
     Check 'the mod ultimate cannot be given from the row' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: BookGive59898952')
     Press 'BookName59898952' | Out-Null

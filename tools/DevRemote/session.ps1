@@ -5,6 +5,7 @@
 #   -End <이름>     이 스크립트가 띄운 게임을 닫고 → 세이브를 복사본으로 되돌려 일치를 확인
 #                   → bag-slots.txt, favorites.txt, config.txt, presets 폴더와 설치돼 있던 DLL을 되돌린다
 #                   → 회차 동안 ModExportData에 생긴 폴더(창작마당 모드)를 지운다
+#                   → translations 폴더(모드 글의 번역 파일)를 회차 전으로 되돌린다
 #   -Fixture <이름> -Begin과 함께 쓴다. 사용자의 세이브를 복사해 둔 뒤, 회차 동안만 세이브 폴더를 고정본(.devremote\fixtures\<이름>)으로
 #                   바꿔 띄운다. 검사가 사용자의 지금 세이브 상태(떠 있는 창, 진행 중인 사건)에 흔들리지 않게 한다. -End는 똑같이 사용자의 세이브를 되돌린다
 #   -MakeFixture <이름> -From <폴더>   세이브 폴더의 복사본(예: .devremote\save-backup-<회차>)으로 고정본을 만든다
@@ -51,6 +52,9 @@ $keptConfig = Join-Path $dir 'session-config.txt'      # 회차 전의 config.tx
 $presetsDir = Join-Path $data 'presets'
 $keptPresets = Join-Path $dir 'session-presets'          # 회차 전의 presets 폴더(프리셋 파일)
 $noPresets = Join-Path $dir 'session-presets.absent'     # 회차 전에 presets 폴더가 없었다는 표시
+$translationsDir = Join-Path $data 'translations'
+$keptTranslations = Join-Path $dir 'session-translations'        # 회차 전의 translations 폴더(번역 파일)
+$noTranslations = Join-Path $dir 'session-translations.absent'   # 회차 전에 translations 폴더가 없었다는 표시
 $keepSessions = 5                                    # -End가 남기는 회차 복사본의 수
 
 function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue) }
@@ -140,6 +144,7 @@ if ($Begin) {
   if (Test-Path $keptDll) { throw "끝내지 않은 회차의 흔적이 있습니다($keptDll). 원인을 확인합니다." }
   # 남아 있는 프리셋 보관본은 사용자의 프리셋의 유일한 사본일 수 있다(-End가 끝까지 가지 못했거나 다른 판의 스크립트로 끝낸 경우). 덮어쓰지 않는다.
   if ((Test-Path -LiteralPath $keptPresets) -or (Test-Path $noPresets)) { throw "끝내지 않은 회차의 프리셋 보관본이 있습니다($keptPresets 또는 $noPresets). presets 폴더와 비교해 되돌린 뒤 지우고 다시 시작합니다." }
+  if ((Test-Path -LiteralPath $keptTranslations) -or (Test-Path $noTranslations)) { throw "끝내지 않은 회차의 번역 보관본이 있습니다($keptTranslations 또는 $noTranslations). translations 폴더와 비교해 되돌린 뒤 지우고 다시 시작합니다." }
   $proj = Join-Path $repo 'src\ModCode\ModMain\ModMain.csproj'
   if ($DryRun) {
     $dll = $null
@@ -170,6 +175,8 @@ if ($Begin) {
   if (Test-Path -LiteralPath $configFile) { Copy-Item -LiteralPath $configFile -Destination $keptConfig }
   # 프리셋 폴더는 세이브 밖에 있다. 검사(preset-check.ps1)가 폴더를 지우고 다시 만들므로 회차 전의 것을 떠 둔다.
   if (Test-Path -LiteralPath $presetsDir) { Copy-Item -LiteralPath $presetsDir -Destination $keptPresets -Recurse } else { [IO.File]::WriteAllText($noPresets, '') }
+  # 번역 폴더도 세이브 밖에 있다. 검사(ui-check.ps1의 translation)가 파일을 지우고 바꾸므로 회차 전의 것을 떠 둔다.
+  if (Test-Path -LiteralPath $translationsDir) { Copy-Item -LiteralPath $translationsDir -Destination $keptTranslations -Recurse } else { [IO.File]::WriteAllText($noTranslations, '') }
   # 회차 전부터 있던 자동 백업의 이름을 적어 둔다. -End가 그 밖의 것(회차 동안 생긴 것)만 지운다.
   $names = @(if (Test-Path -LiteralPath $backups) { Get-ChildItem -LiteralPath $backups | ForEach-Object Name })
   [IO.File]::WriteAllText($keptBackups, ($names -join "`n"))
@@ -253,6 +260,17 @@ if ($End) {
     'PRESETS RESTORED (there was no folder)'
   }
   DeleteFiles $noPresets
+  # 번역 폴더를 회차 전으로 되돌린다. 회차 전에 없었으면 지운다.
+  if (Test-Path -LiteralPath $keptTranslations) {
+    robocopy $keptTranslations $translationsDir /MIR /NJH /NJS /NP /NDL /NFL | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "번역 폴더 복원에 실패했습니다(robocopy $LASTEXITCODE). 회차 전의 것은 $keptTranslations 에 있습니다." }
+    [IO.Directory]::Delete($keptTranslations, $true)
+    'TRANSLATIONS RESTORED'
+  } elseif (Test-Path $noTranslations) {
+    if ((Test-Path -LiteralPath $translationsDir) -and $translationsDir.StartsWith($data + '\')) { [IO.Directory]::Delete($translationsDir, $true) }
+    'TRANSLATIONS RESTORED (there was no folder)'
+  }
+  DeleteFiles $noTranslations
   # 회차 동안 ModExportData에 생긴 폴더(회차 안에서 설치한 창작마당 모드)를 지운다. 회차 전부터 있던 것과 편집기(Mod_<ModId>)는 남긴다.
   if (Test-Path $keptModFolders) {
     $keepMods = @([IO.File]::ReadAllText($keptModFolders) -split "`n" | Where-Object { $_ })
