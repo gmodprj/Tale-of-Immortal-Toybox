@@ -37,6 +37,7 @@ namespace MOD_sWP6UL
         private HashSet<int> owned = new HashSet<int>();   // 그릴 때마다 읽는다
         private int equipped;
         private int grade = 1;
+        private int selectedId;     // 아래 칸에 보이는 도호. 0이면 없다
 
         public override string Title
         {
@@ -46,7 +47,14 @@ namespace MOD_sWP6UL
         public AppellationTab()
         {
             list.EmptyText = "조건에 맞는 도호가 없습니다.";
-            list.OnSelect = e => detail.Show(DetailOf(e));
+            list.OnSelect = Select;
+        }
+
+        // 줄이나 이름을 눌렀을 때. 고른 번호를 기억해 다시 그릴 때마다 아래 칸을 새로 만든다(주기·빼기 뒤에도 보유자가 맞게).
+        private void Select(AppellationService.Entry e)
+        {
+            selectedId = e.Id;
+            detail.Show(DetailOf(e));
         }
 
         protected override void Draw()
@@ -65,6 +73,11 @@ namespace MOD_sWP6UL
             list.HeightOf = e => RowFor(RowH, Ui.TextHeight(e.Name, NameW, 18));
             list.Build(content, 0, y, ContentW, ContentH - DetailH - 8 - y, Rows(), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
+            AppellationService.Entry selected = selectedId == 0 ? null : AppellationService.Get(selectedId);
+            if (selected != null)
+            {
+                detail.Show(DetailOf(selected));
+            }
         }
 
         private void DrawTop()
@@ -197,6 +210,7 @@ namespace MOD_sWP6UL
         private void Changed()
         {
             list.Reset();
+            selectedId = 0;
             detail.Clear();
             Redraw();
         }
@@ -205,6 +219,7 @@ namespace MOD_sWP6UL
         private void OnQuery(string value)
         {
             query = value;
+            selectedId = 0;
             detail.Clear();
             list.SetItems(Rows());
             foreach (CountLabel label in labels)
@@ -220,7 +235,7 @@ namespace MOD_sWP6UL
             bool has = owned.Contains(id);
             bool on = equipped == id;
             Ui.Label(row, on ? "★" : has ? "●" : "-", ColState, 0, StateW, h, 18, TextAnchor.MiddleCenter).gameObject.name = "AplState" + id;
-            WrapLabel(Ui.Button("AplName" + id, row, e.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(DetailOf(e)))));
+            WrapLabel(Ui.Button("AplName" + id, row, e.Name, ColName, 2, NameW, h - 4, new Action(() => Select(e))));
             Ui.Label(row, AppellationService.GroupName(e.ClassKey), ColClass, 0, ClassW, h, 16);
             Text loss = Ui.Label(row, AppellationService.LossText(e, grade), ColLoss, 0, LossW, h, 16);
             loss.gameObject.name = "AplLoss" + id;

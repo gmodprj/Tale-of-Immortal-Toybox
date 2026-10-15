@@ -377,6 +377,9 @@ switch ($Part) {
     $holder = if ($h -match 'names=([^(]+)\(') { $Matches[1] } else { '?' }
     Cmd 'ui set AplQuery 1404' | Out-Null
     Check 'the holder column and the give button name the holder' ((Cmd 'uitext AplHolder1404') -match $holder -and (Cmd 'uitext AplGive1404') -match "$($holder)에게서 가져오기") "$(Cmd 'uitext AplHolder1404') | $(Cmd 'uitext AplGive1404')"
+    # 검토에서 나온 것: 이름을 먼저 눌러 둔 채 가져오면 아래 칸의 보유자도 바뀐다
+    Press 'AplName1404' | Out-Null
+    Check 'the detail first shows the NPC holder' ((Cmd 'uitext AplDetail') -match "보유자: $holder") (Cmd 'uitext AplDetail')
     $silenced = [int](Field (Cmd 'ttl' 300) 'silenced')
     Press 'AplGive1404' | Out-Null
     Check 'one press does not move it' (-not (Owns 1404))
@@ -384,6 +387,7 @@ switch ($Part) {
     $h = Cmd 'ttlholders 1404' 300
     Check 'the second press moves it to the player' ((Field $h 'holders') -eq '1' -and $h -match "\($me\)") $h
     Check 'the result names the holder' ((Cmd 'uistate') -match '에게서 옮김') (Cmd 'uistate')
+    Check 'the detail follows the move without another press' ((Cmd 'uitext AplDetail') -match '보유자: 나') (Cmd 'uitext AplDetail')
     Start-Sleep -Seconds 3
     $s = Cmd 'ttl' 300
     Check 'its popup was closed by the editor' ((Field $s 'popup') -eq 'False' -and [int](Field $s 'silenced') -gt $silenced) $s
