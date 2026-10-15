@@ -2146,16 +2146,17 @@
 - 개발 명령 `rloc`(마지막 적용 결과), `rloc apply`, `rloc dump`, `rloc key <키>`(`ls=… kr=… ch=…`). 검사 `ui-check.ps1 -Part translation`. 회차 스크립트가 `translations` 폴더를 프리셋과 같은 규칙으로 보관·복원한다(`TRANSLATIONS RESTORED`, 없었으면 `(there was no folder)`. 남은 보관본 `.devremote\session-translations`가 있으면 `-Begin`이 멈춘다. 시험 27·28).
 - `check-lib.ps1`의 `ModWarnings`는 정보 줄 `[TlToybox] translations: `를 경고로 세지 않는다(`translations failed: `는 경고).
 
-### 실측·검증 (회차 `ws-1016o`, `ws-1016p`~`q`)
+### 실측·검증 (회차 `ws-1016o`, `ws-1016p`~`r`)
 
 - 모드 글 62행: 공법 모드 `3390738990`의 이름 5·설명 5·옵션 글 46, 외형 모드 안내문 1(`utg7MubS`), 영어 플래그 1(`0lkK4v`=`exists`), 빈 글 2. 모두 `kr`이 "0"이었다.
 - 회차 `ws-1016p`(구현 전): `rloc`가 `UNKNOWN`, 데이터 폴더에 파일 없음, 카탈로그·비급·줄의 이름이 중국어. `translation` 검사는 PASS 1·FAIL 11 뒤 파일 수정 검사에서 파일이 없어 멈췄고, 기대값을 바꾼 `modbooks`는 FAIL 3.
 - 회차 `ws-1016q`: 게임을 켠 뒤 첫 적용이 `Latest.log`에 `[TlToybox] translations: file=풀어 둠 rows=59 applied=59 fallback=1 unused=0 broken=0`(`fallback` 1은 영어 플래그 `0lkK4v`). 파일에 줄을 바꾸고 깨진 줄·모르는 키·기본 키·공백 키를 더한 뒤 `rloc apply`가 `file=있음 rows=61 applied=59 fallback=0 unused=2 broken=1`, 되돌리면 `rows=59 applied=59 fallback=0 unused=0 broken=0`. `rloc dump`는 `written=1`(`0lkK4v`). 파일을 지우면 다시 `풀어 둠`. 주석만 있는 파일은 `rows=0 applied=0 fallback=0 unused=0 broken=0`.
-- 검사: `translation` 21/21, `modbooks` 26/26(기대값을 한글 이름·`NameFromCh=False`·아래 칸의 "한글 이름이 없어" 안내 없음으로 바꿈), `base` 23/23, `tabs` 59/59. 회차 시험 `session.tests.ps1` 34/34.
+- 검사: `translation` 21/21(검토 뒤 22/22), `modbooks` 26/26(기대값을 한글 이름·`NameFromCh=False`·아래 칸의 "한글 이름이 없어" 안내 없음으로 바꿈), `base` 23/23, `tabs` 59/59. 회차 시험 `session.tests.ps1` 34/34.
 - 이름: `rbook 1 984555698 3 1 1`의 결과 문장에 "열염장(품질"이 들어 있다. 자원 탭 `모드만` 칩의 다섯 줄이 적염검·열염장·장기광도·풍선용권·천살신창. 한글 "열염"과 중국어 "烈炎" 검색이 둘 다 그 줄 하나를 찾는다. 캡처 `.devremote\check-translation.png`(git 제외).
-- `base`·`tabs`의 "no warning from the mod"가 처음에 `translations:` 줄을 경고로 세어 실패했다. `ModWarnings`의 허용 목록에 넣고 통과(규칙 참고).
+- `base`·`tabs`의 "no warning from the mod"가 처음에 `translations:` 줄을 경고로 세어 실패했다. `ModWarnings`의 허용 목록에 넣고 통과(규칙 참고). 검토자 보류(고치지 않음): 이 허용이 `file=없음`·`읽기 실패 …` 줄도 가린다(`translation` 검사만 수치를 본다). 좁히려면 허용 패턴을 `translations: file=(있음|풀어 둠) `로. 또 `rloc key`에 키를 안 주면 `ERROR IndexOutOfRangeException`(개발 명령).
 - 개발·배포 구성 모두 경고 0·오류 0. 배포 DLL은 하나이고 번역 파일이 그 안에 있다.
 - `-End ws-1016p`·`ws-1016q` 모두 `SAVE RESTORED AND IDENTICAL`과 `TRANSLATIONS RESTORED (there was no folder)`(회차 전에 폴더가 없었다).
+- 회차 `ws-1016r`(검토 뒤, 스펙 5절의 남은 셋): 게임을 켠 직후 `rloc`가 `file=풀어 둠 rows=59 applied=59 fallback=1 unused=0 broken=0`. `-Restart`(새 프로세스, 파일이 이미 있음) 뒤 `file=있음 rows=59 applied=59 fallback=1 unused=0 broken=0`이고 `rloc key skill_name_middle984555698`이 `ls=열염장 kr=열염장 ch=烈炎掌`. `books-ui` 24/24. `translation`에 `rbooks 984555698`의 이름(열염장)과 카탈로그의 장기광도·풍선용권 검사를 더해 22/22(이미 되던 동작을 못 박은 것이라 바로 통과). `-End`가 `SAVE RESTORED AND IDENTICAL`과 `TRANSLATIONS RESTORED (there was no folder)`.
 
 ### 확인하지 못한 것, 한계
 

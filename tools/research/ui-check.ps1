@@ -169,9 +169,10 @@ switch ($Part) {
     Check 'a backslash-n becomes a line break' ((Cmd 'rloc key effect_descshenqiang' 300) -match '초 뒤\s*신창 상태에 들어가며') (Cmd 'rloc key effect_descshenqiang' 300)
     Check 'the English flag row falls back to its Chinese column' ((Cmd 'rloc key 0lkK4v' 300) -match 'ls=exists kr=exists') (Cmd 'rloc key 0lkK4v' 300)
     $mods = Cmd 'rmods' 3000
-    Check 'the catalog shows Korean names without the ch fallback' ($mods -match '1:984555698:열염장:basPalm:False:' -and $mods -match '4:59898952:천살신창:') $mods
+    Check 'the catalog shows Korean names without the ch fallback' ($mods -match '1:984555698:열염장:basPalm:False:' -and $mods -match '4:59898952:천살신창:' -and $mods -match '1:353535:장기광도:' -and $mods -match '1:844854565:풍선용권:') $mods
     $made = Cmd 'rbook 1 984555698 3 1 1' 20000
     Check 'a mod book is named in Korean' ($made -match 'made=1' -and $made -match '열염장\(품질') $made
+    Check 'the bag list names the mod book in Korean' ((Cmd 'rbooks 984555698' 3000) -match ':984555698:[^,]*열염장') (Cmd 'rbooks 984555698' 3000)
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
     Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null; Press 'ResKind6' | Out-Null
     Check 'the row shows the Korean name' ((Cmd 'uitext BookName984555698') -match "text='열염장'") (Cmd 'uitext BookName984555698')
