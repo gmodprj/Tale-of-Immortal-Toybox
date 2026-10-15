@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string resources = DevCommandsResources.Execute(p);
+            if (resources != null)
+            {
+                return resources;
+            }
             string artifact = DevCommandsArtifact.Execute(p);
             if (artifact != null)
             {

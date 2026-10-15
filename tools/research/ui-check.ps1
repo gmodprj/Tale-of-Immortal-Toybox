@@ -51,6 +51,191 @@ function DragWindowTo([int]$x, [int]$y) {
 }
 
 switch ($Part) {
+  'groups' {
+    # 자원 탭 개편 스펙 7절: 용도 그룹의 분류 표. 화면 쪽 확인은 Task 3에서 이 부분의 끝에 더한다.
+    $traps = Traps
+    $g = Cmd 'rgroups' 600
+    $total = if ($g -match 'total=(\d+) ') { [int]$Matches[1] } else { -1 }
+    $sum = if ($g -match ' sum=(\d+) ') { [int]$Matches[1] } else { -2 }
+    $pill = if ($g -match ' Pill=(\d+)') { [int]$Matches[1] } else { -1 }
+    $cloth = if ($g -match ' Cloth=(\d+)') { [int]$Matches[1] } else { -1 }
+    Check 'every item lands in a named group (no Other in the plain game)' ($g -match ' other=0 ') $g
+    Check 'the table has no duplicate class numbers' ($g -match ' dupes=0 ') $g
+    Check 'the groups add up to the whole list' ($total -gt 3000 -and $sum -eq $total) $g
+    Check 'pills are the biggest group' ($pill -gt 1000) $g
+    Check 'clothes are their own group' ($cloth -gt 200) $g
+    # 화면: 왼쪽 개수, 검색에 따른 개수, 의복의 종류, 기타, 전체의 안내
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupAll' | Out-Null; Press 'ResClear' | Out-Null
+    Check 'the All button shows the total' ((Cmd 'uitext ResGroupAll') -match "text='전체 $total'") (Cmd 'uitext ResGroupAll')
+    Check 'the Pill button shows its count' ((Cmd 'uitext ResGroupPill') -match "text='단약 $pill'") (Cmd 'uitext ResGroupPill')
+    Check 'All lists everything' ((Cmd 'uitext ItemTableRange') -match "전체 $($total)개")
+    Check 'All shows a hint instead of kinds' ((Cmd 'uipos ResKind0') -match 'no element named' -and (Cmd 'uipos ResAllHint') -match ' at ')
+    # Review Focus 3: 실제 키로 치는 동안 왼쪽 개수가 바뀌고 검색 칸이 포커스를 잃지 않는다
+    Cmd 'uifocus ItemQuery' | Out-Null
+    Key 0x31 350; Key 0x30 350
+    $typed = Cmd 'uitext ItemQuery'
+    # 화면 밖 게임에 보낸 키가 통째로 빠질 때가 있다(인계 6절). 하나도 닿지 않았으면 한 번 다시 보낸다.
+    if ($typed -match "text=''") {
+      "INFO the keys did not reach the search box; sending them once more"
+      Cmd 'uifocus ItemQuery' | Out-Null
+      Key 0x31 350; Key 0x30 350
+      $typed = Cmd 'uitext ItemQuery'
+    }
+    $left = Cmd 'uitext ResGroupAll'
+    Check 'typing keeps the focus while counts change' ($typed -match "text='10'" -and $left -notmatch "text='전체 $total'") "$typed | $left"
+    Press 'ItemQueryClear' | Out-Null
+    Check 'clearing the search restores the counts' ((Cmd 'uitext ResGroupAll') -match "text='전체 $total'") (Cmd 'uitext ResGroupAll')
+    Press 'ResGroupCloth' | Out-Null
+    $k1 = Cmd 'uitext ResKind1'; $k2 = Cmd 'uitext ResKind2'
+    Check 'clothes are split by sex' ($k1 -match "text='남 \(\d+\)'" -and $k2 -match "text='여 \(\d+\)'") "$k1 | $k2"
+    Press 'ResKind1' | Out-Null
+    $o = Cmd 'uitext ItemTableRange'
+    Check 'a kind narrows the list' ($o -match '전체 (\d+)개' -and [int]$Matches[1] -gt 0 -and [int]$Matches[1] -lt $cloth) $o
+    Shot 'groups-cloth'
+    Press 'ResGroupOther' | Out-Null
+    Check 'Other is empty in the plain game' ((Cmd 'uitext ItemTableRange') -match "text='0개'")
+    Press 'ResGroupAll' | Out-Null
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'favstore' {
+    # 자원 탭 개편 스펙 3.3절: 즐겨찾기 파일의 읽기·쓰기. 경고를 일부러 남기므로 회차에서 이 부분 뒤에는 -Restart한다.
+    $traps = Traps
+    $fav = Join-Path $data 'favorites.txt'
+    function FavText { if (Test-Path -LiteralPath $fav) { [IO.File]::ReadAllText($fav) } else { '' } }
+    $o = Cmd 'rfav reset' 300
+    Check 'reset starts from no file' ($o -match 'count=0 skipped=0 items=' -and -not (Test-Path -LiteralPath $fav)) $o
+    $o = Cmd 'rfav add 1011011 10' 300
+    Check 'adding writes the file' ($o -match 'count=1 ' -and (FavText) -match "(?m)^1011011 10\r?$") $o
+    Check 'no temp file is left' (-not (Test-Path -LiteralPath "$fav.tmp"))
+    # Review Focus 5: 같은 번호, 범위 밖의 수량
+    $o = Cmd 'rfav add 1011011 20' 300
+    Check 'adding the same item again is refused' ($o -match '이미' -and $o -match 'items=1011011:10(\s|,|$)') $o
+    $o = Cmd 'rfav add 1011012 0' 300
+    Check 'an amount of zero is refused' ($o -match '수량은 1~999999' -and $o -match 'count=1 ') $o
+    $o = Cmd 'rfav set 1011011 1000000' 300
+    Check 'an amount above 999999 is refused' ($o -match '수량은 1~999999' -and $o -match 'items=1011011:10(\s|,|$)') $o
+    $o = Cmd 'rfav set 1011011 25' 300
+    Check 'the amount can be changed' ($o -match 'items=1011011:25' -and (FavText) -match "(?m)^1011011 25\r?$") $o
+    $o = Cmd 'rfav add 99999999 3' 300
+    Check 'a number the game does not have is kept' ($o -match 'items=1011011:25,99999999:3:missing') $o
+    $o = Cmd 'rfav del 99999999' 300
+    Check 'removing works' ($o -match 'count=1 ' -and (FavText) -notmatch '99999999') $o
+
+    # 깨진 줄, 같은 번호의 줄, 범위 밖의 수량이 섞인 파일
+    [IO.File]::WriteAllText($fav, "# test`n1011011 5`nnot a line`n1011011 7`n1011012 5000000`n1011013 abc`n", [Text.UTF8Encoding]::new($false))
+    $o = Cmd 'rfav reload' 300
+    Check 'readable lines are kept, the rest counted, big amounts capped' ($o -match 'count=2 skipped=3 items=1011011:5,1011012:999999') $o
+    Check 'the log has the warning' (@(ModWarnings | Where-Object { $_ -match 'favorites: skipped 3 lines' }).Count -ge 1)
+    Check 'nothing is backed up before a change' (-not (Test-Path -LiteralPath "$fav.bak"))
+    Cmd 'rfav set 1011012 7' 300 | Out-Null
+    Check 'the original file is kept as .bak before the first write' ((Test-Path -LiteralPath "$fav.bak") -and [IO.File]::ReadAllText("$fav.bak") -match 'not a line')
+    Check 'the new file holds only readable lines' ((FavText) -notmatch 'not a line|abc' -and (FavText) -match "(?m)^1011012 7\r?$")
+    [IO.File]::WriteAllText("$fav.bak", 'marker')
+    Cmd 'rfav set 1011012 8' 300 | Out-Null
+    Check 'the .bak is made only once' ([IO.File]::ReadAllText("$fav.bak") -eq 'marker')
+
+    # Review Focus 4: 읽지 못한 파일은 덮어쓰지 않는다
+    $before = FavText
+    $lock = [IO.File]::Open($fav, 'Open', 'Read', 'None')
+    try {
+      $o1 = Cmd 'rfav reload' 300
+      $o2 = Cmd 'rfav add 1011014 1' 300
+    } finally { $lock.Dispose() }
+    Check 'a locked file reads as empty' ($o1 -match 'count=0 ') $o1
+    Check 'a locked file is not overwritten' ((FavText) -eq $before -and $o2 -match '읽지 못해') $o2
+    # 검토에서 나온 것: 잠긴 채 읽어 빈 목록이 된 뒤 잠금이 풀리면, 이미 있는 번호를 넣어도 두 줄이 되지 않아야 한다
+    $lock = [IO.File]::Open($fav, 'Open', 'Read', 'None')
+    try { Cmd 'rfav reload' 300 | Out-Null } finally { $lock.Dispose() }
+    $o = Cmd 'rfav add 1011011 1' 300
+    $same = @(((FavText) -split "`n") | Where-Object { $_ -match '^1011011 ' }).Count
+    Check 'after a lock, adding an item already in the file is refused' ($o -match '이미' -and $o -match 'count=2 ' -and $same -eq 1) "$o | lines=$same"
+    $o = Cmd 'rfav reload' 300
+    Check 'after the lock is gone the list is back' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'favstore-restart' {
+    # favstore 뒤에 session.ps1 -Restart를 하고 돌린다.
+    $o = Cmd 'rfav' 200
+    Check 'favorites are kept after a restart' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
+  }
+  'favorites' {
+    # 자원 탭 개편 스펙 3.2·7절: 화면의 즐겨찾기. 회차의 -End가 favorites.txt를 되돌린다.
+    $traps = Traps
+    function Held([int]$id) { if ((Cmd "count $id") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 } }
+    function FavLines { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '즐겨찾기' }).Count }
+    Cmd 'rfav reset' 300 | Out-Null
+    $logged = FavLines
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupAll' | Out-Null; Press 'ResClear' | Out-Null
+    Check 'the favorites button shows zero' ((Cmd 'uitext ResGroupFav') -match "text='★ 즐겨찾기 0'") (Cmd 'uitext ResGroupFav')
+    Press 'item10' | Out-Null
+    Cmd 'ui set ItemQuery 1011011' | Out-Null
+    Check 'a row starts with an empty star' ((Cmd 'uitext ResStar1011011') -match "text='☆'") (Cmd 'uitext ResStar1011011')
+    Press 'ResStar1011011' | Out-Null
+    Check 'the star adds it with the current amount' ((Cmd 'rfav' 200) -match 'items=1011011:10(\s|$)') (Cmd 'rfav' 200)
+    Check 'the star is filled' ((Cmd 'uitext ResStar1011011') -match "text='★'")
+    Cmd 'ui set ItemQuery 1011012' | Out-Null
+    Press 'ResStar1011012' | Out-Null
+    Press 'ItemQueryClear' | Out-Null
+    Press 'ResGroupFav' | Out-Null
+    Check 'the favorites view lists them in the order added' ((Pos 'ItemName*').name -eq 'ItemName1011011' -and (Cmd 'uitext ResGroupFav') -match "즐겨찾기 2'") (Cmd 'uitext ResGroupFav')
+    Check 'the give button shows the saved amount' ((Cmd 'uitext ItemGive1011011') -match "text='지급 x10'")
+    Cmd 'uifocus ResAmount1011011' | Out-Null; Cmd 'ui set ResAmount1011011 25' | Out-Null; Key 0x0D
+    Check 'Enter saves the amount' ((Cmd 'rfav' 200) -match 'items=1011011:25,1011012:10') (Cmd 'rfav' 200)
+    Press 'item1' | Out-Null
+    $a = Held 1011011
+    Press 'ItemGive1011011' | Out-Null
+    Check 'the row gives the saved amount, not the amount bar' ((Held 1011011) -eq $a + 25) "$a -> $(Held 1011011)"
+    Cmd 'uifocus ResAmount1011012' | Out-Null; Cmd 'ui set ResAmount1011012 0' | Out-Null; Key 0x0D
+    Check 'an amount of zero is refused' ((Cmd 'rfav' 200) -match '1011012:10' -and (Cmd 'uistate') -match "message='즐겨찾기: 수량은 1~999999") (Cmd 'uistate')
+    $a = Held 1011011; $b2 = Held 1011012
+    Press 'ResAllGive' | Out-Null
+    Check 'give all asks first' ((Held 1011011) -eq $a -and (Cmd 'uitext ResAllGive') -match "text='정말 모두 지급'")
+    Press 'ResAllGive' 2000 | Out-Null
+    Check 'the second press gives every favorite its saved amount' ((Held 1011011) -eq $a + 25 -and (Held 1011012) -eq $b2 + 10) "$a/$b2 -> $(Held 1011011)/$(Held 1011012)"
+    Check 'the result counts what was given' ((Cmd 'uistate') -match "message='즐겨찾기 모두 지급: 넣음 2, 못 넣음 0") (Cmd 'uistate')
+    # Review Focus 2: 모두 지급은 걸러져 보이는 줄만 준다(5품 보원단만 품질 2)
+    Press 'ResQuality2' | Out-Null
+    $a = Held 1011011; $b2 = Held 1011012
+    Press 'ResAllGive' | Out-Null; Press 'ResAllGive' 2000 | Out-Null
+    Check 'give all gives only the rows shown' ((Held 1011011) -eq $a -and (Held 1011012) -eq $b2 + 10) "$a/$b2 -> $(Held 1011011)/$(Held 1011012)"
+    Press 'ResClear' | Out-Null
+    Shot 'favorites'
+    Press 'ResStar1011012' | Out-Null
+    Check 'the star removes it' ((Cmd 'rfav' 200) -match 'count=1 ' -and (Cmd 'uitext ResGroupFav') -match "즐겨찾기 1'") (Cmd 'rfav' 200)
+    Check 'favorites do not go to the change log' ((FavLines) -eq $logged)
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'favorites-corrupt' {
+    # 깨진 줄과 게임에 없는 번호가 섞인 파일을 화면에서 본다. 경고를 일부러 남기므로 회차의 마지막에 돌린다.
+    $traps = Traps
+    $fav = Join-Path $data 'favorites.txt'
+    Cmd 'rfav reset' 300 | Out-Null
+    [IO.File]::WriteAllText($fav, "1011011 5`nnot a line`n99999999 3`n1011013 abc`n", [Text.UTF8Encoding]::new($false))
+    Cmd 'rfav reload' 300 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null; Press 'Tab1' | Out-Null
+    Check 'entering the tab tells about the skipped lines' ((Cmd 'uistate') -match "message='즐겨찾기 파일에서 읽지 못한 줄 2개를 건너뛰었습니다") (Cmd 'uistate')
+    Press 'Tab0' | Out-Null; Press 'Tab1' | Out-Null
+    Check 'the notice is shown only once' ((Cmd 'uistate') -notmatch '건너뛰었습니다')
+    Press 'ResGroupFav' | Out-Null; Press 'ResClear' | Out-Null
+    Check 'a missing item is shown as such' ((Cmd 'uitext ItemName99999999') -match '게임에 없는 아이템 \(99999999\)') (Cmd 'uitext ItemName99999999')
+    $p = Pos 'ItemGive99999999'
+    Check 'its give button is off' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: ItemGive99999999')
+    # Review Focus 1: 필터가 걸려도 게임에 없는 줄은 보이고 뺄 수 있다
+    Press 'ResQuality6' | Out-Null
+    Check 'a missing item stays visible under a filter' ((Cmd 'uipos ItemName99999999') -match ' at ' -and (Cmd 'uipos ItemName1011011') -match 'no element named')
+    Press 'ResStar99999999' | Out-Null
+    Check 'a missing item can be removed' ((Cmd 'rfav' 200) -match 'count=1 ') (Cmd 'rfav' 200)
+    Press 'ResClear' | Out-Null
+    Cmd 'rfav reset' 300 | Out-Null
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+  }
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
@@ -149,12 +334,14 @@ switch ($Part) {
     # 스펙 6절 7, 8, 17번. 자원 탭의 목록·검색·상세, 가방 칸 한 번에 지정, 의복의 구분 표시.
     $traps = Traps
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupAll' | Out-Null; Press 'ResClear' | Out-Null
     $o = Cmd 'uitext ItemTableRange'
     if ($o -notmatch '전체 (\d+)개 중 1~(\d+)번째') { throw "아이템 목록의 범위 글을 읽지 못했습니다: $o" }
     $total = [int]$Matches[1]; $screen = [int]$Matches[2]
     Check 'the list holds every item' ($total -gt 3000) $o
     Check 'only the visible rows are built' ((Cmd "uipos Row$($screen + 5)") -match 'no element named')
     Check 'paging buttons are gone' ((Cmd 'uipos ItemPageSize10') -match 'no element named' -and (Cmd 'uipos ItemSearch') -match 'no element named')
+    Check 'the old category buttons are gone' ((Cmd 'uipos ItemCat*') -match 'no element named' -and (Cmd 'uipos ItemSub*') -match 'no element named')
 
     # 즉시 검색: 실제 키로 번호를 친다(이름과 번호 둘 다 찾는다)
     Cmd 'uifocus ItemQuery' | Out-Null
@@ -204,6 +391,29 @@ switch ($Part) {
     Check 'the list stays where it was' ((Cmd 'uitext ItemTableRange') -eq $before)
     Press "ItemName$id" | Out-Null
     Check 'pressing a name shows the whole text below' ((Cmd 'uitext ItemDetail') -match "\[$id\]")
+
+    # 자원 탭 개편(스펙 7절): 그룹 → 종류 → 검색 → 품질 → 보유 중만, 설명 칸의 그룹/종류
+    Press 'ResGroupPill' | Out-Null
+    Check 'the first kind of pills is recovery' ((Cmd 'uitext ResKind1') -match "text='회복 \(\d+\)'") (Cmd 'uitext ResKind1')
+    Press 'ResKind1' | Out-Null
+    Cmd 'ui set ItemQuery 보원단' | Out-Null
+    Press 'ResQuality1' | Out-Null
+    $o = Cmd 'uitext ItemTableRange'
+    Check 'group, kind, search and quality narrow to one row' ($o -match "text='전체 1개 중 1~1번째'" -and (Cmd 'uipos ItemName1011011') -match ' at ') $o
+    Press 'ItemName1011011' | Out-Null
+    Check 'the detail names the group and kind' ((Cmd 'uitext ItemDetail') -match '\[1011011\] 6품 보원단  \(단약 / 회복, 품질 1\)') (Cmd 'uitext ItemDetail')
+    $had = if ((Cmd 'count 1011011') -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
+    Press 'ResOwnedOnly' | Out-Null
+    $want = if ($had -gt 0) { "text='전체 1개" } else { "text='0개'" }
+    Check 'owned only follows the bag' ((Cmd 'uitext ItemTableRange') -match $want) "had=$had $(Cmd 'uitext ItemTableRange')"
+    Press 'ResOwnedOnly' | Out-Null
+    Press 'ItemGive1011011' | Out-Null
+    Press 'ResOwnedOnly' | Out-Null
+    Check 'after giving, owned only shows it' ((Cmd 'uitext ItemTableRange') -match "text='전체 1개") (Cmd 'uitext ItemTableRange')
+    Press 'ResClear' | Out-Null
+    $pillCount = if ((Cmd 'uitext ResGroupPill') -match "단약 (\d+)'") { $Matches[1] } else { 'x' }
+    Check 'clear keeps the group and resets the rest' ((Cmd 'uitext ItemQuery') -match "text=''" -and (Cmd 'uitext ItemTableRange') -match "전체 $($pillCount)개") (Cmd 'uitext ItemTableRange')
+    Press 'ResGroupAll' | Out-Null
 
     # 의복: 이름만으로 구분된다
     Cmd 'ui set ItemQuery 3041003' | Out-Null
@@ -642,7 +852,7 @@ switch ($Part) {
     Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + 10)") $hist
 
     # 자원 탭: 보이는 줄마다 설명이 전부 들어 있고, 긴 설명의 줄은 더 높고, 줄이 서로 겹치지 않는다
-    Press 'Tab1' | Out-Null
+    Press 'Tab1' | Out-Null; Press 'ResGroupAll' | Out-Null; Press 'ResClear' | Out-Null
     $o = Cmd 'uitext ItemTableRange'
     $shown = if ($o -match '중 1~(\d+)번째') { [int]$Matches[1] } else { 0 }
     Check 'the item list shows rows' ($shown -ge 3) $o
@@ -660,8 +870,9 @@ switch ($Part) {
     Check 'rows with long text are taller' ($tall -ge 1) "tall=$tall of $shown"
     # 31절: 설명 열을 넓혀 한 화면에 더 많은 줄이 보이고, 높아진 줄의 버튼은 줄의 세로 가운데에 온다
     $firstDesc = if ($descs[0] -match '^(ItemDesc\d+) ') { $Matches[1] } else { '' }
-    Check 'the description column is wide' ((Cmd "uipos $firstDesc" 100) -match 'size=605,') (Cmd "uipos $firstDesc" 100)
-    Check 'more than ten rows fit on a screen' ($shown -ge 11) "shown=$shown"
+    Check 'the description column is wide' ((Cmd "uipos $firstDesc" 100) -match 'size=496,') (Cmd "uipos $firstDesc" 100)
+    # 자원 탭 개편(38절): 설명 열 496, 실측 10줄
+    Check 'ten rows fit on a screen' ($shown -ge 10) "shown=$shown"
     $off = 99
     for ($i = 0; $i -lt $shown; $i++) {
       $row = Box "Row$i"

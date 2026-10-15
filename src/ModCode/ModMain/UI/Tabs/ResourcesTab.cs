@@ -5,21 +5,45 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 자원 탭: 영석, 가방 칸, 아이템 지급 표.
+    // 자원 탭: 영석, 지급 수량과 가방 칸, 용도 그룹으로 나눈 아이템 표와 즐겨찾기.
+    // 설계: docs/superpowers/specs/2026-10-15-resources-tab-design.md 3·4절. 판단은 ItemCatalog·FavoriteStore가 하고 여기서는 그린다.
     internal sealed class ResourcesTab : EditorTab
     {
         private const float RowH = 32;
         private const float DetailH = 92;
-        // 설명이 가장 긴 글이라 가장 넓게 둔다(줄바꿈 뒤에도 한 화면에 여러 줄이 보이게).
-        private const float ColId = 8, ColCat = 100, ColName = 225, ColLevel = 432, ColOwned = 485, ColDesc = 550, ColGive = 1166;
-        private const float CatW = 120, NameW = 200, DescW = 605;
+        private const float TopH = 92;                  // 1줄 영석, 2줄 지급 수량과 가방 칸
+        private const float LeftW = 170;                // 그룹 목록
+        private const float RightX = 180;
+        private const float RightW = ContentW - RightX; // 1124
+        private const float ChipH = 34, ChipGap = 6;
+        private const int ChipRowsShown = 3;
+        // 표의 열(목록 안의 x). 지급 열은 목록 안쪽 폭(RightW - 스크롤 막대)의 오른쪽 끝에 붙인다.
+        private const float ColStar = 4, ColName = 50, ColKind = 256, ColLevel = 372, ColOwned = 420, ColDesc = 486;
+        private const float NameW = 200, KindW = 110, GiveW = 116, AmountW = 90;
+        private const float ColGive = RightW - Ui.ScrollBarWidth - GiveW - 4;   // 990
+        private const float ColAmount = ColGive - AmountW - 6;                  // 894
+        private const float DescW = ColGive - ColDesc - 8;                      // 496
+        private const float FavDescW = ColAmount - ColDesc - 8;                 // 400
+
+        // 검색어가 바뀌면 탭을 다시 그리지 않고(검색 칸의 포커스를 지킨다) 이 글들만 고친다.
+        private sealed class CountLabel
+        {
+            public Text Text;
+            public string Name;
+            public string Key;      // 그룹 버튼이면 그룹 키, 종류 칩이면 null
+            public int Index;       // 종류 칩의 순번(0이 전체)
+            public void Set(int count)
+            {
+                Text.text = Key != null ? Name + " " + count : Name + " (" + count + ")";
+            }
+        }
 
         private readonly ListView<ItemCatalog.Entry> list = new ListView<ItemCatalog.Entry>("ItemTable", RowH);
         private readonly DetailPane detail = new DetailPane("ItemDetail", "아이템명을 누르면 여기에 전체 설명이 나옵니다.");
-        private string query = "";
-        private float subScrollY;
-        private int mainType = -1;
-        private int subType = -1;
+        private readonly ItemCatalog.Filter filter = new ItemCatalog.Filter();
+        private readonly List<CountLabel> labels = new List<CountLabel>();
+        private string groupKey = ItemGroups.AllKey;
+        private float chipScrollY;
         private string bagInput = "";
 
         public override string Title
@@ -27,24 +51,18 @@ namespace MOD_sWP6UL
             get { return "자원"; }
         }
 
-        public ResourcesTab()
+        private bool IsFav
         {
-            list.EmptyText = "조건에 맞는 아이템이 없습니다.";
+            get { return groupKey == ItemGroups.FavKey; }
         }
 
-        private List<ItemCatalog.Entry> Found()
+        public override void OnShow()
         {
-            return ItemCatalog.Find(query, mainType, subType);
-        }
-
-        // 분류를 바꾼다: 목록을 맨 위로, 상세를 비우고 다시 그린다.
-        private void SetCategory(int main, int sub)
-        {
-            mainType = main;
-            subType = sub;
-            list.Reset();
-            detail.Clear();
-            Redraw();
+            string notice = FavoriteStore.TakeNotice();
+            if (notice != null)
+            {
+                Say(notice);
+            }
         }
 
         // 가방의 추가 칸을 원하는 수로 맞춘다. 10칸 단위로 내림한 뒤 지금 값과의 차이만큼 바꾼다.
@@ -66,27 +84,116 @@ namespace MOD_sWP6UL
             Say(BagService.Change(delta));
         }
 
+        // 그룹·종류·품질·보유 중만을 바꾼다: 목록을 맨 위로, 설명 칸을 비우고 다시 그린다.
+        private void Changed()
+        {
+            list.Reset();
+            detail.Clear();
+            Redraw();
+        }
+
+        private void SetGroup(string key)
+        {
+            groupKey = key;
+            filter.Kind = null;
+            chipScrollY = 0;
+            Changed();
+        }
+
+        private void ClearFilters()
+        {
+            filter.Query = "";
+            filter.Kind = null;
+            filter.Quality = 0;
+            filter.OwnedOnly = false;
+            Changed();
+        }
+
+        private static ItemCatalog.Entry Missing(int id)
+        {
+            return new ItemCatalog.Entry
+            {
+                Id = id,
+                Name = "게임에 없는 아이템 (" + id + ")",
+                Desc = "즐겨찾기에 남아 있지만 지금 게임의 아이템 표에 없습니다(그 아이템을 넣은 모드를 뺐을 수 있습니다). ★를 누르면 뺍니다.",
+                Search = "",
+                Missing = true,
+            };
+        }
+
+        // 지금 보일 줄. 즐겨찾기 보기는 넣은 순서, 나머지는 그룹·종류·게임 표 순서.
+        private List<ItemCatalog.Entry> Rows(HashSet<int> owned)
+        {
+            if (!IsFav)
+            {
+                filter.Group = groupKey;
+                return ItemCatalog.Select(filter, owned);
+            }
+            var rows = new List<ItemCatalog.Entry>();
+            foreach (FavoriteStore.Favorite favorite in FavoriteStore.Entries)
+            {
+                ItemCatalog.Entry entry = ItemCatalog.Get(favorite.Id) ?? Missing(favorite.Id);
+                if (ItemCatalog.Passes(entry, filter, owned))
+                {
+                    rows.Add(entry);
+                }
+            }
+            return rows;
+        }
+
+        private int FavCount(HashSet<int> owned)
+        {
+            int count = 0;
+            foreach (FavoriteStore.Favorite favorite in FavoriteStore.Entries)
+            {
+                ItemCatalog.Entry entry = ItemCatalog.Get(favorite.Id) ?? Missing(favorite.Id);
+                if (ItemCatalog.Passes(entry, filter, owned))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
         protected override void Draw()
         {
             WorldUnitBase player = Player;
-            int moneyAmount = AmountBar.Get("money");
-            int itemAmount = AmountBar.Get("item");
+            HashSet<int> owned = ItemCatalog.OwnedIds(player);
+            labels.Clear();
+            DrawTop(player);
+            DrawGroups(owned);
+            float y = TopH + 8;
+            y = DrawKinds(y, owned);
+            y = DrawFilters(y);
+            DrawHead(y);
+            y += 32;
+            list.EmptyText = IsFav ? "즐겨찾기가 비어 있습니다. 표의 ☆를 눌러 넣습니다." : "조건에 맞는 아이템이 없습니다.";
+            float descW = IsFav ? FavDescW : DescW;
+            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Desc, descW, 15), Ui.TextHeight(entry.Name, NameW, 19),
+                Ui.TextHeight(entry.Kind == null ? "-" : entry.Kind.Name, KindW, 16));
+            list.Build(content, RightX, y, RightW, ContentH - DetailH - 8 - y, Rows(owned), DrawRow);
+            detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
+        }
 
-            // 영석, 아이템 지급 수량, 가방 칸
-            Ui.Panel("MoneyBox", content, 0, 0, ContentW, 140, Ui.Section);
-            Ui.Label(content, "영석: " + EditService.Money(player), 16, 6, 250, 40, 22);
-            Ui.Label(content, "추가량", 270, 6, 70, 40, 18).color = Ui.Dim;
-            float moneyRight = AmountBar.Build(content, "money", 340, 7);
-            Ui.Button("MoneyAdd", content, "영석 + " + moneyAmount, moneyRight + 20, 7, 200, 38, new Action(() => Say(EditService.AddMoney(Player, moneyAmount))));
-            Ui.Label(content, "아이템 지급 수량", 16, 50, 250, 40, 20);
-            AmountBar.Build(content, "item", 340, 51);
-            // 가방 칸. 편집기가 늘린 만큼만 되돌릴 수 있다.
+        private void DrawTop(WorldUnitBase player)
+        {
+            int moneyAmount = AmountBar.Get("money");
+            Ui.Panel("MoneyBox", content, 0, 0, ContentW, TopH, Ui.Section);
+            // 1줄: 영석
+            Ui.Label(content, "영석: " + EditService.Money(player), 12, 4, 250, 40, 20);
+            Ui.Label(content, "추가량", 270, 4, 70, 40, 18).color = Ui.Dim;
+            float moneyRight = AmountBar.Build(content, "money", 340, 5);
+            Ui.Button("MoneyAdd", content, "영석 + " + moneyAmount, moneyRight + 16, 5, 200, 38, new Action(() => Say(EditService.AddMoney(Player, moneyAmount))));
+            // 2줄: 아이템 지급 수량과 가방 칸. 가방 칸은 편집기가 늘린 만큼만 되돌릴 수 있다.
+            Ui.Label(content, "지급 수량", 12, 48, 110, 40, 18);
+            float itemRight = AmountBar.Build(content, "item", 122, 49);
             int bagExtra = BagService.Extra;
             bagInput = bagExtra.ToString();
-            Ui.Label(content, BagService.Describe(), 16, 94, 320, 40, 18);
-            Ui.Label(content, "추가 칸", 340, 94, 76, 40, 18).color = Ui.Dim;
-            NumberField.Build(content, "BagExtra", 416, 95, 100, 38, bagInput, new Action<string>(v => bagInput = v), new Action<int>(SetBagExtra));
-            Ui.Button("BagApply", content, "적용", 522, 95, 70, 38, new Action(() =>
+            float bagX = itemRight + 16;
+            Ui.Label(content, BagService.Describe(), bagX, 48, 296, 40, 17);
+            float bx = bagX + 300;
+            NumberField.Build(content, "BagExtra", bx, 49, 76, 38, bagInput, new Action<string>(v => bagInput = v), new Action<int>(SetBagExtra));
+            Ui.Button("BagApply", content, "적용", bx + 80, 49, 60, 38, new Action(() =>
             {
                 int value;
                 if (!int.TryParse(bagInput, out value))
@@ -96,111 +203,253 @@ namespace MOD_sWP6UL
                 }
                 SetBagExtra(value);
             }));
-            Ui.Button("BagMinus", content, "-" + BagService.Step, 610, 95, 70, 38, new Action(() => Say(BagService.Change(-BagService.Step))), bagExtra > 0);
-            Ui.Button("BagPlus", content, "+" + BagService.Step, 686, 95, 70, 38, new Action(() => Say(BagService.Change(BagService.Step))), bagExtra < BagService.MaxExtra);
-            Ui.Label(content, "10칸 단위, 0~" + BagService.MaxExtra + ". 숫자를 쓰고 Enter를 눌러도 됩니다.", 770, 94, 520, 40, 15).color = Ui.Dim;
+            Ui.Button("BagMinus", content, "-" + BagService.Step, bx + 144, 49, 60, 38, new Action(() => Say(BagService.Change(-BagService.Step))), bagExtra > 0);
+            Ui.Button("BagPlus", content, "+" + BagService.Step, bx + 208, 49, 60, 38, new Action(() => Say(BagService.Change(BagService.Step))), bagExtra < BagService.MaxExtra);
+        }
 
-            // 이름 검색(치는 대로 걸러진다)과 초기화
-            Ui.Label(content, "아이템명", 0, 150, 90, 38);
-            SearchBox.Build(content, "ItemQuery", 90, 150, 330, query, "이름의 일부 또는 번호", new Action<string>(v =>
+        private void DrawGroups(HashSet<int> owned)
+        {
+            Dictionary<string, int> counts = ItemCatalog.CountByGroup(filter, owned);
+            float y = TopH + 8;
+            GroupButton(ItemGroups.FavKey, "★ 즐겨찾기", FavCount(owned), y);
+            y += 44;
+            GroupButton(ItemGroups.AllKey, "전체", counts[ItemGroups.AllKey], y);
+            y += 44;
+            foreach (ItemGroups.Group group in ItemGroups.Groups)
             {
-                query = v;
-                detail.Clear();
-                list.SetItems(Found());
-            }));
-            Ui.Button("ItemSearchClear", content, "분류·검색 초기화", 430, 150, 190, 38, new Action(() => { query = ""; SetCategory(-1, -1); }),
-                query.Length > 0 || mainType >= 0);
-
-            // 카테고리(게임의 분류표). 첫 줄은 대분류, 대분류를 고르면 아래에 세부 분류가 나온다.
-            Ui.Label(content, "카테고리", 0, 194, 90, 38);
-            float cx = 90;
-            Ui.Button("ItemCatAll", content, "전체", cx, 194, 80, 38, new Action(() => SetCategory(-1, -1)), true, mainType < 0);
-            cx += 86;
-            foreach (ItemCatalog.Category category in ItemCatalog.MainCategories)
-            {
-                int type = category.Id;
-                string label = category.Name + " (" + category.Count + ")";
-                float width = 24 + label.Length * 15;
-                Ui.Button("ItemCat" + type, content, label, cx, 194, width, 38, new Action(() => { subScrollY = 0; SetCategory(type, -1); }), true, mainType == type);
-                cx += width + 4;
+                GroupButton(group.Key, group.Name, counts[group.Key], y);
+                y += 44;
             }
-            float top = 238;
-            if (mainType >= 0)
+        }
+
+        private void GroupButton(string key, string name, int count, float y)
+        {
+            Button button = Ui.Button("ResGroup" + key, content, name + " " + count, 0, y, LeftW, 40, new Action(() => SetGroup(key)), true, groupKey == key);
+            labels.Add(new CountLabel { Text = button.GetComponentInChildren<Text>(), Name = name, Key = key });
+        }
+
+        // 종류 칩(그룹 보기), 모두 지급(즐겨찾기 보기) 또는 안내(전체 보기). 다음 줄의 y를 돌려준다.
+        private float DrawKinds(float y, HashSet<int> owned)
+        {
+            if (IsFav)
             {
-                // 세부 분류가 많은 대분류(도구는 50종 이상)는 두 줄만 보이게 하고 그 안에서 스크롤한다.
-                const float subRow = 38;
-                float subW = ContentW - 90;
-                List<ItemCatalog.Category> subs = ItemCatalog.SubCategories(mainType);
-                var places = new List<Vector2>();
-                float sx = 76, sy = 0;
-                foreach (ItemCatalog.Category category in subs)
+                Confirm.Button("ResAllGive", content, "모두 지급", "정말 모두 지급", RightX, y, 170, 38, "res-all-give",
+                    "보이는 즐겨찾기를 저장된 수량으로 모두 지급합니다. 한 번 더 누르면 실행합니다.", new Action(GiveAll));
+                Ui.Label(content, "수량 칸에 쓰고 Enter를 누르면 저장됩니다. ☆로 넣고 ★로 뺍니다.", RightX + 182, y, RightW - 182, 38, 16).color = Ui.Dim;
+                return y + 44;
+            }
+            if (groupKey == ItemGroups.AllKey)
+            {
+                Text hint = Ui.Label(content, "왼쪽에서 그룹을 고르면 종류로 나눠 볼 수 있습니다.", RightX, y, RightW, 38, 17);
+                hint.color = Ui.Dim;
+                hint.gameObject.name = "ResAllHint";
+                return y + 44;
+            }
+            ItemGroups.Group group = ItemGroups.ByKey(groupKey);
+            int[] counts = ItemCatalog.CountByKind(group, filter, owned);
+            int[] widest = ItemCatalog.CountByKind(group, new ItemCatalog.Filter(), owned);   // 칩의 폭은 거르기 전의 수로 잰다
+            var names = new List<string> { "전체" };
+            var shown = new List<int>();
+            var sized = new List<int>();
+            int shownAll = 0, sizedAll = 0;
+            for (int i = 0; i < group.Kinds.Count; i++)
+            {
+                names.Add(group.Kinds[i].Name);
+                shown.Add(counts[i]);
+                sized.Add(widest[i]);
+                shownAll += counts[i];
+                sizedAll += widest[i];
+            }
+            shown.Insert(0, shownAll);
+            sized.Insert(0, sizedAll);
+            // 칩을 줄바꿈해 모두 놓는다. 세 줄을 넘으면 그 영역 안에서 스크롤한다.
+            float areaW = RightW - Ui.ScrollBarWidth;
+            var xs = new float[names.Count];
+            var ys = new float[names.Count];
+            var ws = new float[names.Count];
+            float cx = 0, cy = 0;
+            for (int i = 0; i < names.Count; i++)
+            {
+                float w = Math.Max(70f, Ui.TextWidth(names[i] + " (" + sized[i] + ")", 19) + 28f);
+                if (cx > 0 && cx + w > areaW)
                 {
-                    float width = SubWidth(category);
-                    if (sx + width > subW - Ui.ScrollBarWidth)
+                    cx = 0;
+                    cy += ChipH + ChipGap;
+                }
+                xs[i] = cx;
+                ys[i] = cy;
+                ws[i] = w;
+                cx += w + ChipGap;
+            }
+            float allH = cy + ChipH;
+            float shownH = Math.Min(allH, ChipRowsShown * (ChipH + ChipGap) - ChipGap);
+            Transform area = allH > shownH
+                ? Ui.Scroll("ResKinds", content, RightX, y, RightW, shownH, allH, chipScrollY, new Action<float>(v => chipScrollY = v))
+                : Ui.Rect("ResKinds", content, RightX, y, RightW, shownH);
+            for (int i = 0; i < names.Count; i++)
+            {
+                ItemGroups.Kind kind = i == 0 ? null : group.Kinds[i - 1];
+                Button chip = Ui.Button("ResKind" + i, area, names[i] + " (" + shown[i] + ")", xs[i], ys[i], ws[i], ChipH,
+                    new Action(() => { filter.Kind = kind; Changed(); }), true, filter.Kind == kind);
+                labels.Add(new CountLabel { Text = chip.GetComponentInChildren<Text>(), Name = names[i], Index = i });
+            }
+            return y + shownH + 6;
+        }
+
+        private float DrawFilters(float y)
+        {
+            Ui.Label(content, "아이템명", RightX, y, 76, 38, 18);
+            SearchBox.Build(content, "ItemQuery", RightX + 76, y, 290, filter.Query, "이름의 일부 또는 번호", new Action<string>(OnQuery));
+            Ui.Label(content, "품질(높을수록 귀함)", RightX + 376, y, 150, 38, 16).color = Ui.Dim;
+            Ui.Button("ResQuality0", content, "전체", RightX + 526, y, 56, 38, new Action(() => { filter.Quality = 0; Changed(); }), true, filter.Quality == 0);
+            for (int q = 1; q <= 6; q++)
+            {
+                int quality = q;
+                Ui.Button("ResQuality" + q, content, q.ToString(), RightX + 586 + (q - 1) * 44, y, 40, 38,
+                    new Action(() => { filter.Quality = quality; Changed(); }), true, filter.Quality == q);
+            }
+            Ui.Button("ResOwnedOnly", content, "보유 중만", RightX + 856, y, 120, 38, new Action(() => { filter.OwnedOnly = !filter.OwnedOnly; Changed(); }), true, filter.OwnedOnly);
+            Ui.Button("ResClear", content, "초기화", RightX + 982, y, 100, 38, new Action(ClearFilters));
+            return y + 44;
+        }
+
+        private void DrawHead(float y)
+        {
+            Ui.Panel("ResHead", content, RightX, y, RightW, 30, Ui.Section);
+            Ui.Label(content, "☆", RightX + ColStar, y, 40, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+            Ui.Label(content, "아이템명", RightX + ColName, y, NameW, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "종류", RightX + ColKind, y, KindW, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "품질", RightX + ColLevel, y, 44, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "보유", RightX + ColOwned, y, 60, 30, 16).color = Ui.Dim;
+            Ui.Label(content, "설명", RightX + ColDesc, y, IsFav ? FavDescW : DescW, 30, 16).color = Ui.Dim;
+            if (IsFav)
+            {
+                Ui.Label(content, "수량", RightX + ColAmount, y, AmountW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+            }
+            Ui.Label(content, "지급", RightX + ColGive, y, GiveW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+        }
+
+        // 검색어가 바뀌었을 때: 목록과 개수 글만 고친다.
+        private void OnQuery(string value)
+        {
+            filter.Query = value;
+            detail.Clear();
+            HashSet<int> owned = ItemCatalog.OwnedIds(Player);
+            list.SetItems(Rows(owned));
+            Dictionary<string, int> counts = ItemCatalog.CountByGroup(filter, owned);
+            int[] kinds = IsFav || groupKey == ItemGroups.AllKey ? null : ItemCatalog.CountByKind(ItemGroups.ByKey(groupKey), filter, owned);
+            int favCount = FavCount(owned);
+            foreach (CountLabel label in labels)
+            {
+                if (label.Key == ItemGroups.FavKey)
+                {
+                    label.Set(favCount);
+                }
+                else if (label.Key != null)
+                {
+                    label.Set(counts[label.Key]);
+                }
+                else if (kinds != null)
+                {
+                    int sum = 0;
+                    foreach (int n in kinds)
                     {
-                        sx = 0;
-                        sy += subRow;
+                        sum += n;
                     }
-                    places.Add(new Vector2(sx, sy));
-                    sx += width + 6;
+                    label.Set(label.Index == 0 ? sum : kinds[label.Index - 1]);
                 }
-                float subsH = sy + subRow;
-                float shownH = Math.Min(subsH, subRow * 2);
-                Ui.Label(content, "세부", 0, top, 90, 34, 18).color = Ui.Dim;
-                Transform subRoot = subsH > shownH
-                    ? Ui.Scroll("ItemSubs", content, 90, top, subW, shownH, subsH, subScrollY, new Action<float>(v => subScrollY = v))
-                    : Ui.Rect("ItemSubs", content, 90, top, subW, shownH);
-                int main = mainType;
-                Ui.Button("ItemSubAll", subRoot, "전체", 0, 0, 70, 34, new Action(() => SetCategory(main, -1)), true, subType < 0);
-                for (int i = 0; i < subs.Count; i++)
-                {
-                    int sub = subs[i].Id;
-                    Ui.Button("ItemSub" + sub, subRoot, subs[i].Name + " (" + subs[i].Count + ")", places[i].x, places[i].y, SubWidth(subs[i]), 34,
-                        new Action(() => SetCategory(main, sub)), true, subType == sub);
-                }
-                top += shownH + 4;
             }
-
-            // 표 머리
-            Ui.Panel("ItemHead", content, 0, top, ContentW, 30, Ui.Section);
-            Ui.Label(content, "번호", ColId, top, 100, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "카테고리", ColCat, top, CatW, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "아이템명", ColName, top, NameW, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "품질", ColLevel, top, 50, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "보유", ColOwned, top, 60, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "설명", ColDesc, top, DescW, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "지급", ColGive, top, 116, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
-            top += 32;
-
-            // 표 본문과 이동 줄, 그 아래에 고른 아이템의 전체 설명
-            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Desc, DescW, 15), Ui.TextHeight(entry.Name, NameW, 19), Ui.TextHeight(entry.SubTypeName, CatW, 16));
-            list.Build(content, 0, top, ContentW, ContentH - DetailH - 8 - top, Found(), DrawRow);
-            detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
 
         private void DrawRow(RectTransform row, ItemCatalog.Entry entry, int index)
         {
             float h = row.sizeDelta.y;
-            Ui.Label(row, entry.Id.ToString(), ColId, 0, 100, h, 16);
-            Ui.Wrapped(row, entry.SubTypeName, ColCat, 0, CatW, h, 16);
-            WrapLabel(Ui.Button("ItemName" + entry.Id, row, entry.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(Detail(entry)))));
-            Ui.Label(row, entry.Level.ToString(), ColLevel, 0, 50, h, 16);
-            Ui.Label(row, Player.data.unitData.propData.GetPropsNum(entry.Id).ToString(), ColOwned, 0, 60, h, 16);
-            Text desc = Ui.Wrapped(row, entry.Desc, ColDesc, 0, DescW, h, 15);
+            int id = entry.Id;
+            bool fav = FavoriteStore.Has(id);
+            Ui.Button("ResStar" + id, row, fav ? "★" : "☆", ColStar, 2, 40, RowH - 4, new Action(() => ToggleFavorite(id)), true, fav);
+            WrapLabel(Ui.Button("ItemName" + id, row, entry.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(Detail(entry)))));
+            Ui.Wrapped(row, entry.Kind == null ? "-" : entry.Kind.Name, ColKind, 0, KindW, h, 16);
+            Ui.Label(row, entry.Missing ? "-" : entry.Level.ToString(), ColLevel, 0, 44, h, 16);
+            Ui.Label(row, entry.Missing ? "-" : Player.data.unitData.propData.GetPropsNum(id).ToString(), ColOwned, 0, 60, h, 16);
+            Text desc = Ui.Wrapped(row, entry.Desc, ColDesc, 0, IsFav ? FavDescW : DescW, h, 15);
             desc.color = Ui.Dim;
-            desc.gameObject.name = "ItemDesc" + entry.Id;
-            int amount = AmountBar.Get("item");
-            Ui.Button("ItemGive" + entry.Id, row, "지급 x" + amount, ColGive, 2, 116, RowH - 4, new Action(() => Say(EditService.GiveItem(Player, entry.Id, amount))));
+            desc.gameObject.name = "ItemDesc" + id;
+            if (IsFav)
+            {
+                int saved = FavoriteStore.AmountOf(id);
+                NumberField.Build(row, "ResAmount" + id, ColAmount, (h - (RowH - 4)) / 2, AmountW, RowH - 4, saved.ToString(), null,
+                    new Action<int>(v => SetAmount(id, v)));
+                Ui.Button("ItemGive" + id, row, "지급 x" + saved, ColGive, 2, GiveW, RowH - 4,
+                    new Action(() => Say(EditService.GiveItem(Player, id, FavoriteStore.AmountOf(id)))), !entry.Missing);
+            }
+            else
+            {
+                int amount = AmountBar.Get("item");
+                Ui.Button("ItemGive" + id, row, "지급 x" + amount, ColGive, 2, GiveW, RowH - 4, new Action(() => Say(EditService.GiveItem(Player, id, amount))));
+            }
         }
 
-        private static float SubWidth(ItemCatalog.Category category)
+        private void ToggleFavorite(int id)
         {
-            return 46 + (category.Name.Length + category.Count.ToString().Length) * 16;
+            string text;
+            if (FavoriteStore.Has(id))
+            {
+                FavoriteStore.Remove(id, out text);
+            }
+            else
+            {
+                FavoriteStore.Add(id, AmountBar.Get("item"), out text);
+            }
+            Say(text);
+        }
+
+        private void SetAmount(int id, int amount)
+        {
+            string text;
+            FavoriteStore.SetAmount(id, amount, out text);
+            Say(text);
+        }
+
+        // 보이는(걸러진) 즐겨찾기 가운데 게임에 있는 것을 저장된 수량으로 차례로 준다.
+        // 줄마다 예외를 막는다. 밖으로 나가면 버튼 콜백에서 사라져 결과 문장 없이 일부만 들어가고, 다시 누르면 앞의 것을 또 준다(BagExportService.Put과 같은 이유).
+        private void GiveAll()
+        {
+            int given = 0;
+            var failed = new List<string>();
+            foreach (ItemCatalog.Entry entry in Rows(ItemCatalog.OwnedIds(Player)))
+            {
+                if (entry.Missing)
+                {
+                    continue;
+                }
+                try
+                {
+                    string text;
+                    if (EditService.TryGiveItem(Player, entry.Id, FavoriteStore.AmountOf(entry.Id), out text))
+                    {
+                        given++;
+                    }
+                    else
+                    {
+                        failed.Add(entry.Name);
+                    }
+                }
+                catch (Exception e)
+                {
+                    failed.Add(entry.Name + " — " + e.GetType().Name);
+                }
+            }
+            Say(given + failed.Count == 0 ? "즐겨찾기 모두 지급: 줄 수 있는 아이템이 없습니다."
+                : "즐겨찾기 모두 지급: 넣음 " + given + ", 못 넣음 " + failed.Count + (failed.Count > 0 ? "(" + string.Join(", ", failed.ToArray()) + ")" : "") + ".");
         }
 
         private static string Detail(ItemCatalog.Entry entry)
         {
-            return "[" + entry.Id + "] " + entry.Name + "  (" + entry.TypeName + " / " + entry.SubTypeName + ", 품질 " + entry.Level + ")\n" + entry.Desc;
+            if (entry.Missing)
+            {
+                return "[" + entry.Id + "] " + entry.Name + "\n" + entry.Desc;
+            }
+            return "[" + entry.Id + "] " + entry.Name + "  (" + entry.Group.Name + " / " + entry.Kind.Name + ", 품질 " + entry.Level + ")\n" + entry.Desc;
         }
     }
 }

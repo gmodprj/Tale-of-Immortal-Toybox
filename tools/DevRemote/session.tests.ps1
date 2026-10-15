@@ -178,6 +178,32 @@ $b = NewBox
 [IO.File]::WriteAllText("$($b.work)\session-presets\mine.json", 'the only copy')
 $o = Run $b $none @{ Begin = 'x' }
 Check 'Begin refuses to overwrite a leftover presets copy' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session-presets\mine.json") -and -not (Test-Path "$($b.work)\session.name")) $o
+
+# 21. 즐겨찾기 파일: -Begin이 보관하고 -End가 되돌린다. 회차가 만든 .bak과 .tmp는 지운다
+$b = NewBox
+[IO.File]::WriteAllText("$($b.data)\favorites.txt", "1011011 10`n")
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\favorites.txt", "garbage`n")
+[IO.File]::WriteAllText("$($b.data)\favorites.txt.bak", "made by a check`n")
+[IO.File]::WriteAllText("$($b.data)\favorites.txt.tmp", "left over`n")
+$o = Run $b $none @{ End = 'x' }
+Check 'End restores favorites' ($o -match 'FAVORITES RESTORED' -and [IO.File]::ReadAllText("$($b.data)\favorites.txt") -eq "1011011 10`n") $o
+Check 'End removes the favorites .bak and .tmp the session made' (-not (Test-Path "$($b.data)\favorites.txt.bak") -and -not (Test-Path "$($b.data)\favorites.txt.tmp")) $o
+
+# 22. 시작할 때 즐겨찾기 파일이 없었으면 끝날 때 없앤다
+$b = NewBox
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\favorites.txt", "1011011 10`n")
+$o = Run $b $none @{ End = 'x' }
+Check 'End removes a favorites file the session created' ($o -match 'FAVORITES RESTORED' -and -not (Test-Path "$($b.data)\favorites.txt")) $o
+
+# 23. 회차 전부터 있던 favorites.txt.bak은 회차 전의 내용으로 되돌린다
+$b = NewBox
+[IO.File]::WriteAllText("$($b.data)\favorites.txt.bak", "old backup`n")
+[void](Run $b $none @{ Begin = 'x' })
+[IO.File]::WriteAllText("$($b.data)\favorites.txt.bak", "overwritten by a check`n")
+$o = Run $b $none @{ End = 'x' }
+Check 'End puts back a favorites .bak that was there before' ([IO.File]::ReadAllText("$($b.data)\favorites.txt.bak") -eq "old backup`n") $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
