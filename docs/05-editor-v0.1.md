@@ -2089,6 +2089,7 @@
 - `ui-check.ps1 -Part base`·`tabs`: 둘 다 `FAILS=0`. 다른 모드 15개가 있어도 편집기가 열리고 탭이 그려진다.
 - 게임 모드 화면의 순서 캡처: 못 했다(미확인). `uiopen ModMainMgr`는 세계 안에서 프리팹이 없어(`The Object you want to instantiate is null`) 열리지 않고, HUD의 왼쪽 위·오른쪽 위 단추는 월말 기록·임무 토글이며, ESC는 전달되지 않고 `uipos`는 게임 UI 트리를 찾지 못한다. 사용자 확인 항목(인계 8.5절).
 - `-End ws-1015b`: `SAVE RESTORED AND IDENTICAL`, `WORKSHOP FOLDERS REMOVED: 15`, `ModExportData\`에 `Mod_sWP6UL`만.
+- 실제 설치(회차 밖): 2026-10-16, 사용자 확인 뒤 게임을 끈 상태에서 `-Install -Yes`. `INSTALLED` 15줄, `-Status`가 받음 15/15·설치 15/15, 폴더 16개.
 
 ### 확인하지 못한 것, 한계
 
