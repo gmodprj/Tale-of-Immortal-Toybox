@@ -312,6 +312,10 @@ switch ($Part) {
     $s = St
     Check 'removing the equipped title empties the slot' ($o -match 'ok=True' -and $o -match '장착이 비었습니다' -and -not (Owns $s 2111) -and (Field $s 'equipped') -eq '0') "$o | $s"
     Check 'the effect goes with it' ([int](Field $s 'talent') -eq $talent) $s
+    # 빼기 뒤 게임의 "도호 상실" 창: 편집기가 뺀 도호의 것은 편집기가 확인을 누른다(회차 apl-1015g의 실측)
+    Start-Sleep -Seconds 2
+    $s = St
+    Check 'the editor closes the title-lost window of its own removal' ((Field $s 'reward') -eq 'False') $s
     $o = Cmd 'ttldel 1601' 600
     Check 'removing a title not held is refused' ($o -match 'ok=False' -and $o -match '갖고 있지 않습니다') $o
     $o = Cmd 'ttlequip 1601' 600
@@ -322,6 +326,12 @@ switch ($Part) {
     Check 'equip back to 2001' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '2001') $o
     Start-Sleep -Seconds 3
     Check 'no title popup is left open' ((Field (St) 'popup') -eq 'False') (St)
+    # 일반 보상 창(도호가 아닌 것)은 건드리지 않는다
+    Cmd 'ttlrewardopen' 600 | Out-Null
+    Start-Sleep -Seconds 2
+    $s = St
+    Check 'an ordinary reward window is left alone' ((Field $s 'rewardAny') -eq 'True' -and (Field $s 'reward') -eq 'False') $s
+    Cmd 'ttlrewardclose' 600 | Out-Null
     Check 'save is called' ((Cmd 'save' 4000) -match 'SaveData called')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
@@ -347,7 +357,7 @@ switch ($Part) {
     function Owns([int]$id) { ",$(Field (Cmd 'ttl' 300) 'owned')," -match ",$id," }
     # 도호를 받으면 근처 NPC가 그 도호로 말을 거는 대화가 편집기 위에 뜰 수 있다(게임의 동작, 스펙 3.2). 떠 있으면 넘긴다.
     function SkipDialogue { for ($i = 0; $i -lt 8 -and (Cmd 'uilist' 200) -match 'DramaDialogue'; $i++) { Rc 'click 958 552' 1000 | Out-Null } }
-    # 도호를 빼면 게임의 "도호 상실" 창(GetReward)이 편집기 위에 뜬다(게임의 동작). 떠 있으면 확인을 누른다.
+    # 도호를 빼면 게임의 "도호 상실" 창(GetReward)이 뜨고 편집기가 확인을 누른다. 검사가 실패해도 다음 단계가 막히지 않게 남은 창은 확인을 누른다.
     function SkipReward { for ($i = 0; $i -lt 4 -and (Cmd 'uilist' 200) -match 'GetReward'; $i++) { Rc 'click 959 662' 1000 | Out-Null } }
     $me = Field (Cmd 'ttl' 300) 'me'
     Cmd 'editor' | Out-Null; Press 'Tab15' | Out-Null
@@ -402,8 +412,8 @@ switch ($Part) {
     Check 'one press does not remove it' (Owns 1404)
     Press 'AplRemove1404' | Out-Null
     Check 'the second press removes it' (-not (Owns 1404))
-    Start-Sleep -Seconds 1
-    "INFO game windows after removal: $((Cmd 'uilist' 200) -replace "`n", ' |')"
+    Start-Sleep -Seconds 2
+    Check 'the title-lost window of the removal was closed by the editor' ((Cmd 'uilist' 200) -notmatch 'GetReward') ((Cmd 'uilist' 200) -replace "`n", ' |')
     SkipReward
     SkipDialogue
     # 장착 칸과 줄의 장착

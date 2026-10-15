@@ -37,7 +37,7 @@
 | 배율 | 수련치 획득, 전투 중 공법 숙련, 이동의 날짜 소모, 전투 속도, 기술 쿨타임(없음까지), 신기 쿨타임, 영력 소모, 집중력 소모, 주는 피해, 받는 피해의 배율(단계 버튼), 무적, 모두 1배로 | `RateService`, `BattleService`(`WorldService.cs` 안) | 13, 32, 33, 37절 |
 | 프리셋 | 빌드 프리셋(JSON 파일, 기본 열 개) 목록: `적용`(지금 대경지까지), `최종 단계까지`(경지를 등선 후기까지 올리고 전부), `상세보기`(대경지 단계마다의 구성·상태·적용, 경지 올리기), `기본 프리셋 되돌리기`. 공법 넷·심법과 세트·역천개명·선천운명·법보와 기령·신혼·명우를 넣는다 | `PresetService`(+`.Apply`), `SpriteService`, `ElderService`, `WingmanService`, `GradeService`, `Presets/*.json`, `UI/Tabs/PresetTab` | 34절 |
 | 안전 | 세이브 백업, 변경 이력(지난 실행 포함, 검색) | `Safety/SaveBackup`, `Safety/ChangeLog` | 3, 27절 |
-| 도호 | 플레이어의 도호(칭호) 100개: 장착 칸, 분류 칩, 검색·가진 것만, 주기·빼기(두 번)·장착, 다른 인물이 가진 '제일' 도호 가져오기(두 번), 잃는 경지 경고, 이야기 도호 안내. 편집기가 준 도호의 "도호 획득" 창은 편집기가 확인을 누른다 | `AppellationService`, `UI/Tabs/AppellationTab` | 40절 |
+| 도호 | 플레이어의 도호(칭호) 100개: 장착 칸, 분류 칩, 검색·가진 것만, 주기·빼기(두 번)·장착, 다른 인물이 가진 '제일' 도호 가져오기(두 번), 잃는 경지 경고, 이야기 도호 안내. 편집기가 준 도호의 "도호 획득" 창과 편집기가 뺀 도호의 "도호 상실" 창은 편집기가 확인을 누른다 | `AppellationService`, `UI/Tabs/AppellationTab` | 40절 |
 
 공통 규칙:
 
@@ -164,7 +164,7 @@
   - 프리셋: `pstate`(경지·수도 점수·장착·세트·기령·신혼·명우·역천개명을 한 줄에), `phas <운명 번호,…>`(실제로 가진 수), `pcheck [파일]`(쓸 수 없는 줄), `papply <파일> <단계|all|full>`, `pstage <파일> <단계>`, `pfateset <대경지> <번호>`, `pluckadd <번호>`, 찾기 `pfind`·`pfate`·`pluck`·`psuits`·`pconf`·`popts <기술 번호>`, 표 내보내기 `pdump <fates|skills|opts|g.conf의 표 이름>`(`.devremote\dump-<이름>.txt`). 전체 목록은 05 문서 34절.
   - 날짜·가방: `wdate`, `grid`, `wmove`, `wexp`, `tdesc`, `tadv`, `tset`, `tskip`, `tfreeze`, `tin`, `tmsg`, `thud`, `bagstat`.
   - 자원 탭: `rgroups`(전체·기타·중복·합과 그룹별 수, 표에 없는 분류 번호), `rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>|addbook <분류> <기술> <경지> <최소 품질> <수량>|setbook <기술> <경지> <최소 품질> <수량>|delbook <기술> <경지> <최소 품질>]`(즐겨찾기 상태. `reset`은 파일을 지우고 다시 읽게 한다), `rbook <분류> <기술> <경지> <최소 품질> <권수>`(비급 만들기), `rbooks [기술]`(가방의 비급), `rbookstudy <soleID>`(게임 학습이 받아들이는지), `rskill <분류> <기술>`(경지 범위), `rownskills <분류> <경지>`(그 기술 하나만 나오는 묶음이 있는 기술). 분류는 0 무예/영술 ~ 4 신통.
-  - 도호 탭: `ttl`(가진 것·장착·오성·획득 창·편집기가 닫은 창 수), `ttlgive|ttldel|ttlequip <번호>`, `ttlunequip`, `ttlholders <번호>`, `ttlnpcgive <unitID|any> <번호>`(검사 준비).
+  - 도호 탭: `ttl`(가진 것·장착·오성·획득 창·편집기가 닫은 창 수), `ttlgive|ttldel|ttlequip <번호>`, `ttlunequip`, `ttlholders <번호>`, `ttlnpcgive <unitID|any> <번호>`(검사 준비), `ttlrewardopen`·`ttlrewardclose`(일반 보상 창 열고 닫기).
 - `rc.ps1 -Cmd "click x y" -NoShot` / `"hit x y"` / `"scroll x y delta"` — 게임 좌표(1920x1080)의 UI 요소를 누르거나 이름을 확인한다.
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다.
@@ -498,7 +498,7 @@ PowerShell과 도구:
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
 - 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `art-1014a`(게임이 켜져 있어 열리지 않았다. 다시 쓰지 않는다), `art-1014b`~`d`, `atab1`~`atab18`(`2b`~`2d`, `4b`~`4d`, `5b` 포함), `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함), `awui-1014a`, `hud-1014a`~`d`, `bwui-1014a`~`b`, `bhud-1014a`~`d`, `bdev-1014a`(게임이 켜져 있어 열리지 않았다), `hudr-1014a`, `key-1014a`~`d`, `drift-1014a`~`b`, `akey-1014a`~`j`, `rate-1014a`~`b`, `cost-1014a`~`d`, `click-1014a`~`l`, `eyeclick-1014a`~`c`(`a`는 게임이 켜져 있어 열리지 않았다), `typing-1014a`~`k`, `month-1014a`. 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
-- 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함), `apl-1015a`~`f`, `ttl-1015a`~`l`.
+- 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함), `apl-1015a`~`f`, `ttl-1015a`~`o`, `apl-1015g`.
 
 ## 9. 작업 규칙 요약
 

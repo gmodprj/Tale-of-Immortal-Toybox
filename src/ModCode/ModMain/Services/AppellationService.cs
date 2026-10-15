@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using MelonLoader;
 
 namespace MOD_sWP6UL
 {
@@ -51,6 +53,13 @@ namespace MOD_sWP6UL
 
         private static List<Entry> entries;
         private static readonly HashSet<int> quiet = new HashSet<int>();   // 편집기가 준 번호: 그 획득 창은 편집기가 닫는다
+        private static readonly HashSet<int> quietLoss = new HashSet<int>();   // 편집기가 뺀 번호: 그 상실 창은 편집기가 닫는다
+        private static readonly Dictionary<IntPtr, int> lossOf = new Dictionary<IntPtr, int>();   // 보상 창 → 그 창이 보이는 도호 번호
+        private static HarmonyLib.Harmony lossHarmony;
+        private static bool lossHookFailed;
+
+        // 편집기가 대신 확인을 누른 "도호 상실" 창의 수.
+        public static int LossSilenced { get; private set; }
 
         // 편집기가 대신 확인을 누른 "도호 획득" 창의 수(검사가 본다).
         public static int Silenced { get; private set; }
@@ -314,8 +323,17 @@ namespace MOD_sWP6UL
             try
             {
                 bool wasEquipped = Equipped(unit) == id;
+                bool hooked = EnsureLossHook();
+                if (hooked)
+                {
+                    quietLoss.Add(id);
+                }
                 unit.appellation.DelAppellationID(id, false);
                 bool ok = !Owned(unit).Contains(id);
+                if (!ok && hooked)
+                {
+                    quietLoss.Remove(id);
+                }
                 ChangeLog.Add(EditService.NameOf(unit), "도호 " + name + "(" + id + ")", wasEquipped ? "장착" : "가짐", "없음", ok);
                 text = "도호 빼기: " + name + (wasEquipped && ok ? ", 장착이 비었습니다" : "") + (ok ? "." : ". 게임이 빼지 않았습니다.");
                 return ok;
@@ -391,23 +409,81 @@ namespace MOD_sWP6UL
             }
         }
 
-        // 매 프레임. 편집기가 준 번호의 "도호 획득" 창이 열려 있으면 그 창의 확인 버튼을 누른다.
+        // 편집기가 뺀 번호의 "도호 상실" 창(UIGetReward의 도호 칸)을 알아보려고 UIGetReward.UpdateTaoist에 접미를 건다.
+        // 그 창은 일반 보상 창과 같은 창이고 어느 도호인지 필드로 남지 않는다. 처음 뺄 때 한 번 건다(날짜 고정 패치와 같은 방식).
+        // 걸지 못하면 상실 창은 예전처럼 뜬다.
+        private static bool EnsureLossHook()
+        {
+            if (lossHarmony != null)
+            {
+                return true;
+            }
+            if (lossHookFailed)
+            {
+                return false;
+            }
+            var instance = new HarmonyLib.Harmony("TlToybox.appellation");
+            try
+            {
+                instance.Patch(typeof(UIGetReward).GetMethod("UpdateTaoist", new[] { typeof(int) }), null,
+                    new HarmonyLib.HarmonyMethod(typeof(AppellationService).GetMethod("TaoistPostfix", BindingFlags.Static | BindingFlags.Public)));
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] appellation: could not hook the title-lost window: " + e.Message);
+                instance.UnpatchSelf();
+                lossHookFailed = true;
+                return false;
+            }
+            lossHarmony = instance;
+            return true;
+        }
+
+        // UIGetReward.UpdateTaoist(번호)의 접미: 그 창이 어느 도호의 것인지 기억한다.
+        public static void TaoistPostfix(UIGetReward __instance, int appellationTitleID)
+        {
+            try
+            {
+                lossOf[__instance.Pointer] = appellationTitleID;
+            }
+            catch (Exception)
+            {
+                // 게임의 창 그리기 안이라 예외를 던지지 않는다.
+            }
+        }
+
+        // 매 프레임. 편집기가 준 번호의 "도호 획득" 창과 편집기가 뺀 번호의 "도호 상실" 창이 열려 있으면 그 창의 확인 버튼을 누른다.
         // CloseUI로 닫으면 창 대기열이 멈춰 그 뒤의 창이 뜨지 않는다(회차 apl-1015d). 확인을 누르면 대기열이 이어진다(apl-1015e).
+        // 상실 창은 도호 칸이 보이고 기억한 번호가 편집기가 뺀 것일 때만 누른다. 일반 보상 창과 편집기 밖에서 잃은 도호의 창은 그대로 둔다(apl-1015g).
         public static void Tick()
         {
-            if (quiet.Count == 0)
+            if (quiet.Count == 0 && quietLoss.Count == 0)
             {
                 return;
             }
             try
             {
-                UIGetTaoist ui = g.ui.GetUI<UIGetTaoist>(UIType.GetTaoist);
-                if (ui == null || ui.conf == null || !quiet.Remove(ui.conf.id))
+                if (quiet.Count > 0)
                 {
-                    return;
+                    UIGetTaoist ui = g.ui.GetUI<UIGetTaoist>(UIType.GetTaoist);
+                    if (ui != null && ui.conf != null && quiet.Remove(ui.conf.id))
+                    {
+                        Silenced++;
+                        ui.btnOK.onClick.Invoke();
+                    }
                 }
-                Silenced++;
-                ui.btnOK.onClick.Invoke();
+                if (quietLoss.Count > 0)
+                {
+                    UIGetReward reward = g.ui.GetUI<UIGetReward>(UIType.GetReward);
+                    int id;
+                    if (reward != null && reward.goTaoist != null && reward.goTaoist.activeSelf
+                        && lossOf.TryGetValue(reward.Pointer, out id) && quietLoss.Remove(id))
+                    {
+                        lossOf.Remove(reward.Pointer);
+                        LossSilenced++;
+                        reward.btnOK.onClick.Invoke();
+                    }
+                }
             }
             catch (Exception)
             {

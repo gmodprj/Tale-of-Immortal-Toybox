@@ -1992,7 +1992,7 @@
 | 경지 안내 | 막지 않는다. 결과와 아래 칸에 "결정 이상이라 다음 돌파 때 잃습니다". 경지 탭의 경지 올리기와 프리셋 적용도 도호를 다시 판정하므로 그때 잃는다 |
 | 이야기 도호 | 결말 다섯(2601~2605)과 단금쉬옥(2500)은 주되 "이야기와 묶인 효과라 확인하지 못했습니다"를 붙인다 |
 | 획득 창 | 게임의 "도호 획득" 창(`UIGetTaoist`)은 넣은 직후가 아니라 몇 프레임 뒤에 하나씩 뜨고, 확인을 눌러야 다음 창이 뜬다. `g.ui.CloseUI`로 닫으면 대기열이 멈춰 그 뒤 게임에서 얻은 도호의 창도 뜨지 않았다(`apl-1015d`). 그래서 편집기가 준 번호를 기억해 두고 매 프레임(`EditorHostBehaviour.Update` → `AppellationService.Tick`) 열린 창이 그 번호면 그 창의 `btnOK`를 누른다. 세 개를 연달아 줘도 모두 닫히고, 그 뒤 게임 방식으로 넣은 도호의 창은 그대로 떴다(`apl-1015e`) |
-| 게임이 띄우는 다른 창 | 도호를 받으면 근처 NPC가 그 도호로 말을 거는 대화(`DramaDialogue`)가 편집기 위에 뜰 수 있고, 넘기면 선물 보상 창이 이어질 수 있다. 플레이어의 도호를 빼면 "도호 상실" 창(`UIGetReward`, `UpdateTaoist`)이 뜬다. 둘 다 게임의 동작이라 그대로 둔다(상실 창은 일반 보상 창과 같은 창이고 어느 도호인지 남지 않아 골라 닫기 어렵다). 확인을 누르면 닫힌다 |
+| 게임이 띄우는 다른 창 | 도호를 받으면 근처 NPC가 그 도호로 말을 거는 대화(`DramaDialogue`)가 편집기 위에 뜰 수 있고, 넘기면 선물 보상 창이 이어질 수 있다. 게임의 동작이라 그대로 둔다. 플레이어의 도호를 빼면 "도호 상실" 창(`UIGetReward`의 도호 칸, `UpdateTaoist(번호)`)이 뜬다. 이 창은 일반 보상 창과 같은 창이고 어느 도호인지 필드로 남지 않으며, 제목 글도 일반 보상에서 "도호 상실"로 남아 쓸 수 없다. 그래서 편집기가 처음 도호를 뺄 때 `UIGetReward.UpdateTaoist(int)`에 Harmony 접미를 한 번 걸어 창마다 번호를 기억하고, 도호 칸이 보이고 그 번호가 편집기가 뺀 것이면 `Tick`이 확인을 누른다(2026-10-15 추가). 실측(`apl-1015g`): 하나·연달아 셋 모두 닫히고, 일반 보상 창(아이템)과 편집기 밖에서 잃은 도호의 창은 그대로 떴다. 접미를 걸지 못하면 상실 창은 예전처럼 뜬다(로그에 `[TlToybox] appellation: could not hook the title-lost window`) |
 | 효과 글 | 공법 탭과 같은 `MartialService.CleanDesc`로 `$s_quan$` 같은 자리 표시를 `GameTool.LS`로 풀고(권법, 도법, 창법, 검법, 장법, 지법, 화속성) 색 태그를 지운다 |
 | 쓰기 전 | `SaveBackup.EnsureOnce()`. 변경 이력 항목은 `도호 <이름>(<번호>)`(이전·이후 `없음`·`가짐`·`장착`), 장착 바꾸기는 `도호 장착` |
 
@@ -2003,13 +2003,13 @@
 - `UI/EditorWindow.cs`: 탭 목록 끝에 도호 탭, 탭 줄 높이 16칸(16번째 탭의 아래 끝 888이 결과 칸의 위 끝 908보다 위). 탭 줄이 가득 찼다. 다음 탭은 탭 줄을 다시 짜야 한다.
 - `UI/EditorHost.cs`: 매 프레임 `AppellationService.Tick()`.
 - 요소 이름: `Tab15`, `AplEquipped`, `AplUnequip`, `AplClass<All|Owned|First|Romance|Champion|Spender|Dress|Free|Alchemy|Forge|Supreme|Ending|Other>`, `AplQuery`(지우기 `AplQueryClear`), `AplOwnedOnly`, `AplClear`, `AplTable*`(`AplTableRange`), `AplState<번호>`, `AplName<번호>`, `AplLoss<번호>`, `AplHolder<번호>`, `AplGive<번호>`, `AplRemove<번호>`, `AplEquip<번호>`, `AplDetail`.
-- 개발 명령(`Dev/DevCommandsAppellation.cs`): `ttl`(`me=… owned=… equipped=… talent=… popup=… silenced=… grade=…`), `ttlgive|ttldel|ttlequip <번호>`, `ttlunequip`(`ok=<성공> | <문장> | <ttl>`), `ttlholders <번호>`(`holders=<수> names=<이름(unitID)>,…`), `ttlnpcgive <unitID|any> <번호>`(검사 준비). 실험 명령은 병합하지 않는 `feat/appellation-research`에 있다.
+- 개발 명령(`Dev/DevCommandsAppellation.cs`): `ttl`(`me=… owned=… equipped=… talent=… popup=… silenced=… grade=…`), `ttlgive|ttldel|ttlequip <번호>`, `ttlunequip`(`ok=<성공> | <문장> | <ttl>`), `ttlholders <번호>`(`holders=<수> names=<이름(unitID)>,…`), `ttlnpcgive <unitID|any> <번호>`(검사 준비), `ttlrewardopen`(일반 보상 창 열기, 검사 준비), `ttlrewardclose`(보상 창의 확인). `ttl`에는 `reward=<상실 창이 열렸는지> rewardAny=<보상 창이 열렸는지>`도 나온다. 실험 명령은 병합하지 않는 `feat/appellation-research`에 있다.
 
 ### 검증 (고정본, `tools/research/ui-check.ps1`)
 
 | 부분 | 보는 것 | 결과 |
 |---|---|---|
-| `appellation`(서비스) | 주기와 장착 유지, 획득 창을 편집기가 닫음(`silenced`가 늚), 변경 이력, 이미 가진 도호·표에 없는 번호 거부, 두 NPC가 가진 1404를 주면 둘 다에게서 빠지고 이력 세 줄, 경지 안내, 장착·해제·해제 거부, 장착한 것이 없을 때 주면 장착되고 오성 +40, 장착한 것을 빼면 비고 효과도 빠짐, 갖지 않은 도호 빼기·장착 거부, 이야기 안내, 저장 | 고치기 전 FAIL 22(`ttl-1015a`, `ttl`이 UNKNOWN), 고친 뒤 FAIL 0(`ttl-1015b`, `ttl-1015g`, 25줄) |
+| `appellation`(서비스) | 주기와 장착 유지, 획득 창을 편집기가 닫음(`silenced`가 늚), 변경 이력, 이미 가진 도호·표에 없는 번호 거부, 두 NPC가 가진 1404를 주면 둘 다에게서 빠지고 이력 세 줄, 경지 안내, 장착·해제·해제 거부, 장착한 것이 없을 때 주면 장착되고 오성 +40, 장착한 것을 빼면 비고 효과도 빠짐, 갖지 않은 도호 빼기·장착 거부, 이야기 안내, 편집기가 뺀 도호의 상실 창이 남지 않음, 일반 보상 창은 그대로, 저장 | 고치기 전 FAIL 22(`ttl-1015a`, `ttl`이 UNKNOWN), 고친 뒤 FAIL 0(`ttl-1015b`, `ttl-1015g`, 25줄). 상실 창 두 줄: 고치기 전 실패(`ttl-1015m`), 고친 뒤 FAIL 0(`ttl-1015o`, 27줄) |
 | `appellation-restart` | 저장 후 다시 켜도 가진 것·장착·옮겨 온 1404의 보유자 하나 | FAIL 0(`ttl-1015b`) |
 | `appellation-ui`(화면) | 장착 칸, 칩 수(전체 100, 합 100, 제일 60, 가진 것 1), 검색·번호 검색·가진 것만·초기화, 잃는 경지 경고, 보유자와 "가져오기" 버튼, 한 번 눌러서는 안 옮겨지고 두 번째에 옮겨짐, 결과 문장, 획득 창 닫힘, 아래 칸의 효과(권법)·얻는 법·보유자 "나", 자리 표시 없음, 빼기 두 번, 장착 해제·줄의 장착, 이야기 안내 | 고치기 전 멈춤(`ttl-1015c`, `Tab15` 없음), 고친 뒤 FAIL 0(`ttl-1015f`) |
 | 회귀 `base`·`tabs`(탭 16개)·`wrap`·`items` | 탭마다 그려지는지와 앞 절들 | FAIL 0(`ttl-1015c`의 `base`는 고치기 전 `Tab15`에서 멈춤, 고친 뒤 `ttl-1015f`) |
@@ -2024,7 +2024,7 @@
 - 고침: 줄이나 이름을 눌러 아래 칸을 본 채 주기·빼기·가져오기를 하면, 표는 바뀌는데 아래 칸은 옛 보유자("보유자: 관산")를 그대로 보였다. 탭이 고른 도호를 기억해 다시 그릴 때마다 아래 칸을 새로 만든다. `appellation-ui`에 "the detail follows the move without another press"를 넣어 고치기 전 실패(`ttl-1015h`)와 고친 뒤 통과(`ttl-1015k`)를 봤다. 같은 고침 뒤 `appellation`·`appellation-restart`도 FAIL 0(`ttl-1015l`).
 - 고치지 않음: '제일' 도호를 옮기다 게임이 예외를 던지면 NPC에게서는 이미 빠졌는데 결과 문장은 "게임이 받지 않았습니다"만 말한다. 넣기가 거부되거나 예외가 난 적이 모든 회차에서 없어 실패를 재현할 수 없고, 아무도 갖지 않은 '제일' 도호는 게임이 다시 내준다(얻는 법: "이 도호를 보유한 사람이 없다면 …").
 - 고치지 않은 것(사소함): 편집기가 준 번호의 기억이 세이브를 바꿔도 남아, 다른 세이브에서 같은 도호의 획득 창 하나가 닫힐 수 있다 / 검사의 거부 줄이 "바뀌지 않음"을 직접 보지 않는다, "창이 남지 않음"은 대화에 막힌 창이 아직 안 뜬 경우에도 통과한다 / 4자 이름에 " 외 1명"이 붙은 "가져오기" 글이 버튼을 넘칠 수 있다 / 줄 높이를 18로 재고 19로 그린다 / `주기`를 두 번 누르면 두 번째가 다시 그려진 `장착`에 닿을 수 있다 / 서비스의 try 앞 읽기와 아래 칸 만들기에 예외 막기가 없다 / 장착 해제나 장착한 것 빼기 뒤 다시 불러오면 게임이 하나를 장착할 수 있다는 안내가 없다 / 경지 경고는 지금 경지가 잃는 경지 이상일 때만 뜬다(다음 대경지에서 잃는 도호는 경고 색이 없다. 열에는 경지가 보인다) / 탭 줄 높이가 탭 수로 계산되지 않고 16칸 상수다 / 장착 칸의 긴 효과 글을 줄바꿈하지 않는다.
-- 후속으로 물어볼 것: "도호 상실" 창도 막을지(`UIGetReward.UpdateTaoist`로 편집기가 뺀 번호인지 알아내는 실측이 먼저다).
+- 후속(같은 날 고침): "도호 상실" 창도 편집기가 뺀 것은 닫는다(위 표의 "게임이 띄우는 다른 창"). `appellation-ui`의 "the title-lost window of the removal was closed by the editor"가 고치기 전 실패(`ttl-1015m`)·고친 뒤 통과(`ttl-1015n`, 27줄, 같은 회차의 `base`·`tabs`도 FAIL 0).
 
 검사에서 한 번 있었던 일: `ttl-1015i`에서 `appellation-ui` 뒤의 `base`·`tabs`·`wrap`·`items`가 게임 메뉴가 거듭 열리고(`game menu was open`) 키가 검색 칸에 닿지 않아 실패했다. 같은 코드로 새 회차 `ttl-1015k`에서는 메뉴가 한 번도 열리지 않고 다섯 부분 모두 통과해, 게임 창의 포커스가 바뀐 탓으로 본다(인계 6절).
 
