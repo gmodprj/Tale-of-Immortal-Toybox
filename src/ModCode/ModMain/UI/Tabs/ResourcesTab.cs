@@ -10,20 +10,19 @@ namespace MOD_sWP6UL
     internal sealed class ResourcesTab : EditorTab
     {
         private const float RowH = 32;
-        private const float DetailH = 92;
+        private const float DetailH = 150;              // 표에 설명 열이 없어 설명은 이 칸에서 본다. 넘치면 칸 안에서 스크롤한다
         private const float TopH = 92;                  // 1줄 영석, 2줄 지급 수량과 가방 칸
         private const float LeftW = 170;                // 그룹 목록
         private const float RightX = 180;
         private const float RightW = ContentW - RightX; // 1124
         private const float ChipH = 34, ChipGap = 6;
         private const int ChipRowsShown = 3;
-        // 표의 열(목록 안의 x). 지급 열은 목록 안쪽 폭(RightW - 스크롤 막대)의 오른쪽 끝에 붙인다.
-        private const float ColStar = 4, ColName = 50, ColKind = 256, ColLevel = 372, ColOwned = 420, ColDesc = 486;
-        private const float NameW = 200, KindW = 110, GiveW = 116, AmountW = 90;
+        // 표의 열(목록 안의 x). 설명은 표에 두지 않는다(줄이 높아져 한 화면에 몇 줄 안 보였다. 사용자 지시 2026-10-15).
+        // 지급 열은 목록 안쪽 폭(RightW - 스크롤 막대)의 오른쪽 끝에 붙인다.
+        private const float ColStar = 4, ColName = 50, ColKind = 436, ColLevel = 602, ColOwned = 652;
+        private const float NameW = 380, KindW = 160, GiveW = 116, AmountW = 90;
         private const float ColGive = RightW - Ui.ScrollBarWidth - GiveW - 4;   // 990
         private const float ColAmount = ColGive - AmountW - 6;                  // 894
-        private const float DescW = ColGive - ColDesc - 8;                      // 496
-        private const float FavDescW = ColAmount - ColDesc - 8;                 // 400
 
         // 검색어가 바뀌면 탭을 다시 그리지 않고(검색 칸의 포커스를 지킨다) 이 글들만 고친다.
         private sealed class CountLabel
@@ -39,7 +38,7 @@ namespace MOD_sWP6UL
         }
 
         private readonly ListView<ItemCatalog.Entry> list = new ListView<ItemCatalog.Entry>("ItemTable", RowH);
-        private readonly DetailPane detail = new DetailPane("ItemDetail", "아이템명을 누르면 여기에 전체 설명이 나옵니다.");
+        private readonly DetailPane detail = new DetailPane("ItemDetail", "줄을 누르면 여기에 전체 설명이 나옵니다.");
         private readonly ItemCatalog.Filter filter = new ItemCatalog.Filter();
         private readonly List<CountLabel> labels = new List<CountLabel>();
         private string groupKey = ItemGroups.AllKey;
@@ -49,6 +48,12 @@ namespace MOD_sWP6UL
         public override string Title
         {
             get { return "자원"; }
+        }
+
+        public ResourcesTab()
+        {
+            // 줄의 빈 곳을 눌러도 아래 칸에 설명이 나온다(아이템명 버튼과 같다).
+            list.OnSelect = entry => detail.Show(Detail(entry));
         }
 
         private bool IsFav
@@ -168,9 +173,7 @@ namespace MOD_sWP6UL
             DrawHead(y);
             y += 32;
             list.EmptyText = IsFav ? "즐겨찾기가 비어 있습니다. 표의 ☆를 눌러 넣습니다." : "조건에 맞는 아이템이 없습니다.";
-            float descW = IsFav ? FavDescW : DescW;
-            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Desc, descW, 15), Ui.TextHeight(entry.Name, NameW, 19),
-                Ui.TextHeight(entry.Kind == null ? "-" : entry.Kind.Name, KindW, 16));
+            list.HeightOf = entry => RowFor(RowH, Ui.TextHeight(entry.Name, NameW, 19), Ui.TextHeight(entry.Kind == null ? "-" : entry.Kind.Name, KindW, 16));
             list.Build(content, RightX, y, RightW, ContentH - DetailH - 8 - y, Rows(owned), DrawRow);
             detail.Build(content, 0, ContentH - DetailH, ContentW, DetailH);
         }
@@ -321,7 +324,6 @@ namespace MOD_sWP6UL
             Ui.Label(content, "종류", RightX + ColKind, y, KindW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "품질", RightX + ColLevel, y, 44, 30, 16).color = Ui.Dim;
             Ui.Label(content, "보유", RightX + ColOwned, y, 60, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "설명", RightX + ColDesc, y, IsFav ? FavDescW : DescW, 30, 16).color = Ui.Dim;
             if (IsFav)
             {
                 Ui.Label(content, "수량", RightX + ColAmount, y, AmountW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
@@ -371,9 +373,6 @@ namespace MOD_sWP6UL
             Ui.Wrapped(row, entry.Kind == null ? "-" : entry.Kind.Name, ColKind, 0, KindW, h, 16);
             Ui.Label(row, entry.Missing ? "-" : entry.Level.ToString(), ColLevel, 0, 44, h, 16);
             Ui.Label(row, entry.Missing ? "-" : Player.data.unitData.propData.GetPropsNum(id).ToString(), ColOwned, 0, 60, h, 16);
-            Text desc = Ui.Wrapped(row, entry.Desc, ColDesc, 0, IsFav ? FavDescW : DescW, h, 15);
-            desc.color = Ui.Dim;
-            desc.gameObject.name = "ItemDesc" + id;
             if (IsFav)
             {
                 int saved = FavoriteStore.AmountOf(id);
