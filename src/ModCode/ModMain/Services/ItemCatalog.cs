@@ -23,13 +23,6 @@ namespace MOD_sWP6UL
             public bool Missing;    // 즐겨찾기에 있지만 게임에 없는 번호(자원 탭이 만드는 자리표시)
         }
 
-        public class Category
-        {
-            public int Id;
-            public string Name;
-            public int Count;
-        }
-
         // 자원 탭의 거르기. Group은 그룹 키(ItemGroups.AllKey면 전체), Kind가 null이면 그룹 전체.
         public sealed class Filter
         {
@@ -63,7 +56,6 @@ namespace MOD_sWP6UL
 
         private static List<Entry> all;
         private static List<Entry> currencies;
-        private static List<Category> mainCategories;
         private static Dictionary<int, Entry> byId;
 
         internal static string CategoryName(int id)
@@ -83,7 +75,6 @@ namespace MOD_sWP6UL
             all = new List<Entry>();
             currencies = new List<Entry>();
             byId = new Dictionary<int, Entry>();
-            var counts = new Dictionary<int, int>();
             var items = g.conf.itemProps._allConfList;
             for (int i = 0; i < items.Count; i++)
             {
@@ -135,9 +126,6 @@ namespace MOD_sWP6UL
                 entry.Kind = kind;
                 all.Add(entry);
                 byId[entry.Id] = entry;
-                int count;
-                counts.TryGetValue(item.type, out count);
-                counts[item.type] = count + 1;
             }
             ItemGroups.SortOther();
             // 그룹 순서, 그룹 안의 종류 순서, 게임 표 순서. List.Sort는 같은 값의 순서를 지키지 않으므로 표의 순번까지 비교한다.
@@ -150,12 +138,6 @@ namespace MOD_sWP6UL
                 }
                 return c != 0 ? c : a.TableIndex.CompareTo(b.TableIndex);
             });
-            mainCategories = new List<Category>();
-            foreach (var pair in counts)
-            {
-                mainCategories.Add(new Category { Id = pair.Key, Name = CategoryName(pair.Key), Count = pair.Value });
-            }
-            mainCategories.Sort((a, b) => a.Id.CompareTo(b.Id));
         }
 
         private static List<Entry> All
@@ -181,57 +163,6 @@ namespace MOD_sWP6UL
                 }
                 return currencies;
             }
-        }
-
-        // 지금의 자원 탭이 쓴다. Task 3(자원 탭 개편)에서 지운다.
-        public static List<Category> MainCategories
-        {
-            get
-            {
-                if (mainCategories == null)
-                {
-                    Build();
-                }
-                return mainCategories;
-            }
-        }
-
-        // 대분류 안의 세부 분류 목록(아이템이 있는 것만). 지금의 자원 탭이 쓴다. Task 3에서 지운다.
-        public static List<Category> SubCategories(int mainType)
-        {
-            var counts = new Dictionary<int, Category>();
-            foreach (Entry entry in All)
-            {
-                if (entry.Type != mainType)
-                {
-                    continue;
-                }
-                Category category;
-                if (!counts.TryGetValue(entry.SubType, out category))
-                {
-                    category = new Category { Id = entry.SubType, Name = entry.SubTypeName };
-                    counts[entry.SubType] = category;
-                }
-                category.Count++;
-            }
-            var result = new List<Category>(counts.Values);
-            result.Sort((a, b) => a.Id.CompareTo(b.Id));
-            // 게임의 분류표에는 이름이 같은 세부 분류가 여럿 있다. 번호를 붙여 구분한다.
-            var seen = new Dictionary<string, int>();
-            foreach (Category category in result)
-            {
-                int n;
-                seen.TryGetValue(category.Name, out n);
-                seen[category.Name] = n + 1;
-            }
-            foreach (Category category in result)
-            {
-                if (seen[category.Name] > 1)
-                {
-                    category.Name += "#" + category.Id;
-                }
-            }
-            return result;
         }
 
         // 조건에 맞는 아이템을 게임 표 순서로. query는 이름의 일부 또는 번호. mainType과 subType은 음수면 전체.

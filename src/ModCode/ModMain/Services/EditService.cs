@@ -129,28 +129,40 @@ namespace MOD_sWP6UL
 
         public static string GiveItem(WorldUnitBase unit, int propsId, int count)
         {
+            string text;
+            TryGiveItem(unit, propsId, count, out text);
+            return text;
+        }
+
+        // 지급하고 보유 수가 수량만큼 늘었는지 돌려준다(즐겨찾기 모두 지급의 성공 판정). 문장은 GiveItem과 같다.
+        public static bool TryGiveItem(WorldUnitBase unit, int propsId, int count, out string text)
+        {
             string name = ItemName(propsId);
             if (name == null)
             {
-                return "아이템 " + propsId + ": 게임에 없는 아이템 ID라 지급하지 않았습니다.";
+                text = "아이템 " + propsId + ": 게임에 없는 아이템 ID라 지급하지 않았습니다.";
+                return false;
             }
             if (count <= 0)
             {
-                return "아이템: 수량은 1 이상이어야 합니다.";
+                text = "아이템: 수량은 1 이상이어야 합니다.";
+                return false;
             }
             var props = unit.data.unitData.propData;
             int before = props.GetPropsNum(propsId);
             string backupError = SaveBackup.EnsureOnce();
             if (backupError != null)
             {
-                return backupError + " 변경을 중단했습니다.";
+                text = backupError + " 변경을 중단했습니다.";
+                return false;
             }
             unit.data.RewardPropItem(propsId, count, false);
             int after = props.GetPropsNum(propsId);
-            ChangeLog.Add(NameOf(unit), "아이템 " + name + "(" + propsId + ")", before.ToString(), after.ToString(), after == before + count);
-            return after == before + count
-                ? name + ": " + before + "개 -> " + after + "개"
+            bool ok = after == before + count;
+            ChangeLog.Add(NameOf(unit), "아이템 " + name + "(" + propsId + ")", before.ToString(), after.ToString(), ok);
+            text = ok ? name + ": " + before + "개 -> " + after + "개"
                 : name + ": 지급을 요청했지만 수량이 " + before + " -> " + after + "입니다(가방 공간을 확인하세요).";
+            return ok;
         }
 
         // 현재 경지에 들어오기 위한 "난관 봉착" 기운이 남아 있으면 지운다.
