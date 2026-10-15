@@ -51,6 +51,21 @@ function DragWindowTo([int]$x, [int]$y) {
 }
 
 switch ($Part) {
+  'groups' {
+    # 자원 탭 개편 스펙 7절: 용도 그룹의 분류 표. 화면 쪽 확인은 Task 3에서 이 부분의 끝에 더한다.
+    $traps = Traps
+    $g = Cmd 'rgroups' 600
+    $total = if ($g -match 'total=(\d+) ') { [int]$Matches[1] } else { -1 }
+    $sum = if ($g -match ' sum=(\d+) ') { [int]$Matches[1] } else { -2 }
+    $pill = if ($g -match ' Pill=(\d+)') { [int]$Matches[1] } else { -1 }
+    $cloth = if ($g -match ' Cloth=(\d+)') { [int]$Matches[1] } else { -1 }
+    Check 'every item lands in a named group (no Other in the plain game)' ($g -match ' other=0 ') $g
+    Check 'the table has no duplicate class numbers' ($g -match ' dupes=0 ') $g
+    Check 'the groups add up to the whole list' ($total -gt 3000 -and $sum -eq $total) $g
+    Check 'pills are the biggest group' ($pill -gt 1000) $g
+    Check 'clothes are their own group' ($cloth -gt 200) $g
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
