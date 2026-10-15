@@ -133,6 +133,17 @@ switch ($Part) {
     $mine = @([regex]::Matches((Cmd 'rbooks 23116' 300), '(?:items=|,)([^:,]+):23116:') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -ne 'kEWxCN' })
     $study = if ($mine.Count -gt 0) { Cmd "rbookstudy $($mine[0])" 300 } else { '' }
     Check 'the game study accepts a made book' ($study -match 'can=0') "$($mine -join ',') | $study"
+    # 검토에서 나온 것: 입문 무예·영술(경지 1 전용. 분류 전체의 묶음에서 나오지 않고 그 기술만의 묶음에서 나온다, 05 문서 24절)은
+    # 그 묶음에서 품질 1로만 나온다(회차 book-1015l에서 2만 번). 품질 1은 여러 권 되고, 품질 2 이상은 이유와 함께 멈춘다
+    $own = Cmd 'rownskills 0 1' 300
+    $ownId = (Field $own 'ids').Split(',')[0]
+    Check 'there is an entry skill with its own combine' ($ownId -match '^\d+$') $own
+    $o = Cmd "rbook 0 $ownId 1 1 3" 6000
+    $ownBooks = Cmd "rbooks $ownId" 300
+    Check 'an entry skill gives three books of quality 1' ($o -match 'made=3 ' -and [regex]::Matches($ownBooks, ":$($ownId):1:1:").Count -ge 3) "$o | $ownBooks"
+    $count = [int](Field $ownBooks 'count')
+    $o = Cmd "rbook 0 $ownId 1 2 1" 20000
+    Check 'an entry skill above quality 1 stops with the reason' ($o -match 'made=0 ' -and $o -match '품질 2 이상이 나오지 않았습니다' -and [int](Field (Cmd "rbooks $ownId" 300) 'count') -eq $count) $o
     # Review Focus 2: 가방이 찬 채로 청하면 멈추고 넣은 권수만 늘어난다
     Cmd 'gridfill 600 5' 6000 | Out-Null
     Check 'the bag is full' ((Cmd 'gridfill 1 5' 1500) -match 'given=0 ')
@@ -222,6 +233,23 @@ switch ($Part) {
     Check 'its give button is off' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: FavBookGive99999_3_6')
     Press 'FavBookStar99999_3_6' | Out-Null
     Check 'and it can be removed' ((Cmd 'rfav' 200) -notmatch '99999') (Cmd 'rfav' 200)
+    Press 'ResClear' | Out-Null
+    # 검토에서 나온 것: 경지를 고르지 않았으면 지금 경지를 따라간다(돌파하거나 다른 세이브를 불러도). 고른 경지는 남는다
+    function ManualDetail { Press 'ResGroupManual' | Out-Null; $r = Pos 'Row0'; Rc "click $($r.x) $($r.y)" 600 | Out-Null; Cmd 'uitext ItemDetail' }
+    $gid = if ((Cmd 'stats' 300) -match 'gradeID=(\d+)') { [int]$Matches[1] } else { 0 }
+    $d3 = ManualDetail
+    # 경지 번호는 대경지마다 칸 수가 달라, 대경지가 오를 때까지 하나씩 올린다
+    $raised = 0
+    for ($id = $gid + 1; $id -le $gid + 8 -and $raised -le 3; $id++) {
+      $up = Cmd "setgrade $id" 300
+      $raised = if ($up -match '\(grade=(\d+) ') { [int]$Matches[1] } else { 0 }
+    }
+    $d4 = ManualDetail
+    Press 'ResGrade5' | Out-Null
+    Cmd "setgrade $gid" 300 | Out-Null
+    $d5 = ManualDetail
+    Check 'an unchosen grade follows the current grade' ($gid -gt 0 -and $d3 -match '지급하면: 경지 3,' -and $raised -gt 3 -and $d4 -match "지급하면: 경지 $raised,") "gid=$gid | $d3 | $up | $d4"
+    Check 'a chosen grade stays when the current grade changes' ($d5 -match '지급하면: 경지 5,') $d5
     Press 'ResClear' | Out-Null
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)

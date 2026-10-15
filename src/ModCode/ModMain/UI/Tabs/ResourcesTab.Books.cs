@@ -11,21 +11,15 @@ namespace MOD_sWP6UL
         private const string ManualKey = "Manual";
 
         private int bookKind = -1;          // -1이면 다섯 분류 전부, 아니면 SkillCatalog.Kinds의 순번
-        private int bookGrade;              // 0이면 플레이어의 지금 대경지로 정한다
+        private int bookGrade;              // 고른 경지. 0이면 고르지 않았다: 플레이어의 지금 대경지를 따른다
+        private int playerGrade = 1;        // 플레이어의 지금 대경지(그릴 때마다 읽는다. 돌파하거나 다른 세이브를 불러도 따라간다)
         private int bookMinLevel = 1;
         private bool bookFit = true;        // 고른 경지로 만들 수 있는 기술만
         private readonly Dictionary<int, int> learned = new Dictionary<int, int>();   // 기술 번호 → 배운 수(기술 서적 그룹을 그릴 때 센다)
 
         private int BookGrade
         {
-            get
-            {
-                if (bookGrade <= 0)
-                {
-                    bookGrade = Math.Max(1, FateService.CurrentGrade(Player));
-                }
-                return bookGrade;
-            }
+            get { return bookGrade > 0 ? bookGrade : playerGrade; }
         }
 
         private void ClearBookFilters()
@@ -38,6 +32,7 @@ namespace MOD_sWP6UL
 
         private void PrepareBooks(WorldUnitBase unit)
         {
+            playerGrade = Math.Max(1, FateService.CurrentGrade(unit));
             learned.Clear();
             if (groupKey != ManualKey)
             {

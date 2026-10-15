@@ -167,7 +167,7 @@ namespace MOD_sWP6UL
         private static Dictionary<int, int> ownCombines;
 
         // 무예·영술·절기·신통 가운데 "이 기술 하나만" 나오는 묶음의 번호. 없으면 0.
-        private static int OwnCombine(Kind kind, int baseId)
+        internal static int OwnCombine(Kind kind, int baseId)
         {
             if (kind.Type == MartialType.Step || kind.Type == MartialType.Ability)
             {
@@ -192,6 +192,8 @@ namespace MOD_sWP6UL
 
         // 그 기술이 나오고 accept를 통과하는 뽑기 값. 그 기술 하나만 나오는 묶음이 있으면(입문 무예·영술 등) 먼저 쓰고,
         // 그다음 분류 전체의 묶음에서 maxTries번까지 다시 뽑는다. 없으면 null. 기술 추가(accept null)와 비급 지급이 함께 쓴다.
+        // 그 기술만의 묶음은 한 번만 뽑는다. 분류 전체의 묶음에서 나오지 않는 입문 무예·영술(경지 1 전용, 05 문서 24절)은
+        // 그 묶음에서 품질 1로만 나온다(2만 번 다시 뽑아도 품질 2 이상 0번, 회차 book-1015l). 다시 뽑아도 소용없어 한 번으로 둔다.
         internal static Il2CppStructArray<int> RollValues(Kind kind, int baseId, int grade, int maxTries, Func<DataProps.MartialData, bool> accept)
         {
             int own = OwnCombine(kind, baseId);
