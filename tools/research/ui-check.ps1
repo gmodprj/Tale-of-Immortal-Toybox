@@ -851,36 +851,33 @@ switch ($Part) {
     $hist = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Select-Object -Last 3) -join "`n"
     Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + 10)") $hist
 
-    # 자원 탭: 보이는 줄마다 설명이 전부 들어 있고, 긴 설명의 줄은 더 높고, 줄이 서로 겹치지 않는다
+    # 자원 탭(38절의 덧붙임, 사용자 지시 2026-10-15): 표에는 설명 열이 없고 줄은 한 줄 높이로 쌓인다.
+    # 설명은 줄을 누르면 아래 칸에 나오고, 긴 설명도 잘리지 않는다(칸 안에서 스크롤)
     Press 'Tab1' | Out-Null; Press 'ResGroupAll' | Out-Null; Press 'ResClear' | Out-Null
     $o = Cmd 'uitext ItemTableRange'
     $shown = if ($o -match '중 1~(\d+)번째') { [int]$Matches[1] } else { 0 }
     Check 'the item list shows rows' ($shown -ge 3) $o
-    $cut = 0; $tall = 0; $gaps = 0; $longest = 0; $prev = $null
+    $tall = 0; $gaps = 0; $prev = $null
     for ($i = 0; $i -lt $shown; $i++) {
       $row = Box "Row$i"
       if ($prev -and [math]::Abs($row.top - ($prev.top + $prev.h)) -gt 1) { $gaps++ }
       if ($row.h -gt 34) { $tall++ }
       $prev = $row
     }
-    # 명령의 출력은 "uidescs ItemDesc -> "로 시작한다. 그 머리를 떼어야 첫 줄이 빠지지 않는다
-    $descs = @(((Cmd 'uidescs ItemDesc' 300) -replace '^[^\n]*?-> ', '') -split "`n" | Where-Object { $_ -match '^ItemDesc\d+ ' })
-    foreach ($line in $descs) { if ($line -match '…') { $cut++ }; if ($line.Length -gt $longest) { $longest = $line.Length } }
-    Check 'item descriptions are whole' ($descs.Count -ge 3 -and $cut -eq 0 -and $longest -gt 40) "rows=$($descs.Count) cut=$cut longest=$longest"
-    Check 'rows with long text are taller' ($tall -ge 1) "tall=$tall of $shown"
-    # 31절: 설명 열을 넓혀 한 화면에 더 많은 줄이 보이고, 높아진 줄의 버튼은 줄의 세로 가운데에 온다
-    $firstDesc = if ($descs[0] -match '^(ItemDesc\d+) ') { $Matches[1] } else { '' }
-    Check 'the description column is wide' ((Cmd "uipos $firstDesc" 100) -match 'size=496,') (Cmd "uipos $firstDesc" 100)
-    # 자원 탭 개편(38절): 설명 열 496, 실측 10줄
-    Check 'ten rows fit on a screen' ($shown -ge 10) "shown=$shown"
-    $off = 99
-    for ($i = 0; $i -lt $shown; $i++) {
-      $row = Box "Row$i"
-      if ($row.h -gt 34 -and $descs[$i] -match '^ItemDesc(\d+) ') { $give = Pos "ItemGive$($Matches[1])"; $off = [math]::Abs($give.y - ($row.top + $row.h / 2)); break }
-    }
-    Check 'the button of a tall row sits in the middle' ($off -le 2) "off=$off"
+    Check 'the list has no description column' ((Cmd 'uidescs ItemDesc' 300) -match 'no element starting with ItemDesc') (Cmd 'uidescs ItemDesc' 300)
+    Check 'rows are one line high' ($tall -eq 0) "tall=$tall of $shown"
+    Check 'twelve rows fit on a screen' ($shown -ge 12) "shown=$shown"
     Check 'rows sit one under another' ($gaps -eq 0) "gaps=$gaps"
     Check 'the last shown row is inside the list' ((Box "Row$($shown - 1)") -and (IsAt (Pos 'ItemGive*').name))
+    $r = Pos 'Row2'
+    $clicked = Rc "click $($r.x) $($r.y)" 600
+    Check 'pressing a row shows its text below' ($clicked -match 'Button\.onClick: Row2\s*$' -and (Cmd 'uitext ItemDetail') -match "ItemDetail text='\[\d+\]") "$clicked | $(Cmd 'uitext ItemDetail')"
+    Cmd 'ui set ItemQuery 5081075' | Out-Null
+    Press 'ItemName5081075' | Out-Null
+    $fit = Cmd 'uifit ItemDetail' 200
+    Check 'a long text is not cut in the box below' ($fit -match 'texts=[1-9]\d* overflow=0') $fit
+    Shot 'wrap-detail'
+    Press 'ItemQueryClear' | Out-Null
 
     # 이동: 다음은 다 보이지 않던 첫 줄에서 시작하고, 끝은 마지막 줄까지 간다
     $total = if ($o -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }

@@ -11,6 +11,7 @@ namespace MOD_sWP6UL
     // 개발 전용. 편집기 화면의 검증 명령. tools/research/check-lib.ps1이 이 명령들의 출력 모양에 의존한다.
     //   uipos <이름>   : 편집기 안에서 그 이름의 요소를 찾아 가운데의 게임 좌표를 돌려준다. 이름 끝의 *는 "이 글자로 시작"이다
     //   uitext <이름>  : 그 요소의 글(입력 칸이면 입력된 글, 아니면 그 아래 첫 Text)
+    //   uifit <이름>   : 그 요소 안의 글 가운데 자기 칸보다 높아 잘리는 것의 수(texts=<수> overflow=<수>)
     //   uifocus <이름> : 그 이름의 입력 칸을 고르고 입력 상태로 만든다
     //   uidrag x1 y1 x2 y2 [steps] : 끌기 이벤트를 보낸다(실제 마우스가 만드는 것과 같은 이벤트 경로)
     //   uicanvas / uilist / uiopen <화면> / uiclose <화면> : 게임 화면의 정렬 값을 읽고, 화면을 열고 닫는다
@@ -29,6 +30,8 @@ namespace MOD_sWP6UL
                     return TextOf(p[1]);
                 case "uidescs":
                     return TextsOf(p[1]);
+                case "uifit":
+                    return Fit(p[1]);
                 case "uifocus":
                     return Focus(p[1]);
                 case "uidrag":
@@ -140,6 +143,26 @@ namespace MOD_sWP6UL
             }
             Text text = found.GetComponentInChildren<Text>();
             return found.name + " text='" + (text == null ? "" : text.text) + "'";
+        }
+
+        // 그 이름의 요소 안의 글 가운데 자기 칸보다 높아 잘리는 것의 수(칸이 모자라 끝줄이 그려지지 않는 글).
+        private static string Fit(string name)
+        {
+            Transform found = Find(name);
+            if (found == null)
+            {
+                return "no element named " + name;
+            }
+            int texts = 0, over = 0;
+            foreach (Text text in found.GetComponentsInChildren<Text>(false))
+            {
+                texts++;
+                if (text.preferredHeight > text.rectTransform.rect.height + 1f)
+                {
+                    over++;
+                }
+            }
+            return "texts=" + texts + " overflow=" + over;
         }
 
         // 이름이 그 글자로 시작하는 요소들의 글을 한 줄에 하나씩. 목록의 줄마다 있는 글(설명 등)을 한 번에 본다.
