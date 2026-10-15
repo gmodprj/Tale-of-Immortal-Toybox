@@ -4,7 +4,7 @@ param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 # 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'ImmortalAddOpen', 'ArtifactPoint', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'PresetRestore', 'BackupNow')
+$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'ImmortalAddOpen', 'ArtifactPoint', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'PresetRestore', 'BackupNow', 'AplClassAll')
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -251,6 +251,174 @@ switch ($Part) {
     Check 'an unchosen grade follows the current grade' ($gid -gt 0 -and $d3 -match '지급하면: 경지 3,' -and $raised -gt 3 -and $d4 -match "지급하면: 경지 $raised,") "gid=$gid | $d3 | $up | $d4"
     Check 'a chosen grade stays when the current grade changes' ($d5 -match '지급하면: 경지 5,') $d5
     Press 'ResClear' | Out-Null
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'appellation' {
+    # 도호 관리 스펙 5절: 서비스. 고정본 인물은 결정(대경지 3)이고 영단도인(2001)을 장착했다. 끝에서 저장한다(appellation-restart가 본다).
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "(?:^|\s)$key=([^\s|]*)") { $Matches[1] } else { '' } }
+    function St { Cmd 'ttl' 300 }
+    function Owns([string]$s, [int]$id) { ",$(Field $s 'owned')," -match ",$id," }
+    function TitleLines([string]$pattern) { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match $pattern }).Count }
+    $s = St
+    $me = Field $s 'me'
+    Check 'the fixture has 2001 equipped' ((Field $s 'equipped') -eq '2001') $s
+    $talent = [int](Field $s 'talent')
+    $silenced = [int](Field $s 'silenced')
+    # 주기: 장착은 그대로, 획득 창은 편집기가 확인을 눌러 닫는다
+    $logged = TitleLines '도호 풍류도인\(1502\)'
+    $o = Cmd 'ttlgive 1502' 1500
+    Start-Sleep -Seconds 3
+    $s = St
+    Check 'giving adds the title and keeps the equipped one' ($o -match 'ok=True' -and (Owns $s 1502) -and (Field $s 'equipped') -eq '2001') "$o | $s"
+    Check 'the editor closes its own title popup' ((Field $s 'popup') -eq 'False' -and [int](Field $s 'silenced') -gt $silenced) $s
+    Check 'the change log has the gift' ((TitleLines '도호 풍류도인\(1502\)') -eq $logged + 1)
+    # Review Focus 1: 이미 가진 도호
+    $o = Cmd 'ttlgive 1502' 600
+    Check 'giving a title already held is refused' ($o -match 'ok=False' -and $o -match '이미 가졌습니다') $o
+    # Review Focus 4: 게임 표에 없는 번호
+    $o = Cmd 'ttlgive 999999' 600
+    Check 'a number the game does not have is refused' ($o -match 'ok=False' -and $o -match '게임에 없는 번호') $o
+    # '제일' 도호. Review Focus 2: 두 NPC가 함께 가졌으면 둘 다에게서 뺀다
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'an NPC holds 1404 in the fixture' ((Field $h 'holders') -eq '1' -and $h -notmatch "\($me\)") $h
+    $o = Cmd 'ttlnpcgive any 1404' 600
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'two NPCs hold 1404 before the gift' ($o -match 'ok=True' -and (Field $h 'holders') -eq '2') "$o | $h"
+    $logged = TitleLines '도호 팔황 제일권수\(1404\)'
+    $o = Cmd 'ttlgive 1404' 1500
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'a first title moves from every NPC holder' ($o -match 'ok=True' -and $o -match '에게서 옮김' -and (Field $h 'holders') -eq '1' -and $h -match "\($me\)") "$o | $h"
+    Check 'the change log has the gift and both removals' ((TitleLines '도호 팔황 제일권수\(1404\)') -eq $logged + 3)
+    # 경지 밖: 결정경 인물에게 영녕 제일도수(결정경에 이르면 잃는다)
+    $o = Cmd 'ttlgive 1001' 1500
+    Check 'a title lost at this grade is given with a notice' ($o -match 'ok=True' -and $o -match '다음 돌파 때 잃습니다') $o
+    # 장착·해제
+    $o = Cmd 'ttlequip 1502' 600
+    Check 'equip switches the title' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '1502') $o
+    $o = Cmd 'ttlunequip' 600
+    Check 'unequip leaves none' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '0') $o
+    $o = Cmd 'ttlunequip' 600
+    Check 'unequip with none is refused' ($o -match 'ok=False' -and $o -match '장착한 도호가 없습니다') $o
+    # Review Focus 3: 장착한 것이 없을 때 주면 게임이 장착하고 효과가 든다(어계천존 talent_1_40)
+    $o = Cmd 'ttlgive 2111' 1500
+    $s = St
+    Check 'a gift with nothing equipped is equipped and says so' ($o -match '장착됨' -and (Field $s 'equipped') -eq '2111') "$o | $s"
+    Check 'the equipped effect applies (talent +40)' ([int](Field $s 'talent') -eq $talent + 40) "before=$talent | $s"
+    # 장착한 것을 빼면 장착이 빈다
+    $o = Cmd 'ttldel 2111' 600
+    $s = St
+    Check 'removing the equipped title empties the slot' ($o -match 'ok=True' -and $o -match '장착이 비었습니다' -and -not (Owns $s 2111) -and (Field $s 'equipped') -eq '0') "$o | $s"
+    Check 'the effect goes with it' ([int](Field $s 'talent') -eq $talent) $s
+    $o = Cmd 'ttldel 1601' 600
+    Check 'removing a title not held is refused' ($o -match 'ok=False' -and $o -match '갖고 있지 않습니다') $o
+    $o = Cmd 'ttlequip 1601' 600
+    Check 'equipping a title not held is refused' ($o -match 'ok=False' -and $o -match '갖고 있지 않습니다') $o
+    $o = Cmd 'ttlgive 2601' 1500
+    Check 'a story title is given with its notice' ($o -match 'ok=True' -and $o -match '이야기와 묶인 효과라 확인하지 못했습니다') $o
+    $o = Cmd 'ttlequip 2001' 600
+    Check 'equip back to 2001' ($o -match 'ok=True' -and (Field (St) 'equipped') -eq '2001') $o
+    Start-Sleep -Seconds 3
+    Check 'no title popup is left open' ((Field (St) 'popup') -eq 'False') (St)
+    Check 'save is called' ((Cmd 'save' 4000) -match 'SaveData called')
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'appellation-restart' {
+    # 도호 관리 스펙 5절: appellation 부분이 저장한 뒤 -Restart 하고 돌린다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "(?:^|\s)$key=([^\s|]*)") { $Matches[1] } else { '' } }
+    $s = Cmd 'ttl' 300
+    $me = Field $s 'me'
+    $owned = ",$(Field $s 'owned'),"
+    Check 'the given titles are still held' ($owned -match ',1001,' -and $owned -match ',1404,' -and $owned -match ',1502,' -and $owned -match ',2001,' -and $owned -notmatch ',2111,') $s
+    Check 'the equipped title is still 2001' ((Field $s 'equipped') -eq '2001') $s
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'the moved first title has one holder' ((Field $h 'holders') -eq '1' -and $h -match "\($me\)") $h
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'appellation-ui' {
+    # 도호 관리 스펙 5절: 화면. 고정본 인물은 결정(대경지 3)이고 영단도인(2001)을 장착했다. 관산이 팔황 제일권수(1404)를 가졌다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "(?:^|\s)$key=([^\s|]*)") { $Matches[1] } else { '' } }
+    function Num([string]$name) { if ((Cmd "uitext $name") -match "text='[^']*?(\d+)'") { [int]$Matches[1] } else { -1 } }
+    function Shown { $t = Cmd 'uitext AplTableRange'; if ($t -match '전체 (\d+)개') { [int]$Matches[1] } elseif ($t -match "text='0개'") { 0 } else { -1 } }
+    function Owns([int]$id) { ",$(Field (Cmd 'ttl' 300) 'owned')," -match ",$id," }
+    # 도호를 받으면 근처 NPC가 그 도호로 말을 거는 대화가 편집기 위에 뜰 수 있다(게임의 동작, 스펙 3.2). 떠 있으면 넘긴다.
+    function SkipDialogue { for ($i = 0; $i -lt 8 -and (Cmd 'uilist' 200) -match 'DramaDialogue'; $i++) { Rc 'click 958 552' 1000 | Out-Null } }
+    # 도호를 빼면 게임의 "도호 상실" 창(GetReward)이 편집기 위에 뜬다(게임의 동작). 떠 있으면 확인을 누른다.
+    function SkipReward { for ($i = 0; $i -lt 4 -and (Cmd 'uilist' 200) -match 'GetReward'; $i++) { Rc 'click 959 662' 1000 | Out-Null } }
+    $me = Field (Cmd 'ttl' 300) 'me'
+    Cmd 'editor' | Out-Null; Press 'Tab15' | Out-Null
+    Check 'the top line shows the equipped title and its effect' ((Cmd 'uitext AplEquipped') -match '영단도인 — .+') (Cmd 'uitext AplEquipped')
+    Check 'All counts 100' ((Num 'AplClassAll') -eq 100) (Cmd 'uitext AplClassAll')
+    $sum = 0
+    foreach ($k in 'First', 'Romance', 'Champion', 'Spender', 'Dress', 'Free', 'Alchemy', 'Forge', 'Supreme', 'Ending', 'Other') { $n = Num "AplClass$k"; if ($n -gt 0) { $sum += $n } }
+    Check 'the class chips add up to 100' ($sum -eq 100) "sum=$sum"
+    Check 'First has 60 and Owned has 1' ((Num 'AplClassFirst') -eq 60 -and (Num 'AplClassOwned') -eq 1)
+    Check 'the table lists all 100' ((Shown) -eq 100) (Cmd 'uitext AplTableRange')
+    # 검색과 가진 것만. Review Focus 5: 번호로 찾기
+    Cmd 'ui set AplQuery 권수' | Out-Null
+    $n = Shown
+    Check 'searching narrows the table' ($n -gt 0 -and $n -lt 100) "shown=$n"
+    Cmd 'ui set AplQuery 1404' | Out-Null
+    Check 'a number finds that title' ((Shown) -eq 1 -and (Cmd 'uipos AplName1404') -match ' at ') (Cmd 'uitext AplTableRange')
+    Press 'AplQueryClear' | Out-Null
+    Press 'AplOwnedOnly' | Out-Null
+    Check 'owned only shows the held title as equipped' ((Shown) -eq 1 -and (Cmd 'uitext AplState2001') -match "text='★'") (Cmd 'uitext AplTableRange')
+    Press 'AplClear' | Out-Null
+    Check 'clear restores the full table' ((Shown) -eq 100)
+    # 잃는 경지 경고
+    Cmd 'ui set AplQuery 1001' | Out-Null
+    Check 'a title lost at this grade warns' ((Cmd 'uitext AplLoss1001') -match '다음 돌파') (Cmd 'uitext AplLoss1001')
+    # '제일' 도호 가져오기: 두 번 눌러야 옮긴다
+    $h = Cmd 'ttlholders 1404' 300
+    $holder = if ($h -match 'names=([^(]+)\(') { $Matches[1] } else { '?' }
+    Cmd 'ui set AplQuery 1404' | Out-Null
+    Check 'the holder column and the give button name the holder' ((Cmd 'uitext AplHolder1404') -match $holder -and (Cmd 'uitext AplGive1404') -match "$($holder)에게서 가져오기") "$(Cmd 'uitext AplHolder1404') | $(Cmd 'uitext AplGive1404')"
+    # 검토에서 나온 것: 이름을 먼저 눌러 둔 채 가져오면 아래 칸의 보유자도 바뀐다
+    Press 'AplName1404' | Out-Null
+    Check 'the detail first shows the NPC holder' ((Cmd 'uitext AplDetail') -match "보유자: $holder") (Cmd 'uitext AplDetail')
+    $silenced = [int](Field (Cmd 'ttl' 300) 'silenced')
+    Press 'AplGive1404' | Out-Null
+    Check 'one press does not move it' (-not (Owns 1404))
+    Press 'AplGive1404' 1500 | Out-Null
+    $h = Cmd 'ttlholders 1404' 300
+    Check 'the second press moves it to the player' ((Field $h 'holders') -eq '1' -and $h -match "\($me\)") $h
+    Check 'the result names the holder' ((Cmd 'uistate') -match '에게서 옮김') (Cmd 'uistate')
+    Check 'the detail follows the move without another press' ((Cmd 'uitext AplDetail') -match '보유자: 나') (Cmd 'uitext AplDetail')
+    Start-Sleep -Seconds 3
+    $s = Cmd 'ttl' 300
+    Check 'its popup was closed by the editor' ((Field $s 'popup') -eq 'False' -and [int](Field $s 'silenced') -gt $silenced) $s
+    SkipDialogue
+    # 아래 칸
+    Press 'AplName1404' | Out-Null
+    $d = Cmd 'uitext AplDetail'
+    Check 'the detail shows effect, how to get it and the holder' ($d -match '효과: .*권법' -and $d -match '얻는 법: ' -and $d -match '보유자: 나') $d
+    Check 'the detail has no raw text keys' ($d -notmatch '\$') $d
+    # 빼기도 두 번
+    Press 'AplRemove1404' | Out-Null
+    Check 'one press does not remove it' (Owns 1404)
+    Press 'AplRemove1404' | Out-Null
+    Check 'the second press removes it' (-not (Owns 1404))
+    Start-Sleep -Seconds 1
+    "INFO game windows after removal: $((Cmd 'uilist' 200) -replace "`n", ' |')"
+    SkipReward
+    SkipDialogue
+    # 장착 칸과 줄의 장착
+    Press 'AplClear' | Out-Null
+    Press 'AplUnequip' | Out-Null
+    Check 'unequip empties the top line' ((Cmd 'uitext AplEquipped') -match '장착한 도호가 없습니다') (Cmd 'uitext AplEquipped')
+    Cmd 'ui set AplQuery 2001' | Out-Null
+    Press 'AplEquip2001' | Out-Null
+    Check 'equip from the row' ((Cmd 'uitext AplEquipped') -match '영단도인' -and (Cmd 'uitext AplEquip2001') -match '장착 중') "$(Cmd 'uitext AplEquipped') | $(Cmd 'uitext AplEquip2001')"
+    # 이야기 도호 안내
+    Cmd 'ui set AplQuery 2601' | Out-Null
+    Press 'AplName2601' | Out-Null
+    Check 'a story title says its effect is unverified' ((Cmd 'uitext AplDetail') -match '이야기와 묶인 효과라 확인하지 못했습니다') (Cmd 'uitext AplDetail')
+    Press 'AplClear' | Out-Null
+    Shot 'appellation-ui'
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')

@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string titles = DevCommandsAppellation.Execute(p);
+            if (titles != null)
+            {
+                return titles;
+            }
             string resources = DevCommandsResources.Execute(p);
             if (resources != null)
             {
