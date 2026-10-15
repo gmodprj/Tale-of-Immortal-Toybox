@@ -100,6 +100,48 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'books' {
+    # 기술 서적(비급) 지급 스펙 5절: 서비스. 가방을 채우는 검사가 끝에 있으므로 회차의 마지막에 돌린다.
+    $traps = Traps
+    function Field([string]$text, [string]$key) { if ($text -match "$key=([^\s|]+)") { $Matches[1] } else { '' } }
+    function BookCount { [int](Field (Cmd 'rbooks 23116' 300) 'count') }
+    function BookLines { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '비급 ' }).Count }
+    $skill = Cmd 'rskill 1 23116' 300
+    Check 'the skill table has 23116' ($skill -match 'min=\d+ max=\d+') $skill
+    $min = [int](Field $skill 'min'); $max = [int](Field $skill 'max')
+    $grade = [Math]::Max($min, [Math]::Min($max, 3))
+    $before = BookCount
+    $logged = BookLines
+    $o = Cmd "rbook 1 23116 $grade 1 1" 3000
+    $after = Cmd 'rbooks 23116' 300
+    Check 'one book goes into the bag' ($o -match 'made=1 ' -and (BookCount) -eq $before + 1) "$o | $after"
+    Check 'the new book is that skill and grade' ($after -match ":23116:$($grade):[1-6]:") $after
+    $o = Cmd "rbook 1 23116 $grade 6 3" 20000
+    $books = Cmd 'rbooks 23116' 300
+    $six = @([regex]::Matches($books, ":23116:$($grade):6:([^,\s]+)") | ForEach-Object { $_.Groups[1].Value })
+    Check 'three books of quality 6' ($o -match 'made=3 ' -and $six.Count -ge 3) "$o | $books"
+    Check 'their options are not all the same' (@($six | Select-Object -Unique).Count -ge 2) ($six -join ' ')
+    $out = if ($max -lt 10) { $max + 1 } else { $min - 1 }
+    $count = BookCount
+    $o = Cmd "rbook 1 23116 $out 1 1" 1000
+    Check 'a grade outside the range is refused' ($o -match 'made=0 ' -and (BookCount) -eq $count) $o
+    # Review Focus 3: 20권을 넘겨 청하면 20권과 안내
+    $count = BookCount
+    $o = Cmd "rbook 1 23116 $grade 1 25" 20000
+    Check 'more than twenty gives twenty with a notice' ($o -match 'made=20 ' -and $o -match '20권까지' -and (BookCount) -eq $count + 20) $o
+    Check 'the change log has a line per book' ((BookLines) -eq $logged + 24) "before=$logged after=$(BookLines)"
+    $mine = @([regex]::Matches((Cmd 'rbooks 23116' 300), '(?:items=|,)([^:,]+):23116:') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -ne 'kEWxCN' })
+    $study = if ($mine.Count -gt 0) { Cmd "rbookstudy $($mine[0])" 300 } else { '' }
+    Check 'the game study accepts a made book' ($study -match 'can=0') "$($mine -join ',') | $study"
+    # Review Focus 2: 가방이 찬 채로 청하면 멈추고 넣은 권수만 늘어난다
+    Cmd 'gridfill 600 5' 6000 | Out-Null
+    Check 'the bag is full' ((Cmd 'gridfill 1 5' 1500) -match 'given=0 ')
+    $count = BookCount
+    $o = Cmd "rbook 1 23116 $grade 1 5" 6000
+    $made = [int](Field $o 'made')
+    Check 'a full bag stops with the number put in' ($o -match '가방에 들어가지 않았습니다' -and (BookCount) -eq $count + $made) $o
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
   'favstore' {
     # 자원 탭 개편 스펙 3.3절: 즐겨찾기 파일의 읽기·쓰기. 경고를 일부러 남기므로 회차에서 이 부분 뒤에는 -Restart한다.
     $traps = Traps

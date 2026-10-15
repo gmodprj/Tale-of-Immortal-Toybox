@@ -9,6 +9,10 @@ namespace MOD_sWP6UL
     //   rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>]
     //           : (동작이 있으면 "<문장> | ") + count=<수> skipped=<건너뛴 줄> items=<번호>:<수량>[:missing],…
     //             reset은 favorites.txt(.bak, .tmp 포함)를 지우고 다시 읽게 한다. reload는 파일을 그대로 두고 다시 읽게 한다
+    //   rbook <분류> <기술 번호> <경지> <최소 품질> <권수> : made=<수> | <MartialBookService.Make의 문장>
+    //   rbooks [기술 번호]   : 가방의 비급 count=<수> items=<soleID>:<기술 번호>:<경지>:<품질>:<이름>,…
+    //   rbookstudy <soleID>  : 게임의 학습 행동(UnitActionPropMartialStudy)이 그 비급을 받아들이는지 can=<IsCreateAction>
+    //   rskill <분류> <기술 번호> : min=<경지> max=<경지> name=<이름>
     internal static class DevCommandsResources
     {
         public static string Execute(string[] p)
@@ -19,6 +23,38 @@ namespace MOD_sWP6UL
                     return Groups();
                 case "rfav":
                     return Favorites(p);
+                case "rbook":
+                    {
+                        int kindIndex = int.Parse(p[1]);
+                        SkillCatalog.Entry entry = SkillCatalog.Get(kindIndex, int.Parse(p[2]));
+                        if (entry == null)
+                        {
+                            return "no skill " + p[2];
+                        }
+                        string text;
+                        int made = MartialBookService.Make(g.world.playerUnit, kindIndex, entry, int.Parse(p[3]), int.Parse(p[4]), int.Parse(p[5]), out text);
+                        return "made=" + made + " | " + text;
+                    }
+                case "rbooks":
+                    return Books(p.Length > 1 ? int.Parse(p[1]) : 0);
+                case "rbookstudy":
+                    {
+                        WorldUnitBase me = g.world.playerUnit;
+                        var all = me.data.unitData.propData.allProps;
+                        for (int i = 0; i < all.Count; i++)
+                        {
+                            if (all[i].soleID == p[1])
+                            {
+                                return "can=" + me.IsCreateAction(new UnitActionPropMartialStudy(all[i]), false);
+                            }
+                        }
+                        return "no prop " + p[1];
+                    }
+                case "rskill":
+                    {
+                        SkillCatalog.Entry entry = SkillCatalog.Get(int.Parse(p[1]), int.Parse(p[2]));
+                        return entry == null ? "no skill " + p[2] : "min=" + entry.GradeMin + " max=" + entry.GradeMax + " name=" + entry.Name;
+                    }
                 default:
                     return null;
             }
@@ -83,6 +119,32 @@ namespace MOD_sWP6UL
             }
             string state = "count=" + items.Count + " skipped=" + FavoriteStore.SkippedLines + " items=" + string.Join(",", items.ToArray());
             return text == null ? state : text + " | " + state;
+        }
+
+        private static string Books(int baseId)
+        {
+            var items = new List<string>();
+            var all = g.world.playerUnit.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].propsType != DataProps.PropsDataType.Martial)
+                {
+                    continue;
+                }
+                try
+                {
+                    DataProps.MartialData martial = all[i].To<DataProps.MartialData>();
+                    if (baseId == 0 || martial.baseID == baseId)
+                    {
+                        items.Add(all[i].soleID + ":" + martial.baseID + ":" + martial.grade + ":" + martial.martialInfo.level + ":" + MartialService.Name(martial));
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    items.Add(all[i].soleID + ":ERR " + e.GetType().Name);
+                }
+            }
+            return "count=" + items.Count + " items=" + string.Join(",", items.ToArray());
         }
     }
 }
