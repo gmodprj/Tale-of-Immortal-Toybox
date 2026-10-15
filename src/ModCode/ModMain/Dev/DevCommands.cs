@@ -55,6 +55,11 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string workshop = DevCommandsWorkshop.Execute(p);
+            if (workshop != null)
+            {
+                return workshop;
+            }
             string titles = DevCommandsAppellation.Execute(p);
             if (titles != null)
             {
