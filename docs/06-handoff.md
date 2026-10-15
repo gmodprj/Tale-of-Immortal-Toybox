@@ -9,10 +9,10 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 아홉(`feat/*-research`, 마지막이 `feat/martialbook-research`), 그리고 2026-10-15에 병합을 마쳤지만 아직 지우지 않은 작업 브랜치(`feat/resources-tab`, `docs/handoff-1015b`, `fix/resources-detail`, `docs/martialbook-probe`, `feat/martial-books`, `docs/handoff-1015c`)다. 지우는 것은 사용자에게 묻는다(병합을 마친 작업 브랜치는 2026-10-14 사용자 지시로 지운 적이 있다).
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열(`feat/*-research`, 마지막이 `feat/appellation-research`)이다. 병합을 마친 작업 브랜치는 사용자 지시로 지운다(2026-10-14, 2026-10-15에 지웠다).
 - 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(기술 서적(비급) 지급(39절)까지. 2026-10-15 15:40 설치. 그 전 설치는 같은 날 12:41(38절 끝까지), 12:02, 2026-10-14 22:13).
 - **직전 작업(2026-10-15)**: 사용자 요청 넷(8.2절 끝) 가운데 요청 2·3을 묶음 G1로 끝냈다. 자원 탭에 즐겨찾기(아이템+수량, 모든 세이브 공통, 모두 지급)와 용도별 분류(왼쪽 그룹 10개(9개와 기타), 종류 칩, 품질·보유 중만 거르기)를 넣었다(05 문서 38절). 요청 1(첨부 문서 확인)의 결과와 요청 4(G2, 창작마당 모드 연동)의 출발점은 8.3b절에 있다. 이어서 사용자가 써 보고 알린 대로 표의 설명 열을 빼고 아래 설명 칸이 잘리지 않게 했고(38절 끝), 기술 서적(비급) 지급의 게임 실험을 했고(8.3c절: 만들기와 게임의 학습 모두 된다), 그것으로 자원 탭에 `기술 서적` 그룹을 만들었다(05 문서 39절: 경지·최소 품질을 골라 게임 뽑기로 비급을 만들어 가방에, 한 번에 20권, 즐겨찾기의 비급 줄). 그 전(2026-10-14)에는 선법 탭(36절), 시작 신기 조사(`docs/07-divine-artifacts.md`)와 신기 탭(37절)을 만들었다.
-- **열린 일 하나**: 이동 배율 x0.25에서 화면 날짜가 12~15일쯤인데 달 종료 문구가 뜬다는 사용자 보고. 고정본에서 재현하지 못했다(8.3a절, 사용자의 캡처와 조건을 받아야 다시 잴 수 있다). **다음 일은 G2(8.3b절)다.**
+- **열린 일 하나**: 이동 배율 x0.25에서 화면 날짜가 12~15일쯤인데 달 종료 문구가 뜬다는 사용자 보고. 고정본에서 재현하지 못했다(8.3a절, 사용자의 캡처와 조건을 받아야 다시 잴 수 있다). **G2(8.3b절)는 받는 길이 막혀 미뤘다(deepestlight 계정에 게임 라이선스가 없다). 사용자가 먼저 고른 것은 도호(칭호) 관리이고, 실험을 마쳤다(8.3d절). 다음은 그 설계다.**
 - 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 지금 세이브는 **달의 첫날(2년 3월 1일)에 멈춰 있어** 세계에 들어오면 월말 기록 창이 뜬다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
 
@@ -339,6 +339,15 @@ PowerShell과 도구:
 - 요청 4의 "공법 문서 획득 여부"가 "모드 공법의 비급을 이 편집기로 얻을 수 있는지(지급)"인지 "얻었는지 보여 주기(표시)"인지는 사용자에게 묻는다.
 - 설계 전에 게임에서 실험할 셋: 게임이 읽는 폴더 모양(`ModMgr.pathModExportData`, `allModPaths`), 번역을 덮을 자리(`LocalText` 표 또는 `GameTool.LS`), 모드 공법이 기술 목록에 나오는지.
 
+2026-10-15 G2 시작에서 한 것과 막힌 것:
+
+- 사용자가 고른 나누기: G2a 받기·설치 → G2b 모드 공법의 비급(39절의 기술 서적 지급이 모드 공법에도 되는지) → G2c 한글화. 각각 스펙·계획·구현.
+- `build_lists.py`(`py -3 -I -X utf8 D:\Download\build_lists.py --out D:\Download\output`)의 자동 목록은 공법 14개 대부분이 공법을 추가하지 않는 편의·시스템 모드였고, 외형 15개에도 세계관·종문·BGM 모드가 섞였다. 사용자가 "내용 기준으로 다시 고르기"를 골랐다. 설명을 읽어 고른 목록(사용자 확인): 외형 `2814703549`(Fatury, 선행), `2815562168`, `3200319699`, `3001496635`, `2993500314`, `2819712935`, `2823930683`, `2945768367`, `2945768219`, `2874128983`, `2876769227`, `2929805068`, `2832167498`, `2814806198` / 공법 `3390738990`(【只有梦长】五本功法开源: 새 공법 다섯, 게임 안의 산출 없음), `2839261049`(真.镇宗之宝：传承心法). 인기 모드 가운데 새 공법을 더하는 것은 드물다. 합계 약 455MB, 페이지의 필요 항목은 `2815562168` → Fatury뿐(설명에 Fatury를 쓴다는 것이 둘 더).
+- SteamCMD는 `E:\SteamCmd\steamcmd.exe`, 계정 `deepestlight`의 로그인이 캐시돼 있다(2026-10-15 15:53, 비밀번호 없이 로그인된다).
+- **막힌 것**: 모든 항목이 `failed (Failure)`, 로그는 `No workshop depot defined, skipping non-legacy item`. `app_status 1468810`이 `License packageID 0 … State : No License`다. **이 계정은 귀곡팔황을 갖고 있지 않다**(다른 라이선스 1528개). SteamCMD의 창작마당 받기는 게임을 가진 계정이어야 한다. 이 PC의 Steam에 로그인한 계정도 `deepestlight` 하나다(`loginusers.vdf`).
+- 받는 길(사용자 몫): 게임을 가진 다른 계정으로 한 번 로그인(`E:\SteamCmd\steamcmd.exe +login <계정> +quit`, 비밀번호·Steam Guard는 사용자), 또는 `deepestlight`에 게임 구매, 또는 Steam 클라이언트(가족 공유 등)로 구독. 그 뒤 받기: `+login <계정> +runscript <목록 파일> +quit`(목록 파일은 `workshop_download_item 1468810 <ID>` 줄). 받은 위치는 `E:\SteamCmd\steamapps\workshop\content\1468810\<ID>\debug\Mod_<모드ID>\`이고, 우리 모드 폴더(`ModExportData\Mod_sWP6UL\`)와 같은 모양이다.
+- 이 PC에 남은 창작마당 항목 셋(`E:\SteamLibrary\...\1468810_disabled_claude`)은 성인향 하나, 돌파 재료 하나, 내려간 것 하나라 개발 재료로 맞지 않는다.
+
 ### 8.3c 기술 서적(비급) 지급 — 실험 결과 (2026-10-15, 끝남)
 
 05 문서 39절로 만들었다. 아래는 그 전의 실험 기록이다.
@@ -358,6 +367,25 @@ PowerShell과 도구:
 추천: 자원 탭에 `기술 서적` 그룹(종류 다섯)을 두고, 공법 탭의 기술 추가와 같은 뽑기로 비급을 만들어 가방에 넣는 지급을 만든다. 만들어진 비급은 게임의 비급과 같은 것이므로 학습·판매·NPC에게 주기는 게임이 맡는다. 설계에서 정할 것: 경지 고르기(지금 경지 / 직접), 품질·옵션(뽑기에 맡김 / 고름), 기술 목록의 출처(`SkillCatalog`), 수량(한 권씩 / n권), 즐겨찾기와의 관계(번호가 아니라 기술·경지로 저장해야 한다). 이 일은 G2의 "공법 모드의 문서 획득 여부"와 같은 장치다.
 
 실험 중 본 것: `tadv 7`(달 마지막 날)이 거부되는 동안 기연 사건 화면(`DramaFortuitous`)이 떴다. 회차의 `-End`가 세이브를 되돌려 남지 않았다.
+
+### 8.3d 도호(칭호) 관리 — 실험 결과 (2026-10-15, 설계 전)
+
+사용자 요청(2026-10-15): G2를 미루고 "도호관리 기능부터 먼저 기능 검토". 사용자가 도호(道号)·칭호라고 답했다. 게임의 한국어 글은 칭호(appellation)를 "도호"라고 부른다(예: 고정본의 "영단도인").
+
+실험(회차 `apl-1015a`, `apl-1015b`, 고정본, 실험 브랜치 `feat/appellation-research`의 `Dev/DevCommandsAppellation.cs`, 병합하지 않는다):
+
+| 질문 | 결과 |
+|---|---|
+| 어디에 있나 | 설정 표 `g.conf.appellationTitle`(100줄: `className`, `appellationLevel`, `priority`, `name`, `desc`, `tips`, `gainDesc`, `roleEffect`, `lossType`/`lossValue`, `dropType`/`dropValue`, `condition`, `symbolID`). 인물의 저장 자료는 `unitData.appellationTitle`(`appellationItems`: `id`와 얻은 `month`, `equipAppellationID`). 실행 중의 관리자는 `unit.appellation`(`WorldUnitAppellationMgr`: `allAppellations`, `allEquipAppellations`, 정적 `allAppellationUnits`(번호 → 가진 인물)) |
+| 무엇이 있나 | 분류(`className` 첫 값): 101 지역 제일 X수 60개(영녕~팔황, 무기·영근별. 한 사람만 가진다), 102 풍류(도려 수), 103 괴수(종문 대비무), 104 산재(소비), 105 예상선군·선자(의복), 106 소요(무소속), 107 영단(단방), 108 영보(기보), 109 만법천존, 110 어계천존·단금쉬옥, 112 참요천존, 2601~2605 이야기 결말. 낮은 단계는 경지가 오르면 떨어진다(`dropType` 1, 값이 경지) |
+| 이름을 바꿀 수 있나 | **저장 자료에 인물별 이름이 없다**(번호와 달만). 이름은 설정 표의 고정 글이다. 바꾸려면 설정 표를 실행 중에 덮어써야 하고 모든 인물에게 같이 바뀐다(실험하지 않았다). `appellationSymbolNamed`(19줄)는 이름이 비어 있다 |
+| 주기·빼기 | `AddAppellationID(id)`가 아무 번호나 받는다(경지 밖, 이미 다른 인물이 가진 "제일" 도호도 `True`). 게임의 "도호 획득" 창(`GetTaoist`)이 하나씩 뜬다. `DelAppellationID(id, false)`가 뺀다. NPC에게도 된다. 저장 후 재시작해도 남는다 |
+| 한 사람만 가지는 도호 | 플레이어에게 주면 두 사람이 가진다(`팔황 제일권수` 1404: 관산과 플레이어). 달을 넘겨도 게임이 정리하지 않았다. 잃는 판정(`WorldUnitAppellationLoss1`)은 도전에 졌을 때·공법을 지웠을 때이고, 떨어지는 판정(`WorldUnitAppellationDrop1`)은 돌파 때다 |
+| 장착 | 한 번에 하나(`equipAppellationID`가 바뀐다). 장착한 것을 빼면 장착이 비고, 비어 있을 때 넣은 도호가 장착된다(재시작 때도 하나를 장착한다). 게임의 인물 화면에서 초상 아래 도호를 누르면 `TaoistSelect`(획득한 도호 / 도호 획득 가능, `도호 교체`)가 열려 플레이어가 직접 바꿀 수 있다 |
+| 효과 | 장착했을 때만. `roleEffect` → `g.conf.roleEffect`(`effectType`, `value`). 예: 어계천존(2111) `talent_1_40` → 인물 화면의 오성 90 → 130. 영단도인 `giveCloseStable`(단약 선물), 풍류·예상·만법천존 `npcCloseStable`(호감), 괴수 `schoolMoneyAdd`·`schoolBuyDecline`(종문), 단금쉬옥 `hpMax_0_15`, 설예도군 `fiveFlowerSummon`(소환). 지역 제일 X수는 효과 표가 없고 같은·낮은 경지에게서 받는 그 무기 피해를 줄인다(`tips`) |
+| 그 밖 | 도호를 넣은 뒤 NPC가 그 도호로 말을 거는 대화가 떴다("과연 풍류도인, …"). 고정본 NPC 1449명 가운데 48명이 도호를 가졌다 |
+
+추천: 도호 관리를 편집기에 넣는다. 보기(대상의 도호·장착·효과), 주기(분류별 100개, 효과와 얻는 법을 보여 줌), 빼기, 장착 바꾸기, NPC에게도. "제일" 도호를 줄 때는 지금 가진 인물에게서 빼고 옮기는 것을 기본으로 한다(게임이 정리하지 않으므로). 경지 밖 도호는 다음 돌파에 떨어질 수 있다고 알린다. 이름 바꾸기는 저장 구조에 없어 넣지 않는 것을 추천한다(하려면 표시 덮어쓰기로 따로 설계). 설계에서 정할 것: 자리(새 탭 / 운명·능력치 탭 안), 대상(플레이어만 / NPC도), "제일" 도호의 처리, 도호 획득 창을 띄울지.
 
 ### 8.3a 다음: 이동 배율과 이른 월말 안내 (재현 못 함, 열림)
 
@@ -459,12 +487,12 @@ PowerShell과 도구:
 
 ### 8.7 남겨 둔 것
 
-- 실험 브랜치 아홉(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
+- 실험 브랜치 열(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
 - 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `art-1014a`(게임이 켜져 있어 열리지 않았다. 다시 쓰지 않는다), `art-1014b`~`d`, `atab1`~`atab18`(`2b`~`2d`, `4b`~`4d`, `5b` 포함), `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함), `awui-1014a`, `hud-1014a`~`d`, `bwui-1014a`~`b`, `bhud-1014a`~`d`, `bdev-1014a`(게임이 켜져 있어 열리지 않았다), `hudr-1014a`, `key-1014a`~`d`, `drift-1014a`~`b`, `akey-1014a`~`j`, `rate-1014a`~`b`, `cost-1014a`~`d`, `click-1014a`~`l`, `eyeclick-1014a`~`c`(`a`는 게임이 켜져 있어 열리지 않았다), `typing-1014a`~`k`, `month-1014a`. 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
-- 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함).
+- 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함), `apl-1015a`~`b`.
 
 ## 9. 작업 규칙 요약
 
