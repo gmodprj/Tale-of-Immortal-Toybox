@@ -96,6 +96,54 @@ Check 'no action is refused' ($o -match '^THROWN.*하나를 고릅니다') $o
 $o = Run $b $none @{ Status = $true; Install = $true }
 Check 'two actions are refused' ($o -match '^THROWN.*하나를 고릅니다') $o
 
+# 5. -Install(계획만): 원본을 고르고 이유를 보이되 아무것도 쓰지 않는다
+$b = NewBox
+$before = Tree $b.game
+$o = Run $b $none @{ Install = $true }
+Check 'install plan lists the flat item with its dll' ($o -match '111 \| 하나 \| 평평함 \| 0(\.0)?MB \| DLL MOD_x\.dll \| 새로 설치') $o
+Check 'install plan lists the debug item' ($o -match '222 \| 둘 \| debug \| 0(\.0)?MB \| DLL - \| 새로 설치') $o
+Check 'install plan skips an item with two Mod_ folders' ($o -match '333 \| 셋 \| 건너뜀: debug 안에 Mod_\* 폴더가 2개') $o
+Check 'install plan skips an item that is not downloaded' ($o -match '444 \| 넷 \| 건너뜀: 받지 않음') $o
+Check 'a folder without a cache is skipped with the reason' ($o -match '555 \| 다섯 \| 건너뜀: ModExportData.cache가 없음') $o
+Check 'install without -Yes writes nothing' ($o -match 'PLAN ONLY' -and (Tree $b.game) -eq $before) $o
+
+# 6. -Install -Yes: 평평한 것은 그대로, debug 모양은 Mod_* 안의 내용만
+$o = Run $b $none @{ Install = $true; Yes = $true }
+Check 'install -Yes copies the flat item as it is' ($o -match 'INSTALLED 111 하나' -and [IO.File]::ReadAllText("$($b.game)\ModExportData\111\ModExportData.cache") -eq 'c111' -and (Test-Path "$($b.game)\ModExportData\111\ModCode\dll\MOD_x.dll")) $o
+Check 'install -Yes flattens the debug item' ($o -match 'INSTALLED 222 둘' -and [IO.File]::ReadAllText("$($b.game)\ModExportData\222\ModExportData.cache") -eq 'c222' -and (Test-Path "$($b.game)\ModExportData\222\ModAssets\b.png") -and -not (Test-Path "$($b.game)\ModExportData\222\debug") -and -not (Test-Path "$($b.game)\ModExportData\222\ModProject")) $o
+Check 'install -Yes ends with the count' ($o -match '설치 2개') $o
+$o = Run $b $none @{ Status = $true }
+Check 'Status shows installed items as identical' ($o -match '111 \| 외형 \| 하나 \| 0(\.0)?MB 2024-12-28 \| 예 \| 같음 \| 1' -and $o -match '받음 3/5, 설치 2/5') $o
+
+# 7. 같은 것을 다시 넣으면 UNCHANGED, 원본이 바뀌면 UPDATED(게임이 켜져 있으면 그 줄만 거부)
+$o = Run $b $none @{ Install = $true; Yes = $true }
+Check 'a second install -Yes changes nothing' ($o -match 'UNCHANGED 111 하나' -and $o -match 'UNCHANGED 222 둘' -and $o -match '설치 0개') $o
+WriteFile "$($b.content)\111\ModAssets\new.png" 'new'
+$o = Run $b $none @{ Status = $true }
+Check 'Status notices a changed source' ($o -match '111 \| 외형 \| 하나 \| 0(\.0)?MB 2024-12-28 \| 예 \| 다름 \d+ \| 1') $o
+WriteFile "$($b.content)\444\ModExportData.cache" 'c444'
+$o = Run $b $busy @{ Install = $true; Yes = $true }
+Check 'a running game blocks updating an installed folder' ($o -match '111 \| 하나 .*거부: 게임이 실행 중' -and -not (Test-Path "$($b.game)\ModExportData\111\ModAssets\new.png")) $o
+Check 'a running game still lets a new folder in' ($o -match 'INSTALLED 444 넷' -and (Test-Path "$($b.game)\ModExportData\444\ModExportData.cache") -and $o -match '다음 게임 시작부터') $o
+$o = Run $b $none @{ Install = $true; Yes = $true; Id = '111' }
+Check 'with the game closed the changed item is updated' ($o -match 'UPDATED 111 하나' -and (Test-Path "$($b.game)\ModExportData\111\ModAssets\new.png")) $o
+
+# 8. -Uninstall: 계획만, 게임이 켜져 있으면 거부, -Yes는 목록 ID 폴더만 지운다
+$before = Tree $b.game
+$o = Run $b $none @{ Uninstall = $true }
+Check 'uninstall plan lists installed items and writes nothing' ($o -match '111 \| 하나 \| 지움 0(\.0)?MB' -and $o -match '333 \| 셋 \| 설치돼 있지 않음' -and $o -match 'PLAN ONLY' -and (Tree $b.game) -eq $before) $o
+$o = Run $b $busy @{ Uninstall = $true; Yes = $true }
+Check 'uninstall is refused while the game runs' ($o -match '^THROWN.*게임이 실행 중' -and (Tree $b.game) -eq $before) $o
+$o = Run $b $none @{ Uninstall = $true; Yes = $true }
+Check 'uninstall -Yes removes the listed folders' ($o -match 'REMOVED 111 하나' -and $o -match 'REMOVED 222 둘' -and $o -match 'REMOVED 444 넷' -and $o -match '지움 3개' -and -not (Test-Path "$($b.game)\ModExportData\111") -and -not (Test-Path "$($b.game)\ModExportData\222")) $o
+Check 'uninstall leaves the editor folder and a folder that is not in the list' ((Test-Path "$($b.game)\ModExportData\Mod_sWP6UL\ModExportData.cache") -and (Test-Path "$($b.game)\ModExportData\unknown\ModExportData.cache")) $o
+
+# 9. 게임 폴더가 아니면 설치하지 않는다
+$b = NewBox
+[IO.Directory]::Delete("$($b.game)\ModExportData", $true)
+$o = Run $b $none @{ Install = $true; Yes = $true }
+Check 'install refuses a folder without ModExportData' ($o -match '^THROWN.*ModExportData') $o
+
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-workshop-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }

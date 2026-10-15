@@ -95,9 +95,62 @@ function ShowStatus($rows) {
   "받음 $got/$($rows.Count), 설치 $inst/$($rows.Count)"
 }
 
+function DoInstall($rows) {
+  if (-not (Test-Path -LiteralPath $modsDir -PathType Container)) { throw "게임의 로컬 모드 폴더가 없습니다: $modsDir (ModExportData가 있는 게임 폴더여야 합니다)" }
+  $running = Running
+  $plans = New-Object System.Collections.Generic.List[object]
+  foreach ($r in $rows) {
+    $s = Source $r.Id
+    if (-not $s.Path) { "$($r.Id) | $($r.Korean) | 건너뜀: $($s.Reason)"; continue }
+    $target = Installed $r.Id
+    $exists = Test-Path -LiteralPath $target -PathType Container
+    $what = if (-not $exists) { '새로 설치' } else { $n = DiffCount $s.Path $target; if ($n -eq 0) { '같음' } else { "갱신(다른 파일 $n)" } }
+    $dlls = Dlls $s.Path
+    $line = "$($r.Id) | $($r.Korean) | $($s.Shape) | $(SizeMb $s.Path)MB | DLL $(if ($dlls.Count -gt 0) { $dlls -join ',' } else { '-' }) | $what"
+    if ($exists -and $running -and $what -ne '같음') { "$line | 거부: 게임이 실행 중입니다(설치된 폴더를 덮지 않습니다)"; continue }
+    $line
+    $plans.Add([pscustomobject]@{ Row = $r; Src = $s.Path; Dst = $target; What = $what })
+  }
+  if (-not $Yes) { 'PLAN ONLY (아무것도 쓰지 않았습니다. 실제로 쓰려면 -Yes)'; return }
+  $done = 0
+  foreach ($p in $plans) {
+    if ($p.What -eq '같음') { "UNCHANGED $($p.Row.Id) $($p.Row.Korean)"; continue }
+    robocopy $p.Src $p.Dst /MIR /NJH /NJS /NP /NDL /NFL | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "복사에 실패했습니다(robocopy $LASTEXITCODE): $($p.Dst)" }
+    if (-not (Test-Path -LiteralPath (Join-Path $p.Dst 'ModExportData.cache'))) { throw "설치본에 ModExportData.cache가 없습니다: $($p.Dst)" }
+    "$(if ($p.What -eq '새로 설치') { 'INSTALLED' } else { 'UPDATED' }) $($p.Row.Id) $($p.Row.Korean)"
+    $done++
+  }
+  if ($running -and $done -gt 0) { '게임이 실행 중입니다. 새로 넣은 모드는 다음 게임 시작부터 읽힙니다.' }
+  "설치 ${done}개"
+}
+
+function DoUninstall($rows) {
+  if (Running) { throw '게임이 실행 중입니다. 모드 폴더를 지우지 않습니다. 게임을 끈 뒤 다시 돌립니다.' }
+  $targets = New-Object System.Collections.Generic.List[object]
+  foreach ($r in $rows) {
+    $target = Installed $r.Id
+    if (-not (Test-Path -LiteralPath $target -PathType Container)) { "$($r.Id) | $($r.Korean) | 설치돼 있지 않음"; continue }
+    "$($r.Id) | $($r.Korean) | 지움 $(SizeMb $target)MB"
+    $targets.Add([pscustomobject]@{ Row = $r; Path = $target })
+  }
+  if (-not $Yes) { 'PLAN ONLY (아무것도 지우지 않았습니다. 실제로 지우려면 -Yes)'; return }
+  foreach ($t in $targets) {
+    # 지우는 것이 ModExportData 바로 아래의 목록 ID 폴더인지 한 번 더 확인한다. Mod_*와 모르는 폴더는 여기 올 수 없다.
+    $full = [IO.Path]::GetFullPath($t.Path)
+    $parent = [IO.Path]::GetFullPath($modsDir).TrimEnd('\') + '\'
+    if (-not $full.StartsWith($parent) -or (Split-Path -Leaf $full) -ne $t.Row.Id -or $t.Row.Id -notmatch '^\d+$') { throw "지우지 않습니다(예상 밖의 경로): $full" }
+    [IO.Directory]::Delete($full, $true)
+    "REMOVED $($t.Row.Id) $($t.Row.Korean)"
+  }
+  "지움 $($targets.Count)개"
+}
+
 $chosen = Chosen (ReadList)
 $modes = @(@($Status, $Download, $Install, $Uninstall) | Where-Object { $_ }).Count
 if ($modes -ne 1) { throw '-Status, -Download, -Install, -Uninstall 가운데 하나를 고릅니다.' }
 if ($Status) { ShowStatus $chosen }
+elseif ($Install) { DoInstall $chosen }
+elseif ($Uninstall) { DoUninstall $chosen }
 $global:LASTEXITCODE = 0
 exit 0
