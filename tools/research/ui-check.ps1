@@ -66,6 +66,61 @@ switch ($Part) {
     Check 'clothes are their own group' ($cloth -gt 200) $g
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'favstore' {
+    # 자원 탭 개편 스펙 3.3절: 즐겨찾기 파일의 읽기·쓰기. 경고를 일부러 남기므로 회차에서 이 부분 뒤에는 -Restart한다.
+    $traps = Traps
+    $fav = Join-Path $data 'favorites.txt'
+    function FavText { if (Test-Path -LiteralPath $fav) { [IO.File]::ReadAllText($fav) } else { '' } }
+    $o = Cmd 'rfav reset' 300
+    Check 'reset starts from no file' ($o -match 'count=0 skipped=0 items=' -and -not (Test-Path -LiteralPath $fav)) $o
+    $o = Cmd 'rfav add 1011011 10' 300
+    Check 'adding writes the file' ($o -match 'count=1 ' -and (FavText) -match "(?m)^1011011 10\r?$") $o
+    Check 'no temp file is left' (-not (Test-Path -LiteralPath "$fav.tmp"))
+    # Review Focus 5: 같은 번호, 범위 밖의 수량
+    $o = Cmd 'rfav add 1011011 20' 300
+    Check 'adding the same item again is refused' ($o -match '이미' -and $o -match 'items=1011011:10(\s|,|$)') $o
+    $o = Cmd 'rfav add 1011012 0' 300
+    Check 'an amount of zero is refused' ($o -match '수량은 1~999999' -and $o -match 'count=1 ') $o
+    $o = Cmd 'rfav set 1011011 1000000' 300
+    Check 'an amount above 999999 is refused' ($o -match '수량은 1~999999' -and $o -match 'items=1011011:10(\s|,|$)') $o
+    $o = Cmd 'rfav set 1011011 25' 300
+    Check 'the amount can be changed' ($o -match 'items=1011011:25' -and (FavText) -match "(?m)^1011011 25\r?$") $o
+    $o = Cmd 'rfav add 99999999 3' 300
+    Check 'a number the game does not have is kept' ($o -match 'items=1011011:25,99999999:3:missing') $o
+    $o = Cmd 'rfav del 99999999' 300
+    Check 'removing works' ($o -match 'count=1 ' -and (FavText) -notmatch '99999999') $o
+
+    # 깨진 줄, 같은 번호의 줄, 범위 밖의 수량이 섞인 파일
+    [IO.File]::WriteAllText($fav, "# test`n1011011 5`nnot a line`n1011011 7`n1011012 5000000`n1011013 abc`n", [Text.UTF8Encoding]::new($false))
+    $o = Cmd 'rfav reload' 300
+    Check 'readable lines are kept, the rest counted, big amounts capped' ($o -match 'count=2 skipped=3 items=1011011:5,1011012:999999') $o
+    Check 'the log has the warning' (@(ModWarnings | Where-Object { $_ -match 'favorites: skipped 3 lines' }).Count -ge 1)
+    Check 'nothing is backed up before a change' (-not (Test-Path -LiteralPath "$fav.bak"))
+    Cmd 'rfav set 1011012 7' 300 | Out-Null
+    Check 'the original file is kept as .bak before the first write' ((Test-Path -LiteralPath "$fav.bak") -and [IO.File]::ReadAllText("$fav.bak") -match 'not a line')
+    Check 'the new file holds only readable lines' ((FavText) -notmatch 'not a line|abc' -and (FavText) -match "(?m)^1011012 7\r?$")
+    [IO.File]::WriteAllText("$fav.bak", 'marker')
+    Cmd 'rfav set 1011012 8' 300 | Out-Null
+    Check 'the .bak is made only once' ([IO.File]::ReadAllText("$fav.bak") -eq 'marker')
+
+    # Review Focus 4: 읽지 못한 파일은 덮어쓰지 않는다
+    $before = FavText
+    $lock = [IO.File]::Open($fav, 'Open', 'Read', 'None')
+    try {
+      $o1 = Cmd 'rfav reload' 300
+      $o2 = Cmd 'rfav add 1011014 1' 300
+    } finally { $lock.Dispose() }
+    Check 'a locked file reads as empty' ($o1 -match 'count=0 ') $o1
+    Check 'a locked file is not overwritten' ((FavText) -eq $before -and $o2 -match '읽지 못해') $o2
+    $o = Cmd 'rfav reload' 300
+    Check 'after the lock is gone the list is back' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'favstore-restart' {
+    # favstore 뒤에 session.ps1 -Restart를 하고 돌린다.
+    $o = Cmd 'rfav' 200
+    Check 'favorites are kept after a restart' ($o -match 'count=2 skipped=0 items=1011011:5,1011012:8') $o
+  }
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')

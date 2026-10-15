@@ -1,9 +1,9 @@
 ﻿# 게임 검증 한 회차의 시작과 끝을 묶는다(docs/06-handoff.md 5절의 절차).
 #   -Begin <이름>   게임이 꺼져 있는지 확인 → 빌드 → 세이브를 .devremote\save-backup-<이름>으로 복사해 검증
-#                   → bag-slots.txt 보관 → 게임에 설치 → 화면 밖에서 실행해 1번 세이브 진입
+#                   → bag-slots.txt·favorites.txt 보관 → 게임에 설치 → 화면 밖에서 실행해 1번 세이브 진입
 #   -Restart        이 스크립트가 띄운 게임을 닫고 다시 띄운다(세이브와 설치된 DLL은 그대로). 저장 후 재시작 확인용
 #   -End <이름>     이 스크립트가 띄운 게임을 닫고 → 세이브를 복사본으로 되돌려 일치를 확인
-#                   → bag-slots.txt, config.txt, presets 폴더와 설치돼 있던 DLL을 되돌린다
+#                   → bag-slots.txt, favorites.txt, config.txt, presets 폴더와 설치돼 있던 DLL을 되돌린다
 #   -Fixture <이름> -Begin과 함께 쓴다. 사용자의 세이브를 복사해 둔 뒤, 회차 동안만 세이브 폴더를 고정본(.devremote\fixtures\<이름>)으로
 #                   바꿔 띄운다. 검사가 사용자의 지금 세이브 상태(떠 있는 창, 진행 중인 사건)에 흔들리지 않게 한다. -End는 똑같이 사용자의 세이브를 되돌린다
 #   -MakeFixture <이름> -From <폴더>   세이브 폴더의 복사본(예: .devremote\save-backup-<회차>)으로 고정본을 만든다
@@ -32,6 +32,11 @@ $marker = Join-Path $dir 'session.name'              # 열려 있는 회차의 �
 $keptDll = Join-Path $dir 'session-installed.dll'    # 회차 전에 게임에 설치돼 있던 DLL
 $keptBag = Join-Path $dir 'session-bag-slots.txt'    # 회차 전의 bag-slots.txt
 $noBag = Join-Path $dir 'session-bag-slots.absent'   # 회차 전에 bag-slots.txt가 없었다는 표시
+$favFile = Join-Path $data 'favorites.txt'
+$keptFav = Join-Path $dir 'session-favorites.txt'          # 회차 전의 favorites.txt(자원 탭 즐겨찾기)
+$noFav = Join-Path $dir 'session-favorites.absent'         # 회차 전에 favorites.txt가 없었다는 표시
+$keptFavBak = Join-Path $dir 'session-favorites.bak'       # 회차 전의 favorites.txt.bak
+$noFavBak = Join-Path $dir 'session-favorites-bak.absent'  # 회차 전에 favorites.txt.bak이 없었다는 표시
 $pidFile = Join-Path $dir 'session.pid'
 $modeFile = Join-Path $dir 'session.mode'
 $flag = Join-Path $dir 'park.flag'
@@ -50,6 +55,21 @@ function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue
 # 이름을 Erase로 하면 PowerShell의 별칭(Remove-Item)이 먼저 걸린다.
 function DeleteFiles([string[]]$files) {
   foreach ($file in $files) { if (Test-Path -LiteralPath $file) { [IO.File]::Delete($file) } }
+}
+# 세이브 폴더 밖의 모드 파일 하나를 회차 전 상태로 되돌리려고 보관한다. 없었으면 없었다는 표시를 남긴다.
+function KeepFile([string]$file, [string]$kept, [string]$absent) {
+  DeleteFiles $kept, $absent
+  if (Test-Path -LiteralPath $file) { Copy-Item -LiteralPath $file -Destination $kept } else { [IO.File]::WriteAllText($absent, '') }
+}
+# KeepFile로 보관한 파일을 되돌린다. 회차 전에 없었으면 지운다.
+function RestoreFile([string]$file, [string]$kept, [string]$absent) {
+  if (Test-Path -LiteralPath $kept) {
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $file))
+    Copy-Item -LiteralPath $kept -Destination $file -Force
+  } elseif (Test-Path -LiteralPath $absent) {
+    DeleteFiles $file
+  }
+  DeleteFiles $kept, $absent
 }
 
 function Launch {
@@ -136,6 +156,8 @@ if ($Begin) {
   if ($diff.Count -gt 0) { $diff; throw "세이브 복사본이 원본과 다릅니다. 확인한 뒤 지우고 다시 시작합니다: $bak" }
   DeleteFiles $keptBag, $noBag
   if (Test-Path -LiteralPath $bagFile) { Copy-Item -LiteralPath $bagFile -Destination $keptBag } else { [IO.File]::WriteAllText($noBag, '') }
+  KeepFile $favFile $keptFav $noFav
+  KeepFile "$favFile.bak" $keptFavBak $noFavBak
   if (-not $DryRun) {
     Copy-Item -LiteralPath $installed -Destination $keptDll
     Copy-Item -LiteralPath $dll -Destination $installed -Force
@@ -196,6 +218,13 @@ if ($End) {
     'BAG SLOTS RESTORED (there was no file)'
   }
   DeleteFiles $keptBag, $noBag
+  # 자원 탭의 즐겨찾기 파일을 회차 전으로 되돌린다. 검사가 쓰다 남긴 임시 파일도 지운다.
+  if ((Test-Path $keptFav) -or (Test-Path $noFav)) {
+    RestoreFile $favFile $keptFav $noFav
+    RestoreFile "$favFile.bak" $keptFavBak $noFavBak
+    DeleteFiles "$favFile.tmp"
+    'FAVORITES RESTORED'
+  }
   if (Test-Path $keptDll) {
     Copy-Item -LiteralPath $keptDll -Destination $installed -Force
     [IO.File]::Delete($keptDll)
