@@ -80,7 +80,7 @@
 - `rbook 1 984555698 3 1 1` → 결과 문장의 이름이 `<옵션 접두>열염장`. `rbooks 984555698`의 이름도.
 - 기술 서적 그룹: `ResKind6` → `BookName984555698`의 글이 `열염장`, 아래 칸에 "한글 이름이 없어" 안내가 없다, 검색 `열염` 1줄, 검색 `烈炎` 1줄.
 - `-Restart` 뒤 `rloc`가 `file=있음`이고 이름이 그대로 한글.
-- 파일을 지우고 `-Restart` → `file=풀어 둠`, 다시 60행. 파일에 깨진 줄과 모르는 키를 넣고 `-Restart` → `broken=1 unused=1`, 나머지는 적용. 파일의 한 줄을 바꿔(`skill_name_middle984555698	열염장2`) `-Restart` → `ls=열염장2`(사용자 수정이 먹는다).
+- 파일을 지우고 `-Restart` → `file=풀어 둠`, 다시 59행. 파일에 깨진 줄과 모르는 키를 넣고 `-Restart` → `broken=1 unused=1`, 나머지는 적용. 파일의 한 줄을 바꿔(`skill_name_middle984555698	열염장2`) `-Restart` → `ls=열염장2`(사용자 수정이 먹는다).
 - `rloc dump` → 59행이 모두 사전에 있으면 `written=1`(`exists`만. 또는 사전에 넣고 0). 파일 `untranslated.txt`의 모양.
 - 기존 `modbooks`·`books-ui`·`base`·`tabs` 통과. 두 빌드 구성 경고 0·오류 0.
 
