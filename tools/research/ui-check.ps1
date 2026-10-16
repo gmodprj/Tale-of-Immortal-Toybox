@@ -2333,6 +2333,89 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'input' {
+    # 05 문서 51절: 창 위의 마우스 휠·포인터가 뒤의 게임(지도 확대·축소, 오른쪽 단추 끌기 이동, 충돌체 호버)에 새지 않는지.
+    # 게임 창에 보낸 WM_MOUSEMOVE·WM_MOUSEWHEEL은 Unity의 Input에 닿지 않는다(실측, 회차 fix-1017a). 그래서 개발 빌드의 가상 입력(uipointer·uiwheel·uikey)으로
+    # Input.mousePosition·mouseScrollDelta·GetKey를 바꿔 게임의 지도 처리(MapWorldMgr.OnUpdate)와 EventSystem이 함께 그 값을 읽게 하고,
+    # 지도 카메라 배율(mapcam의 scale)·위치(camPos)·카메라 eventMask(mask)를 읽어 수치로 본다.
+    # 편집기는 기본 위치(60,60)·1500x1000이다: (900,560)은 내용 영역, (1750,540)은 창 오른쪽 바깥의 지도.
+    $traps = Traps
+    function Scale { $o = Cmd 'mapcam' 150; if ($o -match ' scale=([-\d.]+) ') { [double]$Matches[1] } else { throw "mapcam을 읽지 못했습니다: $o" } }
+    function Mask { $o = Cmd 'mapcam' 150; if ($o -match ' cam=[^ ]*/mask=(-?\d+)/') { [int]$Matches[1] } else { 999 } }
+    function CamPos { $o = Cmd 'mapcam' 150; if ($o -match ' camPos=(\S+) ') { $Matches[1] } else { '?' } }
+    function Pointer([int]$x, [int]$y) { Cmd "uipointer $x $y" 400 | Out-Null }
+    # 배율은 트윈으로 바뀌므로 두 번 연속 같은 값이 읽힐 때까지 기다린 뒤 읽는다
+    function Settled { $last = Scale; for ($i = 0; $i -lt 12; $i++) { Start-Sleep -Milliseconds 350; $now = Scale; if ($now -eq $last) { return $now }; $last = $now }; $last }
+    # 확대와 축소를 번갈아 보내 배율이 끝(1이 가장 당긴 상태, max가 가장 민 상태)에 붙어 변화가 안 보이는 일을 피한다(회차 fix-1017c에서 1→1 실패)
+    $script:dir = -1
+    function Wheel { $script:dir = -$script:dir; Cmd "uiwheel $script:dir 3" 600 | Out-Null; Settled }
+    # 변해야 하는 자리: 끝에 붙어 있었을 수 있으니 안 변하면 반대쪽으로 한 번 더
+    function WheelChanges { $s0 = Settled; $s1 = Wheel; if ($s1 -eq $s0) { $s1 = Wheel }; @($s0, $s1) }
+    # 오른쪽 단추(KeyCode.Mouse1 = 324)를 누른 채 (x1,y1)에서 (x2,y2)로 끈다. 지도 처리가 한 프레임에 한 번 위치를 읽으므로 명령 사이에 틈을 둔다
+    function RightDrag([int]$x1, [int]$y1, [int]$x2, [int]$y2) {
+      Pointer $x1 $y1
+      Cmd 'uikey 324 400' 300 | Out-Null
+      Start-Sleep -Milliseconds 400
+      Pointer $x2 $y2
+      Start-Sleep -Milliseconds 900
+      $pos = CamPos
+      Cmd 'uikey 0 0' 300 | Out-Null
+      $pos
+    }
+    try {
+      if ((Cmd 'uistate') -match 'open=True ') { Cmd 'uitoggle' | Out-Null }
+      "INFO $(Cmd 'colliders' 300)"
+      Pointer 960 540
+      Cmd 'uiwheel -1 3' 600 | Out-Null; Settled | Out-Null
+      $r = WheelChanges
+      Check 'a wheel over the bare map changes the zoom (the virtual wheel reaches the game)' ($r[1] -ne $r[0]) "$($r[0]) -> $($r[1])"
+      $c0 = CamPos; $c1 = RightDrag 960 540 1200 700
+      Check 'a right-button drag over the bare map pans the map (the virtual drag reaches the game)' ($c1 -ne $c0) "$c0 -> $c1"
+
+      Cmd 'editor' | Out-Null
+      Pointer 900 560
+      $m = Cmd 'mapcam'
+      Check 'the virtual pointer counts as over the editor' ($m -match ' editorOver=True ') $m
+      Check 'the EventSystem sees the pointer over a UI object' ($m -match '/over=True ') $m
+      Check 'cameras stop sending OnMouse events while the pointer is over the editor' ((Mask) -eq 0) $m
+      $s0 = Settled; $s1 = Wheel
+      Check 'a wheel over the editor leaves the zoom alone' ($s1 -eq $s0) "$s0 -> $s1"
+      $s0 = Settled; $s1 = Wheel
+      Check 'the opposite wheel over the editor leaves the zoom alone too' ($s1 -eq $s0) "$s0 -> $s1"
+      $c0 = CamPos; $c1 = RightDrag 900 560 1200 760
+      Check 'a right-button drag over the editor does not pan the map' ($c1 -eq $c0) "$c0 -> $c1"
+
+      Pointer 1750 540
+      Check 'cameras send OnMouse events again beside the editor' ((Mask) -ne 0) (Cmd 'mapcam')
+      $r = WheelChanges
+      Check 'a wheel beside the editor still zooms the map' ($r[1] -ne $r[0]) "$($r[0]) -> $($r[1])"
+      $c0 = CamPos; $c1 = RightDrag 1750 540 1850 800
+      Check 'a right-button drag beside the editor still pans the map' ($c1 -ne $c0) "$c0 -> $c1"
+
+      # 창 안의 목록은 휠로 넘어간다(인계 8.5절의 미확인 항목. EventSystem이 같은 가상 입력을 읽는다)
+      Press 'Tab1' | Out-Null; Press 'ResGroupAll' | Out-Null; Press 'ItemQueryClear' | Out-Null
+      $p = Pos 'Row0'
+      Pointer $p.x $p.y
+      $before = Cmd 'uitext ItemTableRange'
+      $s0 = Settled
+      Cmd 'uiwheel -1 3' 1200 | Out-Null
+      $after = Cmd 'uitext ItemTableRange'
+      $s1 = Settled
+      Check 'a wheel over the list scrolls the list' ($before -match '중 1~' -and $after -notmatch '중 1~') "$before -> $after"
+      Check 'scrolling the list does not zoom the map' ($s1 -eq $s0) "$s0 -> $s1"
+      Press 'Close' | Out-Null
+
+      Pointer 900 560
+      Check 'cameras send OnMouse events again after closing the editor' ((Mask) -ne 0) (Cmd 'mapcam')
+      $r = WheelChanges
+      Check 'after closing the editor the wheel zooms the map again' ($r[1] -ne $r[0]) "$($r[0]) -> $($r[1])"
+    } finally {
+      Cmd 'uikey 0 0' | Out-Null
+      Cmd 'uipointer off' | Out-Null
+    }
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

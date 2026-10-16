@@ -76,7 +76,11 @@ namespace MOD_sWP6UL
             ArtifactHudService.Tick();
             ArtifactKeyService.Tick();
             InputGuard.Tick();
+            PointerGuard.Tick();
             AppellationService.Tick();
+#if DEVTOOLS
+            DevInputWatch.Tick();
+#endif
             if (Input.GetKeyDown(EditorHost.Hotkey))
             {
                 try
