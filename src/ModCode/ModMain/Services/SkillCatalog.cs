@@ -26,6 +26,7 @@ namespace MOD_sWP6UL
             public bool IsMod;           // 모드가 더한 행(ConfBaseItem.isModExtend). 경지 범위는 1~10으로 둔다
             public bool NameFromCh;      // 한국어 이름이 없어 LocalText의 ch(중국어)로 채웠다
             public string BasType;       // 무예·영술의 무기 종류(battleSkillAttack.basType). 그 밖은 ""
+            public bool Nameless;        // 모드 행인데 이름이 비거나 "0"이거나 키 그대로라 "이름 없음(번호)"로 둔 것. 분류 목록의 끝에 온다(05 문서 48절)
         }
 
         public static readonly Kind[] Kinds =
@@ -117,6 +118,12 @@ namespace MOD_sWP6UL
         {
             bool nameFromCh, descFromCh;
             string name = EditService.Compact(ResolveText(nameKey, out nameFromCh));
+            // 모드가 이름 키를 LocalText에 넣지 않으면 이름이 비거나 "0"이다(46절). 번호로 찾을 수 있게 이름을 두고 목록 끝으로 보낸다.
+            bool nameless = isMod && (name.Length == 0 || name == "0" || name == EditService.Compact(nameKey));
+            if (nameless)
+            {
+                name = "이름 없음(" + id + ")";
+            }
             // 기본 행은 한국어 이름이 풀린 것만(전과 같다. ch로 대신 채운 것도 뺀다).
             if (!isMod && (gradeMax < 1 || name.Length == 0 || nameFromCh || name == EditService.Compact(nameKey)))
             {
@@ -133,6 +140,7 @@ namespace MOD_sWP6UL
                 KindIndex = kindIndex,
                 IsMod = isMod,
                 NameFromCh = nameFromCh,
+                Nameless = nameless,
                 BasType = basType ?? "",
             });
         }
@@ -177,6 +185,11 @@ namespace MOD_sWP6UL
                     }
                 }
             }
+            // 이름 없는 행을 끝으로(그 밖의 순서는 표 순서 그대로).
+            var ordered = new List<Entry>(list.Count);
+            foreach (Entry entry in list) { if (!entry.Nameless) { ordered.Add(entry); } }
+            foreach (Entry entry in list) { if (entry.Nameless) { ordered.Add(entry); } }
+            list = ordered;
             cache[kindIndex] = list;
             return list;
         }

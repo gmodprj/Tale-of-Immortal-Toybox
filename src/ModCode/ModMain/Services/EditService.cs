@@ -90,7 +90,10 @@ namespace MOD_sWP6UL
             saved.energy = dyn.energyMax.value;
             saved.mood = dyn.moodMax.value;
             string after = saved.hp + "/" + saved.mp + "/" + saved.sp + "/" + saved.health + "/" + saved.energy + "/" + saved.mood;
-            ChangeLog.Add(NameOf(unit), "자원 회복(체력/영력/염력/건강/정력/심정)", before, after, true);
+            // 쓴 값을 다시 읽어 기대값과 같은지로 verified를 정한다(리뷰 C5-4).
+            bool verified = saved.hp == dyn.hpMax.value && saved.mp == dyn.mpMax.value && saved.sp == dyn.spMax.value
+                && saved.health == dyn.healthMax.value && saved.energy == dyn.energyMax.value && saved.mood == dyn.moodMax.value;
+            ChangeLog.Add(NameOf(unit), "자원 회복(체력/영력/염력/건강/정력/심정)", before, after, verified);
             return "자원 회복: " + after;
         }
 
@@ -339,6 +342,12 @@ namespace MOD_sWP6UL
             if (saved.exp < next.exp)
             {
                 return "수련치가 부족합니다(" + saved.exp + "/" + next.exp + "). 먼저 수련치를 채우세요.";
+            }
+            // 난관 기운 지우기는 운명 삭제(쓰기)다. 다른 경로(FillExp·Breakthrough)처럼 먼저 백업한다(리뷰 C5).
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 화면을 열지 않았습니다.";
             }
             RemoveStaleBottleneck(unit);
             g.ui.OpenUI(UIType.UpGrade);

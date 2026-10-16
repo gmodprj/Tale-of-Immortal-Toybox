@@ -3,8 +3,10 @@
 param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
-# 탭마다 그 탭에만 있는 버튼 하나. 탭이 제대로 그려졌는지 보는 데 쓴다.
-$tabProbe = @('Restore', 'MoneyAdd', 'CurrencyAdd10001', 'VaultModeBag', 'FillExp', 'SkillAddOpen', 'ImmortalAddOpen', 'ArtifactPoint', 'LuckAddOpen', 'ArtLearnAll', 'NpcRefresh', 'Freeze', 'God', 'PresetRestore', 'BackupNow', 'AplClassAll')
+# 탭 번호마다 그 탭에만 있는 버튼 하나(05 문서 47절: 번호는 고정이고 2는 비었다. 14는 제목 줄의 안전 단추). 탭이 제대로 그려졌는지 보는 데 쓴다.
+$tabProbe = @(
+  @(0, 'Restore'), @(1, 'BagApply'), @(3, 'VaultModeBag'), @(4, 'FillExp'), @(5, 'SkillAddOpen'), @(6, 'ImmortalAddOpen'), @(7, 'ArtifactPoint'),
+  @(8, 'LuckAddOpen'), @(9, 'ArtLearnAll'), @(10, 'NpcRefresh'), @(11, 'Freeze'), @(12, 'God'), @(13, 'PresetRestore'), @(14, 'BackupNow'), @(15, 'AplClassAll'))
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -281,6 +283,13 @@ switch ($Part) {
     Check 'seven kind chips with the mod-only chip' ((Cmd 'uitext ResKind6') -match "text='모드만 \($count\)'" -and (Cmd 'uipos ResKind7') -match 'no element named') (Cmd 'uitext ResKind6')
     Press 'ResKind6' | Out-Null
     Check 'the mod-only chip shows every mod row' ((Range) -eq $count) (Cmd 'uitext ItemTableRange')
+    # 05 문서 48절: 이름이 비거나 "0"인 모드 기술은 "이름 없음(번호)"로 보이고 목록 끝에 온다
+    $first = if ((Cmd 'uipos BookName*') -match '-> (BookName\d+) at ') { $Matches[1] } else { '' }
+    $t = if ($first) { Cmd "uitext $first" } else { '' }
+    Check 'the first mod row has a name' ($t -match "text='([^']*)'" -and $Matches[1] -ne '' -and $Matches[1] -ne '0' -and -not $Matches[1].StartsWith('이름 없음')) $t
+    Cmd 'ui set ItemQuery 126954816' | Out-Null
+    Check 'a nameless mod skill is shown by number' ((Cmd 'uitext BookName126954816') -match "text='이름 없음\(126954816\)'") (Cmd 'uitext BookName126954816')
+    Press 'ItemQueryClear' | Out-Null
     Cmd 'ui set ItemQuery 열염' | Out-Null   # 줄이 화면 밖일 수 있으므로 검색으로 띄운다
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
@@ -756,9 +765,9 @@ switch ($Part) {
   'base' {
     $traps = Traps
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
-    for ($i = 0; $i -lt $tabProbe.Count; $i++) {
-      Press "Tab$i" | Out-Null
-      Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
+    foreach ($t in $tabProbe) {
+      Press "Tab$($t[0])" | Out-Null
+      Check "tab $($t[0]) shows $($t[1])" (IsAt $t[1])
     }
     Press 'Tab0' | Out-Null
     Check 'uitext reads a label' ((Cmd 'uitext Restore') -match "text='자원 회복'")
@@ -777,11 +786,22 @@ switch ($Part) {
     Check 'title shows the target' ((Cmd 'uitext Title') -match '편집 대상: .+\(플레이어\)')
     $p = Pos 'ToPlayer'
     Check 'ToPlayer is off while the target is the player' ((Rc "click $($p.x) $($p.y)" 300) -match 'not interactable')
-    for ($i = 0; $i -lt $tabProbe.Count; $i++) {
-      Press "Tab$i" | Out-Null
-      Check "tab $i is selected" ((Cmd 'uistate') -match "tab=$i ")
-      Check "tab $i shows $($tabProbe[$i])" (IsAt $tabProbe[$i])
+    foreach ($t in $tabProbe) {
+      Press "Tab$($t[0])" | Out-Null
+      Check "tab $($t[0]) is selected" ((Cmd 'uistate') -match "tab=$($t[0]) ")
+      Check "tab $($t[0]) shows $($t[1])" (IsAt $t[1])
     }
+    # 05 문서 47절: 화폐 탭은 없고(자원 탭의 그룹), 탭 간격 46, 안전은 제목 줄의 단추 Tab14(열면 돌아가기, 다시 누르면 앞 탭).
+    Check 'the currency tab is gone' ((Cmd 'uipos Tab2') -match 'no element named')
+    $a = Pos 'Tab0'; $b = Pos 'Tab1'; $c = Pos 'Tab3'
+    Check 'tab buttons are 46 apart' (($b.y - $a.y) -eq 46 -and ($c.y - $b.y) -eq 46) "y=$($a.y),$($b.y),$($c.y)"
+    Check 'the safety button is in the title bar' ((Pos 'Tab14').y -lt $a.y) "safety y=$((Pos 'Tab14').y) tab0 y=$($a.y)"
+    Press 'Tab5' | Out-Null; Press 'Tab14' | Out-Null
+    Check 'the safety view opens from the title bar' ((Cmd 'uistate') -match 'tab=14 ' -and (IsAt 'BackupNow') -and (Cmd 'uitext Tab14') -match "text='돌아가기'")
+    Press 'Tab14' | Out-Null
+    Check 'pressing it again returns to the tab before' ((Cmd 'uistate') -match 'tab=5 ' -and (IsAt 'SkillAddOpen') -and (Cmd 'uitext Tab14') -match "text='안전'")
+    Press 'Tab14' | Out-Null; Press 'Tab0' | Out-Null
+    Check 'a tab button leaves the safety view' ((Cmd 'uistate') -match 'tab=0 ' -and (Cmd 'uitext Tab14') -match "text='안전'")
     Press 'Tab11' | Out-Null
     Check 'world tab no longer has the battle helpers' (-not (IsAt 'God'))
 
@@ -816,7 +836,18 @@ switch ($Part) {
     Press 'Tab1' | Out-Null
     Check 'tab change clears the result line' ((Cmd 'uistate') -match "message=''")
     Check 'a long result is accepted' ((Cmd 'uisay 30') -match 'said 360 chars')
+    # 05 문서 48절(U3): 세 줄을 넘는 결과는 "…"과 더 보기. 펼치면 스크롤 칸에 전체, 접기·탭 전환으로 접힌다.
+    Check 'a long result offers more' ((IsAt 'MessageMore') -and (Cmd 'uipos MessageEllipsis') -match ' at ' -and (Cmd 'uitext MessageMore') -match "text='더 보기'")
+    Press 'MessageMore' | Out-Null
+    Check 'more shows the whole text in a scroll box' ((Cmd 'uipos MessageFull') -match ' at ' -and (Cmd 'uitext MessageFullText') -match "(?s)text='.{360}'" -and (Cmd 'uitext MessageMore') -match "text='접기'")
+    Check 'the tab column stays clickable while expanded' ((IsAt 'Tab13') -and (IsAt 'Tab15'))
     Shot 'long-message'
+    Press 'MessageMore' | Out-Null
+    Check 'fold hides the scroll box' ((Cmd 'uipos MessageFull') -match 'no element named' -and (IsAt 'MessageMore'))
+    Press 'MessageMore' | Out-Null; Press 'Tab0' | Out-Null
+    Check 'a tab change folds it' ((Cmd 'uipos MessageFull') -match 'no element named' -and (Cmd 'uipos MessageMore') -match 'no element named')
+    Cmd 'uisay 1' | Out-Null
+    Check 'a short result has no more button' ((Cmd 'uipos MessageMore') -match 'no element named' -and (Cmd 'uipos MessageEllipsis') -match 'no element named')
     Press 'Tab1' | Out-Null
 
     # 편집 대상: NPC로 바꿨다가 제목 줄의 버튼으로 되돌린다 (스펙 6절 15번)
@@ -938,22 +969,26 @@ switch ($Part) {
     Check 'clothes show sex, shape and colour' ($o -match "text='의복\((남|여)\) \d+-\d+'") $o
     Press 'ItemQueryClear' | Out-Null
 
-    # 화폐: 영석 말고도 화폐로 쓰이는 재화(사용자 지시로 추가)
-    Press 'Tab2' | Out-Null
-    Check 'the currency tab lists the other currencies' ((IsAt 'CurrencyAdd10011') -and (IsAt 'CurrencyAdd10041') -and (IsAt 'CurrencyAdd7000315') -and (IsAt 'CurrencyAdd2821101'))
+    # 화폐 그룹(05 문서 47절): 영석 말고도 화폐로 쓰이는 재화. 아이템 표의 줄로 보인다(☆ 없음, 보유 CurrencyOwned, 지급 CurrencyAdd).
+    Press 'Tab1' | Out-Null; Press 'ResGroupCurrency' | Out-Null
+    Check 'the currency group has no star column' ((Cmd 'uipos ResStar10001') -match 'no element named' -and (Cmd 'uitext CurrencyOwned10001') -match "text='\d+'")
+    Check 'the currency group lists the other currencies' ((IsAt 'CurrencyAdd10011') -and (IsAt 'CurrencyAdd10041') -and (IsAt 'CurrencyAdd7000315') -and (IsAt 'CurrencyAdd2821101'))
     Check 'run-only currencies are left out' ((Cmd 'uipos CurrencyAdd5061016') -match 'no element named')
     $grid = if ((Cmd 'grid') -match 'cur=(\d+)') { [int]$Matches[1] } else { -1 }
+    $step = if ((Cmd 'uitext CurrencyAdd10041') -match "text='\+ (\d+)'") { [int]$Matches[1] } else { -1 }   # 지급 수량(AmountBar item)
     foreach ($cid in 10041, 10011) {
       $had = if ((Cmd "count $cid") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
       Press "CurrencyAdd$cid" | Out-Null
       $has = if ((Cmd "count $cid") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 }
-      Check "currency $cid goes up by the chosen amount" ($has -eq $had + 10) "$had -> $has"
+      Check "currency $cid goes up by the chosen amount" ($step -gt 0 -and $has -eq $had + $step) "$had -> $has step=$step"
     }
     Check 'the result names the currency, not a text key' ((Cmd 'uistate') -notmatch "message='item_name")
     Check 'currencies do not take bag slots' ((Cmd 'grid') -match "cur=$grid ")
     $money = if ((Cmd 'read') -match 'money=(\d+)') { [int]$Matches[1] } else { -1 }
     Press 'CurrencyAdd10001' | Out-Null
-    Check 'spirit stones can be added here too' ((Cmd 'read') -match "money=$($money + 10) ")
+    Check 'spirit stones can be added here too' ((Cmd 'read') -match "money=$($money + $step) ")
+    Check 'the owned column follows' ((Cmd 'uitext CurrencyOwned10001') -match "text='$($money + $step)'")
+    Press 'ResGroupAll' | Out-Null
     Check 'the resources tab no longer has a currency screen' ((Cmd 'uipos CurrencyOpen') -match 'no element named')
     Press 'Tab1' | Out-Null
 
@@ -975,6 +1010,8 @@ switch ($Part) {
     Check 'zero removes them' ((Extra) -eq 0)
     Press 'BagPlus' | Out-Null
     Check 'the +10 button still works' ((Extra) -eq 10)
+    Cmd "ui set BagExtra $e0" | Out-Null; Press 'BagApply' | Out-Null   # 처음 값으로 되돌린다(같은 회차의 뒤 검사가 가방이 넘쳐 비급을 못 넣지 않게. 48절)
+    Check 'the extra slots are back to the start' ((Extra) -eq $e0) "extra=$(Extra) start=$e0"
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
@@ -1175,7 +1212,161 @@ switch ($Part) {
     $s = PressThrough $book
     Check 'and the opposite action brings it back' ((Cmd "uitext $book") -eq $label0) $s
     "INFO art 2: $($s -replace '.*message=', '')"
+
+    # 05 문서 48절(C1): 깨진 공법 줄은 "(읽을 수 없음)"으로 그려지고 망각으로 지울 수 있다. mbreak가 기술 번호가 없는 공법을 넣는다.
+    Press 'Tab5' | Out-Null
+    $had = if ((Cmd 'uitext MartialListRange') -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }
+    # 깨진 공법은 게임의 삭제 행동이 예외를 내므로(실측: Il2CppException NullReferenceException) 망각이 대체 경로(장착 해제 → 목록에서 직접 뺌)를 타고 "(fallback)" 로그 한 줄을 남긴다.
+    function Fallbacks { @(Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] .*\(fallback\) ' }).Count }
+    $fb0 = Fallbacks
+    $o = Cmd 'mbreak' 1500
+    Press 'Tab0' | Out-Null; Press 'Tab5' | Out-Null
+    if ((Cmd 'uipos MartialListLast') -match ' at ') { Press 'MartialListLast' | Out-Null }
+    $has = if ((Cmd 'uitext MartialListRange') -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }
+    Check 'the broken martial is in the list' ($has -eq $had + 1 -and (Cmd 'uipos MartialBroken*') -match ' at ') "$had -> $has; $o"
+    Check 'the other rows are still drawn' (IsAt 'SkillAddOpen')
+    if ((Cmd 'uipos MartialBroken*') -match '-> MartialBroken(\d+) at ') {
+      Press "PickMartial$($Matches[1])" | Out-Null
+      Check 'picking it shows the notice and the forget button' ((Cmd 'uipos MartialBrokenNote') -match ' at ' -and (IsAt 'MartialForget'))
+      $s = PressThrough 'MartialForget'
+      Check 'forgetting removes it' ($s -match "message='공법 망각" -and (Cmd 'uipos MartialBroken*') -match 'no element named') $s
+      Check 'it went through the delete fallback once' ((Fallbacks) -eq $fb0 + 1) "fallback lines $fb0 -> $(Fallbacks)"
+    }
     Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'confirm2' {
+    # 05 문서 48절(U2): 선천운명 교체·역천개명 정하기·기술 모두 배우기·기예 모두 배우기는 두 번 눌러야 한다.
+    $traps = Traps
+    function Range([string]$name) { if ((Cmd "uitext $name") -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 } }
+    # 켜진 첫 단추(uibuttons: 이름 on|off text='…')
+    function FirstOn([string]$prefix) { foreach ($line in ((Cmd "uibuttons $prefix" 300) -split "`n")) { if ($line -match "^(\S+) on ") { return $Matches[1] } }; $null }
+    Cmd 'editor' | Out-Null; Cmd 'uitarget player' | Out-Null
+
+    # 기술 모두 배우기(심법 분류)
+    Press 'Tab5' | Out-Null
+    $had = Range 'MartialListRange'
+    Press 'SkillAddOpen' | Out-Null; Press 'SkillKind3' | Out-Null
+    Press 'SkillLearnAll' | Out-Null
+    Check 'learn-all asks first' ((Cmd 'uitext SkillLearnAll') -match "text='정말 모두 배우기'" -and (Cmd 'uistate') -match '한 번 더 누르면')
+    Press 'Back' | Out-Null
+    Check 'the first press learns nothing' ((Range 'MartialListRange') -eq $had) "$had -> $(Range 'MartialListRange')"
+    Press 'SkillAddOpen' | Out-Null; Press 'SkillKind3' | Out-Null
+    Press 'SkillLearnAll' | Out-Null; Press 'SkillLearnAll' 4000 | Out-Null
+    $s = Cmd 'uistate'
+    Press 'Back' | Out-Null
+    Check 'the second press learns them' ((Range 'MartialListRange') -gt $had) "$had -> $(Range 'MartialListRange'); $s"
+
+    # 기예 모두 배우기: 아직 다 배우지 않은 분류를 고른다(단추 글 "<분류> (배움/전체)")
+    Press 'Tab9' | Out-Null
+    $artKind = -1
+    for ($i = 0; $i -lt 6 -and $artKind -lt 0; $i++) { if ((Cmd "uitext ArtKind$i") -match "\((\d+)/(\d+)\)'" -and $Matches[1] -ne $Matches[2]) { $artKind = $i } }
+    if ($artKind -lt 0) { 'INFO every art kind is fully learned; not exercised' }
+    else {
+      Press "ArtKind$artKind" | Out-Null
+      $label0 = Cmd "uitext ArtKind$artKind"
+      Press 'ArtLearnAll' | Out-Null
+      Check 'art learn-all asks first' ((Cmd 'uitext ArtLearnAll') -match "text='정말 모두 배우기'" -and (Cmd "uitext ArtKind$artKind") -eq $label0)
+      Press 'ArtLearnAll' 4000 | Out-Null
+      # 실행됐는지는 결과 문장(기예: …)으로 본다. 고정본이 그 분류의 남은 책을 배울 조건이 안 되면 수는 그대로다(ws-1017i: 단방 136권 가운데 0권).
+      Check 'the second press runs learn-all' ((Cmd 'uistate') -match "message='[^':]+: \d+개를 배웠습니다" -and (Cmd 'uitext ArtLearnAll') -notmatch "text='정말") "$label0 -> $(Cmd "uitext ArtKind$artKind"); $(Cmd 'uistate')"
+    }
+
+    # 선천운명 교체
+    Press 'Tab8' | Out-Null
+    Press (Pos 'LuckReplace*').name | Out-Null
+    $pick = FirstOn 'LuckAdd'
+    Check 'the replace picker has a candidate' ($null -ne $pick)
+    if ($pick) {
+      Press $pick | Out-Null
+      Check 'replacing asks first' ((Cmd "uitext $pick") -match "text='정말 교체'" -and (Cmd 'uistate') -match '한 번 더 누르면' -and (IsAt 'Back'))
+      Press $pick | Out-Null
+      Check 'the second press replaces and closes the picker' ((IsAt 'LuckAddOpen') -and (Cmd 'uistate') -match "message='[^']+'") (Cmd 'uistate')
+    }
+
+    # 역천개명 정하기
+    if (IsAt 'Back') { Press 'Back' | Out-Null }   # 교체 고르기가 열린 채면 닫는다
+    Press 'FateOpen' | Out-Null
+    Press (Pos 'FateChange*').name | Out-Null
+    $pick = FirstOn 'FatePick'
+    Check 'the fate picker has a candidate' ($null -ne $pick)
+    if ($pick) {
+      Press $pick | Out-Null
+      Check 'picking a fate asks first' ((Cmd "uitext $pick") -match "text='정말 정하기'" -and (Cmd 'uistate') -match '한 번 더 누르면')
+      Press $pick | Out-Null
+      Check 'the second press sets it and goes back to the slots' ((Cmd 'uipos FateChange*') -match ' at ' -and (Cmd 'uistate') -match "message='[^']+'") (Cmd 'uistate')
+    }
+    Press 'Close' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'errors' {
+    # 05 문서 48절(C2): 단추 콜백과 탭 그리기의 예외가 결과 칸·내용 영역에 보인다. DevThrow·uifail은 개발 빌드의 시험 장치.
+    $traps = Traps
+    function TestErrors { @(Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] .*InvalidOperationException: test-exception' }).Count }   # [cmd] 줄(uistate의 message)은 빼고 센다
+    $w0 = @(ModWarnings).Count; $e0 = TestErrors
+    Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null
+    Press 'DevThrow' | Out-Null
+    Check 'a button exception shows in the result line' ((Cmd 'uistate') -match "message='오류: InvalidOperationException: test-exception'") (Cmd 'uistate')
+    Press 'Tab1' | Out-Null; Press 'Tab0' | Out-Null
+    Check 'the window still works' (IsAt 'Restore')
+    Cmd 'uifail' | Out-Null
+    Press 'Tab1' | Out-Null
+    Check 'a draw exception shows a notice' ((Cmd 'uitext DrawError') -match "text='이 탭을 그리지 못했습니다: InvalidOperationException: test-exception'") (Cmd 'uitext DrawError')
+    Press 'Tab0' | Out-Null
+    Check 'the next draw is normal' ((IsAt 'Restore') -and (Cmd 'uipos DrawError') -match 'no element named')
+    Press 'Close' | Out-Null
+    Check 'no trampoline line in the log' ((Traps) -eq $traps)
+    Check 'one button error and one draw error were logged' ((TestErrors) -eq $e0 + 2) "test-exception lines $e0 -> $(TestErrors)"
+    Check 'no other warning from the mod' (@(ModWarnings).Count -eq $w0) ((ModWarnings) -join ' | ')
+  }
+  'backup' {
+    # 05 문서 48절(C5): 백업 없이 쓰던 세 곳이 쓰기 전에 백업한다. EnsureOnce는 한 실행에 한 번이라 항목마다 bkreset으로 기록을 지운다.
+    # 백업 폴더 이름이 초 단위라 항목 사이에 1초 넘게 쉰다.
+    $traps = Traps
+    function Backups { $d = Join-Path $data 'backups'; if (Test-Path -LiteralPath $d) { @(Get-ChildItem -LiteralPath $d -Directory).Count } else { 0 } }
+    # (1) 게임의 돌파 화면 열기: 난관 기운을 지우기 전에 백업
+    Cmd 'bkreset' | Out-Null; $n = Backups
+    Cmd 'addexp 100000' 500 | Out-Null
+    $r = Cmd 'upopen' 2000
+    Check 'opening the breakthrough screen backs up first' ((Backups) -eq $n + 1 -and $r -match 'opened') "$r backups $n -> $(Backups)"
+    Start-Sleep -Milliseconds 1200
+    # (2) 경지 올리기(이미 그 경지 이상 → 보충만): 칭호 재판정 전에 백업
+    Cmd 'bkreset' | Out-Null; $n = Backups
+    $grade = if ((Cmd 'cstate' 200) -match 'grade=(\d+)') { [int]$Matches[1] } else { 0 }
+    $r = Cmd "pgraise $grade" 3000
+    Check 'settling the grade backs up first' ((Backups) -eq $n + 1 -and $r -match '이미') "$r backups $n -> $(Backups)"
+    Start-Sleep -Milliseconds 1200
+    # (3) 역천개명 여러 칸 정하기: 다른 칸을 비우기 전에 백업(비운 뒤 도달하지 않은 경지라 거절되는 경우)
+    $c = Cmd 'fateclash' 500
+    if ($c -notmatch 'held=(\d+) heldId=(\d+) target=(\d+)') { "INFO no fate to clash with in this save; not exercised: $c" }
+    else {
+      $held = $Matches[1]; $heldId = $Matches[2]; $target = $Matches[3]
+      Cmd 'bkreset' | Out-Null; $n = Backups
+      $r = Cmd "fateamong $target $heldId $held" 2000
+      Check 'setting a fate among pending slots backs up before emptying another slot' ((Backups) -eq $n + 1 -and $r -match '아직 도달하지') "$r backups $n -> $(Backups)"
+    }
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'import-settle' {
+    # 05 문서 48절(C4): 캐릭터 가져오기의 경지 구역 뒤에 경지에 따른 보충(선력·등선 진입 선법)이 따라온다.
+    $traps = Traps
+    $dir = Join-Path $data 'exports\character'
+    $file = Join-Path $dir 'uicheck-S.json'
+    if (Test-Path -LiteralPath $file) { [IO.File]::Delete($file) }
+    Cmd 'cexport uicheck-S' 800 | Out-Null
+    $pack = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
+    $pack.grade.id = 44; $pack.grade.exp = 0
+    [IO.File]::WriteAllText($file, ($pack | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding $false))
+    Check 'the character starts without immortal power' ((Cmd 'imm' 200) -match 'immortalPoint=0 ') (Cmd 'imm' 200)
+    $r = Cmd 'cimpsec uicheck-S grade' 4000
+    Check 'the grade section reports the settle' ($r -match '경지에 따라 빠져 있던 것을 채웠습니다') $r
+    $i = Cmd 'imm' 200
+    Check 'the immortal power and the first art follow the imported grade' ($i -match 'immortalPoint=6 cards=5 ') $i
+    Cmd 'uiclose GetImmortalSkill' 500 | Out-Null
+    [IO.File]::Delete($file)
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
@@ -1351,22 +1542,22 @@ switch ($Part) {
     }
     Cmd 'editor' | Out-Null
 
-    # 화폐 탭: 설명이 잘리지 않는다(정도의 기 10031의 설명은 44자를 넘는다)
-    Press 'Tab2' | Out-Null
-    $d = TextIn 'CurrencyDesc10031'
+    # 화폐 그룹(05 문서 47절): 설명은 설명 칸에서 전부 보인다(정도의 기 10031의 설명은 44자를 넘는다)
+    Press 'Tab1' | Out-Null; Press 'ResGroupCurrency' | Out-Null
+    Press 'ItemName10031' | Out-Null
+    $d = TextIn 'ItemDetailText'
     Check 'a currency description is whole' ($d.Length -gt 46 -and $d -notmatch '…') "len=$($d.Length) $d"
-    $a = Box 'CurrencyRow10031'; $b = Box 'CurrencyRow10032'
-    Check 'currency rows do not overlap' ($a -and $b -and $b.top -ge $a.top + $a.h - 1) "a=$($a.top)+$($a.h) b=$($b.top)"
 
     # 화폐 탭의 명성: 추가량만큼 오르고 저장값(reputation)과 같다
     $fame0 = if ((Cmd 'fame' 100) -match 'saved=(-?\d+)') { [int]$Matches[1] } else { -999 }
+    $fstep = if ((Cmd 'uitext CurrencyAddFame') -match "text='\+ (\d+)'") { [int]$Matches[1] } else { 10 }   # 지급 수량(AmountBar item)을 따른다
     Check 'the fame row shows the saved value' ((TextIn 'CurrencyOwnedFame') -eq "$fame0") "row=$(TextIn 'CurrencyOwnedFame') saved=$fame0"
     Press 'CurrencyAddFame' | Out-Null
     $o = Cmd 'fame' 100
-    Check 'fame rises by the amount' ($o -match "saved=$($fame0 + 10) value=$($fame0 + 10)\b") $o
-    Check 'the fame row is redrawn' ((TextIn 'CurrencyOwnedFame') -eq "$($fame0 + 10)")
+    Check 'fame rises by the amount' ($o -match "saved=$($fame0 + $fstep) value=$($fame0 + $fstep)\b") $o
+    Check 'the fame row is redrawn' ((TextIn 'CurrencyOwnedFame') -eq "$($fame0 + $fstep)")
     $hist = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Select-Object -Last 3) -join "`n"
-    Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + 10)") $hist
+    Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + $fstep)") $hist
 
     # 자원 탭(38절의 덧붙임, 사용자 지시 2026-10-15): 표에는 설명 열이 없고 줄은 한 줄 높이로 쌓인다.
     # 설명은 줄을 누르면 아래 칸에 나오고, 긴 설명도 잘리지 않는다(칸 안에서 스크롤)
@@ -1435,7 +1626,7 @@ switch ($Part) {
     Check 'history lines are whole' ($n.Count -ge 1 -and @($n | Where-Object { $_ -match '…' }).Count -eq 0) "rows=$($n.Count)"
     Shot 'wrap-history'
     Press 'Tab1' | Out-Null; Shot 'wrap-items'
-    Press 'Tab2' | Out-Null; Shot 'wrap-currency'
+    Press 'Tab1' | Out-Null; Press 'ResGroupCurrency' | Out-Null; Shot 'wrap-currency'
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
@@ -2097,6 +2288,14 @@ switch ($Part) {
     Press 'Close' | Out-Null
     Start-Sleep -Milliseconds 900
     Check 'hidden again when everything is off' ((Cmd 'uistate') -match 'status=\[hidden\] ')
+    # 05 문서 48절(C3): 세이브를 떠날 때(Destroy) 켜 둔 것을 끈다. unload가 같은 함수를 부른다.
+    Cmd 'tfreeze on' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null; Press 'God' | Out-Null; Press 'Multiplier' | Out-Null; Press 'Close' | Out-Null
+    Start-Sleep -Milliseconds 900
+    Check 'all three are on again' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] ')
+    $r = Cmd 'unload' 500
+    Start-Sleep -Milliseconds 900
+    Check 'leaving the save turns everything off' ((Cmd 'uistate') -match 'status=\[hidden\] ' -and (Cmd 'tdesc') -match 'frozen=False') $r
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }

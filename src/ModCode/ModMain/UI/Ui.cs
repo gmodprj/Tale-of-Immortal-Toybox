@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -158,7 +159,19 @@ namespace MOD_sWP6UL
             button.interactable = enabled;
             if (enabled && onClick != null)
             {
-                button.onClick.AddListener(onClick);
+                // 콜백의 예외는 화면에 아무 반응이 없고 로그의 trampoline 줄에만 남았다(리뷰 C2). 결과 칸에 보이고 로그에 한 줄 남긴다.
+                button.onClick.AddListener(new Action(() =>
+                {
+                    try
+                    {
+                        onClick();
+                    }
+                    catch (Exception e)
+                    {
+                        MelonLogger.Msg("[TlToybox] 버튼 오류 " + name + ": " + e.GetType().Name + ": " + e.Message);
+                        EditorWindow.Say("오류: " + e.GetType().Name + ": " + e.Message);
+                    }
+                }));
             }
             Text text = Label(rect, label, 0, 0, w, h, 19, TextAnchor.MiddleCenter);
             if (!enabled)

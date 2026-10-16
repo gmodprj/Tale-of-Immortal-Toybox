@@ -29,7 +29,7 @@ namespace MOD_sWP6UL
             return item == null ? 0 : item.grade;
         }
 
-        private static string GradeName(int grade)
+        internal static string GradeName(int grade)
         {
             var all = g.conf.roleGrade._allConfList;
             for (int i = 0; i < all.Count; i++)
@@ -185,6 +185,12 @@ namespace MOD_sWP6UL
         // 그래야 두 대경지의 것이 서로 맞바뀌거나 앞 프리셋과 계열이 겹쳐도 한 번에 들어간다. 부르는 쪽은 줄을 처리할 때 그 대경지를 pending에서 뺀다.
         public static string SetAmong(WorldUnitBase unit, int grade, int newId, List<int> pending)
         {
+            // 다른 칸 비우기(Release)는 운명 삭제(쓰기)다. Set의 백업보다 앞서므로 여기서 먼저 백업한다(리뷰 C5).
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
             var emptied = new List<int>();
             for (int tries = 0; tries < 10; tries++)
             {

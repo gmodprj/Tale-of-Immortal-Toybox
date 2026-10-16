@@ -46,7 +46,10 @@ namespace MOD_sWP6UL
                 detail.Clear();
                 list.SetItems(ArtService.Books(ArtService.Kinds[artKind], query));
             }));
-            Ui.Button("ArtLearnAll", content, kind.Tab + " 모두 배우기", 600, 50, 220, 38, new Action(() => Say(ArtService.LearnAll(ArtService.Kinds[artKind]))));
+            // 하나씩 잊어야 되돌린다. 두 번 눌러 확인한다(리뷰 U2).
+            Confirm.Button("ArtLearnAll", content, kind.Tab + " 모두 배우기", "정말 모두 배우기", 600, 50, 220, 38, "art-learn-all",
+                kind.Tab + "의 기예를 모두 배웁니다(하나씩 잊어야 되돌립니다). 한 번 더 누르면 실행합니다.",
+                new Action(() => Say(ArtService.LearnAll(ArtService.Kinds[artKind]))));
             Ui.Label(content, "기예는 플레이어의 기록입니다(편집 대상과 무관).", 840, 50, 460, 38, 15).color = Ui.Dim;
 
             Ui.Panel("ArtHead", content, 0, 98, ContentW, 30, Ui.Section);

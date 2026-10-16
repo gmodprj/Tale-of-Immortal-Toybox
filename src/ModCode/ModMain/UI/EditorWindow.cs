@@ -20,6 +20,15 @@ namespace MOD_sWP6UL
         public const float ContentW = 1304;
         public const float MessageH = 84;
         public const float ContentH = Height - ContentY - MessageH - 8;
+        // 탭 줄: 간격 46·단추 높이 40이면 18개가 결과 칸(908) 위에 들어간다(18번째의 아래 끝 64 + 17·46 + 40 = 886). 05 문서 47절.
+        public const float TabW = 150;
+        private const float TabStep = 46;
+        private const float TabH = 40;
+        private const int MaxTabs = 18;
+        // 안전 탭의 번호. 탭 줄이 아니라 제목 줄의 단추(Tab14)로 연다.
+        private const int SafetyNumber = 14;
+        // 더 보기로 펼쳤을 때 결과 칸이 더 커지는 높이
+        private const float MessageMoreH = 300;
 
         private const int OverlayOrder = 30000;
         // 게임 화면의 정렬은 20 간격이다(UIMgr.UIIntervalSorting). 그 사이에 끼운다.
@@ -39,11 +48,22 @@ namespace MOD_sWP6UL
         private static RectTransform titleArea;
         private static RectTransform tabBar;
         private static RectTransform content;
+        private static RectTransform titleRight;   // 제목 줄 오른쪽: 안전 단추(와 개발용 오류 단추)
+        private static RectTransform messageArea;  // 결과 칸. 안의 글은 그릴 때마다 다시 놓는다
         private static Image messageBox;
         private static Text messageLabel;
 
         private static EditorTab[] tabs;
-        private static int tab;
+        // tabs[i]의 번호. 검증 스크립트의 Tab<번호>와 uistate의 tab=이 이 번호다(05 문서 47절). 2는 비었다(화폐 탭을 자원 탭의 그룹으로 합쳤다).
+        private static int[] tabNumbers;
+        private static int tab;             // 보이는 탭(배열 순번)
+        private static int tabBefore;       // 안전을 열기 전의 탭(배열 순번)
+        private static int safetyIndex;     // 안전 탭의 배열 순번
+        private static bool messageExpanded;
+        private static string lastDrawError;
+#if DEVTOOLS
+        public static bool DevFailDraw;     // 개발 전용: 다음 그리기에서 탭 그리기 앞에 시험 예외를 한 번 던진다
+#endif
         private static string targetId;   // 편집 대상. null이면 플레이어
         private static string message = "";
         private static float flash;       // 결과 영역을 밝혀 둘 남은 시간(초)
@@ -327,6 +347,7 @@ namespace MOD_sWP6UL
 
         public static void Close()
         {
+            messageExpanded = false;
             if (root != null)
             {
                 root.SetActive(false);
@@ -337,6 +358,7 @@ namespace MOD_sWP6UL
         public static void Say(string text)
         {
             message = text;
+            messageExpanded = false;
             flash = FlashSeconds;
             Refresh();
         }
@@ -433,39 +455,53 @@ namespace MOD_sWP6UL
             Button collapse = Ui.Button("Collapse", window, "접기", Width - 196, 8, 90, 36, new Action(() => SetCollapsed(!collapsed)));
             collapseLabel = collapse.GetComponentInChildren<Text>();
             Ui.Button("Close", window, "닫기", Width - 100, 8, 84, 36, new Action(Close));
-            tabBar = Ui.Rect("Tabs", window, 16, ContentY, 150, 16 * 52);
+            tabBar = Ui.Rect("Tabs", window, 16, ContentY, TabW, MaxTabs * TabStep);
+            titleRight = Ui.Rect("TitleRight", window, Width - 360, 8, 160, 36);
             content = Ui.Rect("Content", window, ContentX, ContentY, ContentW, ContentH);
-            RectTransform box = Ui.Panel("MessageBox", window, 16, Height - MessageH - 8, Width - 32, MessageH, Ui.Section);
-            messageBox = box.GetComponent<Image>();
-            messageLabel = Ui.Label(box, "", 12, 4, Width - 56, MessageH - 8, 18, TextAnchor.UpperLeft);
-            messageLabel.color = Ui.Warn;
-            messageLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            messageLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            // 결과 칸은 내용 영역보다 뒤에 만들어 펼쳤을 때 내용 위에 그려진다. 바탕이 클릭을 받으므로 덮인 단추는 눌리지 않는다.
+            messageArea = Ui.Panel("MessageBox", window, 16, Height - MessageH - 8, Width - 32, MessageH, Ui.Section);
+            messageBox = messageArea.GetComponent<Image>();
 
             tabs = new EditorTab[]
             {
-                new AttributesTab(), new ResourcesTab(), new CurrencyTab(), new VaultTab(), new GradeTab(), new MartialTab(), new ImmortalTab(), new ArtifactTab(), new LuckTab(),
+                new AttributesTab(), new ResourcesTab(), new VaultTab(), new GradeTab(), new MartialTab(), new ImmortalTab(), new ArtifactTab(), new LuckTab(),
                 new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new PresetTab(), new SafetyTab(), new AppellationTab(),
             };
+            tabNumbers = new[] { 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SafetyNumber, 15 };
+            safetyIndex = Array.IndexOf(tabNumbers, SafetyNumber);
         }
 
         private static void Render()
         {
             Confirm.OnRender();
             Ui.Clear(titleArea);
+            Ui.Clear(titleRight);
             Ui.Clear(tabBar);
             Ui.Clear(content);
+            int slot = 0;
             for (int i = 0; i < tabs.Length; i++)
             {
+                if (i == safetyIndex)
+                {
+                    continue;   // 안전은 제목 줄의 단추
+                }
                 int index = i;
-                Ui.Button("Tab" + i, tabBar, tabs[i].Title, 0, i * 52, 150, 44, new Action(() => SwitchTab(index)), true, tab == i);
+                float y = slot * TabStep;
+                Ui.Button("Tab" + tabNumbers[i], tabBar, tabs[i].Title, 0, y, TabW, TabH, new Action(() => SwitchTab(index)), true, tab == i);
                 if (tabs[i].UsesTarget)
                 {
                     // 편집 대상(플레이어/NPC)이 적용되는 탭의 표시. 클릭은 아래의 버튼으로 통과시킨다.
-                    Ui.Panel("TargetMark", tabBar, 0, i * 52, 5, 44, Ui.Warn).GetComponent<Image>().raycastTarget = false;
+                    Ui.Panel("TargetMark", tabBar, 0, y, 5, TabH, Ui.Warn).GetComponent<Image>().raycastTarget = false;
                 }
+                slot++;
             }
-            messageLabel.text = message;
+            bool safety = tab == safetyIndex;
+            Ui.Button("Tab" + SafetyNumber, titleRight, safety ? "돌아가기" : "안전", 64, 0, 96, 36, new Action(ToggleSafety), true, safety);
+#if DEVTOOLS
+            // 개발 전용: 단추 콜백의 예외가 결과 칸에 보이는지 검사한다(ui-check.ps1의 errors).
+            Ui.Button("DevThrow", titleRight, "오류", 0, 0, 56, 36, new Action(() => { throw new InvalidOperationException("test-exception"); }));
+#endif
+            DrawMessage();
             if (!EditService.WorldReady)
             {
                 Ui.Label(content, "세이브에 진입한 뒤에 사용할 수 있습니다.", 0, 0, 800, 40, 22);
@@ -480,7 +516,88 @@ namespace MOD_sWP6UL
             }
             Ui.Button("ToPlayer", titleArea, "플레이어로", 650, 0, 130, 36,
                 new Action(() => { SetTarget(null); Say("편집 대상을 플레이어로 바꿨습니다."); }), IsTargetNpc);
-            tabs[tab].Render(content);
+            try
+            {
+#if DEVTOOLS
+                if (DevFailDraw)
+                {
+                    DevFailDraw = false;
+                    throw new InvalidOperationException("test-exception");
+                }
+#endif
+                tabs[tab].Render(content);
+                lastDrawError = null;
+            }
+            catch (Exception e)
+            {
+                // 탭 그리기의 예외는 화면에 아무 반응이 없고 로그에만 남았다(리뷰 C2). 내용 영역에 알리고, 같은 글이 이어지면 한 번만 로그에 남긴다.
+                Ui.Clear(content);
+                string text = "이 탭을 그리지 못했습니다: " + e.GetType().Name + ": " + e.Message;
+                Text error = Ui.Label(content, text, 0, 0, ContentW, 40, 19);
+                error.color = Ui.Warn;
+                error.gameObject.name = "DrawError";
+                if (lastDrawError != text)
+                {
+                    lastDrawError = text;
+                    MelonLogger.Msg("[TlToybox] 탭 오류 " + tabs[tab].Title + ": " + e.GetType().Name + ": " + e.Message);
+                }
+            }
+        }
+
+        // 제목 줄의 안전 단추: 안전 탭을 보이거나, 보고 있으면 열기 전의 탭으로 돌아간다.
+        private static void ToggleSafety()
+        {
+            if (tab == safetyIndex)
+            {
+                SwitchTab(tabBefore);
+                return;
+            }
+            tabBefore = tab;
+            SwitchTab(safetyIndex);
+        }
+
+        // 결과 칸. 글이 칸(세 줄)을 넘으면 "…"과 더 보기를 붙인다. 펼치면 칸이 위로 커져 내용 위에 덮이고 안에서 스크롤한다(리뷰 U3).
+        private static void DrawMessage()
+        {
+            Ui.Clear(messageArea);
+            float textW = Width - 32 - 24 - 110;   // 오른쪽의 더 보기 단추 자리
+            float innerH = MessageH - 8;
+            bool overflow = message.Length > 0 && Ui.TextHeight(message, textW, 18) > innerH;
+            if (!overflow)
+            {
+                messageExpanded = false;
+            }
+            // 펼친 칸은 내용 영역의 폭만 차지해 탭 줄(프리셋·도호)을 가리지 않는다. 접힌 칸은 창 폭 전체.
+            float boxX = messageExpanded ? ContentX : 16;
+            float boxW = Width - boxX - 16;
+            float boxH = messageExpanded ? MessageH + MessageMoreH : MessageH;
+            messageArea.anchoredPosition = new Vector2(boxX, -(Height - boxH - 8));
+            messageArea.sizeDelta = new Vector2(boxW, boxH);
+            if (messageExpanded)
+            {
+                float needed = Ui.TextHeight(message, textW, 18) + 12;
+                Transform area = Ui.Scroll("MessageFull", messageArea, 0, 0, boxW - 110, boxH, needed);
+                Text full = Ui.Wrapped(area, message, 12, 4, textW, needed, 18, TextAnchor.UpperLeft);
+                full.gameObject.name = "MessageFullText";
+                full.color = Ui.Warn;
+            }
+            else
+            {
+                messageLabel = Ui.Label(messageArea, message, 12, 4, overflow ? textW : boxW - 24, innerH, 18, TextAnchor.UpperLeft);
+                messageLabel.color = Ui.Warn;
+                messageLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+                messageLabel.verticalOverflow = VerticalWrapMode.Truncate;
+                if (overflow)
+                {
+                    Ui.Label(messageArea, "…", boxW - 110 - 24, innerH - 24, 24, 24, 18).gameObject.name = "MessageEllipsis";
+                }
+            }
+            if (overflow)
+            {
+                // 결과 칸만 다시 놓는다(Render를 부르면 대기 중인 두 번 누르기 확인이 풀린다).
+                Ui.Button("MessageMore", messageArea, messageExpanded ? "접기" : "더 보기", boxW - 102, 6, 90, 30,
+                    new Action(() => { messageExpanded = !messageExpanded; DrawMessage(); }));
+            }
         }
 
 #if DEVTOOLS
@@ -556,7 +673,7 @@ namespace MOD_sWP6UL
         {
             get
             {
-                return "open=" + IsOpen + " tab=" + tab + " target=" + (targetId == null ? "player" : "npc")
+                return "open=" + IsOpen + " tab=" + (tabNumbers == null ? tab : tabNumbers[tab]) + " target=" + (targetId == null ? "player" : "npc")
                     + " mode=" + (canvas == null ? "none" : canvas.renderMode.ToString()) + " order=" + (canvas == null ? 0 : canvas.sortingOrder)
                     + " covered=" + IsCovered + " top=" + g.ui.GetLayerTopSort(UILayer.UI)
                     + " pos=" + (int)position.x + "," + (int)position.y + " collapsed=" + collapsed

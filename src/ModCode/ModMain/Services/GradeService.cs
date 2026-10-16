@@ -245,12 +245,18 @@ namespace MOD_sWP6UL
                 Complete(unit, first);
                 done.Add("등선 진입의 선법 " + (card.cardDatas == null ? 0 : card.cardDatas.Count) + "장");
             }
-            DropTitles(unit);
+            // 칭호 재판정은 칭호를 지울 수 있다. 채울 것이 없어도 그 앞에 백업한다(리뷰 C5).
+            string titleBackup = SaveBackup.EnsureOnce();
+            if (titleBackup == null)
+            {
+                DropTitles(unit);
+            }
+            string skipped = titleBackup == null ? "" : " " + titleBackup + " 칭호를 재판정하지 않았습니다.";
             if (done.Count == 0)
             {
-                return null;
+                return skipped.Length == 0 ? null : skipped.Trim();
             }
-            string text = "경지에 따라 빠져 있던 것을 채웠습니다: " + string.Join(", ", done.ToArray()) + ".";
+            string text = "경지에 따라 빠져 있던 것을 채웠습니다: " + string.Join(", ", done.ToArray()) + "." + skipped;
             ChangeLog.Add(EditService.NameOf(unit), "경지에 따른 보충", "-", string.Join(", ", done.ToArray()), true);
             return text;
         }

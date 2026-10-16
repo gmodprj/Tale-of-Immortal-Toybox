@@ -18,6 +18,7 @@ namespace MOD_sWP6UL
         private readonly DetailPane fateDetail = new DetailPane("FateDetail", "줄을 누르면 여기에 전체 효과가 나옵니다.");
 
         private int replaceIndex = -1;  // 교체할 선천운명 자리. -1이면 추가
+        private string replaceName = "";  // 교체할 선천운명의 이름(확인 안내에 쓴다)
         private int luckType = 1;
         private string luckQuery = "";
         private int fateGrade;          // 역천개명을 고르는 중인 대경지
@@ -73,6 +74,8 @@ namespace MOD_sWP6UL
         private void OpenPicker(int bornIndex)
         {
             replaceIndex = bornIndex;
+            LuckService.LuckView old = bornIndex < 0 ? null : LuckService.Owned(Target).Find(v => v.Born && v.BornIndex == bornIndex);
+            replaceName = old == null ? "선천운명 " + (bornIndex + 1) + "번" : old.Name;
             pickList.Reset();
             pickDetail.Clear();
             Push(() => (replaceIndex >= 0 ? "선천운명 " + (replaceIndex + 1) + "번 교체 — " : "운명 추가 — ") + EditService.NameOf(Target), DrawPicker);
@@ -161,18 +164,22 @@ namespace MOD_sWP6UL
             Text tips = Ui.Wrapped(row, view.Tips, 24, SecondLineY, 1050, row.sizeDelta.y - SecondLineY - 4, 15, TextAnchor.UpperLeft);
             tips.color = Ui.Dim;
             tips.gameObject.name = "LuckTips" + view.Id;
-            string label = has ? "보유 중" : replacing ? "이것으로 교체" : view.Type == 1 ? "선천운명에 추가" : view.Type == 2 ? "후천운명에 추가" : "추가";
-            Ui.Button("LuckAdd" + view.Id, row, label, ContentW - Ui.ScrollBarWidth - 198, 7, 190, 36, new Action(() =>
+            float x = ContentW - Ui.ScrollBarWidth - 198;
+            if (replacing)
             {
-                if (replacing)
-                {
-                    string result = LuckService.ReplaceBorn(Target, replaceIndex, view.Id);
-                    CloseViews();
-                    Say(result);
-                    return;
-                }
-                Say(view.Type == 1 ? LuckService.AddBorn(Target, view.Id) : LuckService.Add(Target, view.Id));
-            }), !has);
+                // 선천운명 교체는 게임이 붙인 것을 뗀다. 두 번 눌러 확인한다(리뷰 U2).
+                Confirm.Button("LuckAdd" + view.Id, row, has ? "보유 중" : "이것으로 교체", "정말 교체", x, 7, 190, 36, "luck-replace:" + view.Id,
+                    "선천운명 " + replaceName + "을(를) 떼고 " + view.Name + "(으)로 바꿉니다. 한 번 더 누르면 실행합니다.", new Action(() =>
+                    {
+                        string result = LuckService.ReplaceBorn(Target, replaceIndex, view.Id);
+                        CloseViews();
+                        Say(result);
+                    }), !has);
+                return;
+            }
+            string label = has ? "보유 중" : view.Type == 1 ? "선천운명에 추가" : view.Type == 2 ? "후천운명에 추가" : "추가";
+            Ui.Button("LuckAdd" + view.Id, row, label, x, 7, 190, 36, new Action(() =>
+                Say(view.Type == 1 ? LuckService.AddBorn(Target, view.Id) : LuckService.Add(Target, view.Id))), !has);
         }
 
         // 하위 화면: 도달한 경지마다 한 줄. 변경을 누르면 그 경지의 후보 목록이 열린다.
@@ -241,12 +248,14 @@ namespace MOD_sWP6UL
             tips.color = Ui.Dim;
             tips.gameObject.name = "FateTips" + view.Id;
             int grade = fateGrade;
-            Ui.Button("FatePick" + view.Id, row, has ? "보유 중" : "이것으로 정하기", ContentW - Ui.ScrollBarWidth - 198, 7, 190, 36, new Action(() =>
-            {
-                string result = FateService.Set(Target, grade, view.Id);
-                Pop();
-                Say(result);
-            }), !has);
+            // 정하면 이전 역천개명의 효과가 꺼진다. 두 번 눌러 확인한다(리뷰 U2).
+            Confirm.Button("FatePick" + view.Id, row, has ? "보유 중" : "이것으로 정하기", "정말 정하기", ContentW - Ui.ScrollBarWidth - 198, 7, 190, 36, "fate-pick:" + view.Id,
+                FateService.GradeName(grade) + "의 역천개명을 " + view.Name + "(으)로 정합니다. 이전 것의 효과는 꺼집니다. 한 번 더 누르면 실행합니다.", new Action(() =>
+                {
+                    string result = FateService.Set(Target, grade, view.Id);
+                    Pop();
+                    Say(result);
+                }), !has);
         }
     }
 }

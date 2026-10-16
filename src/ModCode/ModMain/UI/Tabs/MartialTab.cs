@@ -69,10 +69,30 @@ namespace MOD_sWP6UL
             {
                 all.Add(new Learned { Id = pair.Key, Data = pair.Value });
             }
-            DataProps.MartialData selected = martialId == null ? null : MartialService.Martial(target, martialId);
-            if (selected == null)
+            // 선택한 공법과 그 이름·옵션. 깨진 공법이면(읽기나 To<>에서 예외) 읽지 못한 이유만 남긴다(리뷰 C1).
+            DataProps.MartialData selected = null;
+            string selectedTitle = null;
+            string selectedBroken = null;
+            var prefixes = new List<MartialService.PrefixView>();
+            if (martialId != null)
             {
-                martialId = null;
+                try
+                {
+                    selected = MartialService.Martial(target, martialId);
+                    if (selected != null)
+                    {
+                        selectedTitle = MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")";
+                        prefixes = MartialService.Prefixes(selected);
+                    }
+                }
+                catch (Exception e)
+                {
+                    selectedBroken = e.GetType().Name;
+                }
+                if (selected == null && selectedBroken == null)
+                {
+                    martialId = null;
+                }
             }
 
             Ui.Label(content, "공법", 8, 0, 300, 30, 18).color = Ui.Dim;
@@ -87,7 +107,6 @@ namespace MOD_sWP6UL
                 Push(() => "기술 추가 — " + EditService.NameOf(Target), DrawSkillAdd);
             }));
             // 옵션의 글은 줄바꿈해 전부 보인다. 두 줄 넘는 옵션이 있으면 그만큼 아래 상자를 키우고 위의 목록을 줄인다.
-            List<MartialService.PrefixView> prefixes = selected == null ? new List<MartialService.PrefixView>() : MartialService.Prefixes(selected);
             float grown = 0;
             for (int i = 0; i < prefixes.Count && i < 6; i++)
             {
@@ -99,12 +118,20 @@ namespace MOD_sWP6UL
 
             float box = 32 + listH + 10;
             Ui.Panel("MartialBox", content, 0, box, ContentW, boxH, Ui.Section);
+            if (selectedBroken != null)
+            {
+                Text note = Ui.Label(content, "읽을 수 없는 공법입니다(" + selectedBroken + "). 기술 망각으로 지울 수 있습니다.", 16, box + 10, 880, 36);
+                note.color = Ui.Warn;
+                note.gameObject.name = "MartialBrokenNote";
+                ForgetButton(box + 52);
+                return;
+            }
             if (selected == null)
             {
                 Ui.Label(content, "위에서 공법을 선택하면 옵션을 편집할 수 있습니다.", 16, box + 10, 880, 36);
                 return;
             }
-            Ui.Label(content, MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")", 16, box + 6, 420, 36, 21);
+            Ui.Label(content, selectedTitle, 16, box + 6, 420, 36, 21);
             Ui.Button("MartialExp", content, "숙련 경험치 + " + Step, 450, box + 8, 230, 34, new Action(() => Say(MartialService.AddExp(Target, martialId, Step))));
             AmountBar.Build(content, "martialExp", 700, box + 6);
 
@@ -145,7 +172,14 @@ namespace MOD_sWP6UL
             bool equipped = MartialService.IsEquipped(target, martialId);
             Ui.Button("MartialEquip", content, equipped ? "장착 해제" : "장착", 16, box + 286 + grown, 150, 34,
                 new Action(() => Say(equipped ? MartialService.Unequip(Target, martialId) : MartialService.Equip(Target, martialId))));
-            Confirm.Button("MartialForget", content, "기술 망각", "정말 망각", 176, box + 286 + grown, 150, 34, "forget:" + martialId,
+            ForgetButton(box + 286 + grown);
+            Ui.Label(content, "수련은 위의 숙련 경험치로, 참오는 위 옵션의 품질·교체로 대신합니다.", 340, box + 286 + grown, 570, 34, 15).color = Ui.Dim;
+        }
+
+        // 망각은 한 번 더 확인한다. 깨진 공법도 고유 번호만으로 지운다.
+        private void ForgetButton(float y)
+        {
+            Confirm.Button("MartialForget", content, "기술 망각", "정말 망각", 176, y, 150, 34, "forget:" + martialId,
                 "이 공법을 익힌 목록에서 지웁니다. 계속하려면 \"정말 망각\"을 한 번 더 누르세요.", new Action(() =>
                 {
                     string result = MartialService.Forget(Target, martialId);
@@ -153,16 +187,36 @@ namespace MOD_sWP6UL
                     optionDetail.Clear();
                     Say(result);
                 }));
-            Ui.Label(content, "수련은 위의 숙련 경험치로, 참오는 위 옵션의 품질·교체로 대신합니다.", 340, box + 286 + grown, 570, 34, 15).color = Ui.Dim;
         }
 
         private void DrawMartialRow(RectTransform row, Learned learned, int index)
         {
-            DataProps.MartialData martial = learned.Data.data.To<DataProps.MartialData>();
             bool picked = learned.Id == martialId;
-            Ui.Label(row, MartialService.Name(martial), 8, 0, 320, 38);
-            Ui.Label(row, MartialService.TypeLabel(martial.martialType), 338, 0, 120, 38);
-            Ui.Label(row, martial.grade.ToString(), 468, 0, 80, 38);
+            string name, type, grade;
+            bool broken = false;
+            try
+            {
+                DataProps.MartialData martial = learned.Data.data.To<DataProps.MartialData>();
+                name = MartialService.Name(martial);
+                type = MartialService.TypeLabel(martial.martialType);
+                grade = martial.grade.ToString();
+            }
+            catch (Exception e)
+            {
+                // 게임이 알아보지 못하는 값으로 만든 공법은 읽는 것만으로 예외가 난다(인계 6절). 줄은 남겨 선택·망각으로 치울 수 있게 한다(리뷰 C1).
+                broken = true;
+                name = "(읽을 수 없음) " + e.GetType().Name;
+                type = "-";
+                grade = "-";
+            }
+            Text nameLabel = Ui.Label(row, name, 8, 0, 320, 38);
+            if (broken)
+            {
+                nameLabel.color = Ui.Warn;
+                nameLabel.gameObject.name = "MartialBroken" + index;
+            }
+            Ui.Label(row, type, 338, 0, 120, 38);
+            Ui.Label(row, grade, 468, 0, 80, 38);
             Ui.Label(row, learned.Data.exp.ToString(), 558, 0, 150, 38);
             Ui.Button("PickMartial" + index, row, picked ? "선택됨" : "선택", 728, 3, 110, 32, new Action(() =>
             {
@@ -207,7 +261,10 @@ namespace MOD_sWP6UL
                 int value = grade;
                 Ui.Button("SkillGrade" + grade, content, grade.ToString(), 60 + (grade - 1) * 50, y + 46, 46, 36, new Action(() => { skillGrade = value; Redraw(); }), true, skillGrade == grade);
             }
-            Ui.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", 580, y + 46, 240, 36, new Action(() => Say(SkillCatalog.LearnAll(Target, skillKind, skillGrade))));
+            // 수십 개를 한 번에 넣고 하나씩 망각해야 되돌린다. 두 번 눌러 확인한다(리뷰 U2).
+            Confirm.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", "정말 모두 배우기", 580, y + 46, 240, 36, "skill-learn-all",
+                SkillCatalog.Kinds[skillKind].Tab + "의 배울 수 있는 기술을 모두 넣습니다(하나씩 망각해야 되돌립니다). 한 번 더 누르면 실행합니다.",
+                new Action(() => Say(SkillCatalog.LearnAll(Target, skillKind, skillGrade))));
             Ui.Label(content, "선택한 경지에서 배울 수 있고 아직 익히지 않은 것만 넣습니다. 옵션은 게임의 뽑기로 정해집니다.", 834, y + 46, 470, 36, 13).color = Ui.Dim;
 
             learnedCounts = SkillCatalog.LearnedCounts(target, skillKind);

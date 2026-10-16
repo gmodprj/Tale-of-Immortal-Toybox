@@ -39,6 +39,10 @@ namespace MOD_sWP6UL
                     }
                 case "tdesc":
                     return "frozen=" + TimeService.Frozen + " " + TimeService.Describe();
+                case "unload":
+                    // Destroy가 부르는 상태 되돌리기만 부른다(창은 두고). 검사 status가 쓴다.
+                    ModMain.ResetState();
+                    return "reset frozen=" + TimeService.Frozen + " god=" + BattleService.God + " mul=" + BattleService.Multiplier;
                 case "tfreeze":
                     return TimeService.SetFrozen(p[1] == "on");
                 case "tadv":

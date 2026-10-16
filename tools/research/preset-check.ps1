@@ -414,7 +414,7 @@ switch ($Part) {
     $n = [int](Fields (Cmd 'pdefaults' 200)).embedded
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab14' | Out-Null
-    Check 'the safety tab is the fifteenth' (IsAt 'BackupNow')
+    Check 'the safety view opens from the title bar' (IsAt 'BackupNow')
     Press 'Tab13' | Out-Null
     Check 'the preset tab is drawn' (IsAt 'PresetRestore')
     $shown = $true

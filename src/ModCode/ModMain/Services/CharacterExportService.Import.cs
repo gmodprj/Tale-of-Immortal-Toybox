@@ -184,6 +184,8 @@ namespace MOD_sWP6UL
             bool expOk = saved.exp >= wantExp;
             string after = EditService.GradeName(saved.gradeID) + "(" + saved.gradeID + ", 수련치 " + saved.exp + ")";
             ChangeLog.Add(EditService.NameOf(me), "캐릭터 가져오기 경지", before, after, gradeOk && expOk);
+            // 경지에 따라 빠져 있는 것(선력·등선 진입 선법·칭호 재판정)을 채운다. 경지 올리기(35절)와 같다(리뷰 C4). 이력은 경지 줄 뒤에 남는다.
+            string settled = gradeOk && expOk ? GradeService.Settle(me) : null;
             if (!gradeOk)
             {
                 text = "경지: 썼지만 번호가 예상과 다릅니다(" + saved.gradeID + ")";
@@ -194,7 +196,8 @@ namespace MOD_sWP6UL
                 text = "경지: " + EditService.GradeName(saved.gradeID) + "(으)로 바꿨지만 수련치는 " + saved.exp + "까지만 올랐습니다(파일 " + wantExp + ")";
                 return Outcome.Failed;
             }
-            text = "경지: " + EditService.GradeName(saved.gradeID) + "(수련치 " + saved.exp + ")로 바꿨습니다. 능력치는 따라오지 않으니 능력치도 가져오세요";
+            text = "경지: " + EditService.GradeName(saved.gradeID) + "(수련치 " + saved.exp + ")로 바꿨습니다. 능력치는 따라오지 않으니 능력치도 가져오세요"
+                + (settled == null ? "" : " " + settled);
             return Outcome.Done;
         }
 
