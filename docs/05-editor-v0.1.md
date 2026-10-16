@@ -2355,3 +2355,15 @@
 - `git status --porcelain`이 빌드마다 돈다(수십 ms). 커밋 뒤 첫 빌드는 표지가 바뀌어 다시 컴파일된다(`GenerateAssemblyInfo`의 캐시).
 - 시험 프로젝트가 닿는 순수 논리는 셋뿐이다. `ItemGroups`의 표, `GradeService.Path`, `FavoriteStore.Parse`, `MartialService.Requires`는 게임 형식을 매개변수로 받게 바꿔야 링크할 수 있다(리뷰 T6의 나머지).
 - 리뷰 T2·T3·T4·T5(스크립트 구조·중복·분할·게임 경로)는 하지 않았다.
+
+### 브랜치 리뷰 뒤의 수정 (같은 날)
+
+읽기 전용 리뷰어의 검토(Critical 0, Important 1, Minor 4) 뒤 고친 것:
+
+- **git이 없거나 저장소 밖에서의 표지**: `Exec`의 `ConsoleToMSBuild`가 stderr까지 담아 `fatal: not a git repository …-dirty`가 표지로 들어갔다(리뷰어 실측). 명령에 `2>nul`을 붙이고, 짧은 해시 꼴(`^[0-9a-f]{7,40}$`)이 아니면 `unknown`으로 둔다(`-dirty`도 붙이지 않는다). `build-tag.tests.ps1`에 소스 복사본을 git 밖에서 빌드해 `unknown`이 나오는 검사를 더했다.
+- **시험의 부작용**: `build-tag.tests.ps1`의 Release 빌드가 `CopyToEditorProject`로 모드 에디터 프로젝트의 `bin\Release`에 개발 도구 없는 DLL을 복사했다. `-p:EditorReleaseDir=`로 막는다.
+- **환경 변수의 가장자리**: 앞뒤 공백·따옴표를 지우고, 공백뿐이면 기본값, 드라이브 뿌리(`E:\`)는 역슬래시를 남긴다. 세 곳(`devremote-dir.ps1`·`DevCommands.Dir`·`DevRemote.cs`)이 같은 규칙. 시험 셋 추가(따옴표·공백·뿌리). 상대 경로는 셸과 게임의 기준 폴더가 달라 쓰지 않는다(절대 경로만).
+- `TranslationTable`의 `#` 판정을 `StringComparison.Ordinal`로(시험 런타임 net8.0과 모드 런타임 net472의 문화권 차이를 피한다).
+- `session.ps1`의 `-WorkDir`(시험용)는 환경 변수보다 우선한다. 게임 쪽은 환경 변수만 보므로 `-WorkDir`를 실제 회차에 쓰지 않는다.
+- 미룬 것: 세 곳의 규칙이 복사본이라 앞으로 어긋날 수 있다(한 파일로 모으려면 DevRemote와 모드가 소스를 공유해야 한다).
+- 검증: 도구 시험(`devremote-dir` 12, `build-tag` 4, 단위 시험 49), 빌드 셋 경고 0, 회차 `ws-1017q`(`base`·`translation`): base 24·translation 27 PASS. Init 줄 `[TlToybox] Init build=dee21f9-dirty devremote=E:\TlToybox\.devremote (default)`(문서가 미커밋이라 -dirty).
