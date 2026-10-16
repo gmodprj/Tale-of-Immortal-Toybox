@@ -2201,3 +2201,35 @@
 - 옵션 수준(-1 뒤의 값. 500을 넘는 것도 있다)의 뜻은 보지 않았다. 원본의 수준을 그대로 쓴다.
 - `ulprefix 5 0`이 공통 행 1~5를 두 번 돌려줬다(`GetItems(5, 0)`의 성질. 지급에는 쓰지 않는다).
 - 회차의 `Latest.log`에 `Fatury.ResLateLoadPatch`(창작마당 DLL 모드)의 `NullReferenceException`이 로드 중에 한 줄 난다. 우리 코드와 무관하고 `ModWarnings`에도 잡히지 않는다(`[TlToybox]` 줄이 아님).
+
+## 45. 창작마당 모드 확장(W): 검색·등록부·컬렉션 (2026-10-16 추가)
+
+스펙 `docs/superpowers/specs/2026-10-16-workshop-expand-design.md`, 계획 `plans/2026-10-16-workshop-expand.md`. 사용자 요청(2026-10-16) 여섯 가운데 2(창작마당 검색·추가 다운로드 관리)·3(받은 모드의 문서 관리)·5(Steam 모음집). 리뷰(1)는 별도 세션의 `docs/08-review-2026-10-16.md`, 한글화(4)는 K로 따로, 기타(6)는 X로 따로.
+
+### 규칙
+
+- 목록 `tools/workshop/mods.txt`는 일곱 칸 `창작마당ID | 상태 | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 비고`. 상태 `설치`·`보류`·`제외`(다뤄 본 ID는 모두 줄로 남긴다), 종류 `틀`·`외형`·`공법`·`세계관`·`음악`(보류 줄만 `-`). `-Download`·`-Install`은 `설치` 줄만(`-Id`로 `보류`는 받되 `제외`는 거부), `-Uninstall`은 모든 줄. 모르는 상태·종류·빈 이름은 시작 전에 거부. 모드ID는 게임이 읽은 `soleID`(다섯 글자도 있다: `BHJSB`).
+- 이력 `tools/workshop/history.txt`: `yyyy-MM-dd HH:mm | 받음·설치·갱신·지움 | ID | 한국어 이름`. 도구가 성공한 동작마다 덧붙인다. `-NoHistory`(회차 안·시험)면 쓰지 않는다. 2026-10-15·16의 받음 16·설치 15는 소급(시각 `--:--`).
+- `-Search [-Kind 외형,공법,세계관,음악] [-Top 20] [-Delay 1.5]`: 검색 페이지(구독자순. 태그 `Beautify` / `Battle`+검색어 `功法` / `Drama`·`NPC`·`LargeIntegrated` / 검색어 `音乐`·`BGM`·`特效`) → 상세 API(30개씩. `result`≠1·차단·비공개 제외) → 항목 페이지의 `RequiredItems` 블록. 표시 `성인향?`·`오래됨`(2023년 이전)·`큼`(200MB 초과)·`시스템?`(공법)·`대형`·`목록에 있음(상태)`. HTTP 429나 "请求太多"면 멈추고 모은 것을 쓴다(멈춘 자리를 파일 끝에). 결과 `tools/workshop/candidates-<날짜>.md`(git)와 `-desc.txt`(설명 전문, git 제외). 파일은 LF. `-WebRoot <폴더>`로 저장 응답(`browse-<태그|검색어>-p<쪽>.html`, `details.json`, `item-<ID>.html`, `collection.json`)을 읽는 시험.
+- `-Doc`: `docs/09-workshop-mods.md`(1 요약, 2 모드 표, 3 이력, 4 컬렉션 비교, 5 후보표, 6 한글화)와 `tools/workshop/collection-desc.txt`를 통째로 다시 쓴다. 손으로 고치지 않는다. 컬렉션 ID는 `tools/workshop/collection.txt`. 목록·이력·설치가 바뀌면 다시 돌려 같이 커밋한다.
+- 선정: 도구의 후보표에 사람이 한국어 요약·추천(`추천`·`보통`·`비추천`과 이유)을 채우고 사용자가 고른다. 뺀 후보는 후보표에 남는다. 필수 항목이 목록에 없으면 함께 `설치` 줄로, 앞 줄에.
+- 컬렉션은 사용자가 로그인한 브라우저에서 컨트롤러가 만든다(쓰기 API 없음). 항목은 먼저 그 계정의 즐겨찾기에 넣어야 "즐겨찾기에 있는 아이템"에서 모두 추가할 수 있다. 가시성 미등록(링크로만).
+
+### 실측
+
+- Steam 접근(읽기만): 검색 페이지 한 쪽 30개, 게임 고유 태그 열 개(`Luck`·`Drama`·`NPC`·`Battle`·`Function`·`LargeIntegrated`·`Item`·`Beautify`·`OpenSource`·`English`), 상세 API 키 없이, 항목 페이지의 `id="RequiredItems"` 블록(02a 조사표 9절의 미확인을 풂), 컬렉션 조회 API 키 없이. 만들기 주소는 `workshop/editcollection/?appid=1468810`(로그인 필요. `managecollection/?appid=`는 오류), 항목 관리는 `sharedfiles/managecollection/?id=<컬렉션ID>`, 공개 상태 변경은 컬렉션 페이지의 "공개 설정 변경"(공개·친구 공개·비공개·미등록).
+- 실제 `-Search`(2026-10-16 12:4x, `-Delay 1.5`): 종류마다 후보 20(목록에 있음 외형 7·공법 2·세계관 3·음악 1). 외형 20개의 필수 항목까지 읽은 뒤 항목 페이지 21번째(공법 첫 후보 2815137180)에서 요청 제한. 나머지 60개는 `조회 안 함(요청 제한)`으로 남기고, 고른 모드만 항목 페이지를 따로 읽었다(2832340752 → 2948618136 `[无名]图集框架(修复)` 필요, 나머지 없음). 검색 페이지와 상세 API는 제한에 걸리지 않았다. 음악 질의(`音乐`·`BGM`·`特效`)는 설명 본문까지 맞춰 음악이 아닌 모드가 섞인다.
+- 사용자 선정(추천 7 모두): 2956998877 극 NPC 실체화, 2832340752 동적 기령 요도희(+필수 2948618136 도감 틀), 3018337316 종족 틀, 3018994236 종족 확장, 3019455501 용족, 2859071194 팔황 절색방, 2834581477 BGM 교체(틀 불필요). 모두 평평한 모양. DLL이 든 것 셋: 2948618136 `MOD_chaQxF.dll`, 3018337316 `MOD_vEGKqj.dll`, 2859071194 `MOD_BHJSB.dll`. 바깥 통신 낌새의 이름 없음, 제외로 돌린 것 없음.
+- 회차 `ws-1017a`(고정본): 게임을 켠 채 `-Install -Yes -NoHistory`(`INSTALLED` 8, 이력 그대로) → `-Restart` → `wsmods loaded=24`. 모드ID: 2948618136 `chaQxF`, 2832340752 `HrAonB`, 2956998877 `Qlrjnh`, 3018337316 `vEGKqj`, 3018994236 `LBBKkB`, 3019455501 `EFuAci`, 2859071194 `BHJSB`, 2834581477 `xOR4lp`. `ui-check -Part base` 23/23, `tabs` 59/59. `rloc`가 `rows=59 applied=59 fallback=516`, `rloc dump written=766`(`.devremote\untranslated-20261016.txt`에 보관. K의 입력). `Latest.log`의 예외는 Fatury의 `ResLateLoadPatch` 하나뿐(41절과 같음). `-End`가 `SAVE RESTORED AND IDENTICAL`·`WORKSHOP FOLDERS REMOVED: 8`·`TRANSLATIONS RESTORED`.
+- 실제 설치(2026-10-16 13:20, 사용자 확인, 게임 꺼짐): `INSTALLED` 8, `-Status` 받음 23/23·설치 23/23 | 보류 1 | 제외 1. 설치본 합 660.8MB, DLL 모드 7. `ModExportData\`에 폴더 24(편집기 + 23).
+- 컬렉션 3820620999 `귀곡팔황 TlToybox 설치 모드`(세트형, 태그 Drama·NPC·Battle·Beautify, 대표 이미지는 페이지 안 캔버스로 만든 512×512 PNG): 설치 줄 23개를 즐겨찾기(같은 출처 POST `/sharedfiles/favorite`) → "모두 추가" → 저장 → 공개. 공개 상태에서 `-Doc` 4절이 `일치 23`. 사용자 결정으로 미등록으로 바꾼 뒤에는 `GetPublishedFileDetails`·`GetCollectionDetails` 모두 `result=9`(미등록은 API로 읽히지 않음. 실측). 4절은 `조회 실패: result=9`로 남긴다. 게시 직후 "자동화된 콘텐츠 확인 시스템의 분석을 기다리는" 일시 숨김 상태였다.
+- 시험: `tools/workshop.tests.ps1` 77개(목록·상태·이력 53, `-Search` 13, `-Doc` 11), `session.tests.ps1` 34개.
+- 구현 중 잡은 것: PowerShell에서 `"$BrowseUrl?$qs"`는 변수 `BrowseUrl?`로 읽혀 주소가 비었다(`${BrowseUrl}?`로. `Fetch`의 `-WebRoot` 경로에 `https://` 검사를 넣어 시험이 잡게 함). `StringBuilder.AppendLine`의 CRLF가 `(?m)…$` 판정을 막아 LF로 통일.
+
+### 확인하지 못한 것, 한계
+
+- 새 모드의 실제 효과(종족 선택, 요도희·절색방 극, BGM)는 로드까지만 봤다. 실제 플레이의 이상과 기존 세이브에 들어가는 방식은 사용자 확인 항목(인계 8.5절).
+- 호환성은 갱신일로만 가늠했다(댓글을 읽지 않았다). 요도희·도감 틀은 2023년 갱신.
+- 항목 페이지의 요청 제한 문턱(약 20회/몇 분)은 한 번의 실측. `-Delay`를 키우거나 `-Top`을 줄여 다시 돌리는 방법만 있다(멈춘 뒤 이어 받기는 없다).
+- `robocopy /MIR` 갱신이 모드가 쓴 파일을 지울 가능성(41절부터).
+- 회차 이름: `ws-1017a`.
