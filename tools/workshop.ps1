@@ -36,7 +36,7 @@ $acf = Join-Path $steamRoot "steamapps\workshop\appworkshop_$AppId.acf"
 $modsDir = Join-Path $GameDir 'ModExportData'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $States = @('설치', '보류', '제외')
-$Kinds = @('틀', '외형', '공법', '세계관', '음악')
+$Kinds = @('틀', '외형', '공법', '세계관', '음악', '기능')   # 기능: 세이브·규칙을 손보는 작은 모드(영석 입출금 등. 2026-10-16 3차)
 
 function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue) }
 
@@ -87,15 +87,22 @@ function Downloaded([string]$id) {
   if (-not (Test-Path -LiteralPath $root -PathType Container)) { return $null }
   if (@(Get-ChildItem -LiteralPath $root -Recurse -File -Filter ModExportData.cache).Count -ge 1) { $root } else { $null }
 }
-# 설치 원본. 평평하면 <ID>\, debug 모양이면 <ID>\debug\Mod_*\ 하나. 못 고르면 Path가 $null이고 Reason에 이유.
-function Source([string]$id) {
+# 설치 원본. 평평하면 <ID>\, debug 모양이면 <ID>\debug\Mod_*\ 하나. Mod_*가 여럿이면 목록의 모드ID 칸(modId)으로 debug\Mod_<모드ID>를 고른다. 못 고르면 Path가 $null이고 Reason에 이유.
+function Source([string]$id, [string]$modId = '') {
   $root = Join-Path $ContentDir $id
   if (-not (Downloaded $id)) { return [pscustomobject]@{ Path = $null; Shape = '-'; Reason = $(if (Test-Path -LiteralPath $root) { 'ModExportData.cache가 없음' } else { '받지 않음' }) } }
   if (Test-Path -LiteralPath (Join-Path $root 'ModExportData.cache')) { return [pscustomobject]@{ Path = $root; Shape = '평평함'; Reason = '' } }
   $debug = Join-Path $root 'debug'
   $inner = @(if (Test-Path -LiteralPath $debug) { Get-ChildItem -LiteralPath $debug -Directory | Where-Object { $_.Name -like 'Mod_*' -and (Test-Path -LiteralPath (Join-Path $_.FullName 'ModExportData.cache')) } })
   if ($inner.Count -eq 1) { return [pscustomobject]@{ Path = $inner[0].FullName; Shape = 'debug'; Reason = '' } }
-  if ($inner.Count -gt 1) { return [pscustomobject]@{ Path = $null; Shape = 'debug'; Reason = "debug 안에 Mod_* 폴더가 $($inner.Count)개" } }
+  if ($inner.Count -gt 1) {
+    if ($modId -and $modId -ne '-') {
+      $picked = @($inner | Where-Object { $_.Name -eq "Mod_$modId" })
+      if ($picked.Count -eq 1) { return [pscustomobject]@{ Path = $picked[0].FullName; Shape = 'debug'; Reason = '' } }
+      return [pscustomobject]@{ Path = $null; Shape = 'debug'; Reason = "debug 안에 Mod_${modId}가 없음" }
+    }
+    return [pscustomobject]@{ Path = $null; Shape = 'debug'; Reason = "debug 안에 Mod_* 폴더가 $($inner.Count)개(고르려면 모드ID 칸에 적는다)" }
+  }
   [pscustomobject]@{ Path = $null; Shape = '?'; Reason = '설치 원본을 고르지 못함' }
 }
 function SizeMb([string]$path) {
@@ -124,7 +131,7 @@ function ShowStatus($rows) {
   'ID | 상태 | 종류 | 이름 | 받음 | 설치 | 갱신 | DLL'
   foreach ($r in $rows) {
     $root = Downloaded $r.Id
-    $s = Source $r.Id
+    $s = Source $r.Id $r.ModId
     $isInst = IsInstalled $r.Id
     if ($r.State -eq '설치') { if ($root) { $got++ }; if ($isInst) { $inst++ } }
     $have = if ($root) { "$(SizeMb $root)MB $(Updated $r.Id)" } else { '-' }
@@ -142,7 +149,7 @@ function DoInstall($rows) {
   $running = Running
   $plans = New-Object System.Collections.Generic.List[object]
   foreach ($r in $rows) {
-    $s = Source $r.Id
+    $s = Source $r.Id $r.ModId
     if (-not $s.Path) { "$($r.Id) | $($r.Korean) | 건너뜀: $($s.Reason)"; continue }
     $target = Installed $r.Id
     $exists = Test-Path -LiteralPath $target -PathType Container
@@ -499,7 +506,7 @@ function DoDoc($rows) {
   $got = 0; $inst = 0; $sizeSum = 0.0; $dllMods = 0
   foreach ($r in $rows) {
     $root = Downloaded $r.Id
-    $s = Source $r.Id
+    $s = Source $r.Id $r.ModId
     $isInst = IsInstalled $r.Id
     $have = if ($root) { "$(SizeMb $root)MB $(Updated $r.Id)" } else { '-' }
     $fresh = if ($s.Path -and $isInst) { $n = DiffCount $s.Path (Installed $r.Id); if ($n -eq 0) { '같음' } else { "다름 $n" } } else { '-' }

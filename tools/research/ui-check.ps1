@@ -163,7 +163,9 @@ switch ($Part) {
     function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
     $s = Cmd 'rloc' 300
     # Init은 세이브 진입 전에 두 번 불릴 수 있다(인계 6절). 두 번째면 파일이 "있음"이고 exists 행은 이미 ch라 fallback이 0이다.
-    Check 'translations are applied on init' ($s -match 'file=(풀어 둠|있음|덧붙임 765) rows=824 applied=824 fallback=[01] unused=0 broken=0') $s
+    # 50절: 3차 묶음 뒤 6275행(824 + 번역 5284 + 중국어 없는 행 167). 옛 824행 파일이 있으면 5451행이 덧붙는다.
+    # fallback은 영어 플래그 1 + 원문으로 둔 3행(미성년 묘사) = 4. 두 번째 Init이면 플래그의 kr이 이미 ch라 3.
+    Check 'translations are applied on init' ($s -match 'file=(풀어 둠|있음|덧붙임 5451) rows=6275 applied=6275 fallback=[34] unused=0 broken=0') $s
     Check 'the translation file was written to the data folder' (Test-Path -LiteralPath $tfile) $tfile
     $k = Cmd 'rloc key skill_name_middle984555698' 300
     Check 'a mod skill name resolves to Korean' ($k -match 'ls=열염장 kr=열염장 ch=烈炎掌') $k
@@ -192,33 +194,34 @@ switch ($Part) {
     $text = $backup.Replace("skill_name_middle984555698`t열염장", "skill_name_middle984555698`t열염장2") + "`nbroken line without tab`nno_such_key`t아무개`ns_liuxue`t엉뚱`n skill_name_middle353535 `t 장기광도3 `n"
     [IO.File]::WriteAllText($tfile, $text)
     $s = Cmd 'rloc apply' 3000
-    Check 'a broken line and unknown keys are counted, the rest applies' ($s -match 'file=있음 rows=826 applied=824 fallback=0 unused=2 broken=1') $s
+    Check 'a broken line and unknown keys are counted, the rest applies' ($s -match 'file=있음 rows=6277 applied=6275 fallback=0 unused=2 broken=1') $s
     Check 'an edited line wins' ((Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장2') (Cmd 'rloc key skill_name_middle984555698' 300)
     Check 'a base key in the file is ignored and counted as unused' ((Cmd 'rloc key s_liuxue' 300) -match 'ls=유혈 kr=유혈') (Cmd 'rloc key s_liuxue' 300)
     Check 'spaces around a key are trimmed' ((Cmd 'rloc key skill_name_middle353535' 300) -match 'ls=장기광도3') (Cmd 'rloc key skill_name_middle353535' 300)
     # BOM + CRLF로 저장해도 읽힌다
     [IO.File]::WriteAllText($tfile, $backup.Replace("`n", "`r`n"), [Text.Encoding]::UTF8)
     $s = Cmd 'rloc apply' 3000
-    Check 'a file with BOM and CRLF still applies' ($s -match 'rows=824 applied=824 fallback=0 unused=0 broken=0' -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장 ') $s
+    Check 'a file with BOM and CRLF still applies' ($s -match 'rows=6275 applied=6275 fallback=0 unused=0 broken=0' -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장 ') $s
     [IO.File]::WriteAllText($tfile, $backup)
     Cmd 'rloc apply' 3000 | Out-Null
     # 미번역 내보내기
     $dumped = Cmd 'rloc dump' 3000
-    Check 'dump writes only the untranslated rows' ($dumped -match 'written=1' -and (Get-Content -LiteralPath (Join-Path $tdir 'untranslated.txt') -Raw) -match "0lkK4v`t`texists") $dumped
+    # 내보내기는 사전에 없는 행: 영어 플래그 1 + 원문으로 둔 3행 = 4(50절)
+    Check 'dump writes only the untranslated rows' ($dumped -match 'written=4' -and (Get-Content -LiteralPath (Join-Path $tdir 'untranslated.txt') -Raw) -match "0lkK4v`t`texists") $dumped
     # 파일을 지우면 다시 풀린다
     [IO.File]::Delete($tfile)
     $s = Cmd 'rloc apply' 3000
-    Check 'a missing file is extracted again' ($s -match 'file=풀어 둠 rows=824 applied=824' -and (Test-Path -LiteralPath $tfile)) $s
+    Check 'a missing file is extracted again' ($s -match 'file=풀어 둠 rows=6275 applied=6275' -and (Test-Path -LiteralPath $tfile)) $s
     # 주석만 있는 파일: 내장본의 키가 모두 덧붙는다(46절. 43절 때는 사전 0이었다)
     [IO.File]::WriteAllText($tfile, "# only a comment`n")
     $s = Cmd 'rloc apply' 3000
-    Check 'a comment-only file gets every embedded row appended' ($s -match 'file=덧붙임 824 rows=824 applied=824 fallback=0 unused=0 broken=0' -and (Get-Content -LiteralPath $tfile -Raw) -match '(?m)^# only a comment') $s
+    Check 'a comment-only file gets every embedded row appended' ($s -match 'file=덧붙임 6275 rows=6275 applied=6275 fallback=0 unused=0 broken=0' -and (Get-Content -LiteralPath $tfile -Raw) -match '(?m)^# only a comment') $s
     # 옛 파일(한 줄만, 고친 글): 새 키만 덧붙고 고친 줄은 남는다. 두 번째 적용은 덧붙일 것이 없다
     [IO.File]::WriteAllText($tfile, "# old file`nskill_name_middle984555698`t열염장2`n")
     $s = Cmd 'rloc apply' 3000
-    Check 'an old file gets the new embedded keys appended and keeps its edited line' ($s -match 'file=덧붙임 823 rows=824 applied=824' -and (Get-Content -LiteralPath $tfile -Raw) -match "(?m)^role_race_long0`t" -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장2') $s
+    Check 'an old file gets the new embedded keys appended and keeps its edited line' ($s -match 'file=덧붙임 6274 rows=6275 applied=6275' -and (Get-Content -LiteralPath $tfile -Raw) -match "(?m)^role_race_long0`t" -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장2') $s
     $s = Cmd 'rloc apply' 3000
-    Check 'a second apply appends nothing' ($s -match 'file=있음 rows=824 applied=824') $s
+    Check 'a second apply appends nothing' ($s -match 'file=있음 rows=6275 applied=6275') $s
     Check 'a race name resolves to Korean' ((Cmd 'rloc key role_race_long0' 300) -match 'ls=진룡 kr=진룡 ch=真龙') (Cmd 'rloc key role_race_long0' 300)
     Check 'a ranking hall name resolves to Korean' ((Cmd 'rloc key jsT1150010003' 300) -match 'ls=선자각 ') (Cmd 'rloc key jsT1150010003' 300)
     Check 'the artifact spirit name resolves to Korean' ((Cmd 'rloc key spriteName9963701' 300) -match 'ls=요도희 ') (Cmd 'rloc key spriteName9963701' 300)

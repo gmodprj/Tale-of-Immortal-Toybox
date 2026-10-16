@@ -128,6 +128,15 @@ $o = Run $b $none @{ Install = $true }
 Check 'install plan lists the flat item with its dll' ($o -match '111 \| 하나 \| 평평함 \| 0(\.0)?MB \| DLL MOD_x\.dll \| 새로 설치') $o
 Check 'install plan lists the debug item' ($o -match '222 \| 둘 \| debug \| 0(\.0)?MB \| DLL - \| 새로 설치') $o
 Check 'install plan skips an item with two Mod_ folders' ($o -match '333 \| 셋 \| 건너뜀: debug 안에 Mod_\* 폴더가 2개') $o
+Check 'the skip reason says how to pick one' ($o -match '333 \| 셋 \| 건너뜀: debug 안에 Mod_\* 폴더가 2개\(고르려면 모드ID 칸에 적는다\)') $o
+# 모드ID 칸에 적힌 것이 있으면 debug\Mod_<모드ID>를 고른다(2026-10-16 3차: 欢喜缘 강화판 꾸러미에 Mod_*가 둘)
+$b2 = NewBox
+[IO.File]::WriteAllText($b2.list, "333 | 설치 | 외형 | three | 셋 | b |`n")
+$o2 = Run $b2 $none @{ Install = $true }
+Check 'the mod id in the list picks one of two Mod_ folders' ($o2 -match '333 \| 셋 \| debug \| 0(\.0)?MB \| DLL - \| 새로 설치') $o2
+[IO.File]::WriteAllText($b2.list, "333 | 설치 | 외형 | three | 셋 | zzz |`n")
+$o2 = Run $b2 $none @{ Install = $true }
+Check 'a mod id that matches no folder is skipped with the reason' ($o2 -match '333 \| 셋 \| 건너뜀: debug 안에 Mod_zzz가 없음') $o2
 Check 'install plan skips an item that is not downloaded' ($o -match '444 \| 넷 \| 건너뜀: 받지 않음') $o
 Check 'a folder without a cache is skipped with the reason' ($o -match '555 \| 다섯 \| 건너뜀: ModExportData.cache가 없음') $o
 Check 'install plan leaves out held and excluded rows' (-not ($o -match '(?m)^666') -and -not ($o -match '(?m)^777')) $o
