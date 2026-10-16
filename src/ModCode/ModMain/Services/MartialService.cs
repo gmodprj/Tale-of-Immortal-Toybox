@@ -639,13 +639,29 @@ namespace MOD_sWP6UL
             {
                 return "공법을 찾지 못했습니다.";
             }
-            string name = Name(action.data.To<DataProps.MartialData>());
+            string name;
+            try
+            {
+                name = Name(action.data.To<DataProps.MartialData>());
+            }
+            catch (Exception e)
+            {
+                name = "(읽을 수 없음 " + e.GetType().Name + ")";
+            }
             string backupError = SaveBackup.EnsureOnce();
             if (backupError != null)
             {
                 return backupError + " 변경을 중단했습니다.";
             }
-            unit.CreateAction(new UnitActionMartialDel(action), false);
+            try
+            {
+                unit.CreateAction(new UnitActionMartialDel(action), false);
+            }
+            catch (Exception)
+            {
+                // 깨진 공법은 게임의 삭제 행동이 읽다가 예외를 낼 수 있다. 목록에서 직접 뺀다.
+                data.DelActionMartial(soleId);
+            }
             bool ok = !data.allActionMartial.ContainsKey(soleId);
             ChangeLog.Add(EditService.NameOf(unit), "공법 " + name, "익힘", ok ? "없음" : "익힘", ok);
             return ok ? "공법 망각: " + name : name + ": 게임이 지우지 않았습니다.";

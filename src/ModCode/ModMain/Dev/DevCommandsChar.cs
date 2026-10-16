@@ -1,3 +1,4 @@
+using UnhollowerBaseLib;
 using System;
 using System.Text;
 
@@ -13,6 +14,32 @@ namespace MOD_sWP6UL
             {
                 case "cstate": return State(me);
                 case "cmartial": return Martials(me, int.Parse(p[1]));
+                case "mbreak":
+                    {
+                        // 배운 공법 하나의 값을 복사해 기술 번호(머리 세 칸 뒤의 두 번째)를 없는 수로 바꾼 공법을 넣는다.
+                        // 읽는 것만으로 예외가 나는 "깨진 공법"을 만들어 공법 탭의 보호(05 문서 48절)를 검사한다.
+                        var data = me.data.unitData;
+                        DataUnit.ActionMartialData source = null;
+                        foreach (var pair in data.allActionMartial)
+                        {
+                            source = pair.Value;
+                            break;
+                        }
+                        if (source == null)
+                        {
+                            return "no martial";
+                        }
+                        Il2CppStructArray<int> from = source.data.values;
+                        var tail = new Il2CppStructArray<int>(from.Length - 3);
+                        for (int i = 3; i < from.Length; i++)
+                        {
+                            tail[i - 3] = from[i];
+                        }
+                        tail[1] = 999999999;
+                        DataProps.PropsData props = DataProps.PropsData.New(0, 1, DataProps.PropsDataType.Martial, tail);
+                        data.StudyActionMartialProp(props);
+                        return "sole=" + props.soleID + " martials=" + data.allActionMartial.Count;
+                    }
                 case "mdel":
                     me.data.unitData.DelActionMartial(p[1]);
                     return "DelActionMartial called; martials=" + me.data.unitData.allActionMartial.Count;
