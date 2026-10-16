@@ -260,6 +260,40 @@ $o = Run $b $none @{ Search = $true; Out = $out }
 $t = ReadIf $out
 Check 'search stops at the rate limit, keeps what it has, names the place and does not fetch required items' ($t -match '요청 제한으로 멈춤: NPC 1쪽' -and $t -match '\| 3001 \|' -and $t -match '(?m)^## 음악 \(요청 제한으로 읽지 못함\)' -and $t -match '\| 1001 \|(?: [^|]* \|){6} 조회 안 함\(요청 제한\) \|') $t
 
+# 13. -Doc: 목록·폴더·이력·컬렉션으로 등록부 문서와 컬렉션 설명문을 만든다
+$b = NewBox
+[void](Run $b $none @{ Install = $true; Yes = $true })      # 111·222 설치 → 이력 두 줄
+[void](Run $b $none @{ Download = $true })                  # 444·555 받음 → 이력 두 줄
+WriteFile "$($b.root)\collection.txt" "# 컬렉션 ID`n5000`n"
+WriteFile "$($b.web)\collection.json" '{"response":{"result":1,"resultcount":1,"collectiondetails":[{"publishedfileid":"5000","result":1,"children":[{"publishedfileid":"111","sortorder":0,"filetype":0},{"publishedfileid":"222","sortorder":1,"filetype":0},{"publishedfileid":"9999","sortorder":2,"filetype":0}]}]}}'
+WriteFile "$($b.root)\tr.txt" "# 주석`nkey1`t하나`nkey2`t둘`n깨진 줄`n"
+WriteFile "$($b.root)\candidates-20260101.md" '# 후보표'
+$doc = "$($b.root)\doc.md"
+$docArgs = @{ Doc = $true; DocOut = $doc; CollectionFile = "$($b.root)\collection.txt"; TranslationFile = "$($b.root)\tr.txt" }
+$o = Run $b $none $docArgs
+$t = if (Test-Path $doc) { [IO.File]::ReadAllText($doc) } else { '' }
+Check 'doc has the six sections' ($t -match '(?m)^## 1\. 요약' -and $t -match '(?m)^## 2\. 모드 표' -and $t -match '(?m)^## 3\. 이력' -and $t -match '(?m)^## 4\. 컬렉션 비교' -and $t -match '(?m)^## 5\. 후보표' -and $t -match '(?m)^## 6\. 한글화') $t
+Check 'doc summary counts states, install rows and dll mods' ($t -match '- 상태: 설치 5, 보류 1, 제외 1 \(줄 7\)' -and $t -match '- 설치 줄 5: 받음 5/5, 설치 2/5' -and $t -match '- DLL이 든 설치 모드: 1개') $t
+Check 'doc table has a row per list line with the live state and a link' (@([regex]::Matches($t, '(?m)^\| \d+ \|')).Count -eq 7 -and $t -match '\| 111 \| 설치 \| 외형 \| one \| 하나 \| - \| 0(\.0)?MB 2024-12-28 \| 예 \| 같음 \| MOD_x\.dll \| DLL 1 \| \[창작마당\]\(https://steamcommunity\.com/sharedfiles/filedetails/\?id=111\) \|' -and $t -match '\| 777 \| 제외 \| 외형 \| seven \| 일곱 \| - \| - \| 예 \| - \| - \| 제외 사유 \|') $t
+Check 'doc lists the history newest first' (($t.IndexOf('| 받음 | 555 |') -lt $t.IndexOf('| 설치 | 111 |')) -and $t -match "\| $when \| 설치 \| 111 \| 하나 \|") $t
+Check 'doc compares the install rows with the collection' ($t -match '- 컬렉션 5000: https://steamcommunity\.com/sharedfiles/filedetails/\?id=5000' -and $t -match '- 일치 2' -and $t -match '- 컬렉션에만: 9999' -and $t -match '- 설치 줄에만: 333, 444, 555') $t
+Check 'doc lists the candidate files and counts translation rows' ($t -match '- \[candidates-20260101\.md\]' -and $t -match 'mods\.txt: 2행') $t
+$d = if (Test-Path "$($b.root)\collection-desc.txt") { [IO.File]::ReadAllText("$($b.root)\collection-desc.txt") } else { '' }
+Check 'doc writes the collection description with the install rows by kind' ($d -match '(?m)^\[외형\]' -and $d -match '(?m)^- one\(하나\)' -and $d -match '(?m)^\[공법\]' -and $d -match '(?m)^- four\(넷\)' -and -not ($d -match 'seven') -and $d -match '설치 5개') $d
+Check 'doc says where it wrote' ($o -match '문서: ' -and $o -match '설명문: ') $o
+[IO.File]::Delete("$($b.root)\collection.txt")
+$o = Run $b $none $docArgs
+$t = ReadIf $doc
+Check 'doc reports the collection as missing without the id file' ($t -match '컬렉션 없음') $t
+WriteFile "$($b.root)\collection.txt" "5000`n"
+[IO.File]::Delete("$($b.web)\collection.json")
+$o = Run $b $none $docArgs
+$t = ReadIf $doc
+Check 'doc reports a failed collection lookup and still writes the rest' ($t -match '- 조회 실패: HTTP 404' -and $t -match '(?m)^## 5\. 후보표') $t
+$o = Run $b $none @{ Doc = $true; DocOut = $doc; CollectionFile = "$($b.root)\collection.txt"; TranslationFile = "$($b.root)\no-such.txt" }
+$t = ReadIf $doc
+Check 'doc reports a missing translation file' ($t -match '번역 파일 없음') $t
+
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-workshop-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }

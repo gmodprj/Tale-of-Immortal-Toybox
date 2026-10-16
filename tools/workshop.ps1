@@ -428,6 +428,126 @@ function DoSearch($rows) {
   "후보표: $Out"
 }
 
+# ---- -Doc: 등록부 문서·컬렉션 비교·설명문 (2026-10-16 설계 3.4절) ----
+$CollectionUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/'
+# 이력 파일. 줄: yyyy-MM-dd HH:mm | 동작 | ID | 한국어 이름 (시각 자리에 --:--도 온다)
+function ReadHistory {
+  if (-not (Test-Path -LiteralPath $History)) { return @() }
+  $items = New-Object System.Collections.Generic.List[object]
+  foreach ($line in [IO.File]::ReadAllLines($History)) {
+    $m = [regex]::Match($line, '^\s*(\S+ \S+) \| (\S+) \| (\d+) \| (.*)$')
+    if ($m.Success) { $items.Add([pscustomobject]@{ When = $m.Groups[1].Value; Action = $m.Groups[2].Value; Id = $m.Groups[3].Value; Korean = $m.Groups[4].Value.Trim() }) }
+  }
+  $items.ToArray()
+}
+# 컬렉션 ID 파일의 첫 줄(# 줄과 빈 줄 제외). 없으면 ''
+function ReadCollectionId {
+  if (-not (Test-Path -LiteralPath $CollectionFile)) { return '' }
+  foreach ($line in [IO.File]::ReadAllLines($CollectionFile)) { $t = $line.Trim(); if ($t -and -not $t.StartsWith('#')) { return $t } }
+  ''
+}
+# 번역 파일의 행 수(탭이 있는 줄). 파일이 없으면 -1
+function TranslationRows {
+  if (-not (Test-Path -LiteralPath $TranslationFile)) { return -1 }
+  @([IO.File]::ReadAllLines($TranslationFile) | Where-Object { $_.Trim() -and -not $_.TrimStart().StartsWith('#') -and $_.Contains("`t") }).Count
+}
+# 컬렉션의 항목 ID(공개 API). Ok, Ids, Reason
+function CollectionChildren([string]$cid) {
+  $res = Fetch $CollectionUrl 'collection.json' @{ collectioncount = 1; 'publishedfileids[0]' = $cid }
+  if (-not $res.Ok) { return @{ Ok = $false; Ids = @(); Reason = "HTTP $($res.Status)" } }
+  $json = $null
+  try { $json = $res.Body | ConvertFrom-Json } catch { return @{ Ok = $false; Ids = @(); Reason = 'JSON이 아님' } }
+  $c = @($json.response.collectiondetails) | Select-Object -First 1
+  if (-not $c -or [int]$c.result -ne 1) { return @{ Ok = $false; Ids = @(); Reason = "result=$(if ($c) { $c.result } else { '없음' })" } }
+  @{ Ok = $true; Ids = @(@($c.children) | ForEach-Object { [string]$_.publishedfileid }); Reason = '' }
+}
+# 컬렉션 설명문(사람이 Steam의 설명 칸에 붙여 넣는다). 설치 줄만, 종류별로
+function WriteCollectionDesc($target) {
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add("TlToybox 편집기와 함께 쓰는 창작마당 모드 목록($(Get-Date -Format 'yyyy-MM-dd') 기준, 설치 $($target.Count)개)")
+  foreach ($k in $Kinds) {
+    $ofKind = @($target | Where-Object { $_.Kind -eq $k })
+    if ($ofKind.Count -eq 0) { continue }
+    $lines.Add(''); $lines.Add("[$k]")
+    foreach ($r in $ofKind) { $lines.Add("- $($r.Title)($($r.Korean))") }
+  }
+  $lines.Add('')
+  $lines.Add('이 설치본은 Steam을 거치지 않아 SteamCMD로 받아 ModExportData\<창작마당ID>\에 넣는다. 도구: 저장소 tools/workshop.ps1')
+  $path = Join-Path $listDir 'collection-desc.txt'
+  [IO.File]::WriteAllText($path, ($lines -join "`n") + "`n", $utf8)
+  $path
+}
+function DoDoc($rows) {
+  $target = @($rows | Where-Object { $_.State -eq '설치' })
+  $held = @($rows | Where-Object { $_.State -eq '보류' }).Count
+  $excl = @($rows | Where-Object { $_.State -eq '제외' }).Count
+  # 2절의 줄을 먼저 계산한다(1절의 합계가 필요하다)
+  $tableRows = New-Object System.Collections.Generic.List[string]
+  $got = 0; $inst = 0; $sizeSum = 0.0; $dllMods = 0
+  foreach ($r in $rows) {
+    $root = Downloaded $r.Id
+    $s = Source $r.Id
+    $isInst = IsInstalled $r.Id
+    $have = if ($root) { "$(SizeMb $root)MB $(Updated $r.Id)" } else { '-' }
+    $fresh = if ($s.Path -and $isInst) { $n = DiffCount $s.Path (Installed $r.Id); if ($n -eq 0) { '같음' } else { "다름 $n" } } else { '-' }
+    $dlls = if ($root) { @(Dlls $root) } else { @() }
+    if ($r.State -eq '설치') {
+      if ($root) { $got++ }
+      if ($isInst) { $inst++; $sizeSum += SizeMb (Installed $r.Id); if ($dlls.Count -gt 0) { $dllMods++ } }
+    }
+    $tableRows.Add("| $($r.Id) | $($r.State) | $($r.Kind) | $($r.Title) | $($r.Korean) | $($r.ModId) | $have | $(if ($isInst) { '예' } else { '-' }) | $fresh | $(if ($dlls.Count -gt 0) { $dlls -join ',' } else { '-' }) | $($r.Note) | [창작마당]($ItemUrl$($r.Id)) |")
+  }
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add("# 09. 창작마당 모드 등록부 (생성 $(Get-Date -Format 'yyyy-MM-dd HH:mm'))")
+  $lines.Add('')
+  $lines.Add('이 문서는 pwsh tools/workshop.ps1 -Doc 이 만든다. 손으로 고치지 않는다. 고치려면 tools/workshop/mods.txt 와 history.txt 를 고친 뒤 다시 돌린다. 설계: docs/superpowers/specs/2026-10-16-workshop-expand-design.md 3.4절.')
+  $lines.Add("게임 폴더 $GameDir, SteamCMD $SteamCmd, 받은 자리 $ContentDir.")
+  $lines.Add(''); $lines.Add('## 1. 요약'); $lines.Add('')
+  $lines.Add("- 상태: 설치 $($target.Count), 보류 $held, 제외 $excl (줄 $($rows.Count))")
+  $lines.Add("- 설치 줄 $($target.Count): 받음 $got/$($target.Count), 설치 $inst/$($target.Count)")
+  $lines.Add("- 설치본 크기: $([math]::Round($sizeSum, 1))MB (설치된 설치 줄의 폴더 합)")
+  $lines.Add("- DLL이 든 설치 모드: ${dllMods}개")
+  $lines.Add(''); $lines.Add('## 2. 모드 표'); $lines.Add('')
+  $lines.Add('| ID | 상태 | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 받음 | 설치 | 설치본 | DLL | 비고 | 링크 |')
+  $lines.Add('|---|---|---|---|---|---|---|---|---|---|---|---|')
+  foreach ($t in $tableRows) { $lines.Add($t) }
+  $lines.Add(''); $lines.Add('## 3. 이력 (최근 것부터)'); $lines.Add('')
+  $hist = @(ReadHistory)
+  if ($hist.Count -eq 0) { $lines.Add('이력 없음') }
+  else {
+    $lines.Add('| 때 | 동작 | ID | 한국어 이름 |'); $lines.Add('|---|---|---|---|')
+    [array]::Reverse($hist)
+    foreach ($h in $hist) { $lines.Add("| $($h.When) | $($h.Action) | $($h.Id) | $($h.Korean) |") }
+  }
+  $lines.Add(''); $lines.Add('## 4. 컬렉션 비교'); $lines.Add('')
+  $cid = ReadCollectionId
+  if (-not $cid) { $lines.Add('컬렉션 없음 (tools/workshop/collection.txt 에 컬렉션 ID를 한 줄 적으면 비교한다)') }
+  else {
+    $c = CollectionChildren $cid
+    $lines.Add("- 컬렉션 ${cid}: $ItemUrl$cid")
+    if (-not $c.Ok) { $lines.Add("- 조회 실패: $($c.Reason)") }
+    else {
+      $want = @($target | ForEach-Object { $_.Id })
+      $onlyColl = @($c.Ids | Where-Object { $want -notcontains $_ })
+      $onlyList = @($want | Where-Object { $c.Ids -notcontains $_ })
+      $lines.Add("- 일치 $(@($want | Where-Object { $c.Ids -contains $_ }).Count)")
+      $lines.Add("- 컬렉션에만: $(if ($onlyColl.Count -gt 0) { $onlyColl -join ', ' } else { '없음' })")
+      $lines.Add("- 설치 줄에만: $(if ($onlyList.Count -gt 0) { $onlyList -join ', ' } else { '없음' })")
+    }
+  }
+  $lines.Add(''); $lines.Add('## 5. 후보표'); $lines.Add('')
+  $candFiles = @(Get-ChildItem -LiteralPath $listDir -File -Filter 'candidates-*.md' -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object Name)
+  if ($candFiles.Count -eq 0) { $lines.Add('후보표 없음') } else { foreach ($cf in $candFiles) { $lines.Add("- [$cf](../tools/workshop/$cf)") } }
+  $lines.Add(''); $lines.Add('## 6. 한글화'); $lines.Add('')
+  $tr = TranslationRows
+  if ($tr -lt 0) { $lines.Add("- 번역 파일 없음: $TranslationFile") } else { $lines.Add("- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: ${tr}행. 모드별 상태는 한글화(K)에서 정한다.") }
+  [void][IO.Directory]::CreateDirectory((Split-Path -Parent $DocOut))
+  [IO.File]::WriteAllText($DocOut, ($lines -join "`n") + "`n", $utf8)
+  $descPath = WriteCollectionDesc $target
+  "문서: $DocOut (모드 $($rows.Count)줄, 이력 $($hist.Count)줄)"
+  "설명문: $descPath"
+}
+
 $all = ReadList
 $chosen = Chosen $all
 $modes = @(@($Status, $Download, $Install, $Uninstall, $Search, $Doc) | Where-Object { $_ }).Count
@@ -437,6 +557,6 @@ elseif ($Download) { DoDownload (ForDownload $chosen) }
 elseif ($Install) { DoInstall (ForInstall $chosen) }
 elseif ($Uninstall) { DoUninstall $chosen }
 elseif ($Search) { DoSearch $all }
-elseif ($Doc) { throw '-Doc은 아직 없습니다(Task 3).' }
+elseif ($Doc) { DoDoc $all }
 $global:LASTEXITCODE = 0
 exit 0
