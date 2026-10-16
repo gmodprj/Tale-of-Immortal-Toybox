@@ -1,27 +1,46 @@
-# 창작마당 모드를 받아 게임의 로컬 모드 폴더에 설치하는 도구(docs/superpowers/specs/2026-10-15-workshop-install-design.md).
-#   -Status                       목록의 줄마다 받음·설치·갱신·DLL을 보인다
-#   -Download  [-Id a,b]          받지 않은 것(또는 -Id로 고른 것)을 SteamCMD의 캐시 로그인으로 받는다(최대 세 번)
-#   -Install   [-Id a,b] [-Yes]   받은 것을 <GameDir>\ModExportData\<ID>\에 복사한다. -Yes 없이는 계획만 보인다
-#   -Uninstall [-Id a,b] [-Yes]   목록 ID의 설치 폴더를 지운다. -Yes 없이는 계획만 보인다
-# 게임 폴더에 쓰는 것은 ModExportData\<창작마당ID>\뿐이다(CLAUDE.md). 비밀번호는 받지 않는다.
+# 창작마당 모드를 찾고 받아 게임의 로컬 모드 폴더에 설치하는 도구
+# (docs/superpowers/specs/2026-10-15-workshop-install-design.md, 2026-10-16-workshop-expand-design.md).
+#   -Status                       목록의 줄마다 상태·받음·설치·갱신·DLL을 보인다
+#   -Download  [-Id a,b]          설치 줄 가운데 받지 않은 것(또는 -Id로 고른 것. 보류는 되고 제외는 거부)을 SteamCMD의 캐시 로그인으로 받는다(최대 세 번)
+#   -Install   [-Id a,b] [-Yes]   설치 줄의 받은 것을 <GameDir>\ModExportData\<ID>\에 복사한다. -Yes 없이는 계획만 보인다
+#   -Uninstall [-Id a,b] [-Yes]   목록 ID의 설치 폴더를 지운다(상태와 무관). -Yes 없이는 계획만 보인다
+#   -Search    [-Kind …] [-Top n] 창작마당에서 종류마다 구독자 상위 후보를 모아 후보표를 쓴다(2026-10-16 설계 3.3절)
+#   -Doc                          등록부 문서 docs/09-workshop-mods.md와 컬렉션 설명문을 쓴다(3.4절)
+# 목록 tools/workshop/mods.txt: 창작마당ID | 상태(설치·보류·제외) | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 비고. 줄 순서가 설치 순서.
+# 받음·설치·갱신·지움은 tools/workshop/history.txt에 한 줄씩 남는다(-NoHistory면 남기지 않는다. 회차 안에서 쓴다).
+# 게임 폴더에 쓰는 것은 ModExportData\<창작마당ID>\뿐이다(CLAUDE.md). 비밀번호는 받지 않는다. 네트워크는 읽기만 한다.
 # 설치 원본: <ID>\ModExportData.cache가 있으면 <ID>\ 전체, 없으면 <ID>\debug\Mod_*\ 가운데 cache가 있는 폴더가 하나일 때 그것.
-param([switch]$Status, [switch]$Download, [switch]$Install, [switch]$Uninstall, [switch]$Yes,
+param([switch]$Status, [switch]$Download, [switch]$Install, [switch]$Uninstall, [switch]$Search, [switch]$Doc, [switch]$Yes,
   [string]$Id = '',
   [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$SteamCmd = 'E:\SteamCmd\steamcmd.exe', [string]$Account = 'deepestlight',
   [string]$List = '', [int]$AppId = 1468810,
-  # 아래는 workshop.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다.
-  [string]$ContentDir = '', [string]$ProcessName = 'guigubahuang', [int]$TimeoutMinutes = 30)
+  [string]$History = '', [switch]$NoHistory,
+  # -Search (3.3절)
+  [string]$Kind = '외형,공법,세계관,음악', [int]$Top = 20, [double]$Delay = 1.5, [string]$Out = '',
+  # -Doc (3.4절)
+  [string]$DocOut = '', [string]$CollectionFile = '', [string]$TranslationFile = '',
+  # 아래는 workshop.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다. -WebRoot는 네트워크 대신 그 폴더의 파일을 읽는다.
+  [string]$ContentDir = '', [string]$ProcessName = 'guigubahuang', [int]$TimeoutMinutes = 30, [string]$WebRoot = '')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 if (-not $List) { $List = Join-Path $repo 'tools\workshop\mods.txt' }
+$listDir = Split-Path -Parent $List
+if (-not $History) { $History = Join-Path $listDir 'history.txt' }
+if (-not $CollectionFile) { $CollectionFile = Join-Path $listDir 'collection.txt' }
+if (-not $TranslationFile) { $TranslationFile = Join-Path $repo 'src\ModCode\ModMain\Translations\mods.txt' }
+if (-not $Out) { $Out = Join-Path $listDir ('candidates-' + (Get-Date -Format 'yyyyMMdd') + '.md') }
+if (-not $DocOut) { $DocOut = Join-Path $repo 'docs\09-workshop-mods.md' }
 $steamRoot = Split-Path -Parent $SteamCmd
 if (-not $ContentDir) { $ContentDir = Join-Path $steamRoot "steamapps\workshop\content\$AppId" }
 $acf = Join-Path $steamRoot "steamapps\workshop\appworkshop_$AppId.acf"
 $modsDir = Join-Path $GameDir 'ModExportData'
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+$States = @('설치', '보류', '제외')
+$Kinds = @('틀', '외형', '공법', '세계관', '음악')
 
 function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue) }
 
-# 목록 파일. '#' 줄은 주석. ID | 종류 | 원문 이름 | 한국어 이름 | 비고
+# 목록 파일. '#' 줄은 주석. ID | 상태 | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 비고
 function ReadList {
   if (-not (Test-Path -LiteralPath $List)) { throw "목록 파일이 없습니다: $List" }
   $rows = New-Object System.Collections.Generic.List[object]
@@ -29,8 +48,12 @@ function ReadList {
     $t = $line.Trim()
     if (-not $t -or $t.StartsWith('#')) { continue }
     $cells = @($t.Split('|') | ForEach-Object { $_.Trim() })
-    if ($cells.Count -lt 5 -or $cells[0] -notmatch '^\d+$') { throw "목록의 줄을 읽지 못했습니다: $line" }
-    $rows.Add([pscustomobject]@{ Id = $cells[0]; Kind = $cells[1]; Title = $cells[2]; Korean = $cells[3]; Note = $cells[4] })
+    if ($cells.Count -lt 7 -or $cells[0] -notmatch '^\d+$') { throw "목록의 줄을 읽지 못했습니다(일곱 칸이어야 합니다): $line" }
+    if ($States -notcontains $cells[1]) { throw "모르는 상태입니다(설치·보류·제외): $line" }
+    $held = $cells[1] -eq '보류'
+    if (-not ($Kinds -contains $cells[2] -or ($held -and $cells[2] -eq '-'))) { throw "모르는 종류입니다(틀·외형·공법·세계관·음악): $line" }
+    if (-not $held -and ($cells[3] -in @('', '-') -or $cells[4] -in @('', '-'))) { throw "설치·제외 줄은 이름을 비울 수 없습니다: $line" }
+    $rows.Add([pscustomobject]@{ Id = $cells[0]; State = $cells[1]; Kind = $cells[2]; Title = $cells[3]; Korean = $cells[4]; ModId = $cells[5]; Note = $cells[6] })
   }
   $rows.ToArray()
 }
@@ -40,6 +63,23 @@ function Chosen($rows) {
   $wanted = @($Id.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
   foreach ($w in $wanted) { if (-not @($rows | Where-Object { $_.Id -eq $w })) { throw "목록에 없는 ID입니다: $w" } }
   @($rows | Where-Object { $wanted -contains $_.Id })
+}
+# 받을 줄: 설치 줄. -Id로 지정하면 보류도 받되 제외는 거부한다.
+function ForDownload($rows) {
+  if ($Id) { foreach ($r in $rows) { if ($r.State -eq '제외') { throw "제외한 ID입니다: $($r.Id) ($($r.Note))" } }; return @($rows) }
+  @($rows | Where-Object { $_.State -eq '설치' })
+}
+# 설치할 줄: 설치 줄만. -Id로 보류·제외를 지정하면 거부한다.
+function ForInstall($rows) {
+  if ($Id) { foreach ($r in $rows) { if ($r.State -ne '설치') { throw "$($r.State) 상태의 ID는 설치하지 않습니다: $($r.Id)" } } }
+  @($rows | Where-Object { $_.State -eq '설치' })
+}
+# 이력 한 줄을 덧붙인다. 동작은 받음·설치·갱신·지움. -NoHistory면 쓰지 않는다.
+function WriteHistory([string]$action, $row) {
+  if ($NoHistory) { return }
+  [void][IO.Directory]::CreateDirectory((Split-Path -Parent $History))
+  $line = '{0} | {1} | {2} | {3}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'), $action, $row.Id, $row.Korean
+  [IO.File]::AppendAllText($History, $line + "`n", $utf8)
 }
 # 받은 폴더. ModExportData.cache가 어디에든 하나 이상 있어야 받은 것이다(받다 끊긴 빈 폴더는 아니다).
 function Downloaded([string]$id) {
@@ -80,19 +120,21 @@ function IsInstalled([string]$id) { Test-Path -LiteralPath (Join-Path (Installed
 
 function ShowStatus($rows) {
   $got = 0; $inst = 0
-  'ID | 종류 | 이름 | 받음 | 설치 | 갱신 | DLL'
+  $target = @($rows | Where-Object { $_.State -eq '설치' })
+  'ID | 상태 | 종류 | 이름 | 받음 | 설치 | 갱신 | DLL'
   foreach ($r in $rows) {
     $root = Downloaded $r.Id
     $s = Source $r.Id
     $isInst = IsInstalled $r.Id
-    if ($root) { $got++ }
-    if ($isInst) { $inst++ }
+    if ($r.State -eq '설치') { if ($root) { $got++ }; if ($isInst) { $inst++ } }
     $have = if ($root) { "$(SizeMb $root)MB $(Updated $r.Id)" } else { '-' }
     $fresh = if ($s.Path -and $isInst) { $n = DiffCount $s.Path (Installed $r.Id); if ($n -eq 0) { '같음' } else { "다름 $n" } } else { '-' }
     $dll = if ($root) { (Dlls $root).Count } else { '-' }
-    "$($r.Id) | $($r.Kind) | $($r.Korean) | $have | $(if ($isInst) { '예' } else { '-' }) | $fresh | $dll"
+    "$($r.Id) | $($r.State) | $($r.Kind) | $($r.Korean) | $have | $(if ($isInst) { '예' } else { '-' }) | $fresh | $dll"
   }
-  "받음 $got/$($rows.Count), 설치 $inst/$($rows.Count)"
+  $held = @($rows | Where-Object { $_.State -eq '보류' }).Count
+  $excl = @($rows | Where-Object { $_.State -eq '제외' }).Count
+  "받음 $got/$($target.Count), 설치 $inst/$($target.Count) | 보류 $held | 제외 $excl"
 }
 
 function DoInstall($rows) {
@@ -119,6 +161,7 @@ function DoInstall($rows) {
     if ($LASTEXITCODE -ge 8) { throw "복사에 실패했습니다(robocopy $LASTEXITCODE): $($p.Dst)" }
     if (-not (Test-Path -LiteralPath (Join-Path $p.Dst 'ModExportData.cache'))) { throw "설치본에 ModExportData.cache가 없습니다: $($p.Dst)" }
     "$(if ($p.What -eq '새로 설치') { 'INSTALLED' } else { 'UPDATED' }) $($p.Row.Id) $($p.Row.Korean)"
+    WriteHistory $(if ($p.What -eq '새로 설치') { '설치' } else { '갱신' }) $p.Row
     $done++
   }
   if ($running -and $done -gt 0) { '게임이 실행 중입니다. 새로 넣은 모드는 다음 게임 시작부터 읽힙니다.' }
@@ -142,6 +185,7 @@ function DoUninstall($rows) {
     if (-not $full.StartsWith($parent) -or (Split-Path -Leaf $full) -ne $t.Row.Id -or $t.Row.Id -notmatch '^\d+$') { throw "지우지 않습니다(예상 밖의 경로): $full" }
     [IO.Directory]::Delete($full, $true)
     "REMOVED $($t.Row.Id) $($t.Row.Korean)"
+    WriteHistory '지움' $t.Row
   }
   "지움 $($targets.Count)개"
 }
@@ -181,7 +225,7 @@ function DoDownload($rows) {
     }
     if ($joined -match 'No workshop depot defined') { "이 계정($Account)은 게임($AppId)을 갖고 있지 않습니다. 게임을 가진 계정으로 로그인해야 받을 수 있습니다."; return }
     foreach ($r in $pending) {
-      if ($joined -match "Success\. Downloaded item $($r.Id)\b") { "OK   $($r.Id) $($r.Korean)" } else { "FAIL $($r.Id) $($r.Korean)" }
+      if ($joined -match "Success\. Downloaded item $($r.Id)\b") { "OK   $($r.Id) $($r.Korean)"; WriteHistory '받음' $r } else { "FAIL $($r.Id) $($r.Korean)" }
     }
     $pending = @($pending | Where-Object { -not ($joined -match "Success\. Downloaded item $($_.Id)\b") })
   }
@@ -190,12 +234,15 @@ function DoDownload($rows) {
   if ($pending.Count -gt 0) { "받지 못함: $(($pending | ForEach-Object Id) -join ', ')" }
 }
 
-$chosen = Chosen (ReadList)
-$modes = @(@($Status, $Download, $Install, $Uninstall) | Where-Object { $_ }).Count
-if ($modes -ne 1) { throw '-Status, -Download, -Install, -Uninstall 가운데 하나를 고릅니다.' }
+$all = ReadList
+$chosen = Chosen $all
+$modes = @(@($Status, $Download, $Install, $Uninstall, $Search, $Doc) | Where-Object { $_ }).Count
+if ($modes -ne 1) { throw '-Status, -Download, -Install, -Uninstall, -Search, -Doc 가운데 하나를 고릅니다.' }
 if ($Status) { ShowStatus $chosen }
-elseif ($Download) { DoDownload $chosen }
-elseif ($Install) { DoInstall $chosen }
+elseif ($Download) { DoDownload (ForDownload $chosen) }
+elseif ($Install) { DoInstall (ForInstall $chosen) }
 elseif ($Uninstall) { DoUninstall $chosen }
+elseif ($Search) { throw '-Search는 아직 없습니다(Task 2).' }
+elseif ($Doc) { throw '-Doc은 아직 없습니다(Task 3).' }
 $global:LASTEXITCODE = 0
 exit 0
