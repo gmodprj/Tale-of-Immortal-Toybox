@@ -29,7 +29,7 @@ namespace MOD_sWP6UL
             return item == null ? 0 : item.grade;
         }
 
-        private static string GradeName(int grade)
+        internal static string GradeName(int grade)
         {
             var all = g.conf.roleGrade._allConfList;
             for (int i = 0; i < all.Count; i++)

@@ -257,7 +257,10 @@ namespace MOD_sWP6UL
                 int value = grade;
                 Ui.Button("SkillGrade" + grade, content, grade.ToString(), 60 + (grade - 1) * 50, y + 46, 46, 36, new Action(() => { skillGrade = value; Redraw(); }), true, skillGrade == grade);
             }
-            Ui.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", 580, y + 46, 240, 36, new Action(() => Say(SkillCatalog.LearnAll(Target, skillKind, skillGrade))));
+            // 수십 개를 한 번에 넣고 하나씩 망각해야 되돌린다. 두 번 눌러 확인한다(리뷰 U2).
+            Confirm.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", "정말 모두 배우기", 580, y + 46, 240, 36, "skill-learn-all",
+                SkillCatalog.Kinds[skillKind].Tab + "의 배울 수 있는 기술을 모두 넣습니다(하나씩 망각해야 되돌립니다). 한 번 더 누르면 실행합니다.",
+                new Action(() => Say(SkillCatalog.LearnAll(Target, skillKind, skillGrade))));
             Ui.Label(content, "선택한 경지에서 배울 수 있고 아직 익히지 않은 것만 넣습니다. 옵션은 게임의 뽑기로 정해집니다.", 834, y + 46, 470, 36, 13).color = Ui.Dim;
 
             learnedCounts = SkillCatalog.LearnedCounts(target, skillKind);
