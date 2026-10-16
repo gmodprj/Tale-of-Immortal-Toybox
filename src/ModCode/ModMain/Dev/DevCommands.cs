@@ -81,6 +81,16 @@ namespace MOD_sWP6UL
 
         private static string Execute(string[] p)
         {
+            string input = DevCommandsInput.Execute(p);
+            if (input != null)
+            {
+                return input;
+            }
+            string scan = DevCodeScan.Execute(p);
+            if (scan != null)
+            {
+                return scan;
+            }
             string translation = DevCommandsTranslation.Execute(p);
             if (translation != null)
             {

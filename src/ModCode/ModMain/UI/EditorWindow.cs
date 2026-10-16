@@ -112,6 +112,20 @@ namespace MOD_sWP6UL
             get { return targetId != null; }
         }
 
+        // 마우스 포인터가 열린 창(접혔으면 제목 줄) 위에 있는가. 창이 닫혀 있으면 거짓.
+        public static bool IsPointerOver
+        {
+            get
+            {
+                if (!IsOpen || window == null)
+                {
+                    return false;
+                }
+                Camera cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+                return RectTransformUtility.RectangleContainsScreenPoint(window, Input.mousePosition, cam);
+            }
+        }
+
         // 편집 대상을 바꾼다. null이면 플레이어. 탭들이 대상에 딸린 선택을 지우도록 알린다.
         public static void SetTarget(string unitId)
         {
@@ -424,6 +438,8 @@ namespace MOD_sWP6UL
             {
                 Build();
             }
+            // 창 위의 휠·포인터가 뒤의 지도에 새지 않게 하는 패치. 처음 열 때 한 번 건다(05 문서 51절).
+            PointerGuard.Ensure();
             root.SetActive(true);
             Raise();
             SetCollapsed(false);
