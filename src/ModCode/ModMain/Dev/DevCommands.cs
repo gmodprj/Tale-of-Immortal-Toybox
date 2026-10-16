@@ -91,6 +91,11 @@ namespace MOD_sWP6UL
             {
                 return workshop;
             }
+            string dress = DevCommandsDress.Execute(p);
+            if (dress != null)
+            {
+                return dress;
+            }
             string titles = DevCommandsAppellation.Execute(p);
             if (titles != null)
             {
