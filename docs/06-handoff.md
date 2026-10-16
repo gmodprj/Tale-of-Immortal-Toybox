@@ -1,7 +1,7 @@
-# 06. 작업 인계 (2026-10-15 기준)
+# 06. 작업 인계 (2026-10-16 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
-세부 실험 기록은 `docs/05-editor-v0.1.md`(1~37절)에 있고, 이 문서는 그 길잡이다.
+세부 실험 기록은 `docs/05-editor-v0.1.md`(1~44절)에 있고, 이 문서는 그 길잡이다.
 
 **이어받는 순서**: 1절(상태)을 훑고 → 8절(다음에 할 일)을 읽고 → 일을 시작할 때 5절(검증 방법)과 6절(함정)을 본다.
 
@@ -9,11 +9,16 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열(`feat/*-research`, 마지막이 `feat/ultimate-research`(44절 조사))이다(2026-10-15 기준). 그 밖에 병합한 인계 고침 브랜치 `docs/handoff-1016b`·`docs/handoff-1016c`가 남아 있다. 지울지는 사용자에게 묻는다. 병합을 마친 작업 브랜치는 사용자 지시로 지운다(2026-10-14, 2026-10-15, 2026-10-16에 지웠다).
-- 게임에 설치된 것: 배포 빌드(개발 도구 제외)가 `ModExportData\Mod_sWP6UL\ModCode\dll\`에 있다. `develop`의 마지막 코드와 같다(모드 신통 비급(44절)까지. 2026-10-16 11:05 설치. 그 전 설치는 2026-10-15 20:13(40절까지)). 창작마당 모드 15개는 2026-10-16에 사용자 확인을 받고 게임을 끈 상태에서 `pwsh tools/workshop.ps1 -Install -Yes`로 `ModExportData\<창작마당ID>\`에 설치했다(`-Status`: 받음 15/15, 설치 15/15. 05 문서 41절). 사용자가 아직 플레이해 보지 않았다.
-- **직전 작업(2026-10-16)**: 모드 신통 비급(05 문서 44절, 브랜치 `fix/mod-ultimate-books`): 비급의 옵션 번호가 `(skillType, 기술, number)`로 PrefixValue 행을 찾는 것을 실측해, 모드에 없는 번호를 모드 번호로 바꾸고 신통 차단을 풀었다. 회차 `ws-1016s`~`v`. 그 전 같은 날 G2c 창작마당 모드 한글화(05 문서 43절, 스펙·계획 `2026-10-16-mod-korean*`): 번역 파일 59행을 DLL에 내장해 데이터 폴더 `translations\mods.txt`에 풀고 `Init`마다 모드 행의 `kr`을 덮는다(번역이 없으면 `ch`). 회차 `ws-1016p`~`r`. 그 전 같은 날 G2b 모드 공법의 비급(42절, 스펙·계획 `2026-10-16-mod-skill-books*`): `isModExtend` 행을 카탈로그에 넣고(이름은 `ch` 대체) 치환 뽑기로 절기·무예 비급을 지급, 모드 신통은 막음, 기술 서적 그룹에 `모드만` 칩과 `[모드]` 꼬리표. 회차 `ws-1016h`~`l`. 그 전 같은 날 G2b·G2c 설계 전 실험(8.3e절, `ws-1016a`~`g`)과 창작마당 모드 15개 실제 설치. 2026-10-15에는 G2a(41절), G1(38절), 비급 지급(39절), 도호 관리(40절).
-- **다음에 할 일**: (1) 사용자가 설치본으로 플레이하며 창작마당 모드·모드 공법 비급·한글 이름을 확인한다(8.5절). (2) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절). (3) 8.5절의 확인 대기와 8.6절의 사소한 것.
-- 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 지금 세이브는 **달의 첫날(2년 3월 1일)에 멈춰 있어** 세계에 들어오면 월말 기록 창이 뜬다.
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절. 마지막이 `feat/ultimate-research`(44절 조사))뿐이다(2026-10-16 11시 기준). 병합을 마친 작업·문서 브랜치는 사용자 지시로 모두 지웠다(2026-10-14~16). 병합 뒤 지울지는 사용자에게 묻는다.
+- **지금 게임에 설치된 것**(2026-10-16 11:05 기준):
+  - 편집기 모드: 배포 빌드(개발 도구 제외) `ModExportData\Mod_sWP6UL\ModCode\dll\MOD_sWP6UL.dll`. `develop`의 마지막 코드와 같다(모드 신통 비급(44절)까지. 11:05에 `tools/install.ps1`로 설치). 그 전 설치는 같은 날 09:20(43절까지), 2026-10-15 20:13(40절까지).
+  - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
+  - 창작마당 모드 15개: `ModExportData\<창작마당ID>\`(2026-10-16에 사용자 확인을 받고 게임을 끈 상태에서 `pwsh tools/workshop.ps1 -Install -Yes`. 목록 `tools/workshop/mods.txt`, 상태는 `-Status`: 받음 15/15·설치 15/15. 05 문서 41절). DLL 모드 4개가 들어 있다(Fatury 등. 로드 중 `Latest.log`에 남는 `Fatury.ResLateLoadPatch`의 예외 한 줄은 그 모드의 것).
+  - 모드 데이터 폴더 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox`: 설정·즐겨찾기·프리셋·자동 백업과 번역 파일 `translations\mods.txt`(43절. DLL 안의 것이 첫 실행 때 풀린다. 사용자가 고친 파일은 덮지 않고, 새 판의 번역을 받으려면 지운다).
+  - 사용자가 2026-10-16 오전에 이 설치본(당시 43절까지)으로 플레이했다(월말 안내 캡처. 8.3a절). 창작마당 모드·모드 비급·한글 이름·모드 신통의 확인 결과는 아직 듣지 못했다(8.5절).
+- **직전 작업(2026-10-16, 하루에 다섯 단계)**: G2a 창작마당 모드 받기·설치(05 문서 41절, `tools/workshop.ps1`. 스펙 없이 도구 스크립트로) → G2b·G2c 설계 전 실험(8.3e절, `ws-1016a`~`g`) → G2b 모드 공법의 비급(42절, 스펙·계획 `2026-10-16-mod-skill-books*`, `ws-1016h`~`m`) → G2c 모드 글 한글화(43절, 스펙·계획 `2026-10-16-mod-korean*`, 번역 59행, `ws-1016n`~`r`) → 모드 신통 비급(44절, 사용자 요청 "다시 확인": 옵션 번호 치환으로 42절의 차단을 풂, 브랜치 `fix/mod-ultimate-books`, `ws-1016s`~`w`). 2026-10-15에는 G1(38절), 비급 지급(39절), 도호 관리(40절).
+- **다음에 할 일**: (1) 사용자가 설치본으로 플레이하며 창작마당 모드·모드 공법 비급·한글 이름을 확인한다(8.5절). (2) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절). (3) 8.5절의 확인 대기와 8.6절의 사소한 것. (4) 새 공법 모드를 더 넣으면 43절의 번역 절차(회차에서 `rloc dump` → 번역표)와 44절의 옵션 번호 치환이 그대로 적용된다(모드의 옵션 번호가 9개보다 적으면 44절 한계).
+- 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 사용자가 계속 플레이하므로 세이브의 날짜는 수시로 바뀐다(2026-10-16 오전 캡처: 2년 7월 8일, 결정 초기). 고정본(5절)은 영향을 받지 않는다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
 
 ## 2. 편집기 기능 지도
@@ -85,6 +90,7 @@
 - 두 구성 모두 컴파일되는지 매번 확인한다(`Dev\`의 코드를 배포 코드가 참조하면 배포 구성에서 깨진다. `#if DEVTOOLS`로 감싼 것은 된다).
 - 스크립트는 PowerShell 7(`pwsh`)로 실행한다.
 - 창작마당 모드의 설치된 폴더를 덮거나 지우는 것은 게임이 켜져 있으면 거부된다. 새 폴더는 켜져 있어도 들어가고 다음 게임 시작부터 읽힌다. 시험은 `pwsh tools/workshop.tests.ps1`(게임·SteamCMD 없이 임시 폴더에서).
+- 번역 파일은 DLL 안에 있어 따로 설치하지 않는다. 설치 뒤 첫 실행 때 모드 데이터 폴더 `translations\mods.txt`로 풀리고, 이미 있으면 덮지 않는다(43절). 새 판의 번역을 받으려면 그 파일을 지운다.
 
 ## 5. 게임에서 검증하는 방법
 
@@ -167,7 +173,7 @@
   - 신기: `aw`, `awset <번호,…>`, `awbtn`, `aon`·`aoff <번호>`, `apoint <값>`, `gedmg`, `gestate`, `gerepair`, `gecat`, `geunlock <요수>`, `geunlockall`, `geboss <요수>`, `geequip <기술>`, `ddmg <0|1|2|3>`, `ddstate`, `ddrepair`, `potlist`, `potadd <종류> <단계>`, `potfill <soleId>`(05 문서 37절). 설정 표를 번호로 찾는 `confname <번호>`는 실험 브랜치 `feat/artifact-research`에만 있다.
   - 프리셋: `pstate`(경지·수도 점수·장착·세트·기령·신혼·명우·역천개명을 한 줄에), `phas <운명 번호,…>`(실제로 가진 수), `pcheck [파일]`(쓸 수 없는 줄), `papply <파일> <단계|all|full>`, `pstage <파일> <단계>`, `pfateset <대경지> <번호>`, `pluckadd <번호>`, 찾기 `pfind`·`pfate`·`pluck`·`psuits`·`pconf`·`popts <기술 번호>`, 표 내보내기 `pdump <fates|skills|opts|g.conf의 표 이름>`(`.devremote\dump-<이름>.txt`). 전체 목록은 05 문서 34절.
   - 날짜·가방: `wdate`, `grid`, `wmove`, `wexp`, `tdesc`, `tadv`, `tset`, `tskip`, `tfreeze`, `tin`, `tmsg`, `thud`, `bagstat`.
-  - 자원 탭: `rgroups`(전체·기타·중복·합과 그룹별 수, 표에 없는 분류 번호), `rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>|addbook <분류> <기술> <경지> <최소 품질> <수량>|setbook <기술> <경지> <최소 품질> <수량>|delbook <기술> <경지> <최소 품질>]`(즐겨찾기 상태. `reset`은 파일을 지우고 다시 읽게 한다), `rbook <분류> <기술> <경지> <최소 품질> <권수>`(비급 만들기), `rbooks [기술]`(가방의 비급), `rbookstudy <soleID>`(게임 학습이 받아들이는지), `rskill <분류> <기술>`(경지 범위), `rownskills <분류> <경지>`(그 기술 하나만 나오는 묶음이 있는 기술). 분류는 0 무예/영술 ~ 4 신통. 모드 공법: `rmods`(카탈로그의 모드 항목: 분류:번호:이름:basType:NameFromCh:막힘 이유:원본), `rlearn <분류> <번호> <경지>`(공법 탭 배우기의 문장. 05 문서 42절).
+  - 자원 탭: `rgroups`(전체·기타·중복·합과 그룹별 수, 표에 없는 분류 번호), `rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>|addbook <분류> <기술> <경지> <최소 품질> <수량>|setbook <기술> <경지> <최소 품질> <수량>|delbook <기술> <경지> <최소 품질>]`(즐겨찾기 상태. `reset`은 파일을 지우고 다시 읽게 한다), `rbook <분류> <기술> <경지> <최소 품질> <권수>`(비급 만들기), `rbooks [기술]`(가방의 비급), `rbookstudy <soleID>`(게임 학습이 받아들이는지), `rskill <분류> <기술>`(경지 범위), `rownskills <분류> <경지>`(그 기술 하나만 나오는 묶음이 있는 기술). 분류는 0 무예/영술 ~ 4 신통. 모드 공법: `rmods [경지]`(카탈로그의 모드 항목: 분류:번호:이름:basType:NameFromCh:막힘 이유:원본. 그 경지 기준, 기본 3), `rlearn <분류> <번호> <경지>`(공법 탭 배우기의 문장. 05 문서 42절).
   - 도호 탭: `ttl`(가진 것·장착·오성·획득 창·편집기가 닫은 창 수), `ttlgive|ttldel|ttlequip <번호>`, `ttlunequip`, `ttlholders <번호>`, `ttlnpcgive <unitID|any> <번호>`(검사 준비), `ttlrewardopen`·`ttlrewardclose`(일반 보상 창 열고 닫기).
   - 창작마당: `wsmods`(`g.mod`의 경로, 로드 목록 `paths`(모드 ID|폴더), 모드 자료 `mods`(모드 ID:이름:판:창작마당 번호), DLL 경로 `ns`, 순서 자료 `order`. 05 문서 41절).
   - 한글화: `rloc`(마지막 적용 결과 `file=… rows=… applied=… fallback=… unused=… broken=…`), `rloc apply`(지금 파일로 다시), `rloc dump`(사전에 없는 모드 행을 `translations\untranslated.txt`에 키<TAB><TAB>중국어로), `rloc key <키>`(`ls=… kr=… ch=…`). 05 문서 43절.
@@ -184,6 +190,7 @@
 - `q.ps1 -Show <형식이름>` / `-Find <정규식>` — 그 목록에서 찾는다. 중첩 형식은 `DataProps/PropsData`처럼 `/`로 적는다. `-Find`는 형식 이름만 찾는다. 속성·필드 이름은 `types.txt`를 직접 검색한다.
 - `methods.ps1 -TypeRegex <정규식> [-MethodRegex <정규식>]` — 생성자와 메서드의 매개변수를 본다(목록에는 생성자가 없다).
 - `major-breakthrough-check.ps1 -Prev <경지ID> -Rows <방식 수> -Tag <이름>` — 대경지 재료 지급의 자동 검증(21절).
+- 실험 브랜치의 개발 명령(병합하지 않음. `git checkout`해 빌드해야 쓸 수 있다): `feat/ultimate-research`의 `ulprefix <skillType> <기술>`·`ulroll <분류> <기술> <경지>`·`ulread <분류> <원본> <모드> <경지>`·`ulfix <분류> <원본> <모드> <경지> [add|learn]`(44절 조사: 비급 값의 모양, 옵션 번호 조회, 단계별 읽기와 예외 스택), `feat/modskill-research`의 `wsconf`·`wsname`·`wsbook`·`wsbookas`·`wslearn`·`wslearnas`·`wssetkr`(8.3e절), `feat/korean-research`의 `wsloc`·`wslocdump`(43절 설계 전 실험).
 - 게임 설정 표의 원본은 `E:\Games\Tale of Immortal\Mod\modFQA\配置修改教程\配置（只读）Json格式\*.json`. 이름은 같은 폴더의 `LocalText.json`(중국어·영어, 한국어 열은 대부분 비어 있음).
 
 ## 6. 반복해서 겪은 함정
@@ -280,7 +287,7 @@ PowerShell과 도구:
 
 ### 8.1 지금까지
 
-사용자가 2026-10-12에 여섯 가지, 2026-10-13에 둘을 요청했다(8.2절). 모두 끝냈다. 2026-10-15의 넷 가운데 1~3은 끝냈고 4(G2)는 미뤘다. 같은 날 추가로 요청받은 비급 지급과 도호 관리도 끝냈다.
+사용자가 2026-10-12에 여섯 가지, 2026-10-13에 둘을 요청했다(8.2절). 모두 끝냈다. 2026-10-15의 넷 가운데 1~3은 그날, 4(G2 창작마당 모드)는 2026-10-16에 끝냈다(41~44절). 같은 날 추가로 요청받은 비급 지급과 도호 관리도 끝냈다.
 
 | 묶음 | 내용 | 기록 |
 |---|---|---|
@@ -302,6 +309,10 @@ PowerShell과 도구:
 | — | 사용자가 써 보고 알린 것: 자원 탭 표의 설명 열 빼기, 아래 설명 칸 스크롤 | 38절 끝(스펙 없음) |
 | — | 기술 서적(비급) 지급(사용자 요청 2026-10-15): 자원 탭의 기술 서적 그룹, 경지·최소 품질, 한 번에 20권, 즐겨찾기의 비급 줄 | 39절. 스펙·계획 `2026-10-15-martial-books*` |
 | — | 도호(칭호) 관리(사용자 요청 2026-10-15): 16번째 도호 탭, 주기·빼기·장착, '제일' 도호 옮기기, 편집기가 주고 뺀 도호의 획득·상실 창 닫기 | 40절. 스펙·계획 `2026-10-15-appellation*` |
+| G2a | 창작마당 모드 받기·설치(2026-10-15 요청 4의 첫 단계): SteamCMD로 받아 `ModExportData`에 넣는 도구 `tools/workshop.ps1`, 15개 설치 | 41절(스펙 없음. 도구 스크립트) |
+| G2b | 모드 공법의 비급: 모드 행(`isModExtend`)을 카탈로그에, 치환 뽑기로 비급 지급, `모드만` 칩·`[모드]` 꼬리표 | 42절. 스펙·계획 `2026-10-16-mod-skill-books*` |
+| G2c | 모드 글 한글화: 번역 파일 59행을 DLL에 내장해 데이터 폴더에 풀고 `Init`마다 모드 행의 `kr` 덮기, `rloc` | 43절. 스펙·계획 `2026-10-16-mod-korean*` |
+| — | 모드 신통 비급(사용자 요청 2026-10-16 "읽을 수 없어 추가할 수 없는 공법 다시 확인"): 옵션 번호를 모드 것으로 바꿔 신통 차단을 풂 | 44절(스펙 없음. 브랜치 `fix/mod-ultimate-books`) |
 
 ### 8.2 사용자의 요청 (원문, 2026-10-12)
 
@@ -551,20 +562,20 @@ PowerShell과 도구:
 
 ### 8.7 남겨 둔 것
 
-- 실험 브랜치 열(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
+- 실험 브랜치 열넷(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`, `feat/workshop-research`, `feat/modskill-research`, `feat/korean-research`, `feat/ultimate-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
 - 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `art-1014a`(게임이 켜져 있어 열리지 않았다. 다시 쓰지 않는다), `art-1014b`~`d`, `atab1`~`atab18`(`2b`~`2d`, `4b`~`4d`, `5b` 포함), `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함), `awui-1014a`, `hud-1014a`~`d`, `bwui-1014a`~`b`, `bhud-1014a`~`d`, `bdev-1014a`(게임이 켜져 있어 열리지 않았다), `hudr-1014a`, `key-1014a`~`d`, `drift-1014a`~`b`, `akey-1014a`~`j`, `rate-1014a`~`b`, `cost-1014a`~`d`, `click-1014a`~`l`, `eyeclick-1014a`~`c`(`a`는 게임이 켜져 있어 열리지 않았다), `typing-1014a`~`k`, `month-1014a`. 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
 - 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함), `apl-1015a`~`f`, `ttl-1015a`~`o`, `apl-1015g`, `ws-1015a`~`b`.
-- 2026-10-16에 쓴 회차 이름: `ws-1016a`~`v`.
+- 2026-10-16에 쓴 회차 이름: `ws-1016a`~`w`.
 
 ## 9. 작업 규칙 요약
 
 - 응답은 한국어. 게임 UI는 한글화되어 있으므로 화면 문구도 한국어로 말한다.
 - 사용자에게 보이는 글(진행 보고, 설계 절, 질문 앞의 설명, 마지막 보고)은 모두 한국어로 쓴다. 화면 설계는 글로 그린 그림이 아니라 그림(위젯)으로 보인다(2026-10-15 사용자 지적 두 번).
 - 브랜치: `develop`에서 `feat/*`·`fix/*`·`chore/*`·`docs/*`를 만들어 작업하고 `git merge --no-ff`로 `develop`에 병합한다. `main`·`develop`에 직접 커밋하지 않는다. 커밋 메시지 끝에 `Co-Authored-By` 줄을 붙인다.
-- 게임 폴더는 읽기 전용이 원칙이다. 예외는 `ModExportData\Mod_sWP6UL\`(편집기 설치)와 `Mods\TlToyboxDevRemote.dll`(조작 도구)뿐이다.
+- 게임 폴더는 읽기 전용이 원칙이다. 예외는 `ModExportData\Mod_sWP6UL\`(편집기 설치), `ModExportData\<창작마당ID>\`(창작마당 모드. `tools/workshop.ps1 -Install -Yes`, 사용자 확인 뒤), `Mods\TlToyboxDevRemote.dll`(조작 도구)뿐이다.
 - 세이브를 바꾸는 시험은 `session.ps1`의 회차 안에서, 고정본으로 한다. 회차는 반드시 `-End`로 끝내고 "SAVE RESTORED AND IDENTICAL"을 확인한다.
 - 사용자의 게임이 켜져 있으면 끄도록 알리고 기다린다. 임의로 끄지 않는다.
 - 문서에는 어셈블리나 게임에서 실제로 확인한 이름만 적고, 확인하지 못한 것은 "미확인"으로 적는다.
