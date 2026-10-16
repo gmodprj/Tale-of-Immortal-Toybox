@@ -2,7 +2,7 @@
 # 줄마다 PASS/FAIL이 나오고 Finish가 마지막 줄 FAILS=<수>를 낸다. "SHOT <파일>"은 눈으로 확인할 캡처다.
 $ErrorActionPreference = 'Stop'
 $tools = Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote'
-$work = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.devremote'
+$work = & (Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote\devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 $data = Join-Path $env:USERPROFILE 'AppData\LocalLow\guigugame\guigubahuang\TlToybox'
 $log = 'E:\Games\Tale of Immortal\MelonLoader\Latest.log'
 $script:fails = 0

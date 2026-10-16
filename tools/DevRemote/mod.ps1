@@ -1,6 +1,6 @@
 # 모드의 개발용 명령 채널(DevCommands)에 명령을 보내고 결과를 출력한다.
 param([Parameter(Mandatory)][string[]]$Cmd, [int]$WaitMs = 600)
-$dir = 'E:\TlToybox\.devremote'
+$dir = & (Join-Path $PSScriptRoot 'devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 foreach ($c in $Cmd) {
   $out = Join-Path $dir 'mod-out.txt'
   if (Test-Path $out) { [IO.File]::Delete($out) }

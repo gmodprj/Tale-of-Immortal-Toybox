@@ -6,12 +6,27 @@ using MelonLoader;
 namespace MOD_sWP6UL
 {
     // 개발 전용 명령 채널. docs/04-ingame-state-analysis.md 15절의 쓰기 검증을 게임 재시작 없이 하나씩 실행한다.
-    //   명령 파일: E:\TlToybox\.devremote\mod-cmd.txt (한 줄에 하나)
-    //   결과 파일: E:\TlToybox\.devremote\mod-out.txt
+    //   명령 파일: <Dir>\mod-cmd.txt (한 줄에 하나)
+    //   결과 파일: <Dir>\mod-out.txt
     // 명령 파일이 없으면 아무것도 하지 않는다.
     internal static class DevCommands
     {
-        private const string Dir = @"E:\TlToybox\.devremote";
+        // .devremote 폴더(명령 채널·덤프). 환경 변수 TLTOYBOX_DEVREMOTE가 있으면 그 폴더, 없으면 기본. tools/DevRemote/devremote-dir.ps1과 같은 규칙(05 문서 49절).
+        private const string DefaultDir = @"E:\TlToybox\.devremote";
+
+        public static string Dir
+        {
+            get
+            {
+                string value = Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE");
+                return string.IsNullOrEmpty(value) ? DefaultDir : value.Trim().TrimEnd('\\', '/');
+            }
+        }
+
+        public static bool DirFromEnv
+        {
+            get { return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE")); }
+        }
 
         public static void Poll()
         {

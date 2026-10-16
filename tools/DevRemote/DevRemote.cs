@@ -17,7 +17,15 @@ namespace TlToyboxDevRemote
     //   결과 파일: <CommandDir>\out.txt
     public class DevRemote : MelonMod
     {
-        private const string CommandDir = @"E:\TlToybox\.devremote";
+        // .devremote 폴더. 환경 변수 TLTOYBOX_DEVREMOTE가 있으면 그 폴더, 없으면 기본(devremote-dir.ps1·DevCommands.Dir과 같은 규칙. 05 문서 49절).
+        private static string CommandDir
+        {
+            get
+            {
+                string value = Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE");
+                return string.IsNullOrEmpty(value) ? @"E:\TlToybox\.devremote" : value.Trim().TrimEnd('\\', '/');
+            }
+        }
         private const int PollFrames = 10;
 
         private int frame;
