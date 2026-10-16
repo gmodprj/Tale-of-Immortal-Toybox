@@ -1009,6 +1009,8 @@ switch ($Part) {
     Check 'zero removes them' ((Extra) -eq 0)
     Press 'BagPlus' | Out-Null
     Check 'the +10 button still works' ((Extra) -eq 10)
+    Cmd "ui set BagExtra $e0" | Out-Null; Press 'BagApply' | Out-Null   # 처음 값으로 되돌린다(같은 회차의 뒤 검사가 가방이 넘쳐 비급을 못 넣지 않게. 48절)
+    Check 'the extra slots are back to the start' ((Extra) -eq $e0) "extra=$(Extra) start=$e0"
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
@@ -1262,7 +1264,8 @@ switch ($Part) {
       Press 'ArtLearnAll' | Out-Null
       Check 'art learn-all asks first' ((Cmd 'uitext ArtLearnAll') -match "text='정말 모두 배우기'" -and (Cmd "uitext ArtKind$artKind") -eq $label0)
       Press 'ArtLearnAll' 4000 | Out-Null
-      Check 'the second press learns the arts' ((Cmd "uitext ArtKind$artKind") -ne $label0 -and (Cmd 'uistate') -match "message='[^']+'") "$label0 -> $(Cmd "uitext ArtKind$artKind"); $(Cmd 'uistate')"
+      # 실행됐는지는 결과 문장(기예: …)으로 본다. 고정본이 그 분류의 남은 책을 배울 조건이 안 되면 수는 그대로다(ws-1017i: 단방 136권 가운데 0권).
+      Check 'the second press runs learn-all' ((Cmd 'uistate') -match "message='기예: " -and (Cmd 'uitext ArtLearnAll') -notmatch "text='정말") "$label0 -> $(Cmd "uitext ArtKind$artKind"); $(Cmd 'uistate')"
     }
 
     # 선천운명 교체
