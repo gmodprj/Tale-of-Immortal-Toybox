@@ -289,11 +289,14 @@ function BrowsePage([hashtable]$q, [int]$page) {
 # 상세 API. 30개씩. ID → 상세(JSON 객체). 돌려주지 않은 ID, result가 1이 아닌 것, 차단된 것, 비공개는 뺀다
 function Details([string[]]$ids) {
   $map = @{}
+  $batchNo = 0
   for ($i = 0; $i -lt $ids.Count; $i += 30) {
+    $batchNo++
     $batch = @($ids[$i..([math]::Min($i + 29, $ids.Count - 1))])
     $form = @{ itemcount = $batch.Count }
     for ($k = 0; $k -lt $batch.Count; $k++) { $form["publishedfileids[$k]"] = $batch[$k] }
     $res = Fetch $DetailsUrl 'details.json' $form
+    if ($res.Limited) { return @{ Map = $map; Limited = $true; At = $batchNo } }   # 요청 제한: 그 자리에서 멈춘다(모은 것은 돌려준다)
     if ($res.Ok) {
       $json = $null
       try { $json = $res.Body | ConvertFrom-Json } catch { $json = $null }
@@ -308,7 +311,7 @@ function Details([string[]]$ids) {
     }
     Rest
   }
-  $map
+  @{ Map = $map; Limited = $false; At = $batchNo }
 }
 # 항목 페이지의 "필수 아이템". Text: '-'(없음), '조회 실패', 또는 'ID 이름, ID 이름'
 function RequiredItems([string]$id) {
@@ -317,7 +320,7 @@ function RequiredItems([string]$id) {
   $i = $res.Body.IndexOf('id="RequiredItems"')
   if ($i -lt 0) { return @{ Text = '-'; Limited = $res.Limited } }
   $seg = $res.Body.Substring($i, [math]::Min(6000, $res.Body.Length - $i))
-  $items = @(foreach ($m in [regex]::Matches($seg, 'filedetails/\?id=(\d+)[^>]*>\s*<div class="requiredItem">\s*([^<]*)')) { $m.Groups[1].Value + ' ' + $m.Groups[2].Value.Trim() })
+  $items = @(foreach ($m in [regex]::Matches($seg, 'filedetails/\?id=(\d+)[^>]*>\s*<div class="requiredItem">\s*([^<]*)')) { $m.Groups[1].Value + ' ' + (StripTags ([Net.WebUtility]::HtmlDecode($m.Groups[2].Value))) })   # 이름은 엔티티를 풀고 서식 태그를 지운다
   @{ Text = $(if ($items.Count -gt 0) { $items -join ', ' } else { '-' }); Limited = $res.Limited }
 }
 # 서식 태그를 지우고 한 줄로. 표의 칸 구분자 |는 전각으로
@@ -377,7 +380,12 @@ function WriteCandidates([string[]]$kinds, $found, $listed, $details, $req, [str
       [void]$sb.AppendLine("- ${id}: $text")
     }
   }
-  if ($stopped) { [void]$sb.AppendLine(''); [void]$sb.AppendLine("요청 제한으로 멈춤: $stopped") }
+  if ($stopped) {
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine("요청 제한으로 멈춤: $stopped")
+    $missing = @(@(foreach ($k in $found.Keys) { foreach ($id in $found[$k]) { if (-not $details.ContainsKey($id) -and -not $listed.ContainsKey($id)) { $id } } }) | Select-Object -Unique)
+    if ($missing.Count -gt 0) { [void]$sb.AppendLine("상세를 읽지 못한 ID(요청 제한): $($missing -join ', ')") }
+  }
   [void][IO.Directory]::CreateDirectory((Split-Path -Parent $Out))
   [IO.File]::WriteAllText($Out, $sb.ToString().Replace("`r`n", "`n"), $utf8)   # LF(-Doc과 같게)
   $descPath = Join-Path (Split-Path -Parent $Out) ([IO.Path]::GetFileNameWithoutExtension($Out) + '-desc.txt')
@@ -412,7 +420,12 @@ function DoSearch($rows) {
     if ($stopped) { break }
   }
   $all = @(@(foreach ($k in $found.Keys) { $found[$k] }) | Select-Object -Unique)
-  $details = if ($all.Count -gt 0) { Details ([string[]]$all) } else { @{} }
+  $details = @{}
+  if ($all.Count -gt 0) {
+    $det = Details ([string[]]$all)
+    $details = $det.Map
+    if ($det.Limited -and -not $stopped) { $stopped = "상세 $($det.At)번째 묶음" }
+  }
   $req = @{}
   if (-not $stopped) {
     foreach ($id in $all) {

@@ -73,9 +73,9 @@
 | `src/ModCode/ModMain/Safety/` | 백업, 변경 이력 |
 | `src/ModCode/ModMain/Dev/` | 개발 빌드 전용 명령(배포 빌드에서 제외) |
 | `tools/install.ps1` | 배포 빌드를 만들어 게임에 설치 |
-| `tools/workshop.ps1`, `tools/workshop/` | 창작마당 모드 도구(`-Status`·`-Download`·`-Install`·`-Uninstall`·`-Search`·`-Doc`)와 목록 `mods.txt`(일곱 칸)·이력 `history.txt`·후보표 `candidates-*.md`·컬렉션 ID `collection.txt`·설명문 `collection-desc.txt`. 시험 `tools/workshop.tests.ps1`(77개). 41·45절 |
+| `tools/workshop.ps1`, `tools/workshop/` | 창작마당 모드 도구(`-Status`·`-Download`·`-Install`·`-Uninstall`·`-Search`·`-Doc`)와 목록 `mods.txt`(일곱 칸)·이력 `history.txt`·후보표 `candidates-*.md`·컬렉션 ID `collection.txt`·설명문 `collection-desc.txt`. 시험 `tools/workshop.tests.ps1`(78개). 41·45절 |
 | `docs/09-workshop-mods.md` | 창작마당 모드 등록부. `tools/workshop.ps1 -Doc`이 만든다(손으로 고치지 않는다) |
-| `tools/DevRemote/` | 게임을 화면 밖에서 조작하는 도구(MelonMod + 스크립트). `session.ps1`이 검증 한 회차를 묶고, `session.tests.ps1`이 그 안전 규칙을 시험한다(23개) |
+| `tools/DevRemote/` | 게임을 화면 밖에서 조작하는 도구(MelonMod + 스크립트). `session.ps1`이 검증 한 회차를 묶고, `session.tests.ps1`이 그 안전 규칙을 시험한다(34개) |
 | `tools/research/` | 게임 어셈블리 조사 스크립트, 게임 내 자동 검증(`ui-check.ps1`, `datebag-check.ps1`, `preset-check.ps1`, `major-breakthrough-check.ps1`. 공통 함수는 `check-lib.ps1`), 기본 프리셋을 만드는 `preset-build.ps1` |
 | `ModProject_sWP6UL/`, `.devremote/`, `.superpowers/` | git 제외. 모드 에디터 프로젝트, 조작 도구의 작업 폴더(세이브 복사본, 고정본 `fixtures\`), 계획 실행 중의 임시 기록 |
 
@@ -117,7 +117,7 @@
 - `-End`가 되돌리지 않는 것: `changes.log`(검사의 기록이 남는다), 내보내기 폴더(검사가 자기 파일 `uicheck-*`를 지운다).
 - 자기가 띄우지 않은 게임은 닫지 않고, 그런 게임이 실행 중이면 띄우지도 되돌리지도 않는다. 게임은 창 닫기 요청으로 끈다(`Stop-Process`는 권한 검사에 막힌다).
 - 게임은 달이 넘어갈 때 자동 저장한다. 저장 명령을 쓰지 않은 회차도 반드시 `-End`로 끝낸다.
-- 스크립트를 고치면 `pwsh tools/DevRemote/session.tests.ps1`(게임을 띄우지 않고 임시 폴더에서, 23개)을 다시 돌린다.
+- 스크립트를 고치면 `pwsh tools/DevRemote/session.tests.ps1`(게임을 띄우지 않고 임시 폴더에서, 34개)을 다시 돌린다.
 
 ### 자동 검증
 

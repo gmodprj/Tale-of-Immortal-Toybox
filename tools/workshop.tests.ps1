@@ -233,7 +233,7 @@ $dets = @(
   (Det '2003' '【x】<color=#FF0000>功法</color>' 1735000000 '1000' @('Battle')),
   (Det '3001' 'drama' 1735000000 '1000' @('Drama')))
 WriteFile "$($b.web)\details.json" (@{ response = @{ result = 1; resultcount = $dets.Count; publishedfiledetails = $dets } } | ConvertTo-Json -Depth 6)
-WriteFile "$($b.web)\item-1001.html" '<div class="requiredItemsContainer" id="RequiredItems"><a href="https://steamcommunity.com/workshop/filedetails/?id=2814703549" target="_blank"><div class="requiredItem">Fatury   </div></a></div>'
+WriteFile "$($b.web)\item-1001.html" '<div class="requiredItemsContainer" id="RequiredItems"><a href="https://steamcommunity.com/workshop/filedetails/?id=2814703549" target="_blank"><div class="requiredItem">&lt;color=#f00&gt;Fatury&lt;/color&gt;   </div></a></div>'
 WriteFile "$($b.web)\item-1002.html" '<html><body>no required block</body></html>'
 foreach ($id in @('2001', '2002', '2003', '3001')) { WriteFile "$($b.web)\item-$id.html" '<html></html>' }
 $out = "$($b.root)\cand.md"
@@ -259,6 +259,11 @@ WriteFile "$($b.web)\browse-NPC-p1.html" '<html><body>您最近作出的请求�
 $o = Run $b $none @{ Search = $true; Out = $out }
 $t = ReadIf $out
 Check 'search stops at the rate limit, keeps what it has, names the place and does not fetch required items' ($t -match '요청 제한으로 멈춤: NPC 1쪽' -and $t -match '\| 3001 \|' -and $t -match '(?m)^## 음악 \(요청 제한으로 읽지 못함\)' -and $t -match '\| 1001 \|(?: [^|]* \|){6} 조회 안 함\(요청 제한\) \|') $t
+WriteFile "$($b.web)\browse-NPC-p1.html" '<html></html>'
+WriteFile "$($b.web)\details.json" '<html><body>您最近作出的请求太多了</body></html>'
+$o = Run $b $none @{ Search = $true; Out = $out }
+$t = ReadIf $out
+Check 'search stops when the details api is rate limited and lists the ids it could not describe' ($t -match '요청 제한으로 멈춤: 상세 1번째 묶음' -and $t -match '(?m)^상세를 읽지 못한 ID\(요청 제한\): .*1001.*1002' -and $o -match '요청 제한으로 멈춤') $t
 
 # 13. -Doc: 목록·폴더·이력·컬렉션으로 등록부 문서와 컬렉션 설명문을 만든다
 $b = NewBox
