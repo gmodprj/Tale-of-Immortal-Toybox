@@ -51,7 +51,7 @@ namespace MOD_sWP6UL
 
         private bool BookShown(SkillCatalog.Entry entry)
         {
-            // 모드 공법은 경지 범위가 없고(1~10) 막힌 신통도 이유를 읽을 수 있게 늘 보인다.
+            // 모드 공법은 경지 범위가 없고(1~10) 막힌 줄(그 경지에 원본이 없는 것)도 이유를 읽을 수 있게 늘 보인다.
             return entry.IsMod || !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
         }
 
@@ -228,7 +228,7 @@ namespace MOD_sWP6UL
                 {
                     note += "\n한글 이름이 없어 중국어 이름을 보입니다(게임 화면과 비급 이름에는 0으로 보일 수 있습니다. 한글화는 G2c).";
                 }
-                note += "\n모드 공법: 같은 종류의 기본 공법을 뽑아 번호만 바꿔 만듭니다. 옵션은 게임이 뽑은 것입니다.";
+                note += "\n모드 공법: 같은 종류의 기본 공법을 뽑아 기술 번호와 옵션 번호를 모드 것으로 바꿔 만듭니다. 옵션은 모드 공법 자신의 것입니다.";
             }
             return head + "\n" + MartialBookService.Describe(skill, BookGrade, bookMinLevel, AmountBar.Get("item")) + note + "\n" + skill.Desc;
         }

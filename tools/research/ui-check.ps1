@@ -226,7 +226,7 @@ switch ($Part) {
     $mods = Cmd 'rmods' 3000
     Check 'the catalog lists the five mod skills' ($mods -match 'count=5' -and $mods -match '1:984555698:' -and $mods -match '1:353535:' -and $mods -match '1:844854565:' -and $mods -match '0:3535351:' -and $mods -match '4:59898952:') $mods
     Check 'mod skill names are Korean after translation' ($mods -match '984555698:열염장:' -and $mods -match '59898952:천살신창:' -and $mods -match '3535351:적염검:basSword:False:') $mods
-    Check 'only the mod ultimate is blocked' ($mods -match '4:59898952:[^,]*:이 모드의 신통은 줄 수 없습니다[^,]*:' -and $mods -match '1:984555698:[^:]*:[^:]*:False:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:False:-:\d+') $mods
+    Check 'no mod skill is blocked, the ultimate rolls from 32111' ($mods -match '4:59898952:[^:]*:[^:]*:False:-:32111' -and $mods -match '1:984555698:[^:]*:[^:]*:False:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:False:-:\d+') $mods
     $s = Cmd 'rskill 1 984555698' 300
     Check 'a mod skill has grade range 1~10' ($s -match 'min=1 max=10 name=열염장') $s
     $l = Cmd 'rlearn 1 984555698 3' 3000
@@ -251,8 +251,18 @@ switch ($Part) {
     Check 'the mod martial art is made three times out of three (retries)' ($ok -eq 3) "ok=$ok"
     $sole = if ((Cmd 'rbooks 3535351' 300) -match '([A-Za-z0-9]{6}):3535351:') { $Matches[1] } else { '' }
     Check 'the mod martial art book reads like a base one' ($sole -ne '' -and (Cmd "rbookstudy $sole" 300) -match 'can=5') "sole=$sole"
-    $made = Cmd 'rbook 4 59898952 3 1 1' 3000
-    Check 'the mod ultimate is refused with the reason' ($made -match 'made=0' -and $made -match '이 모드의 신통은 줄 수 없습니다') $made
+    $before = BookCount 59898952
+    $made = Cmd 'rbook 4 59898952 3 1 1' 20000
+    $sole = if ((Cmd 'rbooks 59898952' 300) -match '([A-Za-z0-9]{6}):59898952:3:') { $Matches[1] } else { '' }
+    $study = if ($sole) { Cmd "rbookstudy $sole" 300 } else { 'no book' }
+    Check 'the mod ultimate book is made, named and accepted' ($made -match 'made=1' -and $made -match '천살신창\(품질' -and (BookCount 59898952) -eq $before + 1 -and $study -match 'can=0') "$made | $study"
+    foreach ($g in 1, 10) {
+      $m = Cmd "rmods $g" 3000
+      $made = Cmd "rbook 4 59898952 $g 1 1" 20000
+      $open = $m -match '4:59898952:[^:]*:[^:]*:[^:]*:-:\d+'
+      $closed = $m -match ('4:59898952:[^:]*:[^:]*:[^:]*:경지 ' + $g + '에 원본으로 쓸 기본 공법이 없습니다:-')
+      Check "the ultimate at grade $g has a row state that agrees with the result" (($open -and $made -match 'made=1' -and $made -match '천살신창\(품질') -or ($closed -and $made -match 'made=0' -and $made -match '원본으로 쓸 기본 공법이 없습니다')) "$m | $made"
+    }
     # 3. 화면(Task 4)
     Cmd 'rfav reset' 300 | Out-Null
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
@@ -262,15 +272,17 @@ switch ($Part) {
     Check 'the mod-only chip shows five rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
-    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '모드 공법: 같은 종류의 기본 공법을 뽑아') $d
-    $p = Pos 'BookGive59898952'
-    Check 'the mod ultimate cannot be given from the row' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: BookGive59898952')
+    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '옵션 번호를 모드 것으로') $d
     Press 'BookName59898952' | Out-Null
-    Check 'the box below gives the reason for the ultimate' ((Cmd 'uitext ItemDetail') -match '지급할 수 없습니다: 이 모드의 신통은 줄 수 없습니다') (Cmd 'uitext ItemDetail')
+    $d = Cmd 'uitext ItemDetail'
+    Check 'the box below no longer refuses the ultimate' ($d -notmatch '지급할 수 없습니다' -and $d -match '\[모드\], 경지 1~10\(모드 공법\)') $d
     $before = BookCount 984555698
     Press 'item1' | Out-Null
     Press 'BookGive984555698' 20000 | Out-Null
     Check 'giving from the row makes one mod book' ((BookCount 984555698) -eq $before + 1 -and (Cmd 'uitext BookBag984555698') -match "text='$($before + 1)'") (Cmd 'uitext BookBag984555698')
+    $before = BookCount 59898952
+    Press 'BookGive59898952' 20000 | Out-Null
+    Check 'giving the ultimate from the row makes one mod book' ((BookCount 59898952) -eq $before + 1 -and (Cmd 'uitext BookBag59898952') -match "text='$($before + 1)'") (Cmd 'uitext BookBag59898952')
     Cmd 'ui set ItemQuery 烈炎' | Out-Null
     Check 'the Chinese name is searchable' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
     Press 'ItemQueryClear' | Out-Null
