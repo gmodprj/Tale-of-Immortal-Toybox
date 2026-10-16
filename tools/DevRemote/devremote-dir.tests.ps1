@@ -14,6 +14,9 @@ function InEnv($value, [string]$command) {
 }
 $box = Join-Path $env:TEMP ('tltoybox-devremote-tests-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($box)
+# 스크립트가 환경 변수를 무시하면 실제 폴더(기본값)에 표식 t1·명령 파일이 남아 다음 회차를 막는다. 시험 전후를 비교해 시험이 만든 것만 치우고 FAIL을 낸다.
+$real = 'E:\TlToybox\.devremote'
+$realBefore = @('session.name', 'mod-cmd.txt', 'cmd.txt') | Where-Object { Test-Path (Join-Path $real $_) }
 try {
   Check 'resolver exists' (Test-Path $resolver)
   Check 'default is the fixed folder' ((InEnv $null "& '$resolver'") -eq 'E:\TlToybox\.devremote')
@@ -37,6 +40,15 @@ try {
   Check 'check-lib.ps1 works in the folder' ($o.Trim() -eq $box) $o
 } finally {
   if (Test-Path $box) { Remove-Item -LiteralPath $box -Recurse -Force }
+  $leaked = @()
+  foreach ($name in 'session.name', 'mod-cmd.txt', 'cmd.txt') {
+    $path = Join-Path $real $name
+    if ((Test-Path $path) -and ($realBefore -notcontains $name)) {
+      if ($name -ne 'session.name' -or [IO.File]::ReadAllText($path).Trim() -eq 't1') { $leaked += $name; Remove-Item -LiteralPath $path -Force }
+    }
+  }
+  if ($leaked -contains 'session.name') { Remove-Item -LiteralPath (Join-Path $real 'save-backup-t1') -Recurse -Force -ErrorAction SilentlyContinue }
+  Check 'the real folder was left untouched' ($leaked.Count -eq 0) ("removed: " + ($leaked -join ', '))
 }
 "FAILS=$script:fails"
 if ($script:fails -gt 0) { exit 1 }
