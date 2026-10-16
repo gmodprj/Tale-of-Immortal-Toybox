@@ -1251,13 +1251,19 @@ switch ($Part) {
     Press 'Back' | Out-Null
     Check 'the second press learns them' ((Range 'MartialListRange') -gt $had) "$had -> $(Range 'MartialListRange'); $s"
 
-    # 기예 모두 배우기
+    # 기예 모두 배우기: 아직 다 배우지 않은 분류를 고른다(단추 글 "<분류> (배움/전체)")
     Press 'Tab9' | Out-Null
-    $label0 = Cmd 'uitext ArtKind0'
-    Press 'ArtLearnAll' | Out-Null
-    Check 'art learn-all asks first' ((Cmd 'uitext ArtLearnAll') -match "text='정말 모두 배우기'" -and (Cmd 'uitext ArtKind0') -eq $label0)
-    Press 'ArtLearnAll' 4000 | Out-Null
-    Check 'the second press learns the arts' ((Cmd 'uitext ArtKind0') -ne $label0 -and (Cmd 'uistate') -match "message='[^']+'") (Cmd 'uistate')
+    $artKind = -1
+    for ($i = 0; $i -lt 6 -and $artKind -lt 0; $i++) { if ((Cmd "uitext ArtKind$i") -match "\((\d+)/(\d+)\)'" -and $Matches[1] -ne $Matches[2]) { $artKind = $i } }
+    if ($artKind -lt 0) { 'INFO every art kind is fully learned; not exercised' }
+    else {
+      Press "ArtKind$artKind" | Out-Null
+      $label0 = Cmd "uitext ArtKind$artKind"
+      Press 'ArtLearnAll' | Out-Null
+      Check 'art learn-all asks first' ((Cmd 'uitext ArtLearnAll') -match "text='정말 모두 배우기'" -and (Cmd "uitext ArtKind$artKind") -eq $label0)
+      Press 'ArtLearnAll' 4000 | Out-Null
+      Check 'the second press learns the arts' ((Cmd "uitext ArtKind$artKind") -ne $label0 -and (Cmd 'uistate') -match "message='[^']+'") "$label0 -> $(Cmd "uitext ArtKind$artKind"); $(Cmd 'uistate')"
+    }
 
     # 선천운명 교체
     Press 'Tab8' | Out-Null
@@ -1290,7 +1296,7 @@ switch ($Part) {
   'errors' {
     # 05 문서 48절(C2): 단추 콜백과 탭 그리기의 예외가 결과 칸·내용 영역에 보인다. DevThrow·uifail은 개발 빌드의 시험 장치.
     $traps = Traps
-    function TestErrors { @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'InvalidOperationException: test-exception' }).Count }
+    function TestErrors { @(Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] .*InvalidOperationException: test-exception' }).Count }   # [cmd] 줄(uistate의 message)은 빼고 센다
     $w0 = @(ModWarnings).Count; $e0 = TestErrors
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null
     Press 'DevThrow' | Out-Null
