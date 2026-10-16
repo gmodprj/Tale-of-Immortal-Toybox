@@ -32,14 +32,20 @@ namespace MOD_sWP6UL
             get { return Path.Combine(Dir, "untranslated.txt"); }
         }
 
-        // 파일이 없으면 내장본을 풀어 둔다. "있음"·"풀어 둠"·"없음"(내장본도 없음).
+        // 파일이 없으면 내장본을 풀어 둔다("풀어 둠"). 있으면 내장본에만 있는 키의 줄을 끝에 덧붙인다("덧붙임 n". 사용자가 고친 줄은 그대로).
+        // 덧붙일 것이 없으면 "있음", 내장본도 없으면 "없음". 46절.
         public static string EnsureFile()
         {
+            string text = Embedded();
             if (File.Exists(FilePath))
             {
-                return "있음";
+                if (text == null)
+                {
+                    return "있음";
+                }
+                int added = AppendMissing(text);
+                return added > 0 ? "덧붙임 " + added : "있음";
             }
-            string text = Embedded();
             if (text == null)
             {
                 return "없음";
@@ -47,6 +53,65 @@ namespace MOD_sWP6UL
             Directory.CreateDirectory(Dir);
             File.WriteAllText(FilePath, text, new UTF8Encoding(false));
             return "풀어 둠";
+        }
+
+        // 내장본의 줄 가운데 파일에 없는 키의 줄을 파일 끝에 덧붙인다(앞에 날짜 주석 한 줄). 돌려주는 것은 덧붙인 줄 수.
+        private static int AppendMissing(string embedded)
+        {
+            var have = new HashSet<string>();
+            foreach (string raw in File.ReadAllLines(FilePath, Encoding.UTF8))
+            {
+                string key = KeyOf(raw);
+                if (key != null)
+                {
+                    have.Add(key);
+                }
+            }
+            var sb = new StringBuilder();
+            int added = 0;
+            foreach (string raw in embedded.Split('\n'))
+            {
+                string line = raw.TrimEnd('\r');
+                string key = KeyOf(line);
+                if (key == null || have.Contains(key))
+                {
+                    continue;
+                }
+                sb.Append(line).Append('\n');
+                have.Add(key);
+                added++;
+            }
+            if (added == 0)
+            {
+                return 0;
+            }
+            string current = File.ReadAllText(FilePath, Encoding.UTF8);
+            var all = new StringBuilder(current);
+            if (current.Length > 0 && !current.EndsWith("\n"))
+            {
+                all.Append('\n');
+            }
+            all.Append("# 덧붙임 ").Append(DateTime.Now.ToString("yyyy-MM-dd")).Append(": 내장본의 새 키 ").Append(added).Append('\n');
+            all.Append(sb);
+            File.WriteAllText(FilePath, all.ToString(), new UTF8Encoding(false));
+            return added;
+        }
+
+        // 줄의 키. '#' 줄, 빈 줄, 탭이 없는 줄, 빈 키는 null(Load와 같은 규칙).
+        private static string KeyOf(string line)
+        {
+            string t = line.TrimEnd('\r');
+            if (t.Trim().Length == 0 || t.TrimStart().StartsWith("#"))
+            {
+                return null;
+            }
+            int tab = t.IndexOf('\t');
+            if (tab < 0)
+            {
+                return null;
+            }
+            string key = t.Substring(0, tab).Trim();
+            return key.Length == 0 ? null : key;
         }
 
         private static string Embedded()

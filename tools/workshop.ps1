@@ -553,7 +553,7 @@ function DoDoc($rows) {
   if ($candFiles.Count -eq 0) { $lines.Add('후보표 없음') } else { foreach ($cf in $candFiles) { $lines.Add("- [$cf](../tools/workshop/$cf)") } }
   $lines.Add(''); $lines.Add('## 6. 한글화'); $lines.Add('')
   $tr = TranslationRows
-  if ($tr -lt 0) { $lines.Add("- 번역 파일 없음: $TranslationFile") } else { $lines.Add("- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: ${tr}행. 모드별 상태는 한글화(K)에서 정한다.") }
+  if ($tr -lt 0) { $lines.Add("- 번역 파일 없음: $TranslationFile") } else { $lines.Add("- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: ${tr}행(43·46절). 새 모드의 글은 43절의 절차(rloc dump → 번역 → 파일)로 더한다.") }
   [void][IO.Directory]::CreateDirectory((Split-Path -Parent $DocOut))
   [IO.File]::WriteAllText($DocOut, ($lines -join "`n") + "`n", $utf8)
   $descPath = WriteCollectionDesc $target

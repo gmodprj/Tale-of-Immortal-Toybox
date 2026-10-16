@@ -161,7 +161,7 @@ switch ($Part) {
     function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
     $s = Cmd 'rloc' 300
     # Init은 세이브 진입 전에 두 번 불릴 수 있다(인계 6절). 두 번째면 파일이 "있음"이고 exists 행은 이미 ch라 fallback이 0이다.
-    Check 'translations are applied on init' ($s -match 'file=(풀어 둠|있음) rows=59 applied=59 fallback=[01] unused=0 broken=0') $s
+    Check 'translations are applied on init' ($s -match 'file=(풀어 둠|있음|덧붙임 765) rows=824 applied=824 fallback=[01] unused=0 broken=0') $s
     Check 'the translation file was written to the data folder' (Test-Path -LiteralPath $tfile) $tfile
     $k = Cmd 'rloc key skill_name_middle984555698' 300
     Check 'a mod skill name resolves to Korean' ($k -match 'ls=열염장 kr=열염장 ch=烈炎掌') $k
@@ -175,12 +175,13 @@ switch ($Part) {
     Check 'the bag list names the mod book in Korean' ((Cmd 'rbooks 984555698' 3000) -match ':984555698:[^,]*열염장') (Cmd 'rbooks 984555698' 3000)
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
     Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null; Press 'ResKind6' | Out-Null
+    # 모드 공법이 100개를 넘어(45절 뒤) 줄이 화면 밖에 있을 수 있으므로 먼저 검색해 그 줄만 남긴다
+    Cmd 'ui set ItemQuery 열염' | Out-Null
+    Check 'Korean search finds the mod skill' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
     Check 'the row shows the Korean name' ((Cmd 'uitext BookName984555698') -match "text='열염장'") (Cmd 'uitext BookName984555698')
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
     Check 'the box below no longer mentions a missing Korean name' ($d -notmatch '한글 이름이 없어' -and $d -match '열염장') $d
-    Cmd 'ui set ItemQuery 열염' | Out-Null
-    Check 'Korean search finds the mod skill' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
     Cmd 'ui set ItemQuery 烈炎' | Out-Null
     Check 'Chinese search still finds it' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
     Press 'ItemQueryClear' | Out-Null
@@ -189,14 +190,14 @@ switch ($Part) {
     $text = $backup.Replace("skill_name_middle984555698`t열염장", "skill_name_middle984555698`t열염장2") + "`nbroken line without tab`nno_such_key`t아무개`ns_liuxue`t엉뚱`n skill_name_middle353535 `t 장기광도3 `n"
     [IO.File]::WriteAllText($tfile, $text)
     $s = Cmd 'rloc apply' 3000
-    Check 'a broken line and unknown keys are counted, the rest applies' ($s -match 'rows=61 applied=59 fallback=0 unused=2 broken=1') $s
+    Check 'a broken line and unknown keys are counted, the rest applies' ($s -match 'file=있음 rows=826 applied=824 fallback=0 unused=2 broken=1') $s
     Check 'an edited line wins' ((Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장2') (Cmd 'rloc key skill_name_middle984555698' 300)
     Check 'a base key in the file is ignored and counted as unused' ((Cmd 'rloc key s_liuxue' 300) -match 'ls=유혈 kr=유혈') (Cmd 'rloc key s_liuxue' 300)
     Check 'spaces around a key are trimmed' ((Cmd 'rloc key skill_name_middle353535' 300) -match 'ls=장기광도3') (Cmd 'rloc key skill_name_middle353535' 300)
     # BOM + CRLF로 저장해도 읽힌다
     [IO.File]::WriteAllText($tfile, $backup.Replace("`n", "`r`n"), [Text.Encoding]::UTF8)
     $s = Cmd 'rloc apply' 3000
-    Check 'a file with BOM and CRLF still applies' ($s -match 'rows=59 applied=59 fallback=0 unused=0 broken=0' -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장 ') $s
+    Check 'a file with BOM and CRLF still applies' ($s -match 'rows=824 applied=824 fallback=0 unused=0 broken=0' -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장 ') $s
     [IO.File]::WriteAllText($tfile, $backup)
     Cmd 'rloc apply' 3000 | Out-Null
     # 미번역 내보내기
@@ -205,11 +206,20 @@ switch ($Part) {
     # 파일을 지우면 다시 풀린다
     [IO.File]::Delete($tfile)
     $s = Cmd 'rloc apply' 3000
-    Check 'a missing file is extracted again' ($s -match 'file=풀어 둠 rows=59 applied=59' -and (Test-Path -LiteralPath $tfile)) $s
-    # 주석만 있는 파일: 사전 0, 번역은 그대로 남는다(이미 덮은 kr은 되돌리지 않는다)
+    Check 'a missing file is extracted again' ($s -match 'file=풀어 둠 rows=824 applied=824' -and (Test-Path -LiteralPath $tfile)) $s
+    # 주석만 있는 파일: 내장본의 키가 모두 덧붙는다(46절. 43절 때는 사전 0이었다)
     [IO.File]::WriteAllText($tfile, "# only a comment`n")
     $s = Cmd 'rloc apply' 3000
-    Check 'a comment-only file applies nothing and breaks nothing' ($s -match 'rows=0 applied=0 fallback=0 unused=0 broken=0') $s
+    Check 'a comment-only file gets every embedded row appended' ($s -match 'file=덧붙임 824 rows=824 applied=824 fallback=0 unused=0 broken=0' -and (Get-Content -LiteralPath $tfile -Raw) -match '(?m)^# only a comment') $s
+    # 옛 파일(한 줄만, 고친 글): 새 키만 덧붙고 고친 줄은 남는다. 두 번째 적용은 덧붙일 것이 없다
+    [IO.File]::WriteAllText($tfile, "# old file`nskill_name_middle984555698`t열염장2`n")
+    $s = Cmd 'rloc apply' 3000
+    Check 'an old file gets the new embedded keys appended and keeps its edited line' ($s -match 'file=덧붙임 823 rows=824 applied=824' -and (Get-Content -LiteralPath $tfile -Raw) -match "(?m)^role_race_long0`t" -and (Cmd 'rloc key skill_name_middle984555698' 300) -match 'ls=열염장2') $s
+    $s = Cmd 'rloc apply' 3000
+    Check 'a second apply appends nothing' ($s -match 'file=있음 rows=824 applied=824') $s
+    Check 'a race name resolves to Korean' ((Cmd 'rloc key role_race_long0' 300) -match 'ls=진룡 kr=진룡 ch=真龙') (Cmd 'rloc key role_race_long0' 300)
+    Check 'a ranking hall name resolves to Korean' ((Cmd 'rloc key jsT1150010003' 300) -match 'ls=선자각 ') (Cmd 'rloc key jsT1150010003' 300)
+    Check 'the artifact spirit name resolves to Korean' ((Cmd 'rloc key spriteName9963701' 300) -match 'ls=요도희 ') (Cmd 'rloc key spriteName9963701' 300)
     [IO.File]::WriteAllText($tfile, $backup)
     Cmd 'rloc apply' 3000 | Out-Null
     Shot 'translation'
@@ -224,7 +234,8 @@ switch ($Part) {
     function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
     # 1. 카탈로그(Task 2)
     $mods = Cmd 'rmods' 3000
-    Check 'the catalog lists the five mod skills' ($mods -match 'count=5' -and $mods -match '1:984555698:' -and $mods -match '1:353535:' -and $mods -match '1:844854565:' -and $mods -match '0:3535351:' -and $mods -match '4:59898952:') $mods
+    $count = if ($mods -match 'count=(\d+)') { [int]$Matches[1] } else { 0 }   # 45절 뒤 모드 공법이 100개를 넘는다(새 모드 8개)
+    Check 'the catalog lists at least the five original mod skills' ($count -ge 5 -and $mods -match '1:984555698:' -and $mods -match '1:353535:' -and $mods -match '1:844854565:' -and $mods -match '0:3535351:' -and $mods -match '4:59898952:') $mods
     Check 'mod skill names are Korean after translation' ($mods -match '984555698:열염장:' -and $mods -match '59898952:천살신창:' -and $mods -match '3535351:적염검:basSword:False:') $mods
     Check 'no mod skill is blocked, the ultimate rolls from 32111' ($mods -match '4:59898952:[^:]*:[^:]*:False:-:32111' -and $mods -match '1:984555698:[^:]*:[^:]*:False:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:False:-:\d+') $mods
     $s = Cmd 'rskill 1 984555698' 300
@@ -267,31 +278,37 @@ switch ($Part) {
     Cmd 'rfav reset' 300 | Out-Null
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
     Press 'ResGroupManual' | Out-Null; Press 'ResClear' | Out-Null
-    Check 'seven kind chips with the mod-only chip' ((Cmd 'uitext ResKind6') -match "text='모드만 \(5\)'" -and (Cmd 'uipos ResKind7') -match 'no element named') (Cmd 'uitext ResKind6')
+    Check 'seven kind chips with the mod-only chip' ((Cmd 'uitext ResKind6') -match "text='모드만 \($count\)'" -and (Cmd 'uipos ResKind7') -match 'no element named') (Cmd 'uitext ResKind6')
     Press 'ResKind6' | Out-Null
-    Check 'the mod-only chip shows five rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
+    Check 'the mod-only chip shows every mod row' ((Range) -eq $count) (Cmd 'uitext ItemTableRange')
+    Cmd 'ui set ItemQuery 열염' | Out-Null   # 줄이 화면 밖일 수 있으므로 검색으로 띄운다
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
     Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '옵션 번호를 모드 것으로') $d
+    Cmd 'ui set ItemQuery 천살' | Out-Null
     Press 'BookName59898952' | Out-Null
     $d = Cmd 'uitext ItemDetail'
     Check 'the box below no longer refuses the ultimate' ($d -notmatch '지급할 수 없습니다' -and $d -match '\[모드\], 경지 1~10\(모드 공법\)') $d
     $before = BookCount 984555698
+    Cmd 'ui set ItemQuery 열염' | Out-Null
     Press 'item1' | Out-Null
     Press 'BookGive984555698' 20000 | Out-Null
     Check 'giving from the row makes one mod book' ((BookCount 984555698) -eq $before + 1 -and (Cmd 'uitext BookBag984555698') -match "text='$($before + 1)'") (Cmd 'uitext BookBag984555698')
     $before = BookCount 59898952
+    Cmd 'ui set ItemQuery 천살' | Out-Null
     Press 'BookGive59898952' 20000 | Out-Null
     Check 'giving the ultimate from the row makes one mod book' ((BookCount 59898952) -eq $before + 1 -and (Cmd 'uitext BookBag59898952') -match "text='$($before + 1)'") (Cmd 'uitext BookBag59898952')
     Cmd 'ui set ItemQuery 烈炎' | Out-Null
     Check 'the Chinese name is searchable' ((Range) -eq 1) (Cmd 'uitext ItemTableRange')
     Press 'ItemQueryClear' | Out-Null
     Press 'ResBookFit' | Out-Null; Press 'ResBookFit' | Out-Null
-    Check 'this-grade-only keeps mod rows' ((Range) -eq 5) (Cmd 'uitext ItemTableRange')
+    Check 'this-grade-only keeps mod rows' ((Range) -eq $count) (Cmd 'uitext ItemTableRange')
     Press 'ResClear' | Out-Null
-    Check 'clear releases the mod-only chip' ((Range) -gt 5 -and (Cmd 'uitext ResKind0') -match "text='전체 \(") (Cmd 'uitext ItemTableRange')
+    Check 'clear releases the mod-only chip' ((Range) -gt $count -and (Cmd 'uitext ResKind0') -match "text='전체 \(") (Cmd 'uitext ItemTableRange')
     Press 'ResKind6' | Out-Null
+    Cmd 'ui set ItemQuery 열염' | Out-Null
     Press 'BookStar984555698' | Out-Null
+    Press 'ItemQueryClear' | Out-Null
     Check 'a mod book favorite is saved' ((Cmd 'rfav' 200) -match 'book:1:984555698:3:1:1') (Cmd 'rfav' 200)
     Press 'ResGroupFav' | Out-Null
     $before = BookCount 984555698
