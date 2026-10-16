@@ -9,7 +9,7 @@ namespace MOD_sWP6UL
         public static string KeyOf(string line)
         {
             string t = (line ?? "").TrimEnd('\r');
-            if (t.Trim().Length == 0 || t.TrimStart().StartsWith("#"))
+            if (t.Trim().Length == 0 || t.TrimStart().StartsWith("#", System.StringComparison.Ordinal))
             {
                 return null;
             }
@@ -30,7 +30,7 @@ namespace MOD_sWP6UL
             foreach (string raw in lines)
             {
                 string line = (raw ?? "").TrimEnd('\r');
-                if (line.Trim().Length == 0 || line.TrimStart().StartsWith("#"))
+                if (line.Trim().Length == 0 || line.TrimStart().StartsWith("#", System.StringComparison.Ordinal))
                 {
                     continue;
                 }

@@ -22,6 +22,9 @@ try {
   Check 'default is the fixed folder' ((InEnv $null "& '$resolver'") -eq 'E:\TlToybox\.devremote')
   Check 'the environment variable wins' ((InEnv $box "& '$resolver'") -eq $box)
   Check 'a trailing backslash is trimmed' ((InEnv ($box + '\') "& '$resolver'") -eq $box)
+  Check 'surrounding quotes are removed' ((InEnv ('"' + $box + '"') "& '$resolver'") -eq $box)
+  Check 'a blank value falls back to the default' ((InEnv '   ' "& '$resolver'") -eq 'E:\TlToybox\.devremote')
+  Check 'a drive root keeps its backslash' ((InEnv 'E:\' "& '$resolver'") -eq 'E:\')
   # mod.ps1·rc.ps1은 명령 파일을 그 폴더에 쓴다(게임이 없으니 결과는 오지 않는다. 짧게 기다린다)
   InEnv $box "& '$here\rc.ps1' -Cmd 'hit 1 1' -NoShot -WaitMs 50" | Out-Null
   Check 'rc.ps1 writes its command into the folder' (Test-Path (Join-Path $box 'cmd.txt'))

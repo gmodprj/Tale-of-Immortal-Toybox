@@ -22,8 +22,17 @@ namespace TlToyboxDevRemote
         {
             get
             {
-                string value = Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE");
-                return string.IsNullOrEmpty(value) ? @"E:\TlToybox\.devremote" : value.Trim().TrimEnd('\\', '/');
+                // 값의 앞뒤 공백·따옴표를 지우고, 드라이브 뿌리(E:\)가 아니면 끝 역슬래시를 뗀다. 공백뿐이면 기본값.
+                string v = (Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE") ?? "").Trim().Trim('"', '\'').Trim();
+                if (v.Length == 0)
+                {
+                    return @"E:\TlToybox\.devremote";
+                }
+                if (v.Length <= 3 && v.Length >= 2 && v[1] == ':')
+                {
+                    return v.Substring(0, 2) + "\\";
+                }
+                return v.TrimEnd('\\', '/');
             }
         }
         private const int PollFrames = 10;

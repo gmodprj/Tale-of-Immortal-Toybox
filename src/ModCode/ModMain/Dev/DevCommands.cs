@@ -16,16 +16,27 @@ namespace MOD_sWP6UL
 
         public static string Dir
         {
-            get
-            {
-                string value = Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE");
-                return string.IsNullOrEmpty(value) ? DefaultDir : value.Trim().TrimEnd('\\', '/');
-            }
+            get { return DirFromEnv ? Clean(Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE")) : DefaultDir; }
         }
 
         public static bool DirFromEnv
         {
-            get { return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE")); }
+            get { return Clean(Environment.GetEnvironmentVariable("TLTOYBOX_DEVREMOTE")).Length > 0; }
+        }
+
+        // 값의 앞뒤 공백·따옴표를 지우고, 드라이브 뿌리(E:\)가 아니면 끝 역슬래시를 뗀다. 공백뿐이면 "". devremote-dir.ps1과 같은 규칙.
+        private static string Clean(string value)
+        {
+            string v = (value ?? "").Trim().Trim('"', '\'').Trim();
+            if (v.Length == 0)
+            {
+                return "";
+            }
+            if (v.Length <= 3 && v.Length >= 2 && v[1] == ':')
+            {
+                return v.Substring(0, 2) + "\\";
+            }
+            return v.TrimEnd('\\', '/');
         }
 
         public static void Poll()

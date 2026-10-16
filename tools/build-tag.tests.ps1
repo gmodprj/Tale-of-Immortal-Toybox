@@ -10,12 +10,22 @@ $out = Join-Path $env:TEMP ('tltoybox-build-tag-' + [guid]::NewGuid().ToString('
 try {
   $commit = (& git -C $repo rev-parse --short HEAD).Trim()
   $dirty = if ((& git -C $repo status --porcelain) -join '') { '-dirty' } else { '' }
-  dotnet build (Join-Path $repo 'src\ModCode\ModMain\ModMain.csproj') -c Release --nologo -p:DevTools=false -o $out | Out-Null
+  # -p:EditorReleaseDir= 로 모드 에디터 프로젝트 폴더로의 복사(CopyToEditorProject)를 막는다(시험의 부작용 금지).
+  dotnet build (Join-Path $repo 'src\ModCode\ModMain\ModMain.csproj') -c Release --nologo -p:DevTools=false -p:EditorReleaseDir= -o $out | Out-Null
   $dll = Join-Path $out 'MOD_sWP6UL.dll'
   Check 'the release build exists' (Test-Path $dll) $dll
   $ver = (Get-Item $dll).VersionInfo.ProductVersion
   Check 'the release build carries the commit' ($ver -eq "$commit$dirty") "ProductVersion=$ver expected=$commit$dirty"
   Check 'the tag is a short hash' ($ver -match '^[0-9a-f]{7,}(-dirty)?$') $ver
+  # git 밖(소스 복사본)에서 빌드하면 오류 문장이 아니라 unknown이 들어간다
+  $copy = Join-Path $env:TEMP ('tltoybox-build-nogit-' + [guid]::NewGuid().ToString('N'))
+  [void][IO.Directory]::CreateDirectory($copy)
+  Get-ChildItem -LiteralPath (Join-Path $repo 'src\ModCode\ModMain') | Where-Object { $_.Name -notin 'bin', 'obj' } | Copy-Item -Destination $copy -Recurse
+  $out2 = Join-Path $copy 'out'
+  dotnet build (Join-Path $copy 'ModMain.csproj') -c Release --nologo -p:DevTools=false -p:EditorReleaseDir= -o $out2 | Out-Null
+  $ver2 = (Get-Item (Join-Path $out2 'MOD_sWP6UL.dll')).VersionInfo.ProductVersion
+  Check 'a build outside git is tagged unknown' ($ver2 -eq 'unknown') "ProductVersion=$ver2"
+  Remove-Item -LiteralPath $copy -Recurse -Force
 } finally {
   if (Test-Path $out) { Remove-Item -LiteralPath $out -Recurse -Force }
 }

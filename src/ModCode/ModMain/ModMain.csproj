@@ -73,16 +73,17 @@
   <!-- 커밋 표지: InformationalVersion = <짧은 커밋>[-dirty]. Init 로그(BuildInfo.Commit)와 install.ps1이 읽는다(05 문서 49절). git이 없으면 unknown.
        GenerateAssemblyInfo가 속성 값으로 캐시를 만들므로 커밋만 바뀌어도 다시 컴파일된다. -->
   <Target Name="StampCommit" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo">
-    <Exec Command="git rev-parse --short HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+    <!-- ConsoleToMSBuild는 stderr도 담으므로 2>nul로 버리고, 짧은 해시 꼴이 아니면 unknown으로 둔다(git이 없거나 저장소 밖일 때). -->
+    <Exec Command="git rev-parse --short HEAD 2&gt;nul" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitCommit" />
     </Exec>
-    <Exec Command="git status --porcelain" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+    <Exec Command="git status --porcelain 2&gt;nul" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitDirty" />
     </Exec>
     <PropertyGroup>
-      <GitCommit Condition="'$(GitCommit)' == ''">unknown</GitCommit>
+      <GitCommit Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(GitCommit)', '^[0-9a-f]{7,40}$'))">unknown</GitCommit>
       <InformationalVersion>$(GitCommit)</InformationalVersion>
-      <InformationalVersion Condition="'$(GitDirty)' != ''">$(GitCommit)-dirty</InformationalVersion>
+      <InformationalVersion Condition="'$(GitCommit)' != 'unknown' And '$(GitDirty)' != ''">$(GitCommit)-dirty</InformationalVersion>
     </PropertyGroup>
   </Target>
   <Target Name="CopyToEditorProject" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' And Exists('$(EditorReleaseDir)')">
