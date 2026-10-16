@@ -1,14 +1,14 @@
-# 09. 창작마당 모드 등록부 (생성 2026-10-16 12:51)
+# 09. 창작마당 모드 등록부 (생성 2026-10-16 13:21)
 
 이 문서는 pwsh tools/workshop.ps1 -Doc 이 만든다. 손으로 고치지 않는다. 고치려면 tools/workshop/mods.txt 와 history.txt 를 고친 뒤 다시 돌린다. 설계: docs/superpowers/specs/2026-10-16-workshop-expand-design.md 3.4절.
 게임 폴더 E:\Games\Tale of Immortal, SteamCMD E:\SteamCmd\steamcmd.exe, 받은 자리 E:\SteamCmd\steamapps\workshop\content\1468810.
 
 ## 1. 요약
 
-- 상태: 설치 15, 보류 1, 제외 1 (줄 17)
-- 설치 줄 15: 받음 15/15, 설치 15/15
-- 설치본 크기: 387.9MB (설치된 설치 줄의 폴더 합)
-- DLL이 든 설치 모드: 4개
+- 상태: 설치 23, 보류 1, 제외 1 (줄 25)
+- 설치 줄 23: 받음 23/23, 설치 23/23
+- 설치본 크기: 660.8MB (설치된 설치 줄의 폴더 합)
+- DLL이 든 설치 모드: 7개
 
 ## 2. 모드 표
 
@@ -29,6 +29,14 @@
 | 2814806198 | 설치 | 외형 | 过场图替换示例mod | 전환 화면 그림 교체 예제 모드 | JprJWu | 15.6MB 2022-06-01 | 예 | 같음 | - |  | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814806198) |
 | 3390738990 | 설치 | 공법 | 【只有梦长】五本功法开源 | [只有梦长] 공법 다섯 권(오픈소스) | 7kyQkw | 1.7MB 2024-12-24 | 예 | 같음 | - | debug 모양(Mod_7kyQkw). 새 공법 다섯 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3390738990) |
 | 2839261049 | 설치 | 공법 | 真.镇宗之宝：传承心法 | 진·진종지보: 전승 심법 | uCKcKw | 0.8MB 2022-08-05 | 예 | 같음 | MOD_uCKcKw.dll | DLL 1(MOD_uCKcKw.dll) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2839261049) |
+| 2948618136 | 설치 | 틀 | [无名]图集框架(修复) | [无名] 도감 틀(수정판) | chaQxF | 0.3MB 2023-05-27 | 예 | 같음 | MOD_chaQxF.dll | 2832340752가 필요로 함. 0.3MB. DLL 1(MOD_chaQxF.dll). 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2948618136) |
+| 2832340752 | 설치 | 외형 | [无名]动态器灵(妖刀姬) | [无名] 동적 기령 요도희 | HrAonB | 9.8MB 2023-03-22 | 예 | 같음 | - | 2948618136 필요. 9.8MB. 영어 지원. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2832340752) |
+| 2956998877 | 설치 | 외형 | 【执余】剧情NPC实体化 | [执余] 극 NPC 실체화 | Qlrjnh | 67.1MB 2023-04-10 | 예 | 같음 | - | 67MB. 극 NPC 40여 명을 일반 인물로. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2956998877) |
+| 3018337316 | 설치 | 틀 | 种族框架 | 종족 틀 | vEGKqj | 5.2MB 2025-02-12 | 예 | 같음 | MOD_vEGKqj.dll | 3018994236·3019455501이 필요로 함. DLL 1(MOD_vEGKqj.dll). 설명: 빼기 전에 게임 설정의 "종족 모드 불러오기"를 끈다. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3018337316) |
+| 3018994236 | 설치 | 세계관 | 「只有梦长」种族拓展Added different races | [只有梦长] 종족 확장 | LBBKkB | 1.3MB 2025-01-16 | 예 | 같음 | - | 종족 틀 필요. 종족 10종. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3018994236) |
+| 3019455501 | 설치 | 세계관 | 龙族（真龙、青龙和应龙） | 용족(진룡·청룡·응룡) | EFuAci | 1.3MB 2024-08-09 | 예 | 같음 | - | 종족 틀 필요. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3019455501) |
+| 2859071194 | 설치 | 세계관 | 八荒绝色榜(Eight Desolate Fairies Ranking) | 팔황 절색방 | BHJSB | 4.6MB 2025-04-12 | 예 | 같음 | MOD_BHJSB.dll | 주성 진입으로 극 시작. 4.6MB. DLL 1(MOD_BHJSB.dll). 영어 지원. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2859071194) |
+| 2834581477 | 설치 | 음악 | BGM背景音乐替换（无需框架） | 배경음악 교체(선검 OST, 틀 불필요) | xOR4lp | 183.3MB 2022-07-13 | 예 | 같음 | - | 183MB. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2834581477) |
 | 2945768219 | 제외 | 외형 | 【执余】女NPC颜值评定优化 | [执余] 여성 NPC 외모 평가 개선 | - | 49.2MB 2024-08-05 | - | - | MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,Assembly-CSharp.dll,ModMain.dll,MOD_ZUQmIr.dll,ModMain.dll,Properties.Resources.Designer.cs.dll | DLL 5에 MySql.Data.dll이 들어 있어 제외(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2945768219) |
 | 3681025074 | 보류 | - | - | - | - | 15.2MB 2026-03-13 | - | - | - | 사용자 시험용. 목록에 넣지 않기로 함(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3681025074) |
 
@@ -36,6 +44,22 @@
 
 | 때 | 동작 | ID | 한국어 이름 |
 |---|---|---|---|
+| 2026-10-16 13:20 | 설치 | 2834581477 | 배경음악 교체(선검 OST, 틀 불필요) |
+| 2026-10-16 13:20 | 설치 | 2859071194 | 팔황 절색방 |
+| 2026-10-16 13:20 | 설치 | 3019455501 | 용족(진룡·청룡·응룡) |
+| 2026-10-16 13:20 | 설치 | 3018994236 | [只有梦长] 종족 확장 |
+| 2026-10-16 13:20 | 설치 | 3018337316 | 종족 틀 |
+| 2026-10-16 13:20 | 설치 | 2956998877 | [执余] 극 NPC 실체화 |
+| 2026-10-16 13:20 | 설치 | 2832340752 | [无名] 동적 기령 요도희 |
+| 2026-10-16 13:20 | 설치 | 2948618136 | [无名] 도감 틀(수정판) |
+| 2026-10-16 13:09 | 받음 | 2834581477 | 배경음악 교체(선검 OST, 틀 불필요) |
+| 2026-10-16 13:09 | 받음 | 2859071194 | 팔황 절색방 |
+| 2026-10-16 13:09 | 받음 | 3019455501 | 용족(진룡·청룡·응룡) |
+| 2026-10-16 13:09 | 받음 | 3018994236 | [只有梦长] 종족 확장 |
+| 2026-10-16 13:09 | 받음 | 3018337316 | 종족 틀 |
+| 2026-10-16 13:09 | 받음 | 2956998877 | [执余] 극 NPC 실체화 |
+| 2026-10-16 13:09 | 받음 | 2832340752 | [无名] 동적 기령 요도희 |
+| 2026-10-16 13:09 | 받음 | 2948618136 | [无名] 도감 틀(수정판) |
 | 2026-10-16 --:-- | 설치 | 2839261049 | 진·진종지보: 전승 심법 |
 | 2026-10-16 --:-- | 설치 | 3390738990 | [只有梦长] 공법 다섯 권(오픈소스) |
 | 2026-10-16 --:-- | 설치 | 2814806198 | 전환 화면 그림 교체 예제 모드 |
