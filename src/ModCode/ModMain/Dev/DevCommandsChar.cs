@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnhollowerBaseLib;
 using System;
 using System.Text;
@@ -14,6 +15,43 @@ namespace MOD_sWP6UL
             {
                 case "cstate": return State(me);
                 case "cmartial": return Martials(me, int.Parse(p[1]));
+                case "bkreset":
+                    SaveBackup.DevReset();
+                    return "backup record cleared";
+                case "upopen":
+                    {
+                        // 경지 탭의 "게임의 돌파 화면 열기"와 같은 함수를 부르고, 열렸으면 바로 닫는다(검사 backup).
+                        string error = EditService.OpenGameBreakthroughScreen(me);
+                        if (error != null)
+                        {
+                            return "refused: " + error;
+                        }
+                        g.ui.CloseUI(UIType.UpGrade, true);
+                        return "opened and closed";
+                    }
+                case "fateclash":
+                    {
+                        // 도달한 대경지 H의 역천개명 X를 돌려준다. 도달하지 않은 대경지(지금+1)에 X를 정하려 하면 SetAmong이 H를 비운 뒤 거절한다(검사 backup).
+                        int current = FateService.CurrentGrade(me);
+                        foreach (var pair in FateService.Records(me))
+                        {
+                            if (pair.Key <= current && pair.Value != 0 && LuckService.Has(me, pair.Value))
+                            {
+                                return "held=" + pair.Key + " heldId=" + pair.Value + " target=" + (current + 1);
+                            }
+                        }
+                        return "no held fate";
+                    }
+                case "fateamong":
+                    {
+                        // FateService.SetAmong을 직접 부른다: 대경지 p[1]에 p[2]를, pending은 p[3]부터.
+                        var pending = new List<int>();
+                        for (int i = 3; i < p.Length; i++)
+                        {
+                            pending.Add(int.Parse(p[i]));
+                        }
+                        return FateService.SetAmong(me, int.Parse(p[1]), int.Parse(p[2]), pending);
+                    }
                 case "mbreak":
                     {
                         // 배운 공법 하나의 값을 복사해 기술 번호(머리 세 칸 뒤의 두 번째)를 없는 수로 바꾼 공법을 넣는다.

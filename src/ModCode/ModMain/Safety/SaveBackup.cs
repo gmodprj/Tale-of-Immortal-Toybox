@@ -25,6 +25,14 @@ namespace MOD_sWP6UL
             return lastBackupDir != null ? null : BackupNow();
         }
 
+#if DEVTOOLS
+        // 개발 전용: 한 실행 안에서 "첫 쓰기 전 백업"을 여러 번 보려고 백업 기록을 지운다(검사 backup).
+        public static void DevReset()
+        {
+            lastBackupDir = null;
+        }
+#endif
+
         public static string BackupNow()
         {
             try
