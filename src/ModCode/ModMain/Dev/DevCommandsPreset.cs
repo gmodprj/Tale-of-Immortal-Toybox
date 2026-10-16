@@ -56,6 +56,19 @@ namespace MOD_sWP6UL
                 case "pluckadd": return LuckService.Add(me, int.Parse(p[1]));
                 case "pborn": return LuckService.AddBorn(me, int.Parse(p[1]));
                 case "cexport": return CharacterExportService.Export(p[1]);
+                case "cimpsec":
+                    {
+                        // 그 이름의 캐릭터 내보내기 파일에서 한 구역만 가져온다(grade·attributes·lucks·fates·martials·arts). 검사 import-settle이 쓴다.
+                        var section = (CharacterExportService.Section)Enum.Parse(typeof(CharacterExportService.Section), p[2], true);
+                        foreach (CharacterExportService.Pack pack in CharacterExportService.List())
+                        {
+                            if (pack.Name == p[1] && pack.Error == null)
+                            {
+                                return CharacterExportService.ImportSection(pack, section);
+                            }
+                        }
+                        return "no pack " + p[1];
+                    }
                 case "cimpfates":
                     {
                         // 이름이 그것인 캐릭터 내보내기 파일의 역천개명 구역을 가져온다(화면의 "이 항목 모두 가져오기").
