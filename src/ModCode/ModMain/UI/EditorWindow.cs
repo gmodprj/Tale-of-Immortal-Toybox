@@ -526,6 +526,7 @@ namespace MOD_sWP6UL
                 }
 #endif
                 tabs[tab].Render(content);
+                lastDrawError = null;
             }
             catch (Exception e)
             {
@@ -559,16 +560,18 @@ namespace MOD_sWP6UL
         private static void DrawMessage()
         {
             Ui.Clear(messageArea);
-            float boxW = Width - 32;
-            float textW = boxW - 24 - 110;   // 오른쪽의 더 보기 단추 자리
+            float textW = Width - 32 - 24 - 110;   // 오른쪽의 더 보기 단추 자리
             float innerH = MessageH - 8;
             bool overflow = message.Length > 0 && Ui.TextHeight(message, textW, 18) > innerH;
             if (!overflow)
             {
                 messageExpanded = false;
             }
+            // 펼친 칸은 내용 영역의 폭만 차지해 탭 줄(프리셋·도호)을 가리지 않는다. 접힌 칸은 창 폭 전체.
+            float boxX = messageExpanded ? ContentX : 16;
+            float boxW = Width - boxX - 16;
             float boxH = messageExpanded ? MessageH + MessageMoreH : MessageH;
-            messageArea.anchoredPosition = new Vector2(16, -(Height - boxH - 8));
+            messageArea.anchoredPosition = new Vector2(boxX, -(Height - boxH - 8));
             messageArea.sizeDelta = new Vector2(boxW, boxH);
             if (messageExpanded)
             {
@@ -591,8 +594,9 @@ namespace MOD_sWP6UL
             }
             if (overflow)
             {
+                // 결과 칸만 다시 놓는다(Render를 부르면 대기 중인 두 번 누르기 확인이 풀린다).
                 Ui.Button("MessageMore", messageArea, messageExpanded ? "접기" : "더 보기", boxW - 102, 6, 90, 30,
-                    new Action(() => { messageExpanded = !messageExpanded; Render(); }));
+                    new Action(() => { messageExpanded = !messageExpanded; DrawMessage(); }));
             }
         }
 
@@ -669,7 +673,7 @@ namespace MOD_sWP6UL
         {
             get
             {
-                return "open=" + IsOpen + " tab=" + tabNumbers[tab] + " target=" + (targetId == null ? "player" : "npc")
+                return "open=" + IsOpen + " tab=" + (tabNumbers == null ? tab : tabNumbers[tab]) + " target=" + (targetId == null ? "player" : "npc")
                     + " mode=" + (canvas == null ? "none" : canvas.renderMode.ToString()) + " order=" + (canvas == null ? 0 : canvas.sortingOrder)
                     + " covered=" + IsCovered + " top=" + g.ui.GetLayerTopSort(UILayer.UI)
                     + " pos=" + (int)position.x + "," + (int)position.y + " collapsed=" + collapsed

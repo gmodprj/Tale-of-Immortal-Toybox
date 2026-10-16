@@ -1,3 +1,4 @@
+using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -657,9 +658,24 @@ namespace MOD_sWP6UL
             {
                 unit.CreateAction(new UnitActionMartialDel(action), false);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                // 깨진 공법은 게임의 삭제 행동이 읽다가 예외를 낼 수 있다. 목록에서 직접 뺀다.
+                // 깨진 공법은 게임의 삭제 행동이 읽다가 예외를 낼 수 있다. 장착 칸이 없어진 번호를 가리키지 않게 먼저 비우고 목록에서 직접 뺀다.
+                MelonLogger.Msg("[TlToybox] 공법 삭제 행동 오류(fallback) " + soleId + ": " + e.GetType().Name + ": " + e.Message);
+                if (IsEquipped(unit, soleId))
+                {
+                    try
+                    {
+                        unit.CreateAction(new UnitActionMartialUnequip(action), false);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                    if (IsEquipped(unit, soleId))
+                    {
+                        return name + ": 장착 칸을 비우지 못해 지우지 않았습니다. 게임 화면에서 장착을 해제한 뒤 다시 하세요.";
+                    }
+                }
                 data.DelActionMartial(soleId);
             }
             bool ok = !data.allActionMartial.ContainsKey(soleId);

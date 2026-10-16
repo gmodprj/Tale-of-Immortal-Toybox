@@ -69,25 +69,29 @@ namespace MOD_sWP6UL
             {
                 all.Add(new Learned { Id = pair.Key, Data = pair.Value });
             }
-            DataProps.MartialData selected = martialId == null ? null : MartialService.Martial(target, martialId);
-            if (selected == null)
-            {
-                martialId = null;
-            }
-            // 선택한 공법의 이름과 옵션. 깨진 공법이면 읽지 못한 이유만 남긴다(리뷰 C1).
+            // 선택한 공법과 그 이름·옵션. 깨진 공법이면(읽기나 To<>에서 예외) 읽지 못한 이유만 남긴다(리뷰 C1).
+            DataProps.MartialData selected = null;
             string selectedTitle = null;
             string selectedBroken = null;
             var prefixes = new List<MartialService.PrefixView>();
-            if (selected != null)
+            if (martialId != null)
             {
                 try
                 {
-                    selectedTitle = MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")";
-                    prefixes = MartialService.Prefixes(selected);
+                    selected = MartialService.Martial(target, martialId);
+                    if (selected != null)
+                    {
+                        selectedTitle = MartialService.Name(selected) + "  (" + MartialService.TypeLabel(selected.martialType) + ")";
+                        prefixes = MartialService.Prefixes(selected);
+                    }
                 }
                 catch (Exception e)
                 {
                     selectedBroken = e.GetType().Name;
+                }
+                if (selected == null && selectedBroken == null)
+                {
+                    martialId = null;
                 }
             }
 
@@ -114,17 +118,17 @@ namespace MOD_sWP6UL
 
             float box = 32 + listH + 10;
             Ui.Panel("MartialBox", content, 0, box, ContentW, boxH, Ui.Section);
-            if (selected == null)
-            {
-                Ui.Label(content, "위에서 공법을 선택하면 옵션을 편집할 수 있습니다.", 16, box + 10, 880, 36);
-                return;
-            }
             if (selectedBroken != null)
             {
                 Text note = Ui.Label(content, "읽을 수 없는 공법입니다(" + selectedBroken + "). 기술 망각으로 지울 수 있습니다.", 16, box + 10, 880, 36);
                 note.color = Ui.Warn;
                 note.gameObject.name = "MartialBrokenNote";
                 ForgetButton(box + 52);
+                return;
+            }
+            if (selected == null)
+            {
+                Ui.Label(content, "위에서 공법을 선택하면 옵션을 편집할 수 있습니다.", 16, box + 10, 880, 36);
                 return;
             }
             Ui.Label(content, selectedTitle, 16, box + 6, 420, 36, 21);

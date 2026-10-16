@@ -840,6 +840,7 @@ switch ($Part) {
     Check 'a long result offers more' ((IsAt 'MessageMore') -and (Cmd 'uipos MessageEllipsis') -match ' at ' -and (Cmd 'uitext MessageMore') -match "text='더 보기'")
     Press 'MessageMore' | Out-Null
     Check 'more shows the whole text in a scroll box' ((Cmd 'uipos MessageFull') -match ' at ' -and (Cmd 'uitext MessageFullText') -match "(?s)text='.{360}'" -and (Cmd 'uitext MessageMore') -match "text='접기'")
+    Check 'the tab column stays clickable while expanded' ((IsAt 'Tab13') -and (IsAt 'Tab15'))
     Shot 'long-message'
     Press 'MessageMore' | Out-Null
     Check 'fold hides the scroll box' ((Cmd 'uipos MessageFull') -match 'no element named' -and (IsAt 'MessageMore'))
@@ -1215,6 +1216,9 @@ switch ($Part) {
     # 05 문서 48절(C1): 깨진 공법 줄은 "(읽을 수 없음)"으로 그려지고 망각으로 지울 수 있다. mbreak가 기술 번호가 없는 공법을 넣는다.
     Press 'Tab5' | Out-Null
     $had = if ((Cmd 'uitext MartialListRange') -match '전체 (\d+)개') { [int]$Matches[1] } else { 0 }
+    # 깨진 공법은 게임의 삭제 행동이 예외를 내므로(실측: Il2CppException NullReferenceException) 망각이 대체 경로(장착 해제 → 목록에서 직접 뺌)를 타고 "(fallback)" 로그 한 줄을 남긴다.
+    function Fallbacks { @(Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] .*\(fallback\) ' }).Count }
+    $fb0 = Fallbacks
     $o = Cmd 'mbreak' 1500
     Press 'Tab0' | Out-Null; Press 'Tab5' | Out-Null
     if ((Cmd 'uipos MartialListLast') -match ' at ') { Press 'MartialListLast' | Out-Null }
@@ -1226,6 +1230,7 @@ switch ($Part) {
       Check 'picking it shows the notice and the forget button' ((Cmd 'uipos MartialBrokenNote') -match ' at ' -and (IsAt 'MartialForget'))
       $s = PressThrough 'MartialForget'
       Check 'forgetting removes it' ($s -match "message='공법 망각" -and (Cmd 'uipos MartialBroken*') -match 'no element named') $s
+      Check 'it went through the delete fallback once' ((Fallbacks) -eq $fb0 + 1) "fallback lines $fb0 -> $(Fallbacks)"
     }
     Press 'Close' | Out-Null
     Check 'no exception in button callbacks' ((Traps) -eq $traps)

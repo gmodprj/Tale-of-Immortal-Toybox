@@ -51,11 +51,18 @@ namespace MOD_sWP6UL
                 {
                     TimeService.SetFrozen(false);
                 }
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 날짜 고정 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
                 RateService.Reset();
             }
             catch (Exception e)
             {
-                MelonLogger.Msg("[TlToybox] 상태 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+                MelonLogger.Msg("[TlToybox] 배율 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
             }
         }
 
