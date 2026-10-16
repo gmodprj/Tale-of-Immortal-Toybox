@@ -221,10 +221,7 @@ namespace MOD_sWP6UL
         {
             if (entry.IsMod)
             {
-                if (Kinds[entry.KindIndex].Type == MartialType.Ultimate)
-                {
-                    return "이 모드의 신통은 줄 수 없습니다. 게임이 값을 읽지 못합니다(실측)";
-                }
+                // 신통도 준다. 옵션 번호를 모드 것으로 바꾸면 게임이 읽는다(05 문서 44절).
                 return grade < 1 || grade > 10 ? "경지는 1~10입니다" : null;
             }
             return grade < entry.GradeMin || grade > entry.GradeMax
@@ -308,8 +305,72 @@ namespace MOD_sWP6UL
 
         public const int ModRollMax = 50;
 
-        // 모드 공법의 비급 값(인계 8.3e절의 실측): 같은 분류의 기본 기술(원본)을 뽑아 0번(기술 번호)만 모드 번호로 바꾸고,
-        // 가방에 넣기 전에 읽어 본다. 게임이 읽지 못하는 조합(무예는 넷에 하나꼴로 읽혔다)이면 버리고 다시 뽑는다. 최대 ModRollMax번.
+        // 비급 값의 2번부터 첫 -1 앞까지는 옵션 번호(number)다. 게임은 옵션을 (skillType, 기술 번호, number)로 BattleSkillPrefixValue 행에서 찾으므로
+        // (실측, 05 문서 44절), 원본에서 뽑은 번호 가운데 모드 공법에 없는 것을 모드 공법에 있는(아직 안 쓴) 번호로 바꾼다. 있는 번호는 그대로 둔다
+        // (모드 공법 자신의 행을 가리킨다). 바꿀 번호가 없으면 그대로 두고 RollValuesForMod의 읽기 시험에 맡긴다.
+        internal static void RemapPrefixNumbers(Kind kind, Il2CppStructArray<int> rolled, Il2CppStructArray<int> values, int modId)
+        {
+            DataProps.MartialData source = DataProps.PropsData.NewMartial(kind.Type, rolled).To<DataProps.MartialData>();
+            var prefixs = source.GetPrefixs();
+            int skillType = -1;
+            for (int i = 0; i < prefixs.Count && skillType < 0; i++)
+            {
+                if (prefixs[i].prefixValueItem != null)
+                {
+                    skillType = prefixs[i].prefixValueItem.skillType;
+                }
+            }
+            if (skillType < 0)
+            {
+                return;
+            }
+            var modItems = g.conf.battleSkillPrefixValue.GetItems(skillType, modId);
+            if (modItems == null)
+            {
+                return;
+            }
+            var modNumbers = new List<int>();
+            for (int i = 0; i < modItems.Count; i++)
+            {
+                modNumbers.Add(modItems[i].number);
+            }
+            int end = values.Length;
+            for (int i = 2; i < values.Length; i++)
+            {
+                if (values[i] == -1)
+                {
+                    end = i;
+                    break;
+                }
+            }
+            var used = new HashSet<int>();
+            for (int i = 2; i < end; i++)
+            {
+                if (modNumbers.Contains(values[i]))
+                {
+                    used.Add(values[i]);
+                }
+            }
+            for (int i = 2; i < end; i++)
+            {
+                if (modNumbers.Contains(values[i]))
+                {
+                    continue;
+                }
+                foreach (int n in modNumbers)
+                {
+                    if (!used.Contains(n))
+                    {
+                        values[i] = n;
+                        used.Add(n);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 모드 공법의 비급 값(인계 8.3e절·05 문서 44절의 실측): 같은 분류의 기본 공법(원본)을 뽑아 0번(기술 번호)을 모드 번호로 바꾸고,
+        // 옵션 번호 가운데 모드에 없는 것을 모드의 번호로 바꾼 뒤(RemapPrefixNumbers),        // 가방에 넣기 전에 읽어 본다. 게임이 읽지 못하는 조합(무예는 넷에 하나꼴로 읽혔다)이면 버리고 다시 뽑는다. 최대 ModRollMax번.
         // 품질은 보지 않는다: 모드 공법의 품질은 뽑은 옵션과 무관하게 게임이 정한다(실측, 05 문서 42절).
         internal static Il2CppStructArray<int> RollValuesForMod(int kindIndex, Entry mod, int grade, out string reason)
         {
@@ -333,6 +394,7 @@ namespace MOD_sWP6UL
                 {
                     values[i] = i == 0 ? mod.BaseId : rolled[i];
                 }
+                RemapPrefixNumbers(kind, rolled, values, mod.BaseId);
                 try
                 {
                     DataProps.MartialData martial = DataProps.PropsData.NewMartial(kind.Type, values).To<DataProps.MartialData>();
