@@ -1265,7 +1265,7 @@ switch ($Part) {
       Check 'art learn-all asks first' ((Cmd 'uitext ArtLearnAll') -match "text='정말 모두 배우기'" -and (Cmd "uitext ArtKind$artKind") -eq $label0)
       Press 'ArtLearnAll' 4000 | Out-Null
       # 실행됐는지는 결과 문장(기예: …)으로 본다. 고정본이 그 분류의 남은 책을 배울 조건이 안 되면 수는 그대로다(ws-1017i: 단방 136권 가운데 0권).
-      Check 'the second press runs learn-all' ((Cmd 'uistate') -match "message='기예: " -and (Cmd 'uitext ArtLearnAll') -notmatch "text='정말") "$label0 -> $(Cmd "uitext ArtKind$artKind"); $(Cmd 'uistate')"
+      Check 'the second press runs learn-all' ((Cmd 'uistate') -match "message='[^':]+: \d+권" -and (Cmd 'uitext ArtLearnAll') -notmatch "text='정말") "$label0 -> $(Cmd "uitext ArtKind$artKind"); $(Cmd 'uistate')"
     }
 
     # 선천운명 교체
