@@ -221,8 +221,12 @@ namespace MOD_sWP6UL
         {
             if (entry.IsMod)
             {
-                // 신통도 준다. 옵션 번호를 모드 것으로 바꾸면 게임이 읽는다(05 문서 44절).
-                return grade < 1 || grade > 10 ? "경지는 1~10입니다" : null;
+                if (grade < 1 || grade > 10)
+                {
+                    return "경지는 1~10입니다";
+                }
+                // 신통도 준다(옵션 번호를 모드 것으로 바꾸면 게임이 읽는다. 05 문서 44절). 그 경지에 원본으로 쓸 기본 공법이 없으면 미리 알린다(줄의 버튼과 결과가 어긋나지 않게).
+                return SourceFor(entry.KindIndex, entry, grade) == null ? "경지 " + grade + "에 원본으로 쓸 기본 공법이 없습니다" : null;
             }
             return grade < entry.GradeMin || grade > entry.GradeMax
                 ? "경지 " + entry.GradeMin + "~" + entry.GradeMax + "의 기술이라 경지 " + grade + "로는 만들 수 없습니다"
@@ -305,9 +309,11 @@ namespace MOD_sWP6UL
 
         public const int ModRollMax = 50;
 
+        private static readonly Random rng = new Random();
+
         // 비급 값의 2번부터 첫 -1 앞까지는 옵션 번호(number)다. 게임은 옵션을 (skillType, 기술 번호, number)로 BattleSkillPrefixValue 행에서 찾으므로
         // (실측, 05 문서 44절), 원본에서 뽑은 번호 가운데 모드 공법에 없는 것을 모드 공법에 있는(아직 안 쓴) 번호로 바꾼다. 있는 번호는 그대로 둔다
-        // (모드 공법 자신의 행을 가리킨다). 바꿀 번호가 없으면 그대로 두고 RollValuesForMod의 읽기 시험에 맡긴다.
+        // (모드 공법 자신의 행을 가리킨다). 대체 번호는 그 자리의 가중치가 0보다 큰 안 쓴 번호 가운데 무작위로 고른다. 바꿀 번호가 없으면 그대로 두고 RollValuesForMod의 읽기 시험에 맡긴다.
         internal static void RemapPrefixNumbers(Kind kind, Il2CppStructArray<int> rolled, Il2CppStructArray<int> values, int modId)
         {
             DataProps.MartialData source = DataProps.PropsData.NewMartial(kind.Type, rolled).To<DataProps.MartialData>();
@@ -353,24 +359,41 @@ namespace MOD_sWP6UL
             }
             for (int i = 2; i < end; i++)
             {
-                if (modNumbers.Contains(values[i]))
+                if (values[i] <= 0 || modNumbers.Contains(values[i]))
                 {
                     continue;
                 }
-                foreach (int n in modNumbers)
+                // 그 자리(i-2)에 나올 수 있는(자리 가중치 > 0) 안 쓴 번호 가운데 하나를 무작위로. 없으면 안 쓴 첫 번호(읽기 시험에 맡긴다).
+                var fit = new List<int>();
+                int first = -1;
+                for (int k = 0; k < modItems.Count; k++)
                 {
-                    if (!used.Contains(n))
+                    int n = modItems[k].number;
+                    if (used.Contains(n))
                     {
-                        values[i] = n;
-                        used.Add(n);
-                        break;
+                        continue;
                     }
+                    if (first < 0)
+                    {
+                        first = n;
+                    }
+                    if (MartialService.Weight(modItems[k], i - 2) > 0)
+                    {
+                        fit.Add(n);
+                    }
+                }
+                int pick = fit.Count > 0 ? fit[rng.Next(fit.Count)] : first;
+                if (pick >= 0)
+                {
+                    values[i] = pick;
+                    used.Add(pick);
                 }
             }
         }
 
         // 모드 공법의 비급 값(인계 8.3e절·05 문서 44절의 실측): 같은 분류의 기본 공법(원본)을 뽑아 0번(기술 번호)을 모드 번호로 바꾸고,
-        // 옵션 번호 가운데 모드에 없는 것을 모드의 번호로 바꾼 뒤(RemapPrefixNumbers),        // 가방에 넣기 전에 읽어 본다. 게임이 읽지 못하는 조합(무예는 넷에 하나꼴로 읽혔다)이면 버리고 다시 뽑는다. 최대 ModRollMax번.
+        // 옵션 번호 가운데 모드에 없는 것을 모드의 번호로 바꾼 뒤(RemapPrefixNumbers),
+        // 가방에 넣기 전에 읽어 본다. 게임이 읽지 못하는 조합(무예는 넷에 하나꼴로 읽혔다)이면 버리고 다시 뽑는다. 최대 ModRollMax번.
         // 품질은 보지 않는다: 모드 공법의 품질은 뽑은 옵션과 무관하게 게임이 정한다(실측, 05 문서 42절).
         internal static Il2CppStructArray<int> RollValuesForMod(int kindIndex, Entry mod, int grade, out string reason)
         {
@@ -394,9 +417,9 @@ namespace MOD_sWP6UL
                 {
                     values[i] = i == 0 ? mod.BaseId : rolled[i];
                 }
-                RemapPrefixNumbers(kind, rolled, values, mod.BaseId);
                 try
                 {
+                    RemapPrefixNumbers(kind, rolled, values, mod.BaseId);
                     DataProps.MartialData martial = DataProps.PropsData.NewMartial(kind.Type, values).To<DataProps.MartialData>();
                     if (martial.baseID == mod.BaseId && !string.IsNullOrEmpty(martial.martialInfo.name))
                     {

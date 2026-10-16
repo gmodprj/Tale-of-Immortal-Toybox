@@ -175,7 +175,8 @@ namespace MOD_sWP6UL
             return result;
         }
 
-        private static int Weight(ConfBattleSkillPrefixValueItem item, int index)
+        // 옵션 행의 자리별 가중치(weight1~weight11). 0이면 그 자리에 나올 수 없다. SkillCatalog.RemapPrefixNumbers도 쓴다.
+        internal static int Weight(ConfBattleSkillPrefixValueItem item, int index)
         {
             switch (index)
             {

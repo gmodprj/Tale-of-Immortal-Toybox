@@ -51,7 +51,7 @@ namespace MOD_sWP6UL
 
         private bool BookShown(SkillCatalog.Entry entry)
         {
-            // 모드 공법은 경지 범위가 없고(1~10) 막힌 신통도 이유를 읽을 수 있게 늘 보인다.
+            // 모드 공법은 경지 범위가 없고(1~10) 막힌 줄(그 경지에 원본이 없는 것)도 이유를 읽을 수 있게 늘 보인다.
             return entry.IsMod || !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
         }
 

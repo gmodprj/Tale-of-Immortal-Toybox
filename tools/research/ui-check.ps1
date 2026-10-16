@@ -256,6 +256,13 @@ switch ($Part) {
     $sole = if ((Cmd 'rbooks 59898952' 300) -match '([A-Za-z0-9]{6}):59898952:3:') { $Matches[1] } else { '' }
     $study = if ($sole) { Cmd "rbookstudy $sole" 300 } else { 'no book' }
     Check 'the mod ultimate book is made, named and accepted' ($made -match 'made=1' -and $made -match '천살신창\(품질' -and (BookCount 59898952) -eq $before + 1 -and $study -match 'can=0') "$made | $study"
+    foreach ($g in 1, 10) {
+      $m = Cmd "rmods $g" 3000
+      $made = Cmd "rbook 4 59898952 $g 1 1" 20000
+      $open = $m -match '4:59898952:[^:]*:[^:]*:[^:]*:-:\d+'
+      $closed = $m -match ('4:59898952:[^:]*:[^:]*:[^:]*:경지 ' + $g + '에 원본으로 쓸 기본 공법이 없습니다:-')
+      Check "the ultimate at grade $g has a row state that agrees with the result" (($open -and $made -match 'made=1' -and $made -match '천살신창\(품질') -or ($closed -and $made -match 'made=0' -and $made -match '원본으로 쓸 기본 공법이 없습니다')) "$m | $made"
+    }
     # 3. 화면(Task 4)
     Cmd 'rfav reset' 300 | Out-Null
     Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
