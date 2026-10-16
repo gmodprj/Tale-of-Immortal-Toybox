@@ -10,8 +10,8 @@
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
 - 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절. 마지막이 `feat/ultimate-research`(44절 조사))뿐이다(2026-10-16 11시 기준). 병합을 마친 작업·문서 브랜치는 사용자 지시로 모두 지웠다(2026-10-14~16). 병합 뒤 지울지는 사용자에게 묻는다.
-- **지금 게임에 설치된 것**(2026-10-16 13:20 기준):
-  - 편집기 모드: 배포 빌드(개발 도구 제외) `ModExportData\Mod_sWP6UL\ModCode\dll\MOD_sWP6UL.dll`. `develop`의 마지막 코드와 같다(모드 신통 비급(44절)까지. 11:05에 `tools/install.ps1`로 설치). 그 전 설치는 같은 날 09:20(43절까지), 2026-10-15 20:13(40절까지).
+- **지금 게임에 설치된 것**(2026-10-16 15:27 기준):
+  - 편집기 모드: 배포 빌드(개발 도구 제외) `ModExportData\Mod_sWP6UL\ModCode\dll\MOD_sWP6UL.dll`. `develop`의 마지막 코드와 같다(새 모드 한글화(46절)까지. 2026-10-16 15:27에 `tools/install.ps1`로 설치. 다음 실행에서 데이터 폴더의 번역 파일에 765행이 덧붙는다). 그 전 설치는 같은 날 11:05(44절까지), 09:20(43절까지), 2026-10-15 20:13(40절까지).
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
   - 창작마당 모드 23개: `ModExportData\<창작마당ID>\`(15개는 2026-10-16 오전, 8개는 같은 날 13:20에 사용자 확인을 받고 게임을 끈 상태에서 `pwsh tools/workshop.ps1 -Install -Yes`. 목록 `tools/workshop/mods.txt`(일곱 칸, 상태 설치 23·보류 1·제외 1), 이력 `history.txt`, 등록부 `docs/09-workshop-mods.md`(`-Doc`이 만든다), Steam 컬렉션 3820620999(미등록, `tools/workshop/collection.txt`). 05 문서 41·45절). DLL 모드 7개(Fatury·도감 틀·종족 틀·절색방 등. 로드 중 `Latest.log`에 남는 `Fatury.ResLateLoadPatch`의 예외 한 줄은 그 모드의 것).
   - 모드 데이터 폴더 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox`: 설정·즐겨찾기·프리셋·자동 백업과 번역 파일 `translations\mods.txt`(43·46절. DLL 안의 것이 첫 실행 때 풀리고, 파일이 이미 있으면 내장본에만 있는 키가 끝에 덧붙는다. 사용자가 고친 줄은 그대로).
