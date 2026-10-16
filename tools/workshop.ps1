@@ -234,6 +234,200 @@ function DoDownload($rows) {
   if ($pending.Count -gt 0) { "받지 못함: $(($pending | ForEach-Object Id) -join ', ')" }
 }
 
+# ---- -Search: 창작마당 후보표 (2026-10-16 설계 3.3절) ----
+$UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TlToybox-workshop/1.0'
+$BrowseUrl = 'https://steamcommunity.com/workshop/browse/'
+$DetailsUrl = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/'
+$ItemUrl = 'https://steamcommunity.com/sharedfiles/filedetails/?id='
+$KindQueries = [ordered]@{
+  '외형'   = @(@{ tag = 'Beautify' })
+  '공법'   = @(@{ tag = 'Battle' }, @{ search = '功法' })
+  '세계관' = @(@{ tag = 'Drama' }, @{ tag = 'NPC' }, @{ tag = 'LargeIntegrated' })
+  '음악'   = @(@{ search = '音乐' }, @{ search = 'BGM' }, @{ search = '特效' })
+}
+$NsfwRe = '双修|雙修|采补|採補|裸|R18|NSFW|涩|澀|绅士|紳士|魅魔|合欢|合歡|处子|處子'
+$SystemRe = '升级|升級|合成|分解|融合|经验|經驗|速度|修改器|工具|框架|UI|自动|自動|参悟|參悟|秘籍|秘笈'
+$LimitRe = '请求太多'
+
+function Rest { if (-not $WebRoot) { Start-Sleep -Milliseconds ([int]($Delay * 1000)) } }
+# HTTP 한 번. $form이 있으면 폼 POST. -WebRoot가 있으면 그 폴더의 $local 파일을 읽는다(시험용).
+# 돌려주는 것: Ok, Status, Body, Limited(요청 제한: HTTP 429 또는 본문의 "请求太多")
+function Fetch([string]$url, [string]$local, [hashtable]$form = $null) {
+  if ($WebRoot) {
+    if (-not $url.StartsWith('https://')) { throw "잘못된 주소입니다: $url" }   # 시험에서도 주소 조립을 검사한다
+    $path = Join-Path $WebRoot $local
+    if (-not (Test-Path -LiteralPath $path)) { return @{ Ok = $false; Status = 404; Body = ''; Limited = $false } }
+    $body = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
+    return @{ Ok = $true; Status = 200; Body = $body; Limited = [bool]($body -match $LimitRe) }
+  }
+  $headers = @{ 'User-Agent' = $UA; 'Accept-Language' = 'zh-CN,ko;q=0.8' }
+  try {
+    if ($form) {
+      $pairs = @($form.GetEnumerator() | ForEach-Object { [Uri]::EscapeDataString([string]$_.Key) + '=' + [Uri]::EscapeDataString([string]$_.Value) })
+      $res = Invoke-WebRequest -Uri $url -Method Post -Body ($pairs -join '&') -ContentType 'application/x-www-form-urlencoded' -Headers $headers -TimeoutSec 60
+    } else {
+      $res = Invoke-WebRequest -Uri $url -Headers $headers -TimeoutSec 60
+    }
+    $body = [string]$res.Content
+    @{ Ok = $true; Status = [int]$res.StatusCode; Body = $body; Limited = [bool]($body -match $LimitRe) }
+  } catch {
+    $status = 0
+    if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+    @{ Ok = $false; Status = $status; Body = ''; Limited = ($status -eq 429) }
+  }
+}
+function QueryName([hashtable]$q) { if ($q.tag) { $q.tag } else { $q.search } }
+# 검색 페이지 한 쪽의 ID(나온 순서, 중복 없이). 구독자순, 바로 사용 가능한 항목, 한 쪽 30개
+function BrowsePage([hashtable]$q, [int]$page) {
+  $qs = "appid=$AppId&browsesort=totaluniquesubscribers&actualsort=totaluniquesubscribers&section=readytouseitems&numperpage=30&p=$page"
+  if ($q.tag) { $qs += '&requiredtags[]=' + [Uri]::EscapeDataString($q.tag) } else { $qs += '&searchtext=' + [Uri]::EscapeDataString($q.search) }
+  $res = Fetch "${BrowseUrl}?$qs" "browse-$(QueryName $q)-p$page.html"   # ?는 변수 이름에 들어가므로 ${}로 끊는다
+  $ids = New-Object System.Collections.Generic.List[string]
+  if ($res.Ok) { foreach ($m in [regex]::Matches($res.Body, 'sharedfiles/filedetails/\?id=(\d+)')) { if (-not $ids.Contains($m.Groups[1].Value)) { $ids.Add($m.Groups[1].Value) } } }
+  @{ Ok = $res.Ok; Ids = $ids.ToArray(); Limited = $res.Limited }
+}
+# 상세 API. 30개씩. ID → 상세(JSON 객체). 돌려주지 않은 ID, result가 1이 아닌 것, 차단된 것, 비공개는 뺀다
+function Details([string[]]$ids) {
+  $map = @{}
+  for ($i = 0; $i -lt $ids.Count; $i += 30) {
+    $batch = @($ids[$i..([math]::Min($i + 29, $ids.Count - 1))])
+    $form = @{ itemcount = $batch.Count }
+    for ($k = 0; $k -lt $batch.Count; $k++) { $form["publishedfileids[$k]"] = $batch[$k] }
+    $res = Fetch $DetailsUrl 'details.json' $form
+    if ($res.Ok) {
+      $json = $null
+      try { $json = $res.Body | ConvertFrom-Json } catch { $json = $null }
+      if ($json) {
+        foreach ($d in @($json.response.publishedfiledetails)) {
+          $fid = [string]$d.publishedfileid
+          if ($batch -notcontains $fid) { continue }
+          if ([int]$d.result -ne 1 -or [bool]$d.banned -or [int]$d.visibility -ne 0) { continue }
+          $map[$fid] = $d
+        }
+      }
+    }
+    Rest
+  }
+  $map
+}
+# 항목 페이지의 "필수 아이템". Text: '-'(없음), '조회 실패', 또는 'ID 이름, ID 이름'
+function RequiredItems([string]$id) {
+  $res = Fetch "$ItemUrl$id" "item-$id.html"
+  if (-not $res.Ok) { return @{ Text = '조회 실패'; Limited = $res.Limited } }
+  $i = $res.Body.IndexOf('id="RequiredItems"')
+  if ($i -lt 0) { return @{ Text = '-'; Limited = $res.Limited } }
+  $seg = $res.Body.Substring($i, [math]::Min(6000, $res.Body.Length - $i))
+  $items = @(foreach ($m in [regex]::Matches($seg, 'filedetails/\?id=(\d+)[^>]*>\s*<div class="requiredItem">\s*([^<]*)')) { $m.Groups[1].Value + ' ' + $m.Groups[2].Value.Trim() })
+  @{ Text = $(if ($items.Count -gt 0) { $items -join ', ' } else { '-' }); Limited = $res.Limited }
+}
+# 서식 태그를 지우고 한 줄로. 표의 칸 구분자 |는 전각으로
+function StripTags([string]$s) {
+  if (-not $s) { return '' }
+  [regex]::Replace($s, '<[^>]*>', '').Replace("`r", ' ').Replace("`n", ' ').Replace('|', '｜').Trim()
+}
+# 표시(경고): 목록에 있음(상태), 성인향?, 오래됨(2023-01-01 이전 갱신), 큼(200MB 초과), 시스템?(공법 종류만), 대형
+function Flags([string]$kind, $d, [string]$listState) {
+  $f = New-Object System.Collections.Generic.List[string]
+  if ($listState) { $f.Add("목록에 있음($listState)") }
+  if ([string]$d.title -match $NsfwRe) { $f.Add('성인향?') }
+  if ([long]$d.time_updated -lt 1672531200) { $f.Add('오래됨') }
+  if ([long]$d.file_size -gt 200MB) { $f.Add('큼') }
+  if ($kind -eq '공법' -and (([string]$d.title + ' ' + [string]$d.description) -match $SystemRe)) { $f.Add('시스템?') }
+  if (@(@($d.tags) | ForEach-Object { [string]$_.tag }) -contains 'LargeIntegrated') { $f.Add('대형') }
+  if ($f.Count -eq 0) { '' } else { $f -join ' ' }
+}
+function Mb([long]$bytes) { [math]::Round([double]$bytes / 1MB, 1) }
+function DateOf([long]$unix) { [DateTimeOffset]::FromUnixTimeSeconds($unix).LocalDateTime.ToString('yyyy-MM-dd') }
+
+# 후보표와 설명 전문 파일을 쓴다. $found: 종류 → ID 목록(목록에 있는 것 포함). 종류마다 요약 한 줄을 출력한다
+function WriteCandidates([string[]]$kinds, $found, $listed, $details, $req, [string]$stopped) {
+  $sb = New-Object System.Text.StringBuilder
+  $desc = New-Object System.Text.StringBuilder
+  [void]$sb.AppendLine("# 창작마당 후보표 ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))")
+  [void]$sb.AppendLine('')
+  [void]$sb.AppendLine("도구 pwsh tools/workshop.ps1 -Search -Kind $($kinds -join ',') -Top $Top 이 만들었다(창작마당 검색 페이지의 구독자순). 표시는 경고일 뿐 자동으로 빼지 않는다. 호환성은 댓글을 읽지 않으므로 갱신일로만 가늠한다. 한국어 요약·추천 열은 사람이 채운다. DLL 유무는 받은 뒤 -Status로 본다. 설명 전문은 같은 이름의 -desc.txt(git 제외).")
+  foreach ($k in $kinds) {
+    [void]$sb.AppendLine('')
+    if (-not $found.Contains($k)) { [void]$sb.AppendLine("## $k (요청 제한으로 읽지 못함)"); "${k}: 읽지 못함"; continue }
+    $ids = @($found[$k])
+    $cands = @($ids | Where-Object { -not $listed.ContainsKey($_) -and $details.ContainsKey($_) })
+    $inList = @($ids | Where-Object { $listed.ContainsKey($_) -and $details.ContainsKey($_) })
+    "${k}: 후보 $($cands.Count), 목록에 있음 $($inList.Count)"
+    [void]$sb.AppendLine("## $k ($($cands.Count)개 후보)")
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| 순위 | ID | 제목 | 구독(누적) | 즐겨찾기 | 갱신일 | 크기 | 태그 | 필수 항목 | 표시 | 한국어 요약 | 추천 |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|---|---|---|')
+    $rank = 0
+    foreach ($id in $ids) {
+      if (-not $details.ContainsKey($id)) { continue }
+      $d = $details[$id]
+      $isListed = $listed.ContainsKey($id)
+      $no = if ($isListed) { '-' } else { $rank++; "$rank" }
+      $need = if ($isListed) { '-' } elseif ($req.ContainsKey($id)) { $req[$id] } elseif ($stopped) { '조회 안 함(요청 제한)' } else { '조회 실패' }
+      $tags = (@(@($d.tags) | ForEach-Object { [string]$_.tag }) -join ',')
+      $flag = Flags $k $d $(if ($isListed) { $listed[$id] } else { '' })
+      [void]$sb.AppendLine("| $no | $id | $(StripTags $d.title) | $($d.lifetime_subscriptions) | $($d.favorited) | $(DateOf $d.time_updated) | $(Mb $d.file_size)MB | $tags | $need | $flag |  |  |")
+      [void]$desc.AppendLine($id + "`t" + ([string]$d.description).Replace("`r", '').Replace("`n", '\n'))
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('설명(앞 200자):')
+    foreach ($id in $cands) {
+      $text = StripTags $details[$id].description
+      if ($text.Length -gt 200) { $text = $text.Substring(0, 200) + '…' }
+      [void]$sb.AppendLine("- ${id}: $text")
+    }
+  }
+  if ($stopped) { [void]$sb.AppendLine(''); [void]$sb.AppendLine("요청 제한으로 멈춤: $stopped") }
+  [void][IO.Directory]::CreateDirectory((Split-Path -Parent $Out))
+  [IO.File]::WriteAllText($Out, $sb.ToString().Replace("`r`n", "`n"), $utf8)   # LF(-Doc과 같게)
+  $descPath = Join-Path (Split-Path -Parent $Out) ([IO.Path]::GetFileNameWithoutExtension($Out) + '-desc.txt')
+  [IO.File]::WriteAllText($descPath, $desc.ToString().Replace("`r`n", "`n"), $utf8)
+}
+
+function DoSearch($rows) {
+  $kinds = @($Kind.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+  foreach ($k in $kinds) { if (-not $KindQueries.Contains($k)) { throw "모르는 종류입니다(외형·공법·세계관·음악): $k" } }
+  $listed = @{}; foreach ($r in $rows) { $listed[$r.Id] = $r.State }
+  $taken = @{}                 # 앞 종류에서 후보가 된 ID
+  $found = [ordered]@{}        # 종류 → 표에 넣을 ID(나온 순서. 목록에 있는 것은 표시용으로 함께)
+  $stopped = ''                # 요청 제한으로 멈춘 자리
+  foreach ($k in $kinds) {
+    $ids = New-Object System.Collections.Generic.List[string]
+    $count = 0
+    :queries foreach ($q in $KindQueries[$k]) {
+      for ($p = 1; $p -le 5; $p++) {
+        $page = BrowsePage $q $p
+        if ($page.Limited) { $stopped = "$(QueryName $q) ${p}쪽"; break queries }
+        if (-not $page.Ok -or $page.Ids.Count -eq 0) { break }
+        foreach ($id in $page.Ids) {
+          if ($ids.Contains($id) -or $taken.ContainsKey($id)) { continue }
+          $ids.Add($id)
+          if (-not $listed.ContainsKey($id)) { $count++; if ($count -ge $Top) { break queries } }
+        }
+        Rest
+      }
+    }
+    foreach ($id in $ids) { if (-not $listed.ContainsKey($id)) { $taken[$id] = $true } }
+    $found[$k] = $ids.ToArray()
+    if ($stopped) { break }
+  }
+  $all = @(@(foreach ($k in $found.Keys) { $found[$k] }) | Select-Object -Unique)
+  $details = if ($all.Count -gt 0) { Details ([string[]]$all) } else { @{} }
+  $req = @{}
+  if (-not $stopped) {
+    foreach ($id in $all) {
+      if ($listed.ContainsKey($id) -or -not $details.ContainsKey($id)) { continue }
+      $r = RequiredItems $id
+      if ($r.Limited) { $stopped = "항목 $id"; break }
+      $req[$id] = $r.Text
+      Rest
+    }
+  }
+  WriteCandidates $kinds $found $listed $details $req $stopped
+  if ($stopped) { "요청 제한으로 멈춤: $stopped (모은 것까지 썼다. 나중에 다시 돌린다)" }
+  "후보표: $Out"
+}
+
 $all = ReadList
 $chosen = Chosen $all
 $modes = @(@($Status, $Download, $Install, $Uninstall, $Search, $Doc) | Where-Object { $_ }).Count
@@ -242,7 +436,7 @@ if ($Status) { ShowStatus $chosen }
 elseif ($Download) { DoDownload (ForDownload $chosen) }
 elseif ($Install) { DoInstall (ForInstall $chosen) }
 elseif ($Uninstall) { DoUninstall $chosen }
-elseif ($Search) { throw '-Search는 아직 없습니다(Task 2).' }
+elseif ($Search) { DoSearch $all }
 elseif ($Doc) { throw '-Doc은 아직 없습니다(Task 3).' }
 $global:LASTEXITCODE = 0
 exit 0

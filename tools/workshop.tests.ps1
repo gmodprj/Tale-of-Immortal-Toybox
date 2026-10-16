@@ -72,6 +72,7 @@ function Tree([string]$root) {
     ForEach-Object { $_.FullName.Substring($root.Length) + '=' + [IO.File]::ReadAllText($_.FullName) }) -join ';'
 }
 function HistoryLines($box) { if (Test-Path -LiteralPath $box.history) { @([IO.File]::ReadAllLines($box.history)) } else { @() } }
+function ReadIf([string]$p) { if (Test-Path -LiteralPath $p) { [IO.File]::ReadAllText($p) } else { '' } }   # 구현 전(파일 없음)에도 시험이 멈추지 않게
 $when = '\d{4}-\d\d-\d\d \d\d:\d\d'
 
 # 1. -Status: 줄마다 상태·받음·설치·갱신·DLL, 마지막 줄의 요약
@@ -204,6 +205,60 @@ $b = NewBox
 WriteFile "$($b.root)\steam\expired.flag" ''
 $o = Run $b $none @{ Download = $true }
 Check 'an expired login stops the download and shows the login command' ($o -match '로그인이 풀려 있습니다' -and $o -match '\+login deepestlight \+quit' -and -not (Test-Path "$($b.content)\444")) $o
+
+# 12. -Search: 저장해 둔 응답(-WebRoot)으로 후보표를 만든다. 네트워크는 쓰지 않는다
+$b = NewBox
+function Links([string[]]$ids) { '<html><body>' + (($ids | ForEach-Object { '<a href="https://steamcommunity.com/sharedfiles/filedetails/?id=' + $_ + '&searchtext=">x</a>' }) -join "`n") + '</body></html>' }
+function Det([string]$id, [string]$title, [long]$updated, [string]$size, [string[]]$tags, [bool]$banned = $false, [string]$desc = '설명') {
+  @{ publishedfileid = $id; result = 1; title = $title; description = $desc; time_updated = $updated; file_size = $size; lifetime_subscriptions = 1000; favorited = 10; visibility = 0; banned = $banned; tags = @($tags | ForEach-Object { @{ tag = $_ } }) }
+}
+WriteFile "$($b.web)\browse-Beautify-p1.html" (Links @('111', '777', '1001', '1002', '1003', '1004', '1005'))
+WriteFile "$($b.web)\browse-Beautify-p2.html" '<html><body>no items</body></html>'
+WriteFile "$($b.web)\browse-Battle-p1.html" (Links @('2001', '2002', '1001'))
+WriteFile "$($b.web)\browse-Battle-p2.html" '<html></html>'
+WriteFile "$($b.web)\browse-功法-p1.html" (Links @('2003'))
+WriteFile "$($b.web)\browse-功法-p2.html" '<html></html>'
+WriteFile "$($b.web)\browse-Drama-p1.html" (Links @('3001'))
+WriteFile "$($b.web)\browse-Drama-p2.html" '<html></html>'
+WriteFile "$($b.web)\browse-NPC-p1.html" '<html></html>'
+WriteFile "$($b.web)\browse-LargeIntegrated-p1.html" '<html></html>'
+$dets = @(
+  (Det '111' 'one' 1735000000 '1000' @('Beautify')), (Det '777' 'seven' 1735000000 '1000' @('Beautify')),
+  (Det '1001' '双修立绘' 1735000000 '1000' @('Beautify') $false ('가나다' * 100)),
+  (Det '1002' 'old one' 1600000000 '1000' @('Beautify')),
+  (Det '1003' 'big one' 1735000000 '300000000' @('Beautify')),
+  (Det '1004' 'banned one' 1735000000 '1000' @('Beautify') $true),
+  (Det '2001' '功法升级' 1735000000 '1000' @('Battle')),
+  (Det '2002' 'big world' 1735000000 '1000' @('Battle', 'LargeIntegrated')),
+  (Det '2003' '【x】<color=#FF0000>功法</color>' 1735000000 '1000' @('Battle')),
+  (Det '3001' 'drama' 1735000000 '1000' @('Drama')))
+WriteFile "$($b.web)\details.json" (@{ response = @{ result = 1; resultcount = $dets.Count; publishedfiledetails = $dets } } | ConvertTo-Json -Depth 6)
+WriteFile "$($b.web)\item-1001.html" '<div class="requiredItemsContainer" id="RequiredItems"><a href="https://steamcommunity.com/workshop/filedetails/?id=2814703549" target="_blank"><div class="requiredItem">Fatury   </div></a></div>'
+WriteFile "$($b.web)\item-1002.html" '<html><body>no required block</body></html>'
+foreach ($id in @('2001', '2002', '2003', '3001')) { WriteFile "$($b.web)\item-$id.html" '<html></html>' }
+$out = "$($b.root)\cand.md"
+$o = Run $b $none @{ Search = $true; Out = $out }
+$t = if (Test-Path $out) { [IO.File]::ReadAllText($out) } else { '' }
+Check 'search writes a table per kind with the candidate count' ($t -match '(?m)^## 외형 \(3개 후보\)' -and $t -match '(?m)^## 공법 \(3개 후보\)' -and $t -match '(?m)^## 세계관 \(1개 후보\)' -and $t -match '(?m)^## 음악 \(0개 후보\)') $t
+Check 'search marks listed ids with their state and gives them no rank' ($t -match '\| - \| 111 \|.*목록에 있음\(설치\)' -and $t -match '\| - \| 777 \|.*목록에 있음\(제외\)') $t
+Check 'search drops a banned item and an item the details api did not return' (-not ($t -match '\| 1004 \|') -and -not ($t -match '\| 1005 \|')) $t
+Check 'search flags adult, old, big, system and large items' ($t -match '\| 1001 \|.*\| 성인향\? \|' -and $t -match '\| 1002 \|.*\| 오래됨 \|' -and $t -match '\| 1003 \|.*\| 큼 \|' -and $t -match '\| 2001 \|.*\| 시스템\? \|' -and $t -match '\| 2002 \|.*\| 대형 \|') $t
+Check 'search reads required items, a page without the block and a missing page' ($t -match '\| 1001 \|(?: [^|]* \|){6} 2814703549 Fatury \|' -and $t -match '\| 1002 \|(?: [^|]* \|){6} - \|' -and $t -match '\| 1003 \|(?: [^|]* \|){6} 조회 실패 \|') $t
+$gf = if ($t.Contains('## 공법') -and $t.Contains('## 세계관')) { $t.Substring($t.IndexOf('## 공법'), $t.IndexOf('## 세계관') - $t.IndexOf('## 공법')) } else { '' }
+Check 'search does not repeat an id an earlier kind took and joins the queries of a kind in order' (-not ($gf -match '\| 1001 \|') -and $gf -match '\| 1 \| 2001 \|' -and $gf -match '\| 3 \| 2003 \|') $gf
+Check 'search strips formatting tags from the title' ($t -match '\| 2003 \| 【x】功法 \|') $t
+Check 'search puts the first 200 characters of the description under the table' ($t -match '(?m)^- 1001: (?:가나다){66}가나…$') $t
+Check 'search writes the description file next to the table' ((Test-Path "$($b.root)\cand-desc.txt") -and ([IO.File]::ReadAllText("$($b.root)\cand-desc.txt")) -match "(?m)^1001`t") $t
+Check 'search prints a line per kind and the file name' ($o -match '외형: 후보 3, 목록에 있음 2' -and $o -match '후보표: ') $o
+$o = Run $b $none @{ Search = $true; Out = $out; Top = 2 }
+$t = ReadIf $out
+Check 'search stops a kind at -Top' ($t -match '(?m)^## 외형 \(2개 후보\)' -and -not ($t -match '\| 1003 \|')) $t
+$o = Run $b $none @{ Search = $true; Out = $out; Kind = '외형,기타' }
+Check 'an unknown kind is refused' ($o -match '^THROWN.*모르는 종류') $o
+WriteFile "$($b.web)\browse-NPC-p1.html" '<html><body>您最近作出的请求太多了</body></html>'
+$o = Run $b $none @{ Search = $true; Out = $out }
+$t = ReadIf $out
+Check 'search stops at the rate limit, keeps what it has, names the place and does not fetch required items' ($t -match '요청 제한으로 멈춤: NPC 1쪽' -and $t -match '\| 3001 \|' -and $t -match '(?m)^## 음악 \(요청 제한으로 읽지 못함\)' -and $t -match '\| 1001 \|(?: [^|]* \|){6} 조회 안 함\(요청 제한\) \|') $t
 
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-workshop-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
