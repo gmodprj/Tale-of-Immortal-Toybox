@@ -1,14 +1,14 @@
-# 09. 창작마당 모드 등록부 (생성 2026-10-16 14:55)
+# 09. 창작마당 모드 등록부 (생성 2026-10-17 03:25)
 
 이 문서는 pwsh tools/workshop.ps1 -Doc 이 만든다. 손으로 고치지 않는다. 고치려면 tools/workshop/mods.txt 와 history.txt 를 고친 뒤 다시 돌린다. 설계: docs/superpowers/specs/2026-10-16-workshop-expand-design.md 3.4절.
 게임 폴더 E:\Games\Tale of Immortal, SteamCMD E:\SteamCmd\steamcmd.exe, 받은 자리 E:\SteamCmd\steamapps\workshop\content\1468810.
 
 ## 1. 요약
 
-- 상태: 설치 23, 보류 1, 제외 1 (줄 25)
-- 설치 줄 23: 받음 23/23, 설치 23/23
-- 설치본 크기: 660.8MB (설치된 설치 줄의 폴더 합)
-- DLL이 든 설치 모드: 7개
+- 상태: 설치 34, 보류 3, 제외 1 (줄 38)
+- 설치 줄 34: 받음 34/34, 설치 34/34
+- 설치본 크기: 976.8MB (설치된 설치 줄의 폴더 합)
+- DLL이 든 설치 모드: 10개
 
 ## 2. 모드 표
 
@@ -37,6 +37,19 @@
 | 3019455501 | 설치 | 세계관 | 龙族（真龙、青龙和应龙） | 용족(진룡·청룡·응룡) | EFuAci | 1.3MB 2024-08-09 | 예 | 같음 | - | 종족 틀 필요. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3019455501) |
 | 2859071194 | 설치 | 세계관 | 八荒绝色榜(Eight Desolate Fairies Ranking) | 팔황 절색방 | BHJSB | 4.6MB 2025-04-12 | 예 | 같음 | MOD_BHJSB.dll | 주성 진입으로 극 시작. 4.6MB. DLL 1(MOD_BHJSB.dll). 영어 지원. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2859071194) |
 | 2834581477 | 설치 | 음악 | BGM背景音乐替换（无需框架） | 배경음악 교체(선검 OST, 틀 불필요) | xOR4lp | 183.3MB 2022-07-13 | 예 | 같음 | - | 183MB. 2026-10-16 추가 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2834581477) |
+| 2818763591 | 설치 | 외형 | 【剑来】静态立绘拓展 | [剑来] 정적 입화 확장 | dSpCmQ | 188.8MB 2022-06-09 | 예 | 같음 | - | Fatury 필요(설명). 정적 의상 222번까지, 정적 입화 115~209번. 188.8MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2818763591) |
+| 3662905899 | 설치 | 외형 | 【嘟哒】定制立绘五个女的 | [嘟哒] 맞춤 입화 여성 5명 | eS6iDL | 6.3MB 2026-02-10 | 예 | 같음 | - | 동적 입화 5 + 전투 소인 + 독립 NPC. 6.3MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3662905899) |
+| 3508355457 | 설치 | 외형 | 陆 嘉 静 ♡ | 육가정 | 13GhYk | 9.3MB 2025-07-06 | 예 | 같음 | - | NPC 입화(눈 깜빡임·호흡, 소인 없음). 9.3MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3508355457) |
+| 3502554970 | 설치 | 외형 | 裴语涵NPC立绘 | 배어함 NPC 입화 | VXdCeU | 4.6MB 2025-07-06 | 예 | 같음 | - | NPC 입화(소인 없음, 천교 아님). 4.6MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3502554970) |
+| 3492065971 | 설치 | 외형 | 叶骨衣 | 엽골의 | sz5L0h | 20.7MB 2025-06-02 | 예 | 같음 | - | NPC 입화(호흡만). 20.7MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3492065971) |
+| 3471565500 | 설치 | 외형 | 【长白山下梦无邪】寰昌 -「月下蹁跹」 | [长白山下梦无邪] 환창 「월하편선」 | 6sPzjI | 10.3MB 2025-04-28 | 예 | 같음 | - | 틀 불필요, 독립 NPC, 소인 없음. 10.3MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3471565500) |
+| 2833549873 | 설치 | 기능 | 【含羞草】宗门自由存取灵石 | [含羞草] 종문 영석 자유 입출금 | hdUSic | 0.4MB 2022-10-14 | 예 | 같음 | MOD_hdUSic.dll | 종문 창고의 영석을 꺼내 쓴다. 0.4MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2833549873) |
+| 2905956493 | 설치 | 세계관 | 雪靖姐姐带带我(登仙母女) | 설정 언니(등선 모녀) | kgVpet | 44.3MB 2024-02-17 | 예 | 같음 | Assembly-CSharp.dll,ModMain.dll,ModMain.dll | 등선 경지 NPC 둘(조력). 영어 설명 있음. 44.3MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2905956493) |
+| 2824722053 | 설치 | 세계관 | 云上瑶池 | 운상요지 | Rh7JeP | 134.3MB 2022-07-21 | 예 | 같음 | - | 대형 통합(극·NPC 17·운명·아이템). 2022-07 판. 134.3MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2824722053) |
+| 2819617569 | 설치 | 세계관 | 【欢喜缘】我欲成仙，道侣三千加强版 | [欢喜缘] 아욕성선·도려삼천 강화판 | RoDPXQ | 53.2MB 2022-06-22 | 예 | 같음 | Assembly-CSharp.dll,ModMain.dll,ModMain.dll | 극·운명·아이템. 꾸러미의 debug 안에 Mod_RoDPXQ(강화판)와 Mod_qOfHjU(옛 원판 사본)가 있어 모드ID로 강화판을 고른다. 원판 2817651727은 보류(사용자 선택 2026-10-16). 53.2MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2819617569) |
+| 3426669627 | 설치 | 세계관 | 【蛋】阴阳双修 | [蛋] 음양쌍수 | ttGCG8 | 28.6MB 2025-02-15 | 예 | 같음 | - | 남성 세이브 극 모드(사부·종문 셋·운명·극 도구). 새 세이브 권장(제작자). 32.1MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3426669627) |
+| 2817651727 | 보류 | 세계관 | 欢喜缘（我欲成仙，道侣三千） | 환희연(아욕성선·도려삼천) | - | 68.2MB 2026-10-08 | - | - | Assembly-CSharp.dll,ModMain.dll,ModMain.dll | 2819617569(강화판)와 같은 내용의 원판. 하나만 쓰려고 보류. 68.2MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2817651727) |
+| 2814696167 | 보류 | 세계관 | [无邪]万古神话 | [无邪] 만고신화 | - | 1636MB 2026-10-04 | - | - | MOD_dH6k0J.dll | 대형 통합(전투·돌파·극·NPC 조정, 극 20만 자). 제작자: 어떤 극 모드와도 같이 쓰지 말 것 → 사용자 판단 전 보류. 1636MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814696167) |
 | 2945768219 | 제외 | 외형 | 【执余】女NPC颜值评定优化 | [执余] 여성 NPC 외모 평가 개선 | - | 49.2MB 2024-08-05 | - | - | MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,Assembly-CSharp.dll,ModMain.dll,MOD_ZUQmIr.dll,ModMain.dll,Properties.Resources.Designer.cs.dll | DLL 5에 MySql.Data.dll이 들어 있어 제외(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2945768219) |
 | 3681025074 | 보류 | - | - | - | - | 15.2MB 2026-03-13 | - | - | - | 사용자 시험용. 목록에 넣지 않기로 함(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3681025074) |
 
@@ -44,6 +57,30 @@
 
 | 때 | 동작 | ID | 한국어 이름 |
 |---|---|---|---|
+| 2026-10-16 21:32 | 설치 | 3426669627 | [蛋] 음양쌍수 |
+| 2026-10-16 21:32 | 설치 | 2819617569 | [欢喜缘] 아욕성선·도려삼천 강화판 |
+| 2026-10-16 21:32 | 설치 | 2824722053 | 운상요지 |
+| 2026-10-16 21:32 | 설치 | 2905956493 | 설정 언니(등선 모녀) |
+| 2026-10-16 21:32 | 설치 | 2833549873 | [含羞草] 종문 영석 자유 입출금 |
+| 2026-10-16 21:32 | 설치 | 3471565500 | [长白山下梦无邪] 환창 「월하편선」 |
+| 2026-10-16 21:32 | 설치 | 3492065971 | 엽골의 |
+| 2026-10-16 21:32 | 설치 | 3502554970 | 배어함 NPC 입화 |
+| 2026-10-16 21:32 | 설치 | 3508355457 | 육가정 |
+| 2026-10-16 21:32 | 설치 | 3662905899 | [嘟哒] 맞춤 입화 여성 5명 |
+| 2026-10-16 21:32 | 설치 | 2818763591 | [剑来] 정적 입화 확장 |
+| 2026-10-16 21:20 | 받음 | 2814696167 | [无邪] 만고신화 |
+| 2026-10-16 21:20 | 받음 | 2817651727 | 환희연(아욕성선·도려삼천) |
+| 2026-10-16 21:19 | 받음 | 3426669627 | [蛋] 음양쌍수 |
+| 2026-10-16 21:19 | 받음 | 2819617569 | [欢喜缘] 아욕성선·도려삼천 강화판 |
+| 2026-10-16 21:19 | 받음 | 2824722053 | 운상요지 |
+| 2026-10-16 21:19 | 받음 | 2905956493 | 설정 언니(등선 모녀) |
+| 2026-10-16 21:19 | 받음 | 2833549873 | [含羞草] 종문 영석 자유 입출금 |
+| 2026-10-16 21:19 | 받음 | 3471565500 | [长白山下梦无邪] 환창 「월하편선」 |
+| 2026-10-16 21:19 | 받음 | 3492065971 | 엽골의 |
+| 2026-10-16 21:19 | 받음 | 3502554970 | 배어함 NPC 입화 |
+| 2026-10-16 21:19 | 받음 | 3508355457 | 육가정 |
+| 2026-10-16 21:19 | 받음 | 3662905899 | [嘟哒] 맞춤 입화 여성 5명 |
+| 2026-10-16 21:19 | 받음 | 2818763591 | [剑来] 정적 입화 확장 |
 | 2026-10-16 13:20 | 설치 | 2834581477 | 배경음악 교체(선검 OST, 틀 불필요) |
 | 2026-10-16 13:20 | 설치 | 2859071194 | 팔황 절색방 |
 | 2026-10-16 13:20 | 설치 | 3019455501 | 용족(진룡·청룡·응룡) |
@@ -104,4 +141,4 @@
 
 ## 6. 한글화
 
-- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: 824행. 모드별 상태는 한글화(K)에서 정한다.
+- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: 6275행(43·46절). 새 모드의 글은 43절의 절차(rloc dump → 번역 → 파일)로 더한다.
