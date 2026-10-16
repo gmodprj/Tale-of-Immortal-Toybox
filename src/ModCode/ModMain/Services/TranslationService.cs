@@ -55,33 +55,11 @@ namespace MOD_sWP6UL
             return "풀어 둠";
         }
 
-        // 내장본의 줄 가운데 파일에 없는 키의 줄을 파일 끝에 덧붙인다(앞에 날짜 주석 한 줄). 돌려주는 것은 덧붙인 줄 수.
+        // 내장본의 줄 가운데 파일에 없는 키의 줄을 파일 끝에 덧붙인다(앞에 날짜 주석 한 줄). 돌려주는 것은 덧붙인 줄 수. 규칙은 TranslationTable.MissingLines(49절).
         private static int AppendMissing(string embedded)
         {
-            var have = new HashSet<string>();
-            foreach (string raw in File.ReadAllLines(FilePath, Encoding.UTF8))
-            {
-                string key = KeyOf(raw);
-                if (key != null)
-                {
-                    have.Add(key);
-                }
-            }
-            var sb = new StringBuilder();
-            int added = 0;
-            foreach (string raw in embedded.Split('\n'))
-            {
-                string line = raw.TrimEnd('\r');
-                string key = KeyOf(line);
-                if (key == null || have.Contains(key))
-                {
-                    continue;
-                }
-                sb.Append(line).Append('\n');
-                have.Add(key);
-                added++;
-            }
-            if (added == 0)
+            List<string> missing = TranslationTable.MissingLines(File.ReadAllLines(FilePath, Encoding.UTF8), embedded);
+            if (missing.Count == 0)
             {
                 return 0;
             }
@@ -91,27 +69,13 @@ namespace MOD_sWP6UL
             {
                 all.Append('\n');
             }
-            all.Append("# 덧붙임 ").Append(DateTime.Now.ToString("yyyy-MM-dd")).Append(": 내장본의 새 키 ").Append(added).Append('\n');
-            all.Append(sb);
+            all.Append("# 덧붙임 ").Append(DateTime.Now.ToString("yyyy-MM-dd")).Append(": 내장본의 새 키 ").Append(missing.Count).Append('\n');
+            foreach (string line in missing)
+            {
+                all.Append(line).Append('\n');
+            }
             File.WriteAllText(FilePath, all.ToString(), new UTF8Encoding(false));
-            return added;
-        }
-
-        // 줄의 키. '#' 줄, 빈 줄, 탭이 없는 줄, 빈 키는 null(Load와 같은 규칙).
-        private static string KeyOf(string line)
-        {
-            string t = line.TrimEnd('\r');
-            if (t.Trim().Length == 0 || t.TrimStart().StartsWith("#"))
-            {
-                return null;
-            }
-            int tab = t.IndexOf('\t');
-            if (tab < 0)
-            {
-                return null;
-            }
-            string key = t.Substring(0, tab).Trim();
-            return key.Length == 0 ? null : key;
+            return missing.Count;
         }
 
         private static string Embedded()
@@ -130,28 +94,10 @@ namespace MOD_sWP6UL
             }
         }
 
-        // 파일 → 사전. '#' 줄과 빈 줄은 무시, 탭이 없는 줄은 broken으로 센다. 키·글의 앞뒤 공백을 지우고 "\n"을 줄바꿈으로. 같은 키는 뒤의 것.
+        // 파일 → 사전. 규칙은 TranslationTable.Parse('#' 줄과 빈 줄은 무시, 탭이 없는 줄은 broken, 키·글 trim, "\n"은 줄바꿈, 같은 키는 뒤의 것. 49절).
         public static Dictionary<string, string> Load(out int broken)
         {
-            var map = new Dictionary<string, string>();
-            broken = 0;
-            foreach (string raw in File.ReadAllLines(FilePath, Encoding.UTF8))
-            {
-                string line = raw.TrimEnd('\r');
-                if (line.Trim().Length == 0 || line.TrimStart().StartsWith("#"))
-                {
-                    continue;
-                }
-                int tab = line.IndexOf('\t');
-                string key = tab < 0 ? "" : line.Substring(0, tab).Trim();
-                if (key.Length == 0)
-                {
-                    broken++;
-                    continue;
-                }
-                map[key] = line.Substring(tab + 1).Trim().Replace("\\n", "\n");
-            }
-            return map;
+            return TranslationTable.Parse(File.ReadAllLines(FilePath, Encoding.UTF8), out broken);
         }
 
         public static string Apply()

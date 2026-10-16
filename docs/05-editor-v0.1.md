@@ -2329,3 +2329,41 @@
 - 작은 것: `더 보기`가 `Render`를 불러 대기 중인 두 번 누르기 확인을 풀던 것(결과 칸만 다시 놓음), 그리기 오류 기억을 성공 뒤에 지우지 않아 같은 세션에서 두 번째 `errors` 검사가 실패하던 것, 공법 선택 경로의 `To<>`가 보호 밖이던 것, `ResetState`의 try를 둘로 나눔(날짜 고정 쪽 예외가 배율 되돌리기를 막지 않게), 가져오기 이력에서 보충 줄이 경지 줄보다 앞서던 것.
 - 미룬 것(사소): 이름 없음 행은 "이름 없음" 글로는 검색되지 않는다(번호로는 됨), `Ui.TextHeight` 캐시가 결과 문장마다 는다(리뷰 C22), `RestoreResources`의 `verified`는 사실상 늘 참. 검사 공백: `confirm2`의 교체·정하기 두 번째 누름은 결과 문장이 있는지만 본다. Review Focus 3(다른 그룹의 검색어가 화폐 줄을 거르지 않음)은 `items`가 검색어를 지운 뒤 들어가 실제로는 검사되지 않는다(코드로만).
 - 검증: 회차 `ws-1017l`(RED, 고치기 전): status FAIL 2(첫 두 검사가 `uistate` 예외)·tabs FAIL 1(펼친 채 `Tab13`·`Tab15`가 안 눌림). 회차 `ws-1017m`(GREEN): status 10·tabs 69·errors 7(같은 세션에서 두 번 모두) PASS. actions는 대체 경로의 로그 줄이 경고로 집계되어 FAIL 1(표지를 붙여 고침). 회차 `ws-1017n`(`(fallback)` 표지 뒤): actions 13(대체 경로 한 번)·confirm 18 PASS.
+
+## 49. 리뷰 남은 도구 묶음: `.devremote` 경로 한 곳, 커밋 표지, 시험 프로젝트 (2026-10-16 추가)
+
+스펙 `docs/superpowers/specs/2026-10-16-review-tools-design.md`, 계획 `plans/2026-10-16-review-tools.md`. 리뷰 보고서 9(T1)·19(T8)·17(T6). 브랜치 `feat/review-tools`.
+
+### 규칙
+
+- **`.devremote` 경로(9)**: 기준은 하나다 — 환경 변수 `TLTOYBOX_DEVREMOTE`가 있으면 그 폴더(끝 역슬래시는 지움), 없으면 `E:\TlToybox\.devremote`(고정. 저장소 위치에서 계산하지 않는다). PowerShell은 `tools/DevRemote/devremote-dir.ps1`(`$dir = & (Join-Path $PSScriptRoot 'devremote-dir.ps1')`), C#은 `DevCommands.Dir`(`DirFromEnv`)과 `tools/DevRemote/DevRemote.cs`의 `CommandDir`이 같은 규칙이다. 쓰는 곳: `session.ps1`(`-WorkDir`가 없을 때), `mod.ps1`, `rc.ps1`, `enter.ps1`, `check-lib.ps1`(`$work`), `major-breakthrough-check.ps1`, `preset-build.ps1`, 개발 명령 `pdump`·`snap`. 워크트리에서 회차를 열어도 표식·세이브 사본·캡처·명령 채널이 한 곳에 모이고, 두 체크아웃이 동시에 열면 표식이 막는다. 게임은 `session.ps1`이 `Start-Process`로 띄우므로 환경 변수를 물려받는다.
+- **커밋 표지(19)**: `ModMain.csproj`의 타깃 `StampCommit`이 빌드마다 `git rev-parse --short HEAD`·`git status --porcelain`으로 `InformationalVersion`을 `<짧은 커밋>` 또는 `<짧은 커밋>-dirty`로 둔다(git이 없으면 `unknown`). SDK가 `+<전체 커밋>`을 덧붙이는 것(`IncludeSourceRevisionInInformationalVersion`)은 껐다. `BuildInfo.Commit`이 그것을 읽어 `Init`이 `[TlToybox] Init build=<표지>`를 찍고, 개발 빌드는 ` devremote=<경로> (env|default)`를 덧붙인다. `tools/install.ps1`은 끝에 `installed build: <표지>`를 찍는다(DLL의 `ProductVersion`). 검사의 `ModWarnings`는 `Init` 머리를 정상 줄로 본다.
+- **시험 프로젝트(17)**: `tests/ModMain.Tests`(net8.0 콘솔, C# 7.3, 패키지 없음). 모드 소스 셋을 링크한다 — `Services/Json.cs`, `Services/ExportFiles.cs`, 새 `Services/TranslationTable.cs`. `ExportFiles`가 쓰는 `ChangeLog.DataDir`은 `Stubs/ChangeLog.cs`(임시 폴더)가 대신한다. 실행 `dotnet run --project tests/ModMain.Tests -c Release`(줄마다 PASS/FAIL, 끝에 `FAILS=<수>`). 번역표의 순수 규칙(`KeyOf`·`Parse`·`MissingLines`)은 `TranslationTable`로 떼고 `TranslationService.Load`·`AppendMissing`이 그것을 부른다(동작 그대로).
+- 게임 없이 도는 시험 다섯: `tools/DevRemote/session.tests.ps1`(34), `tools/workshop.tests.ps1`(78), `tools/DevRemote/devremote-dir.tests.ps1`(8), `tools/build-tag.tests.ps1`(3), `dotnet run --project tests/ModMain.Tests`(49).
+
+### 실측·검증
+
+- `devremote-dir.tests.ps1`: 기본값, 환경 변수, 끝 역슬래시, `rc.ps1`·`mod.ps1`이 그 폴더에 명령 파일을 쓰는지, `session.ps1 -DryRun`의 표식, `check-lib.ps1`의 `$work`. 고치기 전 8 FAIL → 8 PASS. `session.tests.ps1` 34 그대로. 고치기 전의 RED 실행은 스크립트가 환경 변수를 몰라 실제 `.devremote`에 표식 `t1`·`save-backup-t1`·명령 파일을 남겼고, 그 때문에 다음 회차의 `-Begin`이 "열려 있는 회차(t1)"로 거부됐다(`ws-1017o`는 열리지 못함). 시험은 이제 실제 폴더에 남긴 것을 치우고 FAIL로 알린다(9번째 검사).
+- `build-tag.tests.ps1`: 배포 빌드의 `ProductVersion`이 `<짧은 커밋>[-dirty]`. 고치기 전 `1.0.0+<전체 커밋>`(SDK 기본)으로 FAIL → PASS.
+- 단위 시험 49개: Json(객체·배열·수 형식·이스케이프·`\u` 네 자리·값 뒤의 글·닫히지 않은 따옴표·깊이 65 허용/66 거부·BOM·`Quote` 왕복), ExportFiles(`Text`·`Whole`·`Ints`·`Items`·`FileNameFor`·`Write` (2)·`Files`·`Delete`의 폴더 밖 거부), TranslationTable(주석·빈 줄·탭 없는 줄·trim·`\n`·같은 키·`MissingLines`).
+- 회차 `ws-1017p`(고정본): `status`를 첫 부분으로 돌려 창을 열기 전의 `uistate`까지 10 PASS, `base` 24 PASS(Init 줄의 build=·devremote= 검사 둘), `translation` 27 PASS(TranslationTable 분리의 회귀 없음). Init 줄: `[19:45:30.333] [TlToybox] Init build=73b57d9 devremote=E:\TlToybox\.devremote (default)`.
+- 게임의 `Mods\TlToyboxDevRemote.dll`은 아직 예전 빌드다(2026-10-12 설치). 기본 경로가 같아 회차에는 영향이 없다. 환경 변수로 다른 경로를 쓰려면 새로 빌드한 DLL을 설치해야 한다(게임 폴더 쓰기라 사용자 확인 뒤에).
+
+### 확인하지 못한 것, 한계
+
+- 환경 변수를 다른 경로로 두고 게임까지 띄우는 경우는 도구 시험으로만 봤다(명령 파일이 그 폴더에 생기는지). 게임 쪽은 기본값 경로를 `Init` 로그로 봤다.
+- `git status --porcelain`이 빌드마다 돈다(수십 ms). 커밋 뒤 첫 빌드는 표지가 바뀌어 다시 컴파일된다(`GenerateAssemblyInfo`의 캐시).
+- 시험 프로젝트가 닿는 순수 논리는 셋뿐이다. `ItemGroups`의 표, `GradeService.Path`, `FavoriteStore.Parse`, `MartialService.Requires`는 게임 형식을 매개변수로 받게 바꿔야 링크할 수 있다(리뷰 T6의 나머지).
+- 리뷰 T2·T3·T4·T5(스크립트 구조·중복·분할·게임 경로)는 하지 않았다.
+
+### 브랜치 리뷰 뒤의 수정 (같은 날)
+
+읽기 전용 리뷰어의 검토(Critical 0, Important 1, Minor 4) 뒤 고친 것:
+
+- **git이 없거나 저장소 밖에서의 표지**: `Exec`의 `ConsoleToMSBuild`가 stderr까지 담아 `fatal: not a git repository …-dirty`가 표지로 들어갔다(리뷰어 실측). 명령에 `2>nul`을 붙이고, 짧은 해시 꼴(`^[0-9a-f]{7,40}$`)이 아니면 `unknown`으로 둔다(`-dirty`도 붙이지 않는다). `build-tag.tests.ps1`에 소스 복사본을 git 밖에서 빌드해 `unknown`이 나오는 검사를 더했다.
+- **시험의 부작용**: `build-tag.tests.ps1`의 Release 빌드가 `CopyToEditorProject`로 모드 에디터 프로젝트의 `bin\Release`에 개발 도구 없는 DLL을 복사했다. `-p:EditorReleaseDir=`로 막는다.
+- **환경 변수의 가장자리**: 앞뒤 공백·따옴표를 지우고, 공백뿐이면 기본값, 드라이브 뿌리(`E:\`)는 역슬래시를 남긴다. 세 곳(`devremote-dir.ps1`·`DevCommands.Dir`·`DevRemote.cs`)이 같은 규칙. 시험 셋 추가(따옴표·공백·뿌리). 상대 경로는 셸과 게임의 기준 폴더가 달라 쓰지 않는다(절대 경로만).
+- `TranslationTable`의 `#` 판정을 `StringComparison.Ordinal`로(시험 런타임 net8.0과 모드 런타임 net472의 문화권 차이를 피한다).
+- `session.ps1`의 `-WorkDir`(시험용)는 환경 변수보다 우선한다. 게임 쪽은 환경 변수만 보므로 `-WorkDir`를 실제 회차에 쓰지 않는다.
+- 미룬 것: 세 곳의 규칙이 복사본이라 앞으로 어긋날 수 있다(한 파일로 모으려면 DevRemote와 모드가 소스를 공유해야 한다).
+- 검증: 도구 시험(`devremote-dir` 12, `build-tag` 4, 단위 시험 49), 빌드 셋 경고 0, 회차 `ws-1017q`(`base`·`translation`): base 24·translation 27 PASS. Init 줄 `[TlToybox] Init build=dee21f9-dirty devremote=E:\TlToybox\.devremote (default)`(문서가 미커밋이라 -dirty).

@@ -25,7 +25,7 @@ param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$Release
   [string]$SaveDir = '', [string]$WorkDir = '', [string]$DataDir = '', [string]$ProcessName = 'guigubahuang', [switch]$DryRun)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$dir = if ($WorkDir) { $WorkDir } else { Join-Path $repo '.devremote' }
+$dir = if ($WorkDir) { $WorkDir } else { & (Join-Path $PSScriptRoot 'devremote-dir.ps1') }   # .devremote 경로는 한 곳(환경 변수 TLTOYBOX_DEVREMOTE, 기본 E:\TlToybox\.devremote. 05 문서 49절)
 $save = if ($SaveDir) { $SaveDir } else { Join-Path $env:USERPROFILE 'AppData\LocalLow\guigugame\guigubahuang\Steam\CacheData' }
 $data = if ($DataDir) { $DataDir } else { Join-Path $env:USERPROFILE 'AppData\LocalLow\guigugame\guigubahuang\TlToybox' }
 $installed = Join-Path $GameDir "ModExportData\Mod_$ModId\ModCode\dll\MOD_$ModId.dll"

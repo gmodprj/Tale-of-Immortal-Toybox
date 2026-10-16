@@ -1,7 +1,7 @@
 # 대경지 돌파 재료 지급 검증: 경지를 시험으로 바꾸고, 방식마다 지급 -> 게임 돌파 화면 -> 카드 선택 -> 자동 투입 -> 캡처.
 param([int]$Prev, [int]$Rows, [string]$Tag, [int[]]$Only = @())
 $T = 'E:\TlToybox\tools\DevRemote'
-$S = 'E:\TlToybox\.devremote'   # 캡처를 두는 곳
+$S = & "$T\devremote-dir.ps1"   # 캡처를 두는 곳(.devremote 경로는 한 곳. 05 문서 49절)
 Add-Type -AssemblyName System.Drawing
 function Rc([string]$c, [int]$wait = 800) { $r = & "$T\rc.ps1" -Cmd $c -NoShot -WaitMs $wait; $r }
 function Hit([int]$x, [int]$y) { (& "$T\rc.ps1" -Cmd "hit $x $y" -NoShot -WaitMs 30) -replace '^.*hit=', '' }

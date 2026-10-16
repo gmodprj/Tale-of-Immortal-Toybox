@@ -10,7 +10,8 @@ namespace MOD_sWP6UL
         // 모드가 로드될 때 호출된다(실측: 세이브를 불러오기 전). 한 실행 중 여러 번 호출될 수 있다.
         public void Init()
         {
-            MelonLogger.Msg("[TlToybox] Init");
+            // 어느 코드가 설치됐는지 Latest.log만으로 알 수 있게 빌드 표지를 찍는다(개발 빌드는 .devremote 경로도). 05 문서 49절.
+            MelonLogger.Msg("[TlToybox] Init build=" + BuildInfo.Commit + DevRemoteNote());
             EditorHost.Ensure();
             try
             {
@@ -23,6 +24,15 @@ namespace MOD_sWP6UL
             BattleService.OnInit();
 #if DEVTOOLS
             StartDevPoll();
+#endif
+        }
+
+        private static string DevRemoteNote()
+        {
+#if DEVTOOLS
+            return " devremote=" + DevCommands.Dir + (DevCommands.DirFromEnv ? " (env)" : " (default)");
+#else
+            return "";
 #endif
         }
 

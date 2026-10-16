@@ -1,5 +1,5 @@
 param([string[]]$Cmd = @(), [int]$WaitMs = 1500, [double]$Scale = 0.5, [switch]$NoShot)
-$dir = 'E:\TlToybox\.devremote'
+$dir = & (Join-Path $PSScriptRoot 'devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 foreach ($c in $Cmd) {
   $out = Join-Path $dir 'out.txt'
   if (Test-Path $out) { [IO.File]::Delete($out) }

@@ -6,7 +6,7 @@
 param([string]$TablesTo = '')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot)
-$dump = Join-Path $root '.devremote'
+$dump = & (Join-Path $PSScriptRoot '..\DevRemote\devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 $out = Join-Path $root 'src\ModCode\ModMain\Presets'
 
 $skillName = @{}

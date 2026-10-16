@@ -26,7 +26,7 @@ namespace MOD_sWP6UL
                         {
                             sb.Append("fateLog[").Append(pair.Key).Append("]=").Append(pair.Value).Append('\n');
                         }
-                        string path = System.IO.Path.Combine(@"E:\TlToybox\.devremote", "snap-" + p[1] + ".txt");
+                        string path = System.IO.Path.Combine(DevCommands.Dir, "snap-" + p[1] + ".txt");
                         System.IO.File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
                         return "snap=" + p[1] + " chars=" + sb.Length;
                     }

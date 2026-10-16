@@ -11,13 +11,13 @@
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
 - 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절. 마지막이 `feat/ultimate-research`(44절 조사))뿐이다(2026-10-16 11시 기준). 병합을 마친 작업·문서 브랜치는 사용자 지시로 모두 지웠다(2026-10-14~16). 병합 뒤 지울지는 사용자에게 묻는다.
 - **지금 게임에 설치된 것**(2026-10-16 15:27 기준):
-  - 편집기 모드: 배포 빌드(개발 도구 제외) `ModExportData\Mod_sWP6UL\ModCode\dll\MOD_sWP6UL.dll`. `develop`의 마지막 코드와 같다(새 모드 한글화(46절)까지. 2026-10-16 15:27에 `tools/install.ps1`로 설치. 다음 실행에서 데이터 폴더의 번역 파일에 765행이 덧붙는다). 그 전 설치는 같은 날 11:05(44절까지), 09:20(43절까지), 2026-10-15 20:13(40절까지).
+  - 편집기 모드: 배포 빌드(개발 도구 제외) `ModExportData\Mod_sWP6UL\ModCode\dll\MOD_sWP6UL.dll`. `develop` 2334712(리뷰 수정 묶음 X, 48절까지)과 같다(2026-10-16 19:30에 사용자 확인·게임 꺼짐 뒤 `tools/install.ps1`로 설치). 49절의 커밋 표지(`Init build=`)는 그 뒤의 빌드부터 들어가므로 이 설치본의 `Init` 줄에는 없다. 다음 설치부터 `install.ps1`이 끝에 찍는 `installed build:`를 여기에 적는다.
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
   - 창작마당 모드 23개: `ModExportData\<창작마당ID>\`(15개는 2026-10-16 오전, 8개는 같은 날 13:20에 사용자 확인을 받고 게임을 끈 상태에서 `pwsh tools/workshop.ps1 -Install -Yes`. 목록 `tools/workshop/mods.txt`(일곱 칸, 상태 설치 23·보류 1·제외 1), 이력 `history.txt`, 등록부 `docs/09-workshop-mods.md`(`-Doc`이 만든다), Steam 컬렉션 3820620999(미등록, `tools/workshop/collection.txt`). 05 문서 41·45절). DLL 모드 7개(Fatury·도감 틀·종족 틀·절색방 등. 로드 중 `Latest.log`에 남는 `Fatury.ResLateLoadPatch`의 예외 한 줄은 그 모드의 것).
   - 모드 데이터 폴더 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox`: 설정·즐겨찾기·프리셋·자동 백업과 번역 파일 `translations\mods.txt`(43·46절. DLL 안의 것이 첫 실행 때 풀리고, 파일이 이미 있으면 내장본에만 있는 키가 끝에 덧붙는다. 사용자가 고친 줄은 그대로).
   - 사용자가 2026-10-16 오전에 이 설치본(당시 43절까지)으로 플레이했다(월말 안내 캡처. 8.3a절). 창작마당 모드·모드 비급·한글 이름·모드 신통의 확인 결과는 아직 듣지 못했다(8.5절).
-- **직전 작업(2026-10-16, 하루에 다섯 단계)**: G2a 창작마당 모드 받기·설치(05 문서 41절, `tools/workshop.ps1`. 스펙 없이 도구 스크립트로) → G2b·G2c 설계 전 실험(8.3e절, `ws-1016a`~`g`) → G2b 모드 공법의 비급(42절, 스펙·계획 `2026-10-16-mod-skill-books*`, `ws-1016h`~`m`) → G2c 모드 글 한글화(43절, 스펙·계획 `2026-10-16-mod-korean*`, 번역 59행, `ws-1016n`~`r`) → 모드 신통 비급(44절, 사용자 요청 "다시 확인": 옵션 번호 치환으로 42절의 차단을 풂, 브랜치 `fix/mod-ultimate-books`, `ws-1016s`~`w`). 2026-10-15에는 G1(38절), 비급 지급(39절), 도호 관리(40절). → 2026-10-16 오후: W 창작마당 확장(45절. 스펙·계획 `2026-10-16-workshop-expand*`. 목록 일곱 칸·이력, `-Search` 후보표(80개에 요약·추천), `-Doc` 등록부, 사용자가 고른 8개 받기·회차 `ws-1017a` 검증·설치, Steam 컬렉션). 리뷰 R은 별도 세션(`docs/08-review-2026-10-16.md`, 브랜치 `docs-review-1016`, 병합 전). → 같은 날 K 새 모드 8개 한글화(46절. 스펙 `2026-10-16-mod-korean-2-design.md`, 번역 765행 추가로 824행, `EnsureFile` 덧붙이기, 회차 `ws-1017b`(RED)·`ws-1017c`(GREEN)). → 같은 날 X 리뷰 수정 묶음(47·48절. 스펙 `2026-10-16-review-fixes-design.md`, 계획 `plans/2026-10-16-review-fixes.md`, 회차 `ws-1017e`(RED)·`f`·`g`(GREEN)·`h`~`k`(최종)·`l`~`n`(리뷰 후속). 탭 줄 재배치(화폐 그룹·안전 단추·고정 번호)와 작은 수정 열 가지).
-- **다음에 할 일**: (1) 배포 DLL 설치(사용자 확인·게임 꺼짐 뒤 `pwsh tools/install.ps1`. 지금 설치본은 46절까지). (2) 사용자 확인(8.5절): 새 모드 8개의 실제 효과와 한국어 글(종족 선택·요도희·절색방·BGM), 새 탭 줄·화폐 그룹·안전 단추의 쓰임새. (3) 리뷰에서 남긴 것(48절 끝): 12(내보내기 format 2)·9(`.devremote` 경로)·17·19·10·11·15·낮음 21~49. (4) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절).
+- **직전 작업(2026-10-16, 하루에 다섯 단계)**: G2a 창작마당 모드 받기·설치(05 문서 41절, `tools/workshop.ps1`. 스펙 없이 도구 스크립트로) → G2b·G2c 설계 전 실험(8.3e절, `ws-1016a`~`g`) → G2b 모드 공법의 비급(42절, 스펙·계획 `2026-10-16-mod-skill-books*`, `ws-1016h`~`m`) → G2c 모드 글 한글화(43절, 스펙·계획 `2026-10-16-mod-korean*`, 번역 59행, `ws-1016n`~`r`) → 모드 신통 비급(44절, 사용자 요청 "다시 확인": 옵션 번호 치환으로 42절의 차단을 풂, 브랜치 `fix/mod-ultimate-books`, `ws-1016s`~`w`). 2026-10-15에는 G1(38절), 비급 지급(39절), 도호 관리(40절). → 2026-10-16 오후: W 창작마당 확장(45절. 스펙·계획 `2026-10-16-workshop-expand*`. 목록 일곱 칸·이력, `-Search` 후보표(80개에 요약·추천), `-Doc` 등록부, 사용자가 고른 8개 받기·회차 `ws-1017a` 검증·설치, Steam 컬렉션). 리뷰 R은 별도 세션(`docs/08-review-2026-10-16.md`, 브랜치 `docs-review-1016`, 병합 전). → 같은 날 K 새 모드 8개 한글화(46절. 스펙 `2026-10-16-mod-korean-2-design.md`, 번역 765행 추가로 824행, `EnsureFile` 덧붙이기, 회차 `ws-1017b`(RED)·`ws-1017c`(GREEN)). → 같은 날 X 리뷰 수정 묶음(47·48절. 스펙 `2026-10-16-review-fixes-design.md`, 계획 `plans/2026-10-16-review-fixes.md`, 회차 `ws-1017e`(RED)·`f`·`g`(GREEN)·`h`~`k`(최종)·`l`~`n`(리뷰 후속). 탭 줄 재배치(화폐 그룹·안전 단추·고정 번호)와 작은 수정 열 가지). → 같은 날 Y 리뷰 남은 도구 묶음(49절. 스펙 `2026-10-16-review-tools-design.md`, 회차 `ws-1017p`·`q`).
+- **다음에 할 일**: (1) 사용자 확인(8.5절): 새 모드 8개의 실제 효과와 한국어 글(종족 선택·요도희·절색방·BGM), 새 탭 줄·화폐 그룹·안전 단추의 쓰임새. (2) 리뷰에서 남긴 것(48·49절 끝): 12(내보내기 format 2)·10·11·15·T2~T5·낮음 21~49. (3) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절). (4) 다음 설치 때 `install.ps1`이 찍는 `installed build:`를 1절에 적는다. 게임의 `Mods\TlToyboxDevRemote.dll`(2026-10-12 빌드)도 환경 변수를 읽는 새 빌드로 바꾸려면 사용자 확인(기본 경로는 같아 회차에는 영향 없음).
 - 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 사용자가 계속 플레이하므로 세이브의 날짜는 수시로 바뀐다(2026-10-16 오전 캡처: 2년 7월 8일, 결정 초기). 고정본(5절)은 영향을 받지 않는다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
 
@@ -61,10 +61,10 @@
 |---|---|
 | `docs/00-design-brief.md` | 기획서(기준 문서) |
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
-| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~48절). 기능을 바꾸면 절을 추가한다 |
+| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~49절). 기능을 바꾸면 절을 추가한다 |
 | `docs/06-handoff.md` | 이 문서 |
 | `docs/07-divine-artifacts.md` | 시작 신기 셋(쌍어패·호천안·연요호)과 특수 선천운명 셋(식혼검·음양안·연화검의)의 조사. 게임 확인(7절), 편집기 후보(8절), 미확인(9절) |
-| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`), 선법 탭(`2026-10-14-immortal-tab*`), 신기 탭(`2026-10-14-artifact-tab*`), 도호(`2026-10-15-appellation*`), 비급(`2026-10-15-martial-books*`), 자원 탭(`2026-10-15-resources-tab*`), 창작마당 설치(`2026-10-15-workshop-install*`), 한글화(`2026-10-16-mod-korean*`), 모드 공법의 비급(`2026-10-16-mod-skill-books*`), 창작마당 확장(`2026-10-16-workshop-expand*`), 새 모드 한글화(`2026-10-16-mod-korean-2*`), 리뷰 수정(`2026-10-16-review-fixes*`) |
+| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`), 선법 탭(`2026-10-14-immortal-tab*`), 신기 탭(`2026-10-14-artifact-tab*`), 도호(`2026-10-15-appellation*`), 비급(`2026-10-15-martial-books*`), 자원 탭(`2026-10-15-resources-tab*`), 창작마당 설치(`2026-10-15-workshop-install*`), 한글화(`2026-10-16-mod-korean*`), 모드 공법의 비급(`2026-10-16-mod-skill-books*`), 창작마당 확장(`2026-10-16-workshop-expand*`), 새 모드 한글화(`2026-10-16-mod-korean-2*`), 리뷰 수정(`2026-10-16-review-fixes*`), 리뷰 도구 묶음(`2026-10-16-review-tools*`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
 | `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리)도 여기 있다 |
 | `src/ModCode/ModMain/Presets/` | 기본 프리셋 열 개(JSON). DLL에 EmbeddedResource로 들어간다. 손으로 고치지 않고 `tools/research/preset-build.ps1`의 표를 고쳐 다시 만든다 |
@@ -78,7 +78,7 @@
 | `tools/research/` | 게임 어셈블리 조사 스크립트, 게임 내 자동 검증(`ui-check.ps1`, `datebag-check.ps1`, `preset-check.ps1`, `major-breakthrough-check.ps1`. 공통 함수는 `check-lib.ps1`), 기본 프리셋을 만드는 `preset-build.ps1` |
 | `ModProject_sWP6UL/`, `.devremote/`, `.superpowers/` | git 제외. 모드 에디터 프로젝트, 조작 도구의 작업 폴더(세이브 복사본, 고정본 `fixtures\`), 계획 실행 중의 임시 기록 |
 
-`src/ModCode/ModMain/Adapters`, `Features`, `Resolvers`와 `tests/`는 처음 뼈대만 만들고 쓰지 않았다(`.gitkeep`만 있음).
+`src/ModCode/ModMain/Adapters`, `Features`, `Resolvers`는 처음 뼈대만 만들고 쓰지 않았다(`.gitkeep`만 있음). `tests/ModMain.Tests`는 게임 없이 도는 시험 프로젝트다(49절. `dotnet run --project tests/ModMain.Tests -c Release`).
 
 ## 4. 빌드와 설치
 
@@ -183,6 +183,8 @@
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다.
 - 검증 스크립트 안에서는 `check-lib.ps1`의 `Cmd`, `Rc`, `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지), `Pos`, `Check`, `Shot`, `Traps`, `ModWarnings`를 쓴다. 편집기의 버튼은 좌표가 아니라 이름으로 찾는다.
+- `.devremote`(회차 표식·세이브 사본·캡처·명령 채널)는 어느 체크아웃에서 열어도 한 곳이다: 환경 변수 `TLTOYBOX_DEVREMOTE`(절대 경로)가 있으면 그 폴더, 없으면 `E:\TlToybox\.devremote`(49절, `tools/DevRemote/devremote-dir.ps1`). 워크트리에서 회차를 열어도 같은 곳을 쓰고, 두 체크아웃이 동시에 열면 표식이 막는다. 설치본의 `Init` 줄 `build=<커밋>`으로 어느 코드가 설치됐는지 안다.
+- 게임 없이 도는 시험: `pwsh tools/DevRemote/session.tests.ps1`(34), `pwsh tools/workshop.tests.ps1`(78), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(49). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
 
 게임 화면의 자주 쓰는 좌표: HUD의 날짜 버튼(달 넘기기) `(400, 1000)`, 확인 창의 예 `(884, 531)`·아니오 `(1037, 531)`, 월말 기록 창의 다음 `(959, 629)`, 가방 버튼 `(120, 860)`, 인물 화면 닫기 `(1722, 160)`, 게임 메뉴의 돌아가기 `(959, 391)`, 전투 개시 `(956, 749)`, 전투 결과 창의 확인 `(959, 831)`. 편집기가 기본 위치(60,60)일 때 탭 줄은 x=151, `Tab0`이 y=144이고 탭마다 46씩 내려간다(`Tab15` y=742. 2는 비었다). 안전 단추 `Tab14`는 제목 줄 (1312,86). 편집기의 단추는 좌표가 아니라 이름으로 찾는다(47절).
 
@@ -317,6 +319,7 @@ PowerShell과 도구:
 | — | 모드 신통 비급(사용자 요청 2026-10-16 "읽을 수 없어 추가할 수 없는 공법 다시 확인"): 옵션 번호를 모드 것으로 바꿔 신통 차단을 풂 | 44절(스펙 없음. 브랜치 `fix/mod-ultimate-books`) |
 | W | 창작마당 확장: 검색·등록부·컬렉션 (2026-10-16 요청 2·3·5). 목록 일곱 칸·이력, `-Search` 후보표, `-Doc` 등록부, 새 모드 8개(23개), Steam 컬렉션 3820620999 | 45절. 스펙·계획 `2026-10-16-workshop-expand*` |
 | K | 새 모드 8개 한글화 (2026-10-16 요청 4). 번역 765행(824행), 번역 파일 덧붙이기 | 46절. 스펙 `2026-10-16-mod-korean-2-design.md` |
+| Y | 리뷰 남은 도구 묶음(9·19·17): `.devremote` 경로 한 곳(`TLTOYBOX_DEVREMOTE`), 커밋 표지(`Init build=`), 시험 프로젝트 `tests/ModMain.Tests` | 49절. 스펙 `2026-10-16-review-tools-design.md` |
 | X | 리뷰 수정 묶음 (2026-10-16 요청 6). 탭 줄 재배치(화폐 그룹·안전 단추·46 간격), 작은 수정 열 가지(깨진 공법 줄, 두 번 누르기 넷, 예외 표시, 세이브 전환 때 끄기, 가져오기 보충, 백업 세 곳, 이름 없음 줄, 결과 칸 더 보기, 문서) | 47·48절. 스펙 `2026-10-16-review-fixes-design.md` |
 
 ### 8.2 사용자의 요청 (원문, 2026-10-12)
@@ -575,7 +578,7 @@ PowerShell과 도구:
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
 - 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `art-1014a`(게임이 켜져 있어 열리지 않았다. 다시 쓰지 않는다), `art-1014b`~`d`, `atab1`~`atab18`(`2b`~`2d`, `4b`~`4d`, `5b` 포함), `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함), `awui-1014a`, `hud-1014a`~`d`, `bwui-1014a`~`b`, `bhud-1014a`~`d`, `bdev-1014a`(게임이 켜져 있어 열리지 않았다), `hudr-1014a`, `key-1014a`~`d`, `drift-1014a`~`b`, `akey-1014a`~`j`, `rate-1014a`~`b`, `cost-1014a`~`d`, `click-1014a`~`l`, `eyeclick-1014a`~`c`(`a`는 게임이 켜져 있어 열리지 않았다), `typing-1014a`~`k`, `month-1014a`. 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
 - 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함), `apl-1015a`~`f`, `ttl-1015a`~`o`, `apl-1015g`, `ws-1015a`~`b`.
-- 2026-10-16에 쓴 회차 이름: `ws-1016a`~`w`, `ws-1017a`~`n`.
+- 2026-10-16에 쓴 회차 이름: `ws-1016a`~`w`, `ws-1017a`~`q`.
 
 ## 9. 작업 규칙 요약
 

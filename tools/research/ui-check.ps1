@@ -773,6 +773,10 @@ switch ($Part) {
     Check 'uitext reads a label' ((Cmd 'uitext Restore') -match "text='자원 회복'")
     Check 'a name prefix finds an element' ((Cmd 'uipos Plus*') -match '-> Plus\d+ at ')
     Check 'unknown name is reported' ((Cmd 'uipos NoSuchThing') -match 'no element named')
+    # 05 문서 49절: Init 줄이 빌드 표지와 .devremote 경로를 찍는다
+    $init = @(Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] Init ' }) | Select-Object -Last 1
+    Check 'the init line names the build' ($init -match ' build=[0-9a-f]{7,}(-dirty)? ') $init
+    Check 'the init line names the devremote folder' ($init -match ' devremote=\S+ \((env|default)\)\s*$') $init
     Press 'Close' | Out-Null
     Check 'editor closed' ((Cmd 'uipos Tab0') -match 'no element named')
     Check 'no exception in button callbacks' ((Traps) -eq $traps)

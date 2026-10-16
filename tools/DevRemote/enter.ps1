@@ -2,7 +2,7 @@
 # 각 단계는 클릭 전에 그 좌표의 UI 요소 이름을 확인하고, 기대한 버튼일 때만 누른다.
 # -Direct: 모드가 로컬 모드로 설치되어 있을 때 쓴다. 모드 에디터를 거치지 않고 바로 세이브에 진입한다.
 param([string]$GameDir = 'E:\Games\Tale of Immortal', [switch]$Launch, [int]$BlindWaitSeconds = 0, [switch]$Direct)
-$dir = 'E:\TlToybox\.devremote'
+$dir = & (Join-Path $PSScriptRoot 'devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 $log = Join-Path $GameDir 'MelonLoader\Latest.log'
 
 function Send([string]$c) {

@@ -808,7 +808,7 @@ namespace MOD_sWP6UL
                     sb.Append('\n');
                 }
             }
-            string path = System.IO.Path.Combine(@"E:\TlToybox\.devremote", "dump-" + what + ".txt");
+            string path = System.IO.Path.Combine(DevCommands.Dir, "dump-" + what + ".txt");
             System.IO.File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
             return "dumped=" + what + " chars=" + sb.Length;
         }
