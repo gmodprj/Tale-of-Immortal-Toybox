@@ -16,6 +16,7 @@ namespace MOD_sWP6UL
     //   uidrag x1 y1 x2 y2 [steps] : 끌기 이벤트를 보낸다(실제 마우스가 만드는 것과 같은 이벤트 경로)
     //   uicanvas / uilist / uiopen <화면> / uiclose <화면> : 게임 화면의 정렬 값을 읽고, 화면을 열고 닫는다
     //   uistate / uitarget <단위 ID|player> / uisay <횟수> : 편집기의 상태를 읽고, 편집 대상을 바꾸고, 긴 결과 문구를 띄운다
+    //   uifail : 다음 그리기에서 탭 그리기 앞에 시험 예외를 던진다 / uibuttons <접두> : 그 이름으로 시작하는 단추마다 켜짐 여부와 글
     internal static class DevCommandsUi
     {
         private const string EditorName = "TlToyboxEditor";
@@ -73,6 +74,11 @@ namespace MOD_sWP6UL
                 case "uiclose":
                     g.ui.CloseUI(TypeOf(p[1]), true);
                     return "closed " + p[1];
+                case "uifail":
+                    EditorWindow.DevFailDraw = true;
+                    return "next render throws";
+                case "uibuttons":
+                    return Buttons(p[1]);
                 default:
                     return null;
             }
@@ -182,6 +188,27 @@ namespace MOD_sWP6UL
                 }
             }
             return sb.Length == 0 ? "no element starting with " + prefix : sb.ToString();
+        }
+
+        // 그 접두사로 시작하는 단추마다 켜짐 여부와 글. 검사가 "켜진 첫 후보"를 고를 때 쓴다.
+        private static string Buttons(string prefix)
+        {
+            GameObject root = GameObject.Find(EditorName);
+            if (root == null)
+            {
+                return "editor is not open";
+            }
+            var sb = new StringBuilder();
+            foreach (Button button in root.GetComponentsInChildren<Button>(false))
+            {
+                if (button.gameObject.name.StartsWith(prefix))
+                {
+                    Text label = button.GetComponentInChildren<Text>();
+                    sb.Append(button.gameObject.name).Append(button.interactable ? " on" : " off")
+                        .Append(" text='").Append(label == null ? "" : label.text.Replace("\n", " ")).Append("'\n");
+                }
+            }
+            return sb.Length == 0 ? "no button starting with " + prefix : sb.ToString();
         }
         private static string Focus(string name)
         {
