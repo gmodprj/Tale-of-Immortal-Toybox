@@ -21,3 +21,5 @@ $dllDir = Join-Path $target 'ModCode\dll'
 New-Item -ItemType Directory -Force $dllDir | Out-Null
 Copy-Item -LiteralPath $dll -Destination (Join-Path $dllDir "MOD_$ModId.dll") -Force
 Get-ChildItem -LiteralPath $target -Recurse -File | ForEach-Object { '{0}  {1} bytes  {2:yyyy-MM-dd HH:mm}' -f $_.FullName, $_.Length, $_.LastWriteTime }
+# 설치본의 커밋 표지(ModMain.csproj의 StampCommit. Init 로그의 build=와 같다). 인계 1절에 적는다.
+'installed build: ' + (Get-Item (Join-Path $dllDir "MOD_$ModId.dll")).VersionInfo.ProductVersion

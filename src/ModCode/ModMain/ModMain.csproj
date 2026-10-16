@@ -10,6 +10,8 @@
     <RootNamespace>MOD_$(ModId)</RootNamespace>
     <LangVersion>7.3</LangVersion>
     <Deterministic>true</Deterministic>
+    <!-- SDK가 InformationalVersion 뒤에 +<전체 커밋>을 붙이는 것을 끈다. 표지는 StampCommit가 넣는 <짧은 커밋>[-dirty]만. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- 모드 에디터는 bin\Release의 모든 DLL을 게임으로 복사한다. 산출물은 DLL 하나여야 한다. -->
     <!-- 개발용 탐침과 명령 채널(Dev 폴더). 배포 빌드는 -p:DevTools=false 로 뺀다. -->
     <DevTools Condition="'$(DevTools)' == ''">true</DevTools>
@@ -68,6 +70,21 @@
     <!-- 창작마당 모드 글의 번역. DLL 안에 넣어 두고 translations 폴더에 파일이 없을 때 풀어 놓는다. 이름은 "Translations/mods.txt"다. -->
     <EmbeddedResource Include="Translations\*.txt" LogicalName="Translations/%(Filename)%(Extension)" />
   </ItemGroup>
+  <!-- 커밋 표지: InformationalVersion = <짧은 커밋>[-dirty]. Init 로그(BuildInfo.Commit)와 install.ps1이 읽는다(05 문서 49절). git이 없으면 unknown.
+       GenerateAssemblyInfo가 속성 값으로 캐시를 만들므로 커밋만 바뀌어도 다시 컴파일된다. -->
+  <Target Name="StampCommit" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo">
+    <Exec Command="git rev-parse --short HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommit" />
+    </Exec>
+    <Exec Command="git status --porcelain" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitDirty" />
+    </Exec>
+    <PropertyGroup>
+      <GitCommit Condition="'$(GitCommit)' == ''">unknown</GitCommit>
+      <InformationalVersion>$(GitCommit)</InformationalVersion>
+      <InformationalVersion Condition="'$(GitDirty)' != ''">$(GitCommit)-dirty</InformationalVersion>
+    </PropertyGroup>
+  </Target>
   <Target Name="CopyToEditorProject" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' And Exists('$(EditorReleaseDir)')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(EditorReleaseDir)" />
     <Message Importance="high" Text="copied $(TargetFileName) -> $(EditorReleaseDir)" />
