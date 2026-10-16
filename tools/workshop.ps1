@@ -36,7 +36,7 @@ $acf = Join-Path $steamRoot "steamapps\workshop\appworkshop_$AppId.acf"
 $modsDir = Join-Path $GameDir 'ModExportData'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $States = @('설치', '보류', '제외')
-$Kinds = @('틀', '외형', '공법', '세계관', '음악')
+$Kinds = @('틀', '외형', '공법', '세계관', '음악', '기능')   # 기능: 세이브·규칙을 손보는 작은 모드(영석 입출금 등. 2026-10-16 3차)
 
 function Running { [bool](Get-Process $ProcessName -ErrorAction SilentlyContinue) }
 

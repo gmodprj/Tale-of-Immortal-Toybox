@@ -2208,7 +2208,7 @@
 
 ### 규칙
 
-- 목록 `tools/workshop/mods.txt`는 일곱 칸 `창작마당ID | 상태 | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 비고`. 상태 `설치`·`보류`·`제외`(다뤄 본 ID는 모두 줄로 남긴다), 종류 `틀`·`외형`·`공법`·`세계관`·`음악`(보류 줄만 `-`). `-Download`·`-Install`은 `설치` 줄만(`-Id`로 `보류`는 받되 `제외`는 거부), `-Uninstall`은 모든 줄. 모르는 상태·종류·빈 이름은 시작 전에 거부. 모드ID는 게임이 읽은 `soleID`(다섯 글자도 있다: `BHJSB`).
+- 목록 `tools/workshop/mods.txt`는 일곱 칸 `창작마당ID | 상태 | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 비고`. 상태 `설치`·`보류`·`제외`(다뤄 본 ID는 모두 줄로 남긴다), 종류 `틀`·`외형`·`공법`·`세계관`·`음악`·`기능`(보류 줄만 `-`). `-Download`·`-Install`은 `설치` 줄만(`-Id`로 `보류`는 받되 `제외`는 거부), `-Uninstall`은 모든 줄. 모르는 상태·종류·빈 이름은 시작 전에 거부. 모드ID는 게임이 읽은 `soleID`(다섯 글자도 있다: `BHJSB`).
 - 이력 `tools/workshop/history.txt`: `yyyy-MM-dd HH:mm | 받음·설치·갱신·지움 | ID | 한국어 이름`. 도구가 성공한 동작마다 덧붙인다. `-NoHistory`(회차 안·시험)면 쓰지 않는다. 2026-10-15·16의 받음 16·설치 15는 소급(시각 `--:--`).
 - `-Search [-Kind 외형,공법,세계관,음악] [-Top 20] [-Delay 1.5]`: 검색 페이지(구독자순. 태그 `Beautify` / `Battle`+검색어 `功法` / `Drama`·`NPC`·`LargeIntegrated` / 검색어 `音乐`·`BGM`·`特效`) → 상세 API(30개씩. `result`≠1·차단·비공개 제외) → 항목 페이지의 `RequiredItems` 블록. 표시 `성인향?`·`오래됨`(2023년 이전)·`큼`(200MB 초과)·`시스템?`(공법)·`대형`·`목록에 있음(상태)`. HTTP 429나 "请求太多"면 멈추고 모은 것을 쓴다(멈춘 자리를 파일 끝에). 결과 `tools/workshop/candidates-<날짜>.md`(git)와 `-desc.txt`(설명 전문, git 제외). 파일은 LF. `-WebRoot <폴더>`로 저장 응답(`browse-<태그|검색어>-p<쪽>.html`, `details.json`, `item-<ID>.html`, `collection.json`)을 읽는 시험.
 - `-Doc`: `docs/09-workshop-mods.md`(1 요약, 2 모드 표, 3 이력, 4 컬렉션 비교, 5 후보표, 6 한글화)와 `tools/workshop/collection-desc.txt`를 통째로 다시 쓴다. 손으로 고치지 않는다. 컬렉션 ID는 `tools/workshop/collection.txt`. 목록·이력·설치가 바뀌면 다시 돌려 같이 커밋한다.
