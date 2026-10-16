@@ -5,16 +5,17 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 자원 탭: 영석, 지급 수량과 가방 칸, 용도 그룹으로 나눈 아이템 표, 기술 서적(비급) 지급, 즐겨찾기.
+    // 자원 탭: 지급 수량과 가방 칸, 용도 그룹으로 나눈 아이템 표, 기술 서적(비급) 지급, 화폐 그룹(영석·재화·명성), 즐겨찾기.
     // 설계: docs/superpowers/specs/2026-10-15-resources-tab-design.md, 2026-10-15-martial-books-design.md.
     // 판단은 ItemCatalog·FavoriteStore·MartialBookService가 하고 여기서는 그린다. 기술 서적 그룹은 ResourcesTab.Books.cs.
     internal sealed partial class ResourcesTab : EditorTab
     {
+        private const string CurrencyKey = "Currency";  // 화폐 그룹: 영석과 재화(ItemCatalog.Currencies), 명성 줄. 05 문서 47절
         private const float RowH = 32;
         private const float DetailH = 150;              // 표에 설명 열이 없어 설명은 이 칸에서 본다. 넘치면 칸 안에서 스크롤한다
-        private const float TopH = 92;                  // 1줄 영석, 2줄 지급 수량과 가방 칸
+        private const float TopH = 48;                  // 지급 수량과 가방 칸 한 줄(영석 줄은 화폐 그룹으로 갔다. 05 문서 47절)
         private const float LeftW = 170;                // 그룹 목록
-        private const float GroupStep = 42;             // 그룹 버튼(높이 38)의 간격. 열네 개가 아래 설명 칸 위에 들어간다
+        private const float GroupStep = 42;             // 그룹 버튼(높이 38)의 간격. 열다섯 개가 아래 설명 칸 위에 들어간다(56 + 14·42 + 38 = 682 < 686)
         private const float RightX = 180;
         private const float RightW = ContentW - RightX; // 1124
         private const float ChipH = 34, ChipGap = 6;
@@ -71,6 +72,11 @@ namespace MOD_sWP6UL
         private bool IsFav
         {
             get { return groupKey == ItemGroups.FavKey; }
+        }
+
+        private bool IsCurrency
+        {
+            get { return groupKey == CurrencyKey; }
         }
 
         public override void OnShow()
@@ -185,6 +191,15 @@ namespace MOD_sWP6UL
                 return BookRows();
             }
             var rows = new List<Row>();
+            if (IsCurrency)
+            {
+                // 화폐 그룹은 거르기(검색·품질·보유 중만)를 쓰지 않는다. 다른 그룹에서 남긴 검색어가 여기 줄을 숨기지 않게.
+                foreach (ItemCatalog.Entry entry in ItemCatalog.Currencies)
+                {
+                    rows.Add(new Row { Item = entry });
+                }
+                return rows;
+            }
             if (!IsFav)
             {
                 filter.Group = groupKey;
@@ -231,7 +246,7 @@ namespace MOD_sWP6UL
         {
             if (row.Item != null)
             {
-                return row.Item.Kind == null ? "-" : row.Item.Kind.Name;
+                return row.Item.Kind == null ? (row.Item.Group == null ? "화폐" : "-") : row.Item.Kind.Name;
             }
             string tab = SkillCatalog.Kinds[row.SkillKind].Tab;
             return row.Book != null ? "비급·" + tab : tab;
@@ -257,7 +272,7 @@ namespace MOD_sWP6UL
             DrawGroups(owned);
             float y = TopH + 8;
             y = DrawKinds(y, owned);
-            y = groupKey == ManualKey ? DrawBookFilters(y) : DrawFilters(y);
+            y = groupKey == ManualKey ? DrawBookFilters(y) : IsCurrency ? y : DrawFilters(y);
             if (groupKey == ManualKey)
             {
                 DrawBookHead(y);
@@ -277,23 +292,17 @@ namespace MOD_sWP6UL
 
         private void DrawTop(WorldUnitBase player)
         {
-            int moneyAmount = AmountBar.Get("money");
             Ui.Panel("MoneyBox", content, 0, 0, ContentW, TopH, Ui.Section);
-            // 1줄: 영석
-            Ui.Label(content, "영석: " + EditService.Money(player), 12, 4, 250, 40, 20);
-            Ui.Label(content, "추가량", 270, 4, 70, 40, 18).color = Ui.Dim;
-            float moneyRight = AmountBar.Build(content, "money", 340, 5);
-            Ui.Button("MoneyAdd", content, "영석 + " + moneyAmount, moneyRight + 16, 5, 200, 38, new Action(() => Say(EditService.AddMoney(Player, moneyAmount))));
-            // 2줄: 아이템 지급 수량과 가방 칸. 가방 칸은 편집기가 늘린 만큼만 되돌릴 수 있다.
-            Ui.Label(content, "지급 수량", 12, 48, 110, 40, 18);
-            float itemRight = AmountBar.Build(content, "item", 122, 49);
+            // 아이템 지급 수량과 가방 칸. 가방 칸은 편집기가 늘린 만큼만 되돌릴 수 있다. 영석은 화폐 그룹의 첫 줄이다.
+            Ui.Label(content, "지급 수량", 12, 4, 110, 40, 18);
+            float itemRight = AmountBar.Build(content, "item", 122, 5);
             int bagExtra = BagService.Extra;
             bagInput = bagExtra.ToString();
             float bagX = itemRight + 16;
-            Ui.Label(content, BagService.Describe(), bagX, 48, 296, 40, 17);
+            Ui.Label(content, BagService.Describe(), bagX, 4, 296, 40, 17);
             float bx = bagX + 300;
-            NumberField.Build(content, "BagExtra", bx, 49, 76, 38, bagInput, new Action<string>(v => bagInput = v), new Action<int>(SetBagExtra));
-            Ui.Button("BagApply", content, "적용", bx + 80, 49, 60, 38, new Action(() =>
+            NumberField.Build(content, "BagExtra", bx, 5, 76, 38, bagInput, new Action<string>(v => bagInput = v), new Action<int>(SetBagExtra));
+            Ui.Button("BagApply", content, "적용", bx + 80, 5, 60, 38, new Action(() =>
             {
                 int value;
                 if (!int.TryParse(bagInput, out value))
@@ -303,8 +312,8 @@ namespace MOD_sWP6UL
                 }
                 SetBagExtra(value);
             }));
-            Ui.Button("BagMinus", content, "-" + BagService.Step, bx + 144, 49, 60, 38, new Action(() => Say(BagService.Change(-BagService.Step))), bagExtra > 0);
-            Ui.Button("BagPlus", content, "+" + BagService.Step, bx + 208, 49, 60, 38, new Action(() => Say(BagService.Change(BagService.Step))), bagExtra < BagService.MaxExtra);
+            Ui.Button("BagMinus", content, "-" + BagService.Step, bx + 144, 5, 60, 38, new Action(() => Say(BagService.Change(-BagService.Step))), bagExtra > 0);
+            Ui.Button("BagPlus", content, "+" + BagService.Step, bx + 208, 5, 60, 38, new Action(() => Say(BagService.Change(BagService.Step))), bagExtra < BagService.MaxExtra);
         }
 
         private void DrawGroups(HashSet<int> owned)
@@ -325,6 +334,7 @@ namespace MOD_sWP6UL
                     y += GroupStep;
                 }
             }
+            GroupButton(CurrencyKey, "화폐", ItemCatalog.Currencies.Count, y);
         }
 
         private void GroupButton(string key, string name, int count, float y)
@@ -336,6 +346,10 @@ namespace MOD_sWP6UL
         // 종류 칩(그룹 보기), 모두 지급(즐겨찾기 보기) 또는 안내(전체 보기). 다음 줄의 y를 돌려준다.
         private float DrawKinds(float y, HashSet<int> owned)
         {
+            if (IsCurrency)
+            {
+                return DrawFameLine(y);
+            }
             if (groupKey == ManualKey)
             {
                 return DrawBookKinds(y);
@@ -405,6 +419,27 @@ namespace MOD_sWP6UL
             return y + shownH + 6;
         }
 
+        // 화폐 그룹의 명성 줄. 명성은 아이템이 아니라 인물의 속성(저장값 reputation)이다. 낭야각 같은 상점의 "명성 N 도달 필요"에 쓰이는 값과 같아
+        // (실측: 화면의 80 = 저장값 80) 재화와 함께 올릴 수 있게 여기 둔다. 쓰기는 능력치 탭과 같은 경로다.
+        private float DrawFameLine(float y)
+        {
+            AttributeDef fame = AttributeCatalog.All.Find(d => d.Label == "명성");
+            if (fame == null)
+            {
+                return y;
+            }
+            int amount = AmountBar.Get("item");
+            int have = fame.Get(Player.data.unitData.propertyData);
+            Ui.Label(content, "속성 명성", RightX, y, 110, 38, 18);
+            Ui.Label(content, "보유", RightX + 110, y, 44, 38, 16).color = Ui.Dim;
+            Ui.Label(content, have.ToString(), RightX + 154, y, 100, 38, 18).gameObject.name = "CurrencyOwnedFame";
+            Ui.Button("CurrencyAddFame", content, "+ " + amount, RightX + 260, y + 2, 120, 34, new Action(() =>
+                Say(EditService.SetAttribute(Player, fame, fame.Get(Player.data.unitData.propertyData) + amount))));
+            Ui.Label(content, "인물의 속성입니다(능력치 탭 > 개인 속성의 명성과 같은 값). 상점의 \"명성 N 도달 필요\" 조건에 쓰입니다. 아래 재화는 가방 칸을 차지하지 않습니다.",
+                RightX + 392, y, RightW - 392, 38, 14).color = Ui.Dim;
+            return y + 44;
+        }
+
         private float DrawFilters(float y)
         {
             Ui.Label(content, "아이템명", RightX, y, 76, 38, 18);
@@ -425,10 +460,16 @@ namespace MOD_sWP6UL
         private void DrawHead(float y)
         {
             Ui.Panel("ResHead", content, RightX, y, RightW, 30, Ui.Section);
-            Ui.Label(content, "☆", RightX + ColStar, y, 40, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
-            Ui.Label(content, "아이템명", RightX + ColName, y, NameW, 30, 16).color = Ui.Dim;
+            if (!IsCurrency)
+            {
+                Ui.Label(content, "☆", RightX + ColStar, y, 40, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+            }
+            Ui.Label(content, IsCurrency ? "화폐" : "아이템명", RightX + ColName, y, NameW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "종류", RightX + ColKind, y, KindW, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "품질", RightX + ColLevel, y, 44, 30, 16).color = Ui.Dim;
+            if (!IsCurrency)
+            {
+                Ui.Label(content, "품질", RightX + ColLevel, y, 44, 30, 16).color = Ui.Dim;
+            }
             Ui.Label(content, "보유", RightX + ColOwned, y, 60, 30, 16).color = Ui.Dim;
             if (IsFav)
             {
@@ -460,6 +501,10 @@ namespace MOD_sWP6UL
                 {
                     label.Set(bookCount);
                 }
+                else if (label.Key == CurrencyKey)
+                {
+                    label.Set(ItemCatalog.Currencies.Count);
+                }
                 else if (label.Key != null)
                 {
                     label.Set(counts[label.Key]);
@@ -483,7 +528,14 @@ namespace MOD_sWP6UL
             float h = row.sizeDelta.y;
             if (r.Item != null)
             {
-                DrawItemRow(row, r.Item, h);
+                if (IsCurrency)
+                {
+                    DrawCurrencyRow(row, r.Item, h);
+                }
+                else
+                {
+                    DrawItemRow(row, r.Item, h);
+                }
             }
             else if (r.Book != null)
             {
@@ -517,6 +569,31 @@ namespace MOD_sWP6UL
                 int amount = AmountBar.Get("item");
                 Ui.Button("ItemGive" + id, row, "지급 x" + amount, ColGive, 2, GiveW, RowH - 4, new Action(() => Say(EditService.GiveItem(Player, id, amount))));
             }
+        }
+
+        // 화폐 줄: ☆ 없음(즐겨찾기는 가방 아이템의 것), 종류 "화폐", 품질 없음, 보유는 영석이면 EditService.Money. 지급은 예전 화폐 탭의 Add와 같다.
+        private void DrawCurrencyRow(RectTransform row, ItemCatalog.Entry entry, float h)
+        {
+            int id = entry.Id;
+            WrapLabel(Ui.Button("ItemName" + id, row, entry.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(Detail(entry)))));
+            Ui.Wrapped(row, "화폐", ColKind, 0, KindW, h, 16);
+            Ui.Label(row, "-", ColLevel, 0, 44, h, 16).color = Ui.Dim;
+            int have = id == PropsIDType.Money ? EditService.Money(Player) : Player.data.unitData.propData.GetPropsNum(id);
+            Ui.Label(row, have.ToString(), ColOwned, 0, 60, h, 16).gameObject.name = "CurrencyOwned" + id;
+            int amount = AmountBar.Get("item");
+            Ui.Button("CurrencyAdd" + id, row, "+ " + amount, ColGive, 2, GiveW, RowH - 4, new Action(() => Say(AddCurrency(entry, amount))));
+        }
+
+        private static string AddCurrency(ItemCatalog.Entry entry, int amount)
+        {
+            if (entry.Id == PropsIDType.Money)
+            {
+                return EditService.AddMoney(Player, amount);
+            }
+            string result = EditService.GiveItem(Player, entry.Id, amount);
+            // 이름의 번역이 없는 재화는 결과 문장에 번역 열쇠가 나온다. 목록에 보인 이름으로 바꾼다.
+            string raw = EditService.ItemName(entry.Id);
+            return string.IsNullOrEmpty(raw) || raw == entry.Name ? result : result.Replace(raw, entry.Name);
         }
 
         private void ToggleFavorite(int id)
@@ -582,6 +659,11 @@ namespace MOD_sWP6UL
             if (entry.Missing)
             {
                 return "[" + entry.Id + "] " + entry.Name + "\n" + entry.Desc;
+            }
+            if (entry.Group == null)
+            {
+                // 화폐 목록의 항목은 용도 그룹이 없다.
+                return "[" + entry.Id + "] " + entry.Name + "  (화폐, 품질 " + entry.Level + ")\n" + entry.Desc;
             }
             return "[" + entry.Id + "] " + entry.Name + "  (" + entry.Group.Name + " / " + entry.Kind.Name + ", 품질 " + entry.Level + ")\n" + entry.Desc;
         }
