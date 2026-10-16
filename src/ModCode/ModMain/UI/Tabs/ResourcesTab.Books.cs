@@ -63,16 +63,18 @@ namespace MOD_sWP6UL
         private List<Row> BookRows()
         {
             var rows = new List<Row>();
+            var nameless = new List<Row>();   // 이름 없는 모드 기술은 분류를 넘어 맨 끝에(05 문서 48절)
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
                 foreach (SkillCatalog.Entry entry in SkillCatalog.Find(k, filter.Query))
                 {
                     if (BookInKind(entry, k) && BookShown(entry))
                     {
-                        rows.Add(new Row { Skill = entry, SkillKind = k });
+                        (entry.Nameless ? nameless : rows).Add(new Row { Skill = entry, SkillKind = k });
                     }
                 }
             }
+            rows.AddRange(nameless);
             return rows;
         }
 
