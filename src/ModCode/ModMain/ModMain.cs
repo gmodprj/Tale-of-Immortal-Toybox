@@ -31,6 +31,7 @@ namespace MOD_sWP6UL
         {
             MelonLogger.Msg("[TlToybox] Destroy");
             EditorWindow.Close();
+            ResetState();
             BattleService.OnDestroy();
             RateService.OnDestroy();
             ArtifactKeyService.OnDestroy();
@@ -38,6 +39,24 @@ namespace MOD_sWP6UL
 #if DEVTOOLS
             StopDevPoll();
 #endif
+        }
+
+        // 세이브를 떠날 때 켜 둔 것(날짜 고정·배율·무적)을 끈다. 다음 세이브가 그 상태로 시작하지 않게(리뷰 C3, 05 문서 48절). 이력에 남는다.
+        // 예외가 나도 뒤의 정리(OnDestroy)는 돈다.
+        public static void ResetState()
+        {
+            try
+            {
+                if (TimeService.Frozen)
+                {
+                    TimeService.SetFrozen(false);
+                }
+                RateService.Reset();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 상태 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+            }
         }
 
 #if DEVTOOLS
