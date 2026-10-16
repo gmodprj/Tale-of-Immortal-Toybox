@@ -1290,21 +1290,22 @@ switch ($Part) {
   'errors' {
     # 05 문서 48절(C2): 단추 콜백과 탭 그리기의 예외가 결과 칸·내용 영역에 보인다. DevThrow·uifail은 개발 빌드의 시험 장치.
     $traps = Traps
-    $w0 = @(ModWarnings).Count
+    function TestErrors { @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'InvalidOperationException: test-exception' }).Count }
+    $w0 = @(ModWarnings).Count; $e0 = TestErrors
     Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null
     Press 'DevThrow' | Out-Null
-    Check 'a button exception shows in the result line' ((Cmd 'uistate') -match "message='오류: InvalidOperationException: 시험 예외'") (Cmd 'uistate')
+    Check 'a button exception shows in the result line' ((Cmd 'uistate') -match "message='오류: InvalidOperationException: test-exception'") (Cmd 'uistate')
     Press 'Tab1' | Out-Null; Press 'Tab0' | Out-Null
     Check 'the window still works' (IsAt 'Restore')
     Cmd 'uifail' | Out-Null
     Press 'Tab1' | Out-Null
-    Check 'a draw exception shows a notice' ((Cmd 'uitext DrawError') -match "text='이 탭을 그리지 못했습니다: InvalidOperationException: 시험 예외'") (Cmd 'uitext DrawError')
+    Check 'a draw exception shows a notice' ((Cmd 'uitext DrawError') -match "text='이 탭을 그리지 못했습니다: InvalidOperationException: test-exception'") (Cmd 'uitext DrawError')
     Press 'Tab0' | Out-Null
     Check 'the next draw is normal' ((IsAt 'Restore') -and (Cmd 'uipos DrawError') -match 'no element named')
     Press 'Close' | Out-Null
     Check 'no trampoline line in the log' ((Traps) -eq $traps)
-    $w = @(ModWarnings) | Select-Object -Skip $w0
-    Check 'exactly one button error and one draw error were logged' ($w.Count -eq 2) ($w -join ' | ')
+    Check 'one button error and one draw error were logged' ((TestErrors) -eq $e0 + 2) "test-exception lines $e0 -> $(TestErrors)"
+    Check 'no other warning from the mod' (@(ModWarnings).Count -eq $w0) ((ModWarnings) -join ' | ')
   }
   'backup' {
     # 05 문서 48절(C5): 백업 없이 쓰던 세 곳이 쓰기 전에 백업한다. EnsureOnce는 한 실행에 한 번이라 항목마다 bkreset으로 기록을 지운다.
@@ -1535,13 +1536,14 @@ switch ($Part) {
 
     # 화폐 탭의 명성: 추가량만큼 오르고 저장값(reputation)과 같다
     $fame0 = if ((Cmd 'fame' 100) -match 'saved=(-?\d+)') { [int]$Matches[1] } else { -999 }
+    $fstep = if ((Cmd 'uitext CurrencyAddFame') -match "text='\+ (\d+)'") { [int]$Matches[1] } else { 10 }   # 지급 수량(AmountBar item)을 따른다
     Check 'the fame row shows the saved value' ((TextIn 'CurrencyOwnedFame') -eq "$fame0") "row=$(TextIn 'CurrencyOwnedFame') saved=$fame0"
     Press 'CurrencyAddFame' | Out-Null
     $o = Cmd 'fame' 100
-    Check 'fame rises by the amount' ($o -match "saved=$($fame0 + 10) value=$($fame0 + 10)\b") $o
-    Check 'the fame row is redrawn' ((TextIn 'CurrencyOwnedFame') -eq "$($fame0 + 10)")
+    Check 'fame rises by the amount' ($o -match "saved=$($fame0 + $fstep) value=$($fame0 + $fstep)\b") $o
+    Check 'the fame row is redrawn' ((TextIn 'CurrencyOwnedFame') -eq "$($fame0 + $fstep)")
     $hist = @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Select-Object -Last 3) -join "`n"
-    Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + 10)") $hist
+    Check 'the fame change is in the change log' ($hist -match "명성\s+$fame0 -> $($fame0 + $fstep)") $hist
 
     # 자원 탭(38절의 덧붙임, 사용자 지시 2026-10-15): 표에는 설명 열이 없고 줄은 한 줄 높이로 쌓인다.
     # 설명은 줄을 누르면 아래 칸에 나오고, 긴 설명도 잘리지 않는다(칸 안에서 스크롤)

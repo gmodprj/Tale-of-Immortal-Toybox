@@ -499,7 +499,7 @@ namespace MOD_sWP6UL
             Ui.Button("Tab" + SafetyNumber, titleRight, safety ? "돌아가기" : "안전", 64, 0, 96, 36, new Action(ToggleSafety), true, safety);
 #if DEVTOOLS
             // 개발 전용: 단추 콜백의 예외가 결과 칸에 보이는지 검사한다(ui-check.ps1의 errors).
-            Ui.Button("DevThrow", titleRight, "오류", 0, 0, 56, 36, new Action(() => { throw new InvalidOperationException("시험 예외"); }));
+            Ui.Button("DevThrow", titleRight, "오류", 0, 0, 56, 36, new Action(() => { throw new InvalidOperationException("test-exception"); }));
 #endif
             DrawMessage();
             if (!EditService.WorldReady)
@@ -522,7 +522,7 @@ namespace MOD_sWP6UL
                 if (DevFailDraw)
                 {
                     DevFailDraw = false;
-                    throw new InvalidOperationException("시험 예외");
+                    throw new InvalidOperationException("test-exception");
                 }
 #endif
                 tabs[tab].Render(content);

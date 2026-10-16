@@ -23,7 +23,8 @@ function Shot([string]$name) {
 # 모드가 로그에 남긴 경고·오류 줄. 로그의 한글은 UTF-8이 아니어서(CP949) 문구로 찾을 수 없다.
 # 정상 줄(Init, Destroy, state, 단축키 안내)이 아닌 "[TlToybox] " 줄을 고른다. 명령과 변경 이력은 "[TlToybox][...]"이라 걸리지 않는다.
 function ModWarnings {
-  Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] ' -and $_ -notmatch '\[TlToybox\] (Init|Destroy|state: |translations: )' -and $_ -notmatch ': (Insert|F2|F3)\s*$' }
+  # 검사 errors가 일부러 내는 시험 예외(test-exception)의 줄은 경고로 세지 않는다.
+  Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] ' -and $_ -notmatch '\[TlToybox\] (Init|Destroy|state: |translations: )' -and $_ -notmatch ': (Insert|F2|F3)\s*$' -and $_ -notmatch 'InvalidOperationException: test-exception' }
 }
 # 버튼 콜백 안의 예외는 화면에 나오지 않고 로그의 "trampoline" 줄에만 남는다. 그 줄의 수.
 function Traps { @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'trampoline' }).Count }

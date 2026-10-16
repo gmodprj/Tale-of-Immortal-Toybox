@@ -435,8 +435,9 @@ namespace MOD_sWP6UL
             Ui.Label(content, have.ToString(), RightX + 154, y, 100, 38, 18).gameObject.name = "CurrencyOwnedFame";
             Ui.Button("CurrencyAddFame", content, "+ " + amount, RightX + 260, y + 2, 120, 34, new Action(() =>
                 Say(EditService.SetAttribute(Player, fame, fame.Get(Player.data.unitData.propertyData) + amount))));
-            Ui.Label(content, "인물의 속성입니다(능력치 탭 > 개인 속성의 명성과 같은 값). 상점의 \"명성 N 도달 필요\" 조건에 쓰입니다. 아래 재화는 가방 칸을 차지하지 않습니다.",
-                RightX + 392, y, RightW - 392, 38, 14).color = Ui.Dim;
+            // 안내는 두 줄로 줄바꿈한다(한 줄에는 들어가지 않는다. 회차 ws-1017f의 캡처).
+            Ui.Wrapped(content, "인물의 속성입니다(능력치 탭 > 개인 속성의 명성과 같은 값). 상점의 \"명성 N 도달 필요\" 조건에 쓰입니다. 아래 재화는 가방 칸을 차지하지 않습니다.",
+                RightX + 392, y, RightW - 392, 40, 14, TextAnchor.UpperLeft).color = Ui.Dim;
             return y + 44;
         }
 
