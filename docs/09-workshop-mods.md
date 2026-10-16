@@ -1,4 +1,4 @@
-# 09. 창작마당 모드 등록부 (생성 2026-10-16 13:47)
+# 09. 창작마당 모드 등록부 (생성 2026-10-16 14:55)
 
 이 문서는 pwsh tools/workshop.ps1 -Doc 이 만든다. 손으로 고치지 않는다. 고치려면 tools/workshop/mods.txt 와 history.txt 를 고친 뒤 다시 돌린다. 설계: docs/superpowers/specs/2026-10-16-workshop-expand-design.md 3.4절.
 게임 폴더 E:\Games\Tale of Immortal, SteamCMD E:\SteamCmd\steamcmd.exe, 받은 자리 E:\SteamCmd\steamapps\workshop\content\1468810.
@@ -104,4 +104,4 @@
 
 ## 6. 한글화
 
-- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: 59행. 모드별 상태는 한글화(K)에서 정한다.
+- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: 824행. 모드별 상태는 한글화(K)에서 정한다.
