@@ -10,6 +10,9 @@ namespace MOD_sWP6UL
     //   rzh [표 이름|all] [최대 줄]   g.conf의 표마다 _allConfList의 줄을 돌며 글자 속성(string)에 한자가 든 것을 모은다.
     //                                 LocalText는 모드 행(isModExtend)의 kr만 본다(ch는 원문이라 뺀다).
     //                                 결과: .devremote\zh-<표 이름>.txt (표\t속성\tid\t글, 같은 표·속성·글은 한 번), 돌려주는 줄은 표별 수.
+    //   rzhtext <원문…>              번역표(TextTranslationService.Replacer)로 그 글을 바꿔 본다. 띄어쓰기는 한 칸으로 이어 붙이고 "\n" 두 글자는 줄바꿈.
+    //                                 돌려주는 줄: changed=<참/거짓> <결과>(줄바꿈은 다시 "\n").
+    //   rzhstat                       번역표 적용 요약(file= rows= tables= cells=)과 화면 글 치환 통계(patched= calls= replaced= ms=).
     internal static class DevCommandsZh
     {
         public static string Execute(string[] p)
@@ -18,9 +21,26 @@ namespace MOD_sWP6UL
             {
                 case "rzh":
                     return Scan(p.Length > 1 ? p[1] : "all", p.Length > 2 ? int.Parse(p[2]) : 0);
+                case "rzhtext":
+                    return Translate(p);
+                case "rzhstat":
+                    return TextTranslationService.LastSummary + " | " + TextPatch.Stats();
                 default:
                     return null;
             }
+        }
+
+        private static string Translate(string[] p)
+        {
+            TextReplacer replacer = TextTranslationService.Replacer;
+            if (replacer == null)
+            {
+                return "replacer=null";
+            }
+            string text = string.Join(" ", p, 1, p.Length - 1).Replace("\\n", "\n");
+            bool changed;
+            string result = replacer.Replace(text, out changed);
+            return "changed=" + changed + " " + result.Replace("\r", "").Replace("\n", "\\n");
         }
 
         public static bool HasChinese(string text)

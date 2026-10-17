@@ -21,6 +21,16 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] translations failed: " + e.GetType().Name + ": " + e.Message);
             }
+            try
+            {
+                // LocalText 밖 중국어 글(05 문서 53·54절): 표 칸 바꿔 끼우기 뒤 화면 글 치환을 건다.
+                TextTranslationService.Apply();
+                TextPatch.Ensure();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] texts failed: " + e.GetType().Name + ": " + e.Message);
+            }
             BattleService.OnInit();
 #if DEVTOOLS
             StartDevPoll();

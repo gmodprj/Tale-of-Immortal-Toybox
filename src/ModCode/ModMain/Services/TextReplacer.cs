@@ -56,6 +56,13 @@ namespace MOD_sWP6UL
             return false;
         }
 
+        // 글 전체가 원문과 같을 때만 한국어를, 아니면 null을 돌려준다(부분 치환 없음). 표 칸 바꿔 끼우기가 쓴다.
+        public string Whole(string text)
+        {
+            string found;
+            return !string.IsNullOrEmpty(text) && whole.TryGetValue(text, out found) ? found : null;
+        }
+
         public string Replace(string text, out bool changed)
         {
             changed = false;

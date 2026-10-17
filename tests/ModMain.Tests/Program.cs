@@ -159,6 +159,8 @@ namespace MOD_sWP6UL
             Check("zh: text without CJK returns same instance", object.ReferenceEquals(zh.Replace(same, out changed), same) && !changed);
             Check("zh: null and empty pass through", zh.Replace(null, out changed) == null && !changed && zh.Replace("", out changed) == "" && !changed);
             Check("zh: count and empty map", zh.Count == 6 && new TextReplacer(new Dictionary<string, string>()).Replace("变身", out changed) == "变身" && !changed);
+            // Whole: 표 칸 바꿔 끼우기(TextTranslationService.ApplyTable)가 쓴다. 글 전체가 원문과 같을 때만 한국어, 아니면 null(부분 치환 없음).
+            Check("zh: Whole returns the value only for an exact key", zh.Whole("无") == "없음" && zh.Whole("幽莹") == "유영" && zh.Whole("变身技-幽莹（未解锁）") == null && zh.Whole("") == null && zh.Whole(null) == null);
         }
     }
 }
