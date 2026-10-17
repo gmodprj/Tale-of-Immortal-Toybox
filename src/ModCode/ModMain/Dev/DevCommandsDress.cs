@@ -31,6 +31,8 @@ namespace MOD_sWP6UL
                     return Props(int.Parse(p[1]));
                 case "rsetbody":
                     return SetPlayerBody(int.Parse(p[1]));
+                case "ruigrid":
+                    return UiGrid(p.Length > 1 ? p[1] : "srItems", p.Length > 2 && p[2] == "all");
                 case "rnpcinfo":
                     return NpcInfo(p.Length > 1 ? p[1] : "", p.Length > 2 ? p[2] : "");
                 case "ropenui":
@@ -267,6 +269,56 @@ namespace MOD_sWP6UL
                 current = property.GetValue(current, null);
             }
             return current == null ? "null" : current.ToString();
+        }
+
+        // 화면에 떠 있는 스크롤 목록(이름에 scrollName이 든 ScrollRect의 Viewport/Content)의 칸마다 그림(Image)의 스프라이트 상태를 적는다.
+        // 캐릭터 만들기의 의복 목록(G:srItems) 확인용: 칸 이름(의상 줄 번호)과 그림의 이름·텍스처 크기. 기본은 그림이 없는 칸만, all이면 전부.
+        private static string UiGrid(string scrollName, bool all)
+        {
+            Transform content = null;
+            foreach (Transform t in Resources.FindObjectsOfTypeAll<Transform>())
+            {
+                if (t.name == "Content" && t.parent != null && t.parent.name == "Viewport" && t.parent.parent != null
+                    && t.parent.parent.name.Contains(scrollName) && t.gameObject.scene.IsValid())
+                {
+                    content = t;
+                    break;
+                }
+            }
+            if (content == null)
+            {
+                return "no scroll content for " + scrollName;
+            }
+            var sb = new StringBuilder();
+            int total = 0, blank = 0;
+            for (int i = 0; i < content.childCount; i++)
+            {
+                Transform cell = content.GetChild(i);
+                total++;
+                var images = cell.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+                string best = "noimage";
+                bool hasPicture = false;
+                for (int k = 0; k < images.Length; k++)
+                {
+                    Sprite sprite = images[k].sprite;
+                    // 칸의 틀(Image·G:goFaceBg·Image_Selected)이 아닌 그림(의복 목록은 G:imgPart)에 8×8보다 큰 스프라이트가 있으면 그림이 있는 칸으로 본다.
+                    if (images[k].name != "Image_Selected" && images[k].name != "Image" && images[k].name != "G:goFaceBg"
+                        && sprite != null && sprite.texture != null && sprite.texture.width > 8)
+                    {
+                        hasPicture = true;
+                    }
+                    best += "|" + images[k].name + ":" + Describe("", sprite);
+                }
+                if (!hasPicture)
+                {
+                    blank++;
+                }
+                if (all || !hasPicture)
+                {
+                    sb.Append(cell.name).Append('=').Append(best.Length > 160 ? best.Substring(0, 160) : best).Append(';');
+                }
+            }
+            return "cells=" + total + " blank=" + blank + " " + sb;
         }
 
         // NPC 정보 창(UINPCInfo)을 열어 이름이 맞는 유닛을 보여 준다. 창의 멤버 이름을 소스에서 모르므로, WorldUnitBase를 받는 속성·메서드를
