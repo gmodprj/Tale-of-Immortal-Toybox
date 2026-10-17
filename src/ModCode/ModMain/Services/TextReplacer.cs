@@ -5,6 +5,7 @@ namespace MOD_sWP6UL
 {
     // 원문 기반 치환의 순수 규칙(스펙 docs/superpowers/specs/2026-10-17-zh-text-korean-design.md 3.3절). 게임을 모르므로 tests/ModMain.Tests가 링크한다.
     // 사전(원문→한국어)으로 (1) 글 전체가 원문과 같으면 그 한국어, (2) 아니면 길이 2 이상의 원문을 긴 것부터 부분 치환한다. 한자가 없는 글은 그대로 돌려준다.
+    // 부분 치환은 한자가 하나도 남지 않을 때만 쓴다. 남으면 원문 그대로(반쯤 바뀐 글을 보이지 않기 위해. 남은 글은 TextPatch.Leftover가 모은다).
     internal sealed class TextReplacer
     {
         private readonly Dictionary<string, string> whole;
@@ -84,7 +85,7 @@ namespace MOD_sWP6UL
                     result = result.Replace(partial[i].Key, partial[i].Value);
                 }
             }
-            changed = !ReferenceEquals(result, text) && result != text;
+            changed = !ReferenceEquals(result, text) && result != text && !HasChinese(result);
             return changed ? result : text;
         }
     }

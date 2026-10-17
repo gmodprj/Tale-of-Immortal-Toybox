@@ -125,7 +125,7 @@ namespace MOD_sWP6UL
                     catch (Exception e)
                     {
                         errors++;
-                        detail.Append(' ').Append(target[0]).Append("=ERROR(").Append(e.GetType().Name).Append(')');
+                        detail.Append(' ').Append(target[0]).Append("=ERROR(").Append(e.GetType().Name).Append(": ").Append(e.Message).Append(')');
                     }
                 }
             }
@@ -143,7 +143,8 @@ namespace MOD_sWP6UL
             {
                 return -1;
             }
-            PropertyInfo listProperty = conf.GetType().GetProperty("allConfList") ?? conf.GetType().GetProperty("_allConfList");
+            // _allConfList가 List<T>다. allConfList는 localText 말고는 IReadOnlyList<T> 래퍼라 Count·Item을 반사로 못 찾는다(회차 zh-1017b에서 NullReferenceException).
+            PropertyInfo listProperty = conf.GetType().GetProperty("_allConfList") ?? conf.GetType().GetProperty("allConfList");
             object list = listProperty == null ? null : listProperty.GetValue(conf, null);
             if (list == null)
             {

@@ -14,6 +14,7 @@ namespace MOD_sWP6UL
     //                                 돌려주는 줄: changed=<참/거짓> <결과>(줄바꿈은 다시 "\n").
     //   rzhstat                       번역표 적용 요약(file= rows= tables= cells=)과 화면 글 치환 통계(patched= calls= replaced= ms=).
     //   rzhleft                       화면 글 치환 뒤에도 한자가 남은 글(TextPatch.Leftover)을 .devremote\zh-left.txt에 한 줄씩(줄바꿈은 "\n") 적는다.
+    //   rzhapply                      번역표를 다시 읽어 표 칸을 다시 바꿔 끼운다(TextTranslationService.Apply). 돌려주는 줄은 그 요약.
     internal static class DevCommandsZh
     {
         public static string Execute(string[] p)
@@ -28,6 +29,8 @@ namespace MOD_sWP6UL
                     return TextTranslationService.LastSummary + " | " + TextPatch.Stats();
                 case "rzhleft":
                     return Leftover();
+                case "rzhapply":
+                    return TextTranslationService.Apply();
                 default:
                     return null;
             }
