@@ -169,6 +169,7 @@ namespace MOD_sWP6UL
             // 종족 틀 DLL의 글은 줄바꿈을 두 글자 "\n"으로 넣고 TMP가 줄을 바꾼다(회차 zh-1017e: 변신 설명이 그대로 남음). 줄바꿈이 든 원문은 두 글자 꼴로도 맞춘다.
             var nl = new TextReplacer(new Dictionary<string, string> { { "秒\n变身效果：", "초\n변신 효과：" }, { "幽莹", "유영" } });
             Check("zh: a key with a newline also matches the two-char \\n form", nl.Replace("1秒\\n变身效果：幽莹", out changed) == "1초\\n변신 효과：유영" && changed && nl.Replace("1秒\n变身效果：幽莹", out changed) == "1초\n변신 효과：유영" && changed);
+            Check("zh: a key with a newline also matches CRLF", nl.Replace("1秒\r\n变身效果：幽莹", out changed) == "1초\r\n변신 효과：유영" && changed);
             // 전체 일치 전용 사전(LocalText의 ch→kr. 회차 zh-1017c: 불러오기 화면 모드가 원문 ch를 그대로 보여 준다): 글 전체가 같을 때만, 부분 치환에는 쓰지 않는다.
             var lt = new TextReplacer(new Dictionary<string, string> { { "幽莹", "유영" } }, new Dictionary<string, string> { { "修炼技能需要", "기술 수련" } });
             Check("zh: whole-only dictionary matches the whole text only", lt.Replace("修炼技能需要", out changed) == "기술 수련" && changed && lt.Replace("修炼技能需要幽莹", out changed) == "修炼技能需要幽莹" && !changed && lt.Count == 1 && lt.WholeOnlyCount == 1);

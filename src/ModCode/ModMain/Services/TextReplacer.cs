@@ -33,8 +33,9 @@ namespace MOD_sWP6UL
                     Add(list, pair.Key, pair.Value);
                     if (pair.Key.IndexOf('\n') >= 0)
                     {
-                        // 모드 DLL의 글은 줄바꿈을 두 글자 "\n"으로 넣기도 한다(TMP가 줄을 바꾼다. 회차 zh-1017e). 그 꼴도 같은 번역으로.
+                        // 모드 DLL의 글은 줄바꿈을 두 글자 "\n"(TMP가 줄을 바꾼다. 회차 zh-1017e)이나 CRLF로 넣기도 한다. 그 꼴도 같은 번역으로.
                         Add(list, pair.Key.Replace("\n", "\\n"), pair.Value.Replace("\n", "\\n"));
+                        Add(list, pair.Key.Replace("\n", "\r\n"), pair.Value.Replace("\n", "\r\n"));
                     }
                 }
             }

@@ -41,7 +41,8 @@ namespace MOD_sWP6UL
             var lines = new StringBuilder();
             foreach (string text in TextPatch.Leftover)
             {
-                lines.Append(text.Replace("\r", "").Replace("\n", "\\n")).Append('\n');
+                // 글 속의 역슬래시는 \\, CR은 \r, 줄바꿈은 \n. 모드 DLL이 넣은 두 글자 "\n"(TMP가 줄을 바꿈)과 실제 줄바꿈을 구별하기 위해서다.
+                lines.Append(text.Replace("\\", "\\\\").Replace("\r", "\\r").Replace("\n", "\\n")).Append('\n');
             }
             string path = Path.Combine(DevCommands.Dir, "zh-left.txt");
             File.WriteAllText(path, lines.ToString(), Encoding.UTF8);
