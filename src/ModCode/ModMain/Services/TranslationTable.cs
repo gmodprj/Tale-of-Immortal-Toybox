@@ -41,9 +41,15 @@ namespace MOD_sWP6UL
                     broken++;
                     continue;
                 }
-                map[key.Replace("\\n", "\n")] = line.Substring(tab + 1).Trim().Replace("\\n", "\n");
+                map[Unescape(key)] = Unescape(line.Substring(tab + 1).Trim());
             }
             return map;
+        }
+
+        // "\n"은 줄바꿈, "\_"는 공백(앞뒤 공백은 지우므로, 조각 번역의 끝 공백을 적는 길. texts.txt).
+        private static string Unescape(string text)
+        {
+            return text.Replace("\\n", "\n").Replace("\\_", " ");
         }
 
         // 내장본(embedded, 줄바꿈 구분)의 줄 가운데 파일(fileLines)에 없는 키의 줄. 같은 키가 내장본에 두 번이면 앞의 것만.

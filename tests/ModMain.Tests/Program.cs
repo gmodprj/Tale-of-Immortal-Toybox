@@ -142,6 +142,9 @@ namespace MOD_sWP6UL
             Check("table: KeyOf trims the key and a trailing CR", TranslationTable.KeyOf("k \tv\r") == "k");
             // texts.txt(원문 기반)의 라벨 원문에는 줄바꿈이 든다("秒\n变身效果："). 키의 "\n" 두 글자도 줄바꿈으로 푼다.
             Check("table: key unescapes \\n like the value", TranslationTable.Parse(new[] { "秒\\n变身效果：\t초\\n변신 효과: " }, out broken).ContainsKey("秒\n变身效果："));
+            // 앞뒤 공백은 지우므로, 조각 번역의 끝 공백("보호막의 " + 숫자)은 "\_"로 적는다. 키에도 같이 적용한다.
+            string spaced;
+            Check("table: \\_ keeps a leading or trailing space", TranslationTable.Parse(new[] { "a\\_\t\\_b\\_" }, out broken).TryGetValue("a ", out spaced) && spaced == " b ");
             List<string> missing = TranslationTable.MissingLines(new[] { "a\t1", "# c", "nokey" }, "a\t2\r\nb\t3\n# z\nb\t4\n\nc\t5");
             Check("table: MissingLines keeps only the first embedded line of each new key", missing.Count == 2 && missing[0] == "b\t3" && missing[1] == "c\t5", string.Join("|", missing));
             Check("table: MissingLines of a null embedded text is empty", TranslationTable.MissingLines(new string[0], null).Count == 0);
