@@ -6,13 +6,20 @@ namespace MOD_sWP6UL
     // 원문 기반 치환의 순수 규칙(스펙 docs/superpowers/specs/2026-10-17-zh-text-korean-design.md 3.3절). 게임을 모르므로 tests/ModMain.Tests가 링크한다.
     // 사전(원문→한국어)으로 (1) 글 전체가 원문과 같으면 그 한국어, (2) 아니면 길이 2 이상의 원문을 긴 것부터 부분 치환한다. 한자가 없는 글은 그대로 돌려준다.
     // 부분 치환은 한자가 하나도 남지 않을 때만 쓴다. 남으면 원문 그대로(반쯤 바뀐 글을 보이지 않기 위해. 남은 글은 TextPatch.Leftover가 모은다).
+    // 전체 일치 전용 사전(wholeOnly. LocalText의 ch→kr)은 글 전체가 같을 때만 쓰고 부분 치환에는 쓰지 않는다(5만 줄이라 느리고, 짧은 원문이 엉뚱한 데 끼어들므로).
     internal sealed class TextReplacer
     {
         private readonly Dictionary<string, string> whole;
+        private readonly Dictionary<string, string> wholeOnly;
         private readonly KeyValuePair<string, string>[] partial;   // 길이 내림차순, 같은 길이는 서수 오름차순
 
-        public TextReplacer(Dictionary<string, string> map)
+        public TextReplacer(Dictionary<string, string> map) : this(map, null)
         {
+        }
+
+        public TextReplacer(Dictionary<string, string> map, Dictionary<string, string> wholeOnlyMap)
+        {
+            wholeOnly = wholeOnlyMap ?? new Dictionary<string, string>(StringComparer.Ordinal);
             whole = new Dictionary<string, string>(StringComparer.Ordinal);
             var list = new List<KeyValuePair<string, string>>();
             if (map != null)
@@ -39,6 +46,11 @@ namespace MOD_sWP6UL
             get { return whole.Count; }
         }
 
+        public int WholeOnlyCount
+        {
+            get { return wholeOnly.Count; }
+        }
+
         // 한자(CJK 통합 한자 본구역·확장 A)가 하나라도 있는지. 한글·가나·전각 기호만 있으면 거짓.
         public static bool HasChinese(string text)
         {
@@ -61,18 +73,22 @@ namespace MOD_sWP6UL
         public string Whole(string text)
         {
             string found;
-            return !string.IsNullOrEmpty(text) && whole.TryGetValue(text, out found) ? found : null;
+            if (string.IsNullOrEmpty(text))
+            {
+                return null;
+            }
+            return whole.TryGetValue(text, out found) || wholeOnly.TryGetValue(text, out found) ? found : null;
         }
 
         public string Replace(string text, out bool changed)
         {
             changed = false;
-            if (string.IsNullOrEmpty(text) || whole.Count == 0 || !HasChinese(text))
+            if (string.IsNullOrEmpty(text) || (whole.Count == 0 && wholeOnly.Count == 0) || !HasChinese(text))
             {
                 return text;
             }
-            string found;
-            if (whole.TryGetValue(text, out found))
+            string found = Whole(text);
+            if (found != null)
             {
                 changed = found != text;
                 return found;

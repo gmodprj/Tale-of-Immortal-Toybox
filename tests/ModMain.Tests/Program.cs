@@ -163,6 +163,9 @@ namespace MOD_sWP6UL
             Check("zh: count and empty map", zh.Count == 6 && new TextReplacer(new Dictionary<string, string>()).Replace("变身", out changed) == "变身" && !changed);
             // 부분 치환은 한자가 하나도 남지 않을 때만 쓴다(반쯤 바뀐 글을 보이지 않기 위해. 회차 zh-1017b에서 "苏烬棠"→"苏신당", 게임 패치 노트의 "筑基境"만 바뀜).
             Check("zh: partial result is dropped when CJK remains", zh.Replace("变身技-幽莹（未解锁）未知", out changed) == "变身技-幽莹（未解锁）未知" && !changed);
+            // 전체 일치 전용 사전(LocalText의 ch→kr. 회차 zh-1017c: 불러오기 화면 모드가 원문 ch를 그대로 보여 준다): 글 전체가 같을 때만, 부분 치환에는 쓰지 않는다.
+            var lt = new TextReplacer(new Dictionary<string, string> { { "幽莹", "유영" } }, new Dictionary<string, string> { { "修炼技能需要", "기술 수련" } });
+            Check("zh: whole-only dictionary matches the whole text only", lt.Replace("修炼技能需要", out changed) == "기술 수련" && changed && lt.Replace("修炼技能需要幽莹", out changed) == "修炼技能需要幽莹" && !changed && lt.Count == 1 && lt.WholeOnlyCount == 1);
             // Whole: 표 칸 바꿔 끼우기(TextTranslationService.ApplyTable)가 쓴다. 글 전체가 원문과 같을 때만 한국어, 아니면 null(부분 치환 없음).
             Check("zh: Whole returns the value only for an exact key", zh.Whole("无") == "없음" && zh.Whole("幽莹") == "유영" && zh.Whole("变身技-幽莹（未解锁）") == null && zh.Whole("") == null && zh.Whole(null) == null);
         }

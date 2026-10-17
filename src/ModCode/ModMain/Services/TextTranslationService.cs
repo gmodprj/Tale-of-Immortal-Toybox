@@ -105,7 +105,20 @@ namespace MOD_sWP6UL
                 file = "읽기 실패 " + e.GetType().Name + ": " + e.Message;
                 map = new Dictionary<string, string>();
             }
-            Replacer = new TextReplacer(map);
+            // LocalText의 원문(ch)→한국어(kr). 모드가 kr 대신 ch를 그대로 화면에 낼 때(회차 zh-1017c: 불러오기 화면의 팁·"下一条提示") 글 전체가 같으면 게임의 한국어를 쓴다.
+            Dictionary<string, string> localText;
+            string lt;
+            try
+            {
+                localText = LocalTextMap();
+                lt = localText.Count.ToString();
+            }
+            catch (Exception e)
+            {
+                localText = null;
+                lt = "ERROR(" + e.GetType().Name + ")";
+            }
+            Replacer = new TextReplacer(map, localText);
             int tables = 0, cells = 0, errors = 0;
             var detail = new StringBuilder();
             if (Replacer.Count > 0)
@@ -129,9 +142,33 @@ namespace MOD_sWP6UL
                     }
                 }
             }
-            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail;
+            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail;
             MelonLogger.Msg("[TlToybox] texts: " + LastSummary);
             return LastSummary;
+        }
+
+        // LocalText 행 가운데 ch에 한자가 있고 kr이 한국어(비어 있지 않고, ch와 다르고, 한자가 없음)인 것의 ch→kr. 같은 ch는 앞의 행.
+        // TranslationService.Apply 뒤에 부르므로 모드 행의 kr은 mods.txt의 한국어다.
+        private static Dictionary<string, string> LocalTextMap()
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            var all = g.conf.localText.allConfList;
+            for (int i = 0; i < all.Count; i++)
+            {
+                ConfLocalTextItem item = all[i];
+                if (item == null)
+                {
+                    continue;
+                }
+                string ch = item.ch;
+                string kr = item.kr;
+                if (string.IsNullOrEmpty(ch) || string.IsNullOrEmpty(kr) || kr == ch || kr == "0" || !TextReplacer.HasChinese(ch) || TextReplacer.HasChinese(kr) || result.ContainsKey(ch))
+                {
+                    continue;
+                }
+                result[ch] = kr;
+            }
+            return result;
         }
 
         // 표 하나의 대상 칸을 바꿔 끼운다. 표가 없으면 -1, 있으면 바꾼 칸 수. 글에 한자가 있고 사전에 원문 전체와 같은 줄이 있을 때만(부분 치환 없음).

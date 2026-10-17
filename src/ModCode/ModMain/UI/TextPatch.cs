@@ -27,7 +27,7 @@ namespace MOD_sWP6UL
                 return Failure;
             }
             TextReplacer replacer = TextTranslationService.Replacer;
-            if (replacer == null || replacer.Count == 0)
+            if (replacer == null || (replacer.Count == 0 && replacer.WholeOnlyCount == 0))
             {
                 return null;
             }
