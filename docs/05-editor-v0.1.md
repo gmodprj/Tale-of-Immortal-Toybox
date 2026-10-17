@@ -2452,3 +2452,39 @@
 - `IsPointerOverGameObject`를 참으로 돌리는 패치는 게임의 다른 코드에도 영향을 준다(창 위에서는 모두 "UI 위"). 의도한 뜻이지만 전투 장면은 보지 않았다.
 - 게임 화면이 편집기를 가린 상태에서 가려진 창 자리에 휠을 돌리면 지도가 확대되지 않는다(게임 자체 창 위에서는 원래 확대된다).
 - 주소 표는 `Assembly-CSharp`·`UnityEngine.CoreModule`·`InputLegacyModule`·`UIModule`·`UnityEngine.UI`·`Il2Cppmscorlib`만 담는다. DOTween 등 다른 어셈블리의 대상은 주소로만 나온다.
+## 52. 입화 몸 그림 누락 조사: Fatury 모드 목록, 깨진 자산 (2026-10-17 추가)
+
+사용자 보고(2026-10-17 아침, 화면 첨부): NPC 호청의의 몸(입화)이 비어 보인다, "누락된 모드가 있는지 전체 모드 확인해서 누락된 부분 체크". 이어서 "캐릭 만들 때 보니 100번대 중반부터 200번대 초반까지 전부 깨진다". 브랜치 `feat/body-portrait-check`(워크트리. 같은 시간에 `fix/editor-input-leak` 세션이 본 체크아웃을 쓰고 있었다).
+
+### 오프라인 조사(게임을 켜지 않고 로그·파일만)
+
+- **창작마당 필수 항목은 빠진 것이 없다.** 설치 34개의 항목 페이지(`id="RequiredItems"` 블록)를 읽었다: 2815562168 → Fatury(2814703549), 2832340752 → 도감 틀(2948618136), 둘 다 설치됨. 5개(2818763591·3508355457·3502554970·2824722053·2905956493)는 연령 확인 문 때문에 블록을 못 읽었고(설명서상 의존은 2818763591의 Fatury뿐), 요청 제한(429)은 한 번에 20개쯤에서 걸려 6~20초 간격으로 나눠 읽었다.
+- **Fatury가 자산을 싣는 모드 목록이 게임이 읽은 모드보다 적다.** 게임은 `Player.log`(`%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Player.log`)에 `加载模组：…\<ID>\ModExportData.cache` 35줄(34 + 편집기)을 남기는데, Fatury는 `Latest.log`에 `[Fatury] E:\…\ModExportData\<ID>\ModAssets\Fatury` 줄로 훑은 폴더를 적고 그 수가 다르다. 사용자 세션(07:15)은 24개로 3차 모드 11개(3426669627·3471565500·3492065971·3502554970·3508355457·3662905899·2818763591·2819617569·2905956493·2824722053·2833549873)가 빠졌고, 고정본 회차(08:15·08:37, 다른 세션)는 `Mod_sWP6UL` 하나뿐이었다. `Fatury.dll`의 문자열에 `ModMgr`·`get_mods`·`get_modFolderName`·`get_isLoad`가 있어 게임의 `GetLoadOrderData()`(`wsmods`의 `order=`)를 쓰는 것으로 보인다. 레지스트리 PlayerPrefs(`HKCU\Software\guigugame\guigubahuang`)의 `Mod_LoadData`는 `{"mods":[{"modFolderName":"Mod_sWP6UL","isLoad":true}]}` 하나뿐이다. 어느 저장소가 이 목록을 정하는지(세이브·전역 데이터·PlayerPrefs)는 아래 실측에서 본다.
+- **깨진 자산 둘.** 원작 여성 17명 입화 교체(2815562168)의 `Game/Portrait/Woman/Body/149/_child/sprite/image.png`는 PNG가 아니다(머리 바이트 `5c 00 00 00 01 00 00 00`, SteamCMD 원본과 같은 파일이라 제작자 패키지부터 깨짐). 시작 로그의 유일한 Fatury ERROR `Could not create sprite (0, 0, 1024, 1024) from a 8x8 texture`(`Fatury.pcw.Rework(GameObject template)` ← `PortraitPrefetch`)가 이 자산이며, 직전 줄이 `Prefetch: Game/Portrait/Woman/Body/149`다. [剑来] 정적 입화 확장(2818763591)의 `Body/141`은 `asset.yml`의 rect 648×848이 그림 600×848보다 커서 실리면 같은 예외가 난다.
+- **깨진 범위의 가설.** 2815562168의 정적 몸 132개는 이름 문자열 순서(101…111, 1116~1118, 112…149, 150…214, 2116~2118, 221, 224, 225, 3116…)로 처리되고 모두 같은 틀 `template: Game/Portrait/Woman/Body/101`을 쓴다. 149에서 예외가 나면 그 뒤(150~214·221·224·225)가 망가진 틀로 만들어져 사용자가 본 "100번대 중반부터 200번대 초반까지"와 맞는다. 회차에서 149를 잠시 빼고 켜면 가려진다.
+- **그 밖의 Fatury 경고.** 동적 머리카락 미화(2993500314)의 동적 머리 42개(`Hair/101~125`, `HairFront/1201~1208·1301~1303·1401~1406`)가 `Cache failed … The Object you want to instantiate is null`(틀이 될 원작 동적 머리가 없음)로 안 실린다 — 머리이지 몸이 아니다. 전환 화면 예제(2814806198)의 배경 6개는 `asset.yml`이 `1.png`를 가리키는데 폴더에는 `sprite.png`뿐이다. 이목구비 머리 장식(3001496635)의 `.dat`(머리 `89 44 41 54`)는 제작자 고유 형식이고 모드의 DLL이 다루며 오류가 없다.
+- **의복 3042030은 원작의 특수 의복**(3042xxx 148개가 창작마당 설치 전 10-14의 `dump-itemProps.txt`에 있음)이고 모드 아이템이 아니다. 편집기 변경 로그에는 호청의 가방에 넣은 기록(07:32)만 있다.
+- **[剑来](2818763591)는 의상 표만 적용되고 그림은 안 실릴 수 있다.** `ModExcel/patch_roledress/RoleDress.json`으로 여성 몸 215~322(와 137·140~144·151·158~160 덮어쓰기)를 더하고 그림은 `ModAssets/Fatury/Game/Portrait/Woman/Body/<n>`에 있다. 게임은 모든 모드의 ModExcel을 합치지만(3차 모드의 LocalText 키 5,451개가 `translations: … unused=0`으로 모두 있음) Fatury가 이 모드를 건너뛴 세션에서는 그 의상을 받은 NPC의 몸이 빈다.
+- 한 모드 안의 동적 몸도 겹친다: 동적 몸 101~214·221·224·225는 2815562168이 먼저 실어(117개) 3200319699는 나머지 31개(215~240·8101~8111)만 싣는다(`Load:` 줄). 2818763591의 정적 몸은 2815562168과 13개(137·140~144·151·158~160·221·224·225)가 겹치며 어느 쪽이 이기는지는 미확인.
+
+### 도구
+
+- `tools/research/fatury-scan.py [ModExportData]`: 모드마다 Fatury `asset.yml`이 가리키는 그림이 있는지·PNG인지·rect가 그림보다 큰지 검사(읽기만). 결과(2026-10-17): 모드 7개, sprite 463개, 문제 11건(위 149·141·배경 6·`.dat` 3).
+- `tools/research/fatury-log.py [Latest.log] [Player.log]`: Fatury가 훑은 모드 폴더와 게임이 읽은 모드의 수·차이, Fatury ERROR·WARNING 종류, 입화 층마다 어느 모드가 몇 개를 실었는지, 두 모드가 같은 번호를 실은 것. `Latest.log`는 CP949로 읽고 게임이 켜져 있어도 읽힌다.
+- 개발 명령(`DevCommandsDress.cs`, DEVTOOLS 전용): `rdress <id>`·`rdress list <sex> <type> [from] [to]`(의상 표 RoleDress의 `id`·`dressID`·`sex`·`type`·`name`·`active`·`weight`·`npcGrade`), `rbody <from> [to] [Woman|Man] [dyn]`(몸 그림 프리팹을 동기 `g.res.Load<GameObject>`로 읽음 — **Fatury 패치를 거치지 않아 원작 자산만 보인다**), `rbodyq …`/`rbodyr`(같은 범위를 게임이 쓰는 `g.res.LoadAsync`로 읽어 콜백 결과를 모음 — Fatury가 바꿔치기한 결과가 보인다. 스프라이트 이름·텍스처 크기·rect), `rbodyof <이름|*> [from] [to]`(유닛의 `propertyData.modelData.body`), `rprops <itemId>`(아이템 표의 정수·실수·글자 속성 전부), `rsetbody <줄번호>`(플레이어의 `modelData.body`. 화면은 안 바뀜 — 아래), `ropenui <UIType 이름>`/`rcloseui`(UIType의 정적 속성을 실행 시 찾아 `OpenUI`·`CloseUI`), `rnpcinfo <이름(공백은 _)> [InitData]`(NPC 정보 창 `UINPCInfo`를 열어 `unit`을 넣고 `InitData(unit, false)`를 부름. 화면 확인용).
+
+### 실측·검증(회차 `body-1017a`~`body-1017i`, 고정본 base, 개발 DLL, 2026-10-17 09:0x~09:5x)
+
+- **Fatury의 모드 목록은 게임의 저장된 모드 순서(PlayerPrefs `Mod_LoadData`)를 따른다.** 회차 `body-1017a`: 게임은 35개를 읽었지만(`wsmods loaded=35`, `paths` 35) `order=`는 `Mod_sWP6UL=True` 하나, Fatury 목록도 1개. 게임을 끈 채 레지스트리 `Mod_LoadData`에 35개(`isLoad:true`, 순서는 `mods.txt`의 설치 순서)를 쓰고 연 `body-1017b`: `order=` 35개 모두 True, Fatury 목록 35개, 종료 뒤에도 35개 유지(`SaveLoadOrderData`가 PlayerPrefs에 쓴다). 사용자 세션의 24개 상태도 같은 방법으로 재현된다(`body-1017h`). → 사용자 승인(2026-10-17)으로 **레지스트리를 35개 켠 상태로 두었다**(원래 값은 `.devremote\playerprefs-Mod_LoadData-before-body-1017a.txt`, 바꾼 값은 `…-after-body-1017b.txt`).
+- **149번은 Fatury가 예외를 내고 원작 101번 그림이 남는다.** `rbody 101 240`(동기)은 모드가 켜져도 원작 크기(101=589×725 …)만 보여 판정에 못 쓴다. `rbodyq 101 240`+`rbodyr`(비동기)은 Fatury가 바꾼 결과를 보여 준다: 101~103=589×725(모드 그림), 104~240=1024×1024·1200×1024·2048×2048 등 모드 그림(이름 빈 스프라이트), **149=`101/589x725`**(틀 자산 그대로). 150~240은 각자의 모드 그림이 들어 있어 **"149 뒤가 모두 깨진다"는 가설은 틀렸다.** 149 폴더를 빼고 켠 `body-1017b`에서는 ERROR가 없고 149도 1024×1024 모드 그림이 됐다(그 뒤 원상 복구). 동적 몸(`… dyn`) 101~240은 부위 스프라이트가 모두 있다(123의 빈 SpriteRenderer 하나는 원래 비어 있음).
+- **화면.** 플레이어 정보 창(`G:btnPlayer` 클릭)의 입화는 `modelData.body`를 바꿔도 안 바뀐다(캐시. `lastUpdateBody`는 0이라 그 때문이 아님). NPC 정보 창은 `rnpcinfo <이름> InitData`로 바로 그려진다: 동적 입화가 켜진 상태(`body-1017g`, 35개)와 사용자의 24개 상태(`body-1017h`)에서 몸 104·153·202·204·149(구 예·서문 훼·인 한·조 송우·앙 우진)가 모두 제대로 그려졌다. 동적 입화를 끈 상태(`body-1017i`, `GameSetting_dynPortraitEnabled2`=0, 끝나고 1로 복구)에서도 153·202·204·104는 제대로, **149(앙 우진)만 다른 옷(원작 101번)으로** 그려졌다. 화면은 `.devremote\body-1017g-*.png`·`body-1017h-*.png`·`body-1017i-*.png`.
+- 의상 표: 여성 `yifu` 362줄. 원작 `58001~58114`(dressID 101~214)에 이어 변형 `58115~58207`(1116·2116·3116·…·7xxx, active 0), 특수 `58208~58246`(218~243, 311~322. npcGrade 6·7과 weight 0·1이 섞임). 유닛의 `modelData.body`는 dressID가 아니라 **RoleDress 줄 번호**(여 58xxx, 남 18xxx)다. 고정본의 여성 1,449명 가운데 줄 58050~58114(dressID 150~214)가 356명. 원작 특수 의복 아이템 3042030은 `rdress 3042030`·`rprops`로는 줄을 못 찾았다(아이템→의상 줄의 대응은 미확인).
+- 원작 자산 범위: 모드가 하나도 안 켜진 `body-1017a`에서 동기 `rbody`로 정적 몸 101~240·1116~1118·3116~3118·8101~8103이 모두 있었다(원작이 240번까지 가짐). 3119~3130·3134~3136·3140~3142는 없음.
+- 회차 종료는 모두 `SAVE RESTORED AND IDENTICAL`(사용자 세이브 62파일 해시 일치도 따로 확인). 설치 DLL은 배포 빌드(1,080,832바이트)로 되돌아갔다.
+
+### 확인하지 못한 것, 한계
+
+- **사용자가 본 증상("100번대 중반부터 200번대 초반까지 전부 깨짐", 호청의 몸 비어 보임)은 고정본에서 재현되지 않았다.** 24개·35개 상태, 동적 켬·끔 모두 NPC 정보 창에서는 멀쩡했다. 남은 후보: 캐릭터 만들기 화면의 그리기 경로(회차에서 `ropenui CreatePlayer`로 열면 빈 틀만 나와 못 봄. 로그인 흐름으로만 열린다), 사용자 세이브의 NPC가 가진 모드 의상 줄(58208 이후·[剑来] 215~322), 사용자의 당시 모드 순서. 사용자가 35개 켠 상태로 다시 보고 어느 화면인지 알려 주면 그 경로를 본다.
+- 149번의 바른 그림을 보려면 모드의 `Body\149` 폴더를 빼야 한다(원작 149가 쓰임). 게임 폴더는 읽기 전용 규칙이라 사용자 결정. `workshop.ps1 -Install`의 `robocopy /MIR`가 되살리므로 뺀 뒤에는 설치 갱신 때마다 다시 빼야 한다(`mods.txt` 비고에 적음).
+- [剑来] `Body/141`의 rect 초과는 로그에 ERROR로 안 나왔다(141은 2815562168이 먼저 실어 [剑来]의 141은 쓰이지 않는 듯. 미확인).
+- 회차 이름: `body-1017a`(목록 비교·의상 표), `body-1017b`(35개+149 뺌, `-Restart`로 149 복구), `body-1017c`(비동기 탐침), `body-1017d`·`body-1017e`·`body-1017f`(화면 명령 다듬기), `body-1017g`(35개 화면), `body-1017h`(24개 화면), `body-1017i`(동적 끔 화면).
