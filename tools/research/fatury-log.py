@@ -1,4 +1,4 @@
-# Fatury 틀(창작마당 2814703549)이 자산을 싣는 모드 목록과 적재 결과를 로그에서 읽는다. 읽기만 한다(05 문서 51절).
+# Fatury 틀(창작마당 2814703549)이 자산을 싣는 모드 목록과 적재 결과를 로그에서 읽는다. 읽기만 한다(05 문서 52절).
 #   py -3 -I -X utf8 tools/research/fatury-log.py [MelonLoader\Latest.log 경로] [Player.log 경로]
 # 기본은 게임의 Latest.log(CP949)와 %USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Player.log(UTF-8).
 # 적는 것: (1) Fatury가 훑은 모드 폴더(…\ModAssets\Fatury 줄)와 게임이 읽은 모드(Player.log의 加载模组 줄)의 수·차이,

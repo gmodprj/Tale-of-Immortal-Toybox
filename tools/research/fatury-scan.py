@@ -1,5 +1,5 @@
 # 설치된 창작마당 모드의 Fatury 자산(ModAssets/Fatury)을 훑어, sprite asset.yml이 가리키는 그림 파일이 있는지·PNG가 맞는지·
-# rect 크기가 그림보다 큰지 검사한다. 읽기만 한다(05 문서 51절).
+# rect 크기가 그림보다 큰지 검사한다. 읽기만 한다(05 문서 52절).
 #   py -3 -I -X utf8 tools/research/fatury-scan.py [ModExportData 경로]
 # 깨진 그림(PNG 아님)이나 그림보다 큰 rect는 Fatury의 Sprite.Create에서 예외가 나고, 같은 틀(template)을 쓰는 뒤의 자산까지 깨뜨릴 수 있다.
 import os, re, struct, sys, collections

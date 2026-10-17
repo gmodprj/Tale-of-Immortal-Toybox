@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MOD_sWP6UL
 {
-    // 개발 전용. 입화 몸 그림의 조사(05 문서 51절). 의상 표(RoleDress)와 몸 그림 프리팹을 읽기만 한다.
+    // 개발 전용. 입화 몸 그림의 조사(05 문서 52절). 의상 표(RoleDress)와 몸 그림 프리팹을 읽기만 한다.
     //   rdress <id>                             RoleDress 한 줄(id·dressID·sex·type·className·name·active·weight·npcGrade·beauty)
     //   rdress list <sex> <type> [from] [to]    GetDressItem(sex, type)의 줄들. sex 1 남 2 여, type yifu 등. dressID가 from~to인 것만
     //   rbody <from> [to] [Woman|Man] [dyn]     Game/Portrait/<성별>/Body/<n>(dyn이면 PortraitDynamic)을 g.res로 읽어 프리팹과 그 안 그림의 상태
