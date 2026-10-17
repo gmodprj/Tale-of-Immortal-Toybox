@@ -30,10 +30,11 @@ namespace MOD_sWP6UL
                     {
                         continue;
                     }
-                    whole[pair.Key] = pair.Value;
-                    if (pair.Key.Length >= 2)
+                    Add(list, pair.Key, pair.Value);
+                    if (pair.Key.IndexOf('\n') >= 0)
                     {
-                        list.Add(pair);
+                        // 모드 DLL의 글은 줄바꿈을 두 글자 "\n"으로 넣기도 한다(TMP가 줄을 바꾼다. 회차 zh-1017e). 그 꼴도 같은 번역으로.
+                        Add(list, pair.Key.Replace("\n", "\\n"), pair.Value.Replace("\n", "\\n"));
                     }
                 }
             }
@@ -41,6 +42,20 @@ namespace MOD_sWP6UL
             partial = list.ToArray();
         }
 
+        private void Add(List<KeyValuePair<string, string>> list, string key, string value)
+        {
+            if (whole.ContainsKey(key))
+            {
+                return;
+            }
+            whole[key] = value;
+            if (key.Length >= 2)
+            {
+                list.Add(new KeyValuePair<string, string>(key, value));
+            }
+        }
+
+        // 번역표의 원문 수(두 글자 "\n" 꼴로 덧붙인 것 포함).
         public int Count
         {
             get { return whole.Count; }
