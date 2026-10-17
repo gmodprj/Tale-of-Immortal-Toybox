@@ -96,6 +96,11 @@ namespace MOD_sWP6UL
             {
                 return zh;
             }
+            string treasure = DevCommandsTreasure.Execute(p);
+            if (treasure != null)
+            {
+                return treasure;
+            }
             string translation = DevCommandsTranslation.Execute(p);
             if (translation != null)
             {
