@@ -46,6 +46,7 @@ namespace MOD_sWP6UL
             JsonTests();
             ExportFilesTests();
             TranslationTableTests();
+            TextReplacerTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -139,9 +140,41 @@ namespace MOD_sWP6UL
             Check("table: KeyOf of a comment, blank, no-tab or empty-key line is null",
                 TranslationTable.KeyOf("# x") == null && TranslationTable.KeyOf("") == null && TranslationTable.KeyOf("nokey") == null && TranslationTable.KeyOf(" \tv") == null && TranslationTable.KeyOf(null) == null);
             Check("table: KeyOf trims the key and a trailing CR", TranslationTable.KeyOf("k \tv\r") == "k");
+            // texts.txt(원문 기반)의 라벨 원문에는 줄바꿈이 든다("秒\n变身效果："). 키의 "\n" 두 글자도 줄바꿈으로 푼다.
+            Check("table: key unescapes \\n like the value", TranslationTable.Parse(new[] { "秒\\n变身效果：\t초\\n변신 효과: " }, out broken).ContainsKey("秒\n变身效果："));
+            // 앞뒤 공백은 지우므로, 조각 번역의 끝 공백("보호막의 " + 숫자)은 "\_"로 적는다. 키에도 같이 적용한다.
+            string spaced;
+            Check("table: \\_ keeps a leading or trailing space", TranslationTable.Parse(new[] { "a\\_\t\\_b\\_" }, out broken).TryGetValue("a ", out spaced) && spaced == " b ");
             List<string> missing = TranslationTable.MissingLines(new[] { "a\t1", "# c", "nokey" }, "a\t2\r\nb\t3\n# z\nb\t4\n\nc\t5");
             Check("table: MissingLines keeps only the first embedded line of each new key", missing.Count == 2 && missing[0] == "b\t3" && missing[1] == "c\t5", string.Join("|", missing));
             Check("table: MissingLines of a null embedded text is empty", TranslationTable.MissingLines(new string[0], null).Count == 0);
+        }
+
+        // TextReplacer(원문 기반 치환. 스펙 2026-10-17-zh-text-korean-design.md 3.3절).
+        private static void TextReplacerTests()
+        {
+            var zh = new TextReplacer(new Dictionary<string, string> { { "变身技-", "변신기-" }, { "变身技", "변신기" }, { "幽莹", "유영" }, { "无", "없음" }, { "（未解锁）", "(미해금)" }, { "体力{icon_tili}*<y>100</y>%", "체력{icon_tili}*<y>100</y>%" } });
+            bool changed;
+            Check("zh: HasChinese sees CJK only", TextReplacer.HasChinese("变身") && !TextReplacer.HasChinese("변신 abc") && !TextReplacer.HasChinese("") && !TextReplacer.HasChinese(null) && TextReplacer.HasChinese("a㐀b"));
+            Check("zh: whole match wins even for one char", zh.Replace("无", out changed) == "없음" && changed);
+            Check("zh: one-char key is not used for partial replace", zh.Replace("无敌", out changed) == "无敌" && !changed);
+            Check("zh: longer key first", zh.Replace("变身技-幽莹（未解锁）", out changed) == "변신기-유영(미해금)" && changed, zh.Replace("变身技-幽莹（未解锁）", out changed));
+            Check("zh: placeholders kept", zh.Replace("体力{icon_tili}*<y>100</y>%，幽莹", out changed) == "체력{icon_tili}*<y>100</y>%，유영" && changed);
+            string same = "변신기";
+            Check("zh: text without CJK returns same instance", object.ReferenceEquals(zh.Replace(same, out changed), same) && !changed);
+            Check("zh: null and empty pass through", zh.Replace(null, out changed) == null && !changed && zh.Replace("", out changed) == "" && !changed);
+            Check("zh: count and empty map", zh.Count == 6 && new TextReplacer(new Dictionary<string, string>()).Replace("变身", out changed) == "变身" && !changed);
+            // 부분 치환은 한자가 하나도 남지 않을 때만 쓴다(반쯤 바뀐 글을 보이지 않기 위해. 회차 zh-1017b에서 "苏烬棠"→"苏신당", 게임 패치 노트의 "筑基境"만 바뀜).
+            Check("zh: partial result is dropped when CJK remains", zh.Replace("变身技-幽莹（未解锁）未知", out changed) == "变身技-幽莹（未解锁）未知" && !changed);
+            // 종족 틀 DLL의 글은 줄바꿈을 두 글자 "\n"으로 넣고 TMP가 줄을 바꾼다(회차 zh-1017e: 변신 설명이 그대로 남음). 줄바꿈이 든 원문은 두 글자 꼴로도 맞춘다.
+            var nl = new TextReplacer(new Dictionary<string, string> { { "秒\n变身效果：", "초\n변신 효과：" }, { "幽莹", "유영" } });
+            Check("zh: a key with a newline also matches the two-char \\n form", nl.Replace("1秒\\n变身效果：幽莹", out changed) == "1초\\n변신 효과：유영" && changed && nl.Replace("1秒\n变身效果：幽莹", out changed) == "1초\n변신 효과：유영" && changed);
+            Check("zh: a key with a newline also matches CRLF", nl.Replace("1秒\r\n变身效果：幽莹", out changed) == "1초\r\n변신 효과：유영" && changed);
+            // 전체 일치 전용 사전(LocalText의 ch→kr. 회차 zh-1017c: 불러오기 화면 모드가 원문 ch를 그대로 보여 준다): 글 전체가 같을 때만, 부분 치환에는 쓰지 않는다.
+            var lt = new TextReplacer(new Dictionary<string, string> { { "幽莹", "유영" } }, new Dictionary<string, string> { { "修炼技能需要", "기술 수련" } });
+            Check("zh: whole-only dictionary matches the whole text only", lt.Replace("修炼技能需要", out changed) == "기술 수련" && changed && lt.Replace("修炼技能需要幽莹", out changed) == "修炼技能需要幽莹" && !changed && lt.Count == 1 && lt.WholeOnlyCount == 1);
+            // Whole: 표 칸 바꿔 끼우기(TextTranslationService.ApplyTable)가 쓴다. 글 전체가 원문과 같을 때만 한국어, 아니면 null(부분 치환 없음).
+            Check("zh: Whole returns the value only for an exact key", zh.Whole("无") == "없음" && zh.Whole("幽莹") == "유영" && zh.Whole("变身技-幽莹（未解锁）") == null && zh.Whole("") == null && zh.Whole(null) == null);
         }
     }
 }

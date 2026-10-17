@@ -22,7 +22,7 @@ namespace MOD_sWP6UL
             return key.Length == 0 ? null : key;
         }
 
-        // 줄들 → 사전. '#' 줄과 빈 줄은 무시, 탭이 없는 줄과 키가 빈 줄은 broken. 키·글의 앞뒤 공백을 지우고 "\n"을 줄바꿈으로. 같은 키는 뒤의 것.
+        // 줄들 → 사전. '#' 줄과 빈 줄은 무시, 탭이 없는 줄과 키가 빈 줄은 broken. 키·글의 앞뒤 공백을 지우고 "\n"을 줄바꿈으로(키도. texts.txt의 라벨 원문에 줄바꿈이 든다). 같은 키는 뒤의 것.
         public static Dictionary<string, string> Parse(IEnumerable<string> lines, out int broken)
         {
             var map = new Dictionary<string, string>();
@@ -41,9 +41,15 @@ namespace MOD_sWP6UL
                     broken++;
                     continue;
                 }
-                map[key] = line.Substring(tab + 1).Trim().Replace("\\n", "\n");
+                map[Unescape(key)] = Unescape(line.Substring(tab + 1).Trim());
             }
             return map;
+        }
+
+        // "\n"은 줄바꿈, "\_"는 공백(앞뒤 공백은 지우므로, 조각 번역의 끝 공백을 적는 길. texts.txt).
+        private static string Unescape(string text)
+        {
+            return text.Replace("\\n", "\n").Replace("\\_", " ");
         }
 
         // 내장본(embedded, 줄바꿈 구분)의 줄 가운데 파일(fileLines)에 없는 키의 줄. 같은 키가 내장본에 두 번이면 앞의 것만.

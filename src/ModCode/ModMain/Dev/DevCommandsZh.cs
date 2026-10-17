@@ -10,6 +10,11 @@ namespace MOD_sWP6UL
     //   rzh [표 이름|all] [최대 줄]   g.conf의 표마다 _allConfList의 줄을 돌며 글자 속성(string)에 한자가 든 것을 모은다.
     //                                 LocalText는 모드 행(isModExtend)의 kr만 본다(ch는 원문이라 뺀다).
     //                                 결과: .devremote\zh-<표 이름>.txt (표\t속성\tid\t글, 같은 표·속성·글은 한 번), 돌려주는 줄은 표별 수.
+    //   rzhtext <원문…>              번역표(TextTranslationService.Replacer)로 그 글을 바꿔 본다. 띄어쓰기는 한 칸으로 이어 붙이고 "\n" 두 글자는 줄바꿈.
+    //                                 돌려주는 줄: changed=<참/거짓> <결과>(줄바꿈은 다시 "\n").
+    //   rzhstat                       번역표 적용 요약(file= rows= tables= cells=)과 화면 글 치환 통계(patched= calls= replaced= ms=).
+    //   rzhleft                       화면 글 치환 뒤에도 한자가 남은 글(TextPatch.Leftover)을 .devremote\zh-left.txt에 한 줄씩(줄바꿈은 "\n") 적는다.
+    //   rzhapply                      번역표를 다시 읽어 표 칸을 다시 바꿔 끼운다(TextTranslationService.Apply). 돌려주는 줄은 그 요약.
     internal static class DevCommandsZh
     {
         public static string Execute(string[] p)
@@ -18,9 +23,43 @@ namespace MOD_sWP6UL
             {
                 case "rzh":
                     return Scan(p.Length > 1 ? p[1] : "all", p.Length > 2 ? int.Parse(p[2]) : 0);
+                case "rzhtext":
+                    return Translate(p);
+                case "rzhstat":
+                    return TextTranslationService.LastSummary + " | " + TextPatch.Stats();
+                case "rzhleft":
+                    return Leftover();
+                case "rzhapply":
+                    return TextTranslationService.Apply();
                 default:
                     return null;
             }
+        }
+
+        private static string Leftover()
+        {
+            var lines = new StringBuilder();
+            foreach (string text in TextPatch.Leftover)
+            {
+                // 글 속의 역슬래시는 \\, CR은 \r, 줄바꿈은 \n. 모드 DLL이 넣은 두 글자 "\n"(TMP가 줄을 바꿈)과 실제 줄바꿈을 구별하기 위해서다.
+                lines.Append(text.Replace("\\", "\\\\").Replace("\r", "\\r").Replace("\n", "\\n")).Append('\n');
+            }
+            string path = Path.Combine(DevCommands.Dir, "zh-left.txt");
+            File.WriteAllText(path, lines.ToString(), Encoding.UTF8);
+            return "left=" + TextPatch.Leftover.Count + " written=" + path;
+        }
+
+        private static string Translate(string[] p)
+        {
+            TextReplacer replacer = TextTranslationService.Replacer;
+            if (replacer == null)
+            {
+                return "replacer=null";
+            }
+            string text = string.Join(" ", p, 1, p.Length - 1).Replace("\\n", "\n");
+            bool changed;
+            string result = replacer.Replace(text, out changed);
+            return "changed=" + changed + " " + result.Replace("\r", "").Replace("\n", "\\n");
         }
 
         public static bool HasChinese(string text)
