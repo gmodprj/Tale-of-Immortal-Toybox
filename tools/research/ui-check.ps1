@@ -714,6 +714,12 @@ switch ($Part) {
     Check 'the give button shows the saved amount' ((Cmd 'uitext ItemGive1011011') -match "text='지급 x10'")
     Cmd 'uifocus ResAmount1011011' | Out-Null; Cmd 'ui set ResAmount1011011 25' | Out-Null; Key 0x0D
     Check 'Enter saves the amount' ((Cmd 'rfav' 200) -match 'items=1011011:25,1011012:10') (Cmd 'rfav' 200)
+    # 55절: Enter 없이 칸을 떠나도(다른 칸에 포커스) 저장되고 지급 버튼의 수량 글이 바뀐다. 숫자가 아니면 마지막 값으로 되돌린다.
+    Cmd 'uifocus ResAmount1011011' | Out-Null; Cmd 'ui set ResAmount1011011 30' | Out-Null; Cmd 'uifocus ItemQuery' | Out-Null
+    Check 'leaving the field saves the amount too' ((Cmd 'rfav' 200) -match 'items=1011011:30,1011012:10') (Cmd 'rfav' 200)
+    Check 'the give button shows the new amount without redrawing' ((Cmd 'uitext ItemGive1011011') -match "text='지급 x30'") (Cmd 'uitext ItemGive1011011')
+    Cmd 'uifocus ResAmount1011011' | Out-Null; Cmd 'ui set ResAmount1011011 25' | Out-Null; Cmd 'uifocus ItemQuery' | Out-Null
+    Check 'leaving the field again saves the next amount' ((Cmd 'rfav' 200) -match 'items=1011011:25,1011012:10') (Cmd 'rfav' 200)
     Press 'item1' | Out-Null
     $a = Held 1011011
     Press 'ItemGive1011011' | Out-Null
