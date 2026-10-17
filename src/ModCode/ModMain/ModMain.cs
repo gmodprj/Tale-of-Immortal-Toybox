@@ -112,6 +112,8 @@ namespace MOD_sWP6UL
             if (state != "ready")
             {
                 probed = false;
+                // 세계 밖(메인·캐릭터 만들기 화면)에서도 명령 파일을 받는다(05 문서 52절의 의복 목록 확인). 세계가 필요한 명령은 ERROR로 돌아온다.
+                DevCommands.Poll();
                 return;
             }
             if (!probed)

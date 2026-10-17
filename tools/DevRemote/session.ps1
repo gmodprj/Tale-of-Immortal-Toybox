@@ -10,6 +10,7 @@
 #                   바꿔 띄운다. 검사가 사용자의 지금 세이브 상태(떠 있는 창, 진행 중인 사건)에 흔들리지 않게 한다. -End는 똑같이 사용자의 세이브를 되돌린다
 #   -MakeFixture <이름> -From <폴더>   세이브 폴더의 복사본(예: .devremote\save-backup-<회차>)으로 고정본을 만든다
 #   -ReleaseBuild   -Begin과 함께 쓴다. 개발 도구를 뺀 배포 구성으로 빌드해 설치한다. 준비 로그가 없으므로 30초를 기다린다
+#   -Login          -Begin·-Restart와 함께 쓴다. 세이브에 들어가지 않고 메인(로그인) 화면에서 멈춘다(캐릭터 만들기 화면 확인용). 결과 줄은 LOGIN READY
 # 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않은 회차도 -End로 되돌린다.
 #
 # 안전 규칙(session.tests.ps1이 확인한다):
@@ -19,7 +20,7 @@
 #   - 세이브를 되돌리기 직전의 상태를 save-before-restore-<이름>으로 한 벌 남긴다.
 #   - 고정본을 썼어도 -End 뒤의 세이브는 회차 전의 사용자 것이다. 고정본 자체는 바뀌지 않는다.
 #   - -End는 최근 다섯 회차의 복사본만 남기고 오래된 것을 지운다. 회차 동안 모드가 만든 세이브 자동 백업도 지운다(회차 전부터 있던 것은 남긴다).
-param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '',
+param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [switch]$Login, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '',
   [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$ModId = 'sWP6UL',
   # 아래는 session.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다.
   [string]$SaveDir = '', [string]$WorkDir = '', [string]$DataDir = '', [string]$ProcessName = 'guigubahuang', [switch]$DryRun)
@@ -86,11 +87,13 @@ function Launch {
   [IO.File]::WriteAllText($flag, '')
   $blind = (Test-Path $modeFile) -and ([IO.File]::ReadAllText($modeFile).Trim() -eq 'release')
   $enter = Join-Path $PSScriptRoot 'enter.ps1'
-  $lines = if ($blind) { & $enter -GameDir $GameDir -Launch -Direct -BlindWaitSeconds 30 } else { & $enter -GameDir $GameDir -Launch -Direct }
+  $lines = if ($Login) { & $enter -GameDir $GameDir -Launch -Direct -StopAtLogin }
+    elseif ($blind) { & $enter -GameDir $GameDir -Launch -Direct -BlindWaitSeconds 30 }
+    else { & $enter -GameDir $GameDir -Launch -Direct }
   $lines
   $game = Get-Process $ProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($game -and -not ($lines -match 'game already running')) { [IO.File]::WriteAllText($pidFile, [string]$game.Id) }
-  if (-not ($lines -match 'WORLD READY|WAITED')) { throw '세이브 진입에 실패했습니다. -End로 정리한 뒤 원인을 확인합니다.' }
+  if (-not ($lines -match 'WORLD READY|WAITED|LOGIN READY')) { throw '세이브 진입에 실패했습니다. -End로 정리한 뒤 원인을 확인합니다.' }
 }
 
 # 이 스크립트가 띄운 게임만 닫는다. 창 닫기 요청을 보내고 끝날 때까지 기다린다.
