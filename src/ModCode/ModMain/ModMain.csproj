@@ -63,6 +63,13 @@
   <ItemGroup Condition="'$(DevTools)' != 'true'">
     <Compile Remove="Dev\**" />
   </ItemGroup>
+  <ItemGroup Condition="'$(DevTools)' == 'true'">
+    <!-- 개발 전용 네이티브 코드 해독(Dev\DevCodeScan.cs). MelonLoader가 함께 싣는 Iced를 그대로 쓴다. 배포 빌드에는 없다. -->
+    <Reference Include="Iced"><HintPath>$(ManagedDir)\Iced.dll</HintPath><Private>False</Private></Reference>
+    <!-- 개발 전용 조사 명령 colliders(지도의 충돌체 수). -->
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnityEngine.Physics2DModule"><HintPath>$(ManagedDir)\UnityEngine.Physics2DModule.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
 
   <ItemGroup>
     <!-- 기본 프리셋. DLL 안에 넣어 두고 presets 폴더가 없을 때 풀어 놓는다(산출물은 DLL 하나여야 한다). 이름은 "Presets/<파일 이름>"이다. -->

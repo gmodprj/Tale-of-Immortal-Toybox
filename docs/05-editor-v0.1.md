@@ -2411,6 +2411,47 @@
 - 자동 모드 분류기가 번역 묶음을 읽는 명령(스크립트 실행·폴더 복사, 그리고 `쌍수`가 든 `luckfind`)을 막았다. 실행은 사용자가 했고(위 한글화 항목), `luckfind 쌍수`는 건너뛰었다. 번역 묶음의 원본은 세션 scratchpad(`…\dce39e39-06f5-49ec-a450-f556782dc843\scratchpad\tr\`)에 있고, 사용자가 `.devremote\tr-20261016-3`으로 복사했다(한 파일로 복사됨, 457,604바이트).
 - 회차 이름: `ws-1017r`(설치·`rloc dump`), `ws-1017s`(검증).
 
+## 51. 창 위의 마우스 입력이 뒤의 지도에 새는 문제 (2026-10-17 추가)
+
+사용자 보고(2026-10-17): 편집기 창 위에서 휠을 돌리면 뒤의 지도가 확대·축소되고, 포인터를 올려 두면 뒤 화면이 반응한다. 브랜치 `fix/editor-input-leak`, 회차 `fix-1017a`~`e`(고정본 `base`). 스펙 없이 버그 수정으로 진행했다(원인 조사 → RED 검사 → 수정 → GREEN).
+
+### 원인 (실측)
+
+- 조사 방법. MelonLoader의 `XrefScanner`는 이 구성에서 캐시 DB 초기화에 실패하고(`XrefScanMethodDb`의 TypeInitializationException), `UsedBy`를 부르자 게임이 종료됐다(회차 `fix-1017a`, 로그의 `ObjectDisposedException: Safe handle has been closed`). 대신 개발 명령 `xrefmap`·`xrefl`·`xrefd`(`Dev/DevCodeScan.cs`)를 만들었다: 언홀로어가 만든 형식들의 정적 필드 `NativeMethodInfoPtr_*`에서 메서드의 네이티브 주소 표(76,930개, 2.8초)를 만들고, MelonLoader가 함께 싣는 Iced로 메서드 시작부터 "다음 메서드의 시작" 직전까지 해독해 `call`과 밖으로 나가는 `jmp`의 대상을 이름으로 보인다. 같은 코드가 접힌(COMDAT) 메서드는 다른 이름으로 나올 수 있다(`InputBase.Update`가 `DynamicBoneColliderBase.Collide`로 나왔다).
+- `MapWorldMgr.OnUpdate`(8,016바이트, 명령 1,880개, 호출 83개)에서 본 것:
+  - **휠**: `UIMgr.GetLayerTopUI`와 `GetUI(MapMain)`을 비교하는 분기 뒤에, **UI 조건 없이** `Input.mouseScrollDelta`를 읽어(게임패드가 열려 있으면 스틱값을 더한 뒤) `Mathf.Approximately(0)`이 아니면 `curCameraSize -= deltaTime × 휠 × 상수`를 `Mathf.Clamp`해 정적 필드에 저장하고 트윈으로 카메라에 반영한다. 편집기 창은 게임 UI 관리자(`g.ui.allUI`)에 없고, 게임도 휠 앞에서 "포인터가 UI 위인지"를 보지 않는다. 그래서 창 위의 휠이 지도를 확대·축소한다. 게임 자체 창(인물 화면)을 열어도 `isEnableMap`·`isStopMove`·`stopKeyMove`는 바뀌지 않았다(게임 창 위의 휠도 같은 경로를 탄다).
+  - **클릭**: `Input.GetKeyDown(Mouse0)` 뒤 `EventSystem.current.IsPointerOverGameObject()`가 참이면 건너뛴다. 편집기 캔버스에는 `GraphicRaycaster`가 있고 정렬 값이 지도 화면보다 높아 이 판정에 들어간다(가상 포인터로 실측 `over=True`). 아니면 `GameEffectTool.GetMouseWorldPosi`→`WorldToPoint`→(지금 고른 칸과 같으면 `CancelSelectGrid`·`UIMapMain.OpenGridInfo`·`OpenGridClickInfo`, 아니면 칸 고르기).
+  - **끌기 이동**: `Input.GetKey(Mouse1 | Mouse2)`(실제 구현 `Input.GetKeyInt`)가 참인 동안 `Input.mousePosition`의 변화로 `CameraCtrl.SetPosition`을 부른다. UI 조건 없음. 창 위에서 오른쪽 단추를 누른 채 끌면 지도가 움직인다.
+  - 맨 앞의 조건은 `MapWorldMgr.isEnableMap`뿐이다. 단추 없이 포인터만으로 반응하는 코드는 OnUpdate에 없었다.
+- 물리 충돌체의 `OnMouseEnter/Exit/UpAsButton`(`ColliderHandler`가 대리자를 부른다)은 EventSystem을 거치지 않고 카메라의 `eventMask`를 따른다. 고정본의 지도 장면에서는 활성 `ColliderHandler` 0개, 활성 `Collider2D` 3개(`Size`·`Box`), 카메라 4개(eventMask -1)였다(`colliders`).
+
+### 수정 (`UI/PointerGuard.cs`)
+
+편집기를 처음 열 때 Harmony 패치(`TlToybox.pointer`)를 건다. 못 걸면 로그 한 줄을 남기고 편집기는 그대로 동작한다. 판정 `EditorWindow.IsPointerOver`는 "창이 열려 있고 `RectTransformUtility.RectangleContainsScreenPoint(window, Input.mousePosition, 카메라)`"다(접힌 창은 제목 줄만).
+
+| 대상 | 하는 일 |
+|---|---|
+| `MapWorldMgr.OnUpdate` 접두·접미 | 지도의 주기 처리 안인지 표시(`InMapUpdate`) |
+| `Input.get_mouseScrollDelta` 접두 | `InMapUpdate`이고 포인터가 창 위이면 (0,0). 편집기 목록의 휠 스크롤은 EventSystem이 OnUpdate 밖에서 따로 읽으므로 그대로다 |
+| `Input.GetKeyInt` 접두 | `InMapUpdate`이고 창 위이면 Mouse1·Mouse2를 안 눌린 것으로. 매개변수는 이름이 아니라 자리(`__0`)로 받는다 |
+| `EventSystem.IsPointerOverGameObject()` 접두 | 창 위이면 참(실측상 이미 참이지만 명시) |
+| 매 프레임 `Tick` | 창 위인 동안 모든 카메라의 `eventMask`를 0으로, 벗어나면 되돌린다(충돌체 호버·클릭의 예방). 모드가 내려갈 때(`Destroy`)도 되돌린다 |
+| (개발 빌드만) `Input.get_mousePosition` 접두 | 가상 포인터. 배포 빌드에는 이 패치가 없다 |
+
+### 검증 (`ui-check.ps1 -Part input`, 17개)
+
+- 도구의 한계. 게임 창에 `WM_MOUSEMOVE`·`WM_MOUSEWHEEL`을 보내도(`win.ps1 -Do move|wheel`) Unity의 `Input`에는 닿지 않았다(360프레임 동안 휠 0, 위치는 실제 커서를 따름. 회차 `fix-1017a`). 키 메시지는 닿는다. 실제 마우스는 사용자의 것이라 쓰지 않는다. 그래서 개발 빌드에 **가상 입력**을 만들었다: `uipointer <x> <y>|off`(`Input.mousePosition`), `uiwheel <delta> [프레임]`(`Input.mouseScrollDelta`), `uikey <KeyCode 번호> [프레임]`(`Input.GetKey`. 0이면 풂). 게임의 OnUpdate와 EventSystem이 같은 값을 읽으므로 둘의 상호작용을 그대로 본다. 관찰값은 `mapcam`(지도 카메라 배율 `scale`·위치 `camPos`·`eventMask`, 격자 호버 UI, EventSystem 판정, 패치 상태).
+- RED(회차 `fix-1017c`, 차단 전): 창 위 휠에 배율 1→1.17→1.03, 목록을 휠로 넘기는 동안 1.5→1. FAIL 5 가운데 둘은 검사 설계였다(배율 1이 가장 당긴 상태라 확대가 안 됨, 트윈 중에 읽음). 처음에 한 칸 밀어 두고, 두 번 연속 같은 값이 읽힐 때까지 기다린 뒤 읽고, 변해야 하는 자리는 안 변하면 반대쪽으로 한 번 더 보내게 고쳤다.
+- GREEN(회차 `fix-1017d`·`e`): 17 PASS. 맨 지도에서 휠이 배율을 바꾸고 오른쪽 끌기가 카메라를 옮김(가상 입력이 게임에 닿는 것의 확인) → 창 위에서는 휠 두 방향·오른쪽 끌기 모두 변화 없음, eventMask 0 → 창 옆(1750,540)에서는 다시 동작 → 창 안의 목록은 휠로 넘어가고 그동안 배율은 그대로 → 창을 닫으면 eventMask 복원·휠 동작. `base` 22·`tabs` 68·`order` 12·`status` 10·`items` 42 그대로.
+- 배포 구성(`-p:DevTools=false`): 경고·오류 0, DLL 하나(1,083,904바이트). Iced·Physics 참조는 개발 도구일 때만 걸린다.
+
+### 확인하지 못한 것, 한계
+
+- 실제 마우스(실제 휠·실제 포인터)로는 시험하지 못했다. 가상 입력은 `Input.mousePosition`·`mouseScrollDelta`·`GetKey`를 읽는 코드만 흉내 내며, Unity가 안에서 직접 읽는 것(물리 `OnMouse*`의 포인터, `Input.GetMouseButton`)은 흉내 내지 못한다. 사용자가 실제 플레이에서 확인해야 한다(인계 8.5절).
+- 사용자가 본 "호버 효과·툴팁"이 어느 경로인지는 좁히지 못했다. OnUpdate에는 단추 없이 포인터만으로 반응하는 코드가 없었고, 지도 장면에 `ColliderHandler`가 없었다. 카메라 eventMask 차단은 예방이다. 고친 뒤에도 남아 있으면 그 화면을 캡처해 두어야 한다.
+- `IsPointerOverGameObject`를 참으로 돌리는 패치는 게임의 다른 코드에도 영향을 준다(창 위에서는 모두 "UI 위"). 의도한 뜻이지만 전투 장면은 보지 않았다.
+- 게임 화면이 편집기를 가린 상태에서 가려진 창 자리에 휠을 돌리면 지도가 확대되지 않는다(게임 자체 창 위에서는 원래 확대된다).
+- 주소 표는 `Assembly-CSharp`·`UnityEngine.CoreModule`·`InputLegacyModule`·`UIModule`·`UnityEngine.UI`·`Il2Cppmscorlib`만 담는다. DOTween 등 다른 어셈블리의 대상은 주소로만 나온다.
 ## 52. 입화 몸 그림 누락 조사: Fatury 모드 목록, 깨진 자산 (2026-10-17 추가)
 
 사용자 보고(2026-10-17 아침, 화면 첨부): NPC 호청의의 몸(입화)이 비어 보인다, "누락된 모드가 있는지 전체 모드 확인해서 누락된 부분 체크". 이어서 "캐릭 만들 때 보니 100번대 중반부터 200번대 초반까지 전부 깨진다". 브랜치 `feat/body-portrait-check`(워크트리. 같은 시간에 `fix/editor-input-leak` 세션이 본 체크아웃을 쓰고 있었다).

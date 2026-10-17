@@ -1,6 +1,6 @@
 param(
-  [ValidateSet('info','shot','click','key')] [string]$Do = 'info',
-  [int]$X = 0, [int]$Y = 0, [int]$Vk = 0,
+  [ValidateSet('info','shot','click','key','move','wheel')] [string]$Do = 'info',
+  [int]$X = 0, [int]$Y = 0, [int]$Vk = 0, [int]$Delta = 120,
   [string]$Out = "$PSScriptRoot\shot.png", [double]$Scale = 0.5
 )
 Add-Type -AssemblyName System.Drawing
@@ -15,7 +15,9 @@ public static class W {
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
 }
 '@
 [void][W]::SetProcessDPIAware()
@@ -48,6 +50,21 @@ switch ($Do) {
     Start-Sleep -Milliseconds 90
     [void][W]::PostMessage($h, 0x0202, [IntPtr]0, $l)   # WM_LBUTTONUP
     "posted click at client ($X,$Y) foreground=$fg"
+  }
+  'move' {
+    # 마우스 이동만. 게임 좌표(클라이언트 왼쪽 위 기준)로 보낸다.
+    $l = [IntPtr](($Y -shl 16) -bor ($X -band 0xFFFF))
+    [void][W]::PostMessage($h, 0x0200, [IntPtr]0, $l)   # WM_MOUSEMOVE
+    "posted move to client ($X,$Y) foreground=$fg"
+  }
+  'wheel' {
+    # 마우스 휠. WM_MOUSEWHEEL의 lParam은 클라이언트가 아니라 화면 좌표라 창의 위치(화면 밖 30000,0)를 더한다. Delta 120이 한 칸 위, -120이 한 칸 아래.
+    $pt = New-Object W+POINT; $pt.X = $X; $pt.Y = $Y
+    [void][W]::ClientToScreen($h, [ref]$pt)
+    $l = [IntPtr]((($pt.Y -band 0xFFFF) -shl 16) -bor ($pt.X -band 0xFFFF))
+    $wp = [IntPtr]([int64]$Delta -shl 16)
+    [void][W]::PostMessage($h, 0x020A, $wp, $l)   # WM_MOUSEWHEEL
+    "posted wheel delta=$Delta at client ($X,$Y) screen ($($pt.X),$($pt.Y)) foreground=$fg"
   }
   'key' {
     [void][W]::PostMessage($h, 0x0100, [IntPtr]$Vk, [IntPtr]1)            # WM_KEYDOWN
