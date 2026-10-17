@@ -20,11 +20,23 @@ namespace MOD_sWP6UL
                     return p.Length > 1 && p[1] == "list" ? DressList(p) : Dress(int.Parse(p[1]));
                 case "rbody":
                     return Bodies(p);
+                case "rbodyq":
+                    return QueueBodies(p);
+                case "rbodyr":
+                    return AsyncResults();
                 case "rbodyof":
                     return BodyOf(p.Length > 1 && p[1] != "*" ? p[1] : "", p.Length > 2 ? int.Parse(p[2]) : int.MinValue,
                         p.Length > 3 ? int.Parse(p[3]) : int.MaxValue);
                 case "rprops":
                     return Props(int.Parse(p[1]));
+                case "rsetbody":
+                    return SetPlayerBody(int.Parse(p[1]));
+                case "rnpcinfo":
+                    return NpcInfo(p.Length > 1 ? p[1] : "", p.Length > 2 ? p[2] : "");
+                case "ropenui":
+                    return UiCall("OpenUI", p[1], false);
+                case "rcloseui":
+                    return UiCall("CloseUI", p[1], true);
                 default:
                     return null;
             }
@@ -117,6 +129,86 @@ namespace MOD_sWP6UL
             return sb.ToString();
         }
 
+        // 게임이 입화 조각을 읽는 길(g.res.LoadAsync. Fatury가 Harmony로 패치하는 메서드)로 몸 그림을 읽어 둔다. 결과는 콜백이 오는 대로 쌓이고
+        // rbodyr로 읽는다. 동기 Load(rbody)는 패치를 거치지 않아 원작 자산만 보이므로, Fatury가 바꿔치기한 결과는 이 길로만 보인다.
+        private static readonly System.Collections.Generic.SortedDictionary<string, string> asyncResults = new System.Collections.Generic.SortedDictionary<string, string>();
+        private static readonly System.Collections.Generic.List<Il2CppSystem.Action<UnityEngine.Object>> asyncHandlers = new System.Collections.Generic.List<Il2CppSystem.Action<UnityEngine.Object>>();
+
+        private static string QueueBodies(string[] p)
+        {
+            int from = int.Parse(p[1]);
+            int to = p.Length > 2 ? int.Parse(p[2]) : from;
+            string sex = p.Length > 3 ? p[3] : "Woman";
+            bool dyn = p.Length > 4 && p[4] == "dyn";
+            asyncResults.Clear();
+            asyncHandlers.Clear();
+            int queued = 0;
+            for (int n = from; n <= to; n++)
+            {
+                string path = (dyn ? "Game/PortraitDynamic/" : "Game/Portrait/") + sex + "/Body/" + n;
+                string key = n.ToString("D6");
+                asyncResults[key] = "pending";
+                var handler = UnhollowerRuntimeLib.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<UnityEngine.Object>>(
+                    new Action<UnityEngine.Object>(o => asyncResults[key] = DescribeObject(o)));
+                asyncHandlers.Add(handler);
+                try
+                {
+                    g.res.LoadAsync(path, handler);
+                    queued++;
+                }
+                catch (Exception e)
+                {
+                    asyncResults[key] = "ERROR " + e.GetType().Name + " " + e.Message.Replace('\n', ' ');
+                }
+            }
+            return "queued=" + queued;
+        }
+
+        private static string AsyncResults()
+        {
+            var sb = new StringBuilder();
+            int pending = 0, bad = 0;
+            foreach (var pair in asyncResults)
+            {
+                if (pair.Value == "pending")
+                {
+                    pending++;
+                }
+                else if (pair.Value == "null" || pair.Value.Contains("8x8") || pair.Value.Contains(":null") || pair.Value.StartsWith("ERROR"))
+                {
+                    bad++;
+                }
+                sb.Append(int.Parse(pair.Key)).Append('=').Append(pair.Value).Append(';');
+            }
+            return "total=" + asyncResults.Count + " pending=" + pending + " bad=" + bad + " " + sb;
+        }
+
+        private static string DescribeObject(UnityEngine.Object o)
+        {
+            if (o == null)
+            {
+                return "null";
+            }
+            GameObject go = o.TryCast<GameObject>();
+            if (go == null)
+            {
+                return o.GetIl2CppType().Name + ":" + o.name;
+            }
+            var sb = new StringBuilder();
+            sb.Append("go(").Append(go.transform.childCount).Append(')');
+            var renderers = go.GetComponentsInChildren<SpriteRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                sb.Append(' ').Append(Describe("sr", renderers[i].sprite));
+            }
+            var images = go.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+            for (int i = 0; i < images.Length; i++)
+            {
+                sb.Append(' ').Append(Describe("img", images[i].sprite));
+            }
+            return sb.ToString();
+        }
+
         private static string Describe(string kind, Sprite sprite)
         {
             if (sprite == null)
@@ -175,6 +267,184 @@ namespace MOD_sWP6UL
                 current = property.GetValue(current, null);
             }
             return current == null ? "null" : current.ToString();
+        }
+
+        // NPC 정보 창(UINPCInfo)을 열어 이름이 맞는 유닛을 보여 준다. 창의 멤버 이름을 소스에서 모르므로, WorldUnitBase를 받는 속성·메서드를
+        // 실행 시 찾아 적는다(이름 없이 부르면 멤버 목록만). second에 메서드 이름을 주면 그 메서드를 유닛과 함께 부른다.
+        private static string NpcInfo(string part, string method)
+        {
+            part = part.Replace('_', ' ');   // 이름의 공백은 _로 적는다(명령은 공백으로 나뉜다)
+            UINPCInfo ui = g.ui.GetUI<UINPCInfo>(UIType.NPCInfo);
+            string opened = ui != null ? "already open " : "";
+            if (ui == null)
+            {
+                try
+                {
+                    ui = g.ui.OpenUI<UINPCInfo>(UIType.NPCInfo);
+                    opened = "opened ";
+                }
+                catch (Exception e)
+                {
+                    return "OpenUI ERROR " + e.GetType().Name + ": " + e.Message.Replace('\n', ' ');
+                }
+            }
+            if (ui == null)
+            {
+                return "OpenUI returned null";
+            }
+            var sb = new StringBuilder();
+            Type type = ui.GetType();
+            foreach (System.Reflection.PropertyInfo property in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (typeof(WorldUnitBase).IsAssignableFrom(property.PropertyType))
+                {
+                    sb.Append("prop:").Append(property.Name).Append(property.CanWrite ? "(rw) " : "(r) ");
+                }
+            }
+            foreach (System.Reflection.MethodInfo candidate in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                System.Reflection.ParameterInfo[] parameters = candidate.GetParameters();
+                if (parameters.Length >= 1 && parameters.Length <= 3 && typeof(WorldUnitBase).IsAssignableFrom(parameters[0].ParameterType))
+                {
+                    sb.Append("method:").Append(candidate.Name).Append('/').Append(parameters.Length).Append(' ');
+                }
+            }
+            if (part.Length == 0)
+            {
+                return sb.ToString();
+            }
+            WorldUnitBase target = null;
+            var units = g.world.unit.GetUnits(false);
+            for (int i = 0; i < units.Count; i++)
+            {
+                string name = units[i].data.unitData.propertyData.GetName();
+                if (name != null && name.IndexOf(part, StringComparison.Ordinal) >= 0)
+                {
+                    target = units[i];
+                    break;
+                }
+            }
+            if (target == null)
+            {
+                return "no unit " + part + " | " + sb;
+            }
+            string applied = opened;
+            try
+            {
+                foreach (System.Reflection.PropertyInfo property in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                {
+                    if (property.CanWrite && typeof(WorldUnitBase).IsAssignableFrom(property.PropertyType))
+                    {
+                        property.SetValue(ui, target, null);
+                        applied += "set " + property.Name + " ";
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                applied += "set ERROR " + e.GetType().Name + " ";
+            }
+            if (method.Length > 0)
+            {
+                // 이름이 맞는 메서드를 유닛과 함께 부른다. 둘째 인수부터는 형의 기본값(값 형은 0·false, 참조 형은 null)을 준다.
+                foreach (System.Reflection.MethodInfo candidate in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                {
+                    System.Reflection.ParameterInfo[] parameters = candidate.GetParameters();
+                    if (candidate.Name == method && parameters.Length >= 1 && typeof(WorldUnitBase).IsAssignableFrom(parameters[0].ParameterType))
+                    {
+                        object[] args = new object[parameters.Length];
+                        args[0] = target;
+                        for (int i = 1; i < parameters.Length; i++)
+                        {
+                            Type parameterType = parameters[i].ParameterType;
+                            args[i] = parameterType.IsValueType ? Activator.CreateInstance(parameterType) : null;
+                            applied += "arg" + i + "=" + parameterType.Name + " ";
+                        }
+                        try
+                        {
+                            candidate.Invoke(ui, args);
+                            applied += "called " + method + "/" + parameters.Length + " ";
+                        }
+                        catch (Exception e)
+                        {
+                            Exception inner = e.InnerException ?? e;
+                            applied += "call ERROR " + inner.GetType().Name + ": " + inner.Message.Replace('\n', ' ') + " ";
+                        }
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                System.Reflection.MethodInfo update = type.GetMethod("UpdateUI", Type.EmptyTypes);
+                if (update != null)
+                {
+                    update.Invoke(ui, null);
+                    applied += "called UpdateUI ";
+                }
+            }
+            return "unit=" + target.data.unitData.propertyData.GetName() + " body=" + ReadPath(target.data.unitData.propertyData, "modelData.body")
+                + " " + applied + "| " + sb;
+        }
+
+        // UIType의 정적 필드(UIType.PlayerInfo 등)를 이름으로 찾아 g.ui.OpenUI(형)·CloseUI(형, true)를 부른다. UIType은 정적 클래스라
+        // 열거형처럼 파싱할 수 없고 필드의 형 이름도 소스에서 모르므로, 필드 값에 맞는 비제네릭 overload를 실행 시 고른다.
+        private static string UiCall(string method, string name, bool close)
+        {
+            // Unhollower는 IL2CPP의 정적 필드를 정적 속성으로 내놓으므로 속성부터 찾고, 없으면 필드를 본다.
+            System.Reflection.PropertyInfo property = typeof(UIType).GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            System.Reflection.FieldInfo field = property == null ? typeof(UIType).GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static) : null;
+            if (property == null && field == null)
+            {
+                return "no UIType " + name;
+            }
+            object value = property != null ? property.GetValue(null, null) : field.GetValue(null);
+            string typeName = property != null ? property.PropertyType.Name : field.FieldType.Name;
+            foreach (System.Reflection.MethodInfo candidate in g.ui.GetType().GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (candidate.Name != method || candidate.IsGenericMethod)
+                {
+                    continue;
+                }
+                System.Reflection.ParameterInfo[] parameters = candidate.GetParameters();
+                bool fits = close
+                    ? parameters.Length == 2 && parameters[0].ParameterType.IsInstanceOfType(value) && parameters[1].ParameterType == typeof(bool)
+                    : parameters.Length == 1 && parameters[0].ParameterType.IsInstanceOfType(value);
+                if (fits)
+                {
+                    candidate.Invoke(g.ui, close ? new object[] { value, true } : new object[] { value });
+                    return method + " " + name + " (" + typeName + ")";
+                }
+            }
+            return "no " + method + " overload for " + typeName;
+        }
+
+        // 플레이어의 입화 몸(RoleDress 줄 번호. 여성 원작은 58001~58114)을 바꾼다. 고정본 회차에서 화면 확인용. 속성 이름은 실행 시 찾는다.
+        private static string SetPlayerBody(int rowId)
+        {
+            var saved = g.world.playerUnit.data.unitData.propertyData;
+            System.Reflection.PropertyInfo modelProperty = saved.GetType().GetProperty("modelData");
+            object model = modelProperty == null ? null : modelProperty.GetValue(saved, null);
+            if (model == null)
+            {
+                return "no modelData";
+            }
+            System.Reflection.PropertyInfo bodyProperty = model.GetType().GetProperty("body");
+            if (bodyProperty == null)
+            {
+                return "no body";
+            }
+            object before = bodyProperty.GetValue(model, null);
+            bodyProperty.SetValue(model, rowId, null);
+            // 게임은 lastUpdateBody와 body가 같으면 입화를 다시 만들지 않는 것으로 보여(실측: 바꿔도 화면이 그대로) 함께 지운다.
+            System.Reflection.PropertyInfo lastProperty = model.GetType().GetProperty("lastUpdateBody");
+            string last = "없음";
+            if (lastProperty != null)
+            {
+                last = lastProperty.GetValue(model, null) + "->0";
+                lastProperty.SetValue(model, 0, null);
+            }
+            return "body " + before + " -> " + bodyProperty.GetValue(model, null) + " lastUpdateBody " + last;
         }
 
         private static string Props(int itemId)
