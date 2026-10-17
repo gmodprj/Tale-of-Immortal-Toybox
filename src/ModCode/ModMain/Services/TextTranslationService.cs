@@ -15,12 +15,13 @@ namespace MOD_sWP6UL
         private const string ResourceName = "Translations/texts.txt";
 
         // 표 이름(ConfMgr의 속성)과 바꿔 끼울 글자 속성. 53절의 조사에서 화면에 보이는 칸만.
+        // modNpcAddWorld.joinSchoolName은 종문을 이름으로 찾는 값일 수 있어(53절, 표시 여부 미확인) 건드리지 않는다.
         private static readonly string[][] Targets =
         {
             new[] { "battleSkillAttack", "name", "desc" },
             new[] { "battleEffect", "desc" },
             new[] { "roleCreateFeature", "name", "tips" },
-            new[] { "modNpcAddWorld", "name1", "name2", "joinSchoolName" },
+            new[] { "modNpcAddWorld", "name1", "name2" },
             new[] { "dramaOptions", "text" },
             new[] { "dramaDialogue", "dialogue" },
         };

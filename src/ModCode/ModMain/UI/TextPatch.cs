@@ -15,6 +15,10 @@ namespace MOD_sWP6UL
         public static long Calls;      // 설정자 호출 수
         public static long Replaced;   // 글이 바뀐 수
         public static long Ticks;      // 한자가 든 글의 치환에 쓴 Stopwatch 틱 합
+        // 치환 뒤에도 한자가 남은 글(번역표에 없는 원문). 번역표를 채우는 데 쓴다(개발 명령 rzhleft). 같은 글은 한 번, 최대 LeftoverMax개.
+        public const int LeftoverMax = 300;
+        public static readonly System.Collections.Generic.List<string> Leftover = new System.Collections.Generic.List<string>();
+        private static readonly System.Collections.Generic.HashSet<string> leftoverSeen = new System.Collections.Generic.HashSet<string>();
 
         public static string Ensure()
         {
@@ -65,6 +69,10 @@ namespace MOD_sWP6UL
             {
                 Replaced++;
                 value = result;
+            }
+            if (TextReplacer.HasChinese(result) && Leftover.Count < LeftoverMax && leftoverSeen.Add(result))
+            {
+                Leftover.Add(result);
             }
         }
 

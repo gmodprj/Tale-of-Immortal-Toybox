@@ -22,7 +22,7 @@ namespace MOD_sWP6UL
             return key.Length == 0 ? null : key;
         }
 
-        // 줄들 → 사전. '#' 줄과 빈 줄은 무시, 탭이 없는 줄과 키가 빈 줄은 broken. 키·글의 앞뒤 공백을 지우고 "\n"을 줄바꿈으로. 같은 키는 뒤의 것.
+        // 줄들 → 사전. '#' 줄과 빈 줄은 무시, 탭이 없는 줄과 키가 빈 줄은 broken. 키·글의 앞뒤 공백을 지우고 "\n"을 줄바꿈으로(키도. texts.txt의 라벨 원문에 줄바꿈이 든다). 같은 키는 뒤의 것.
         public static Dictionary<string, string> Parse(IEnumerable<string> lines, out int broken)
         {
             var map = new Dictionary<string, string>();
@@ -41,7 +41,7 @@ namespace MOD_sWP6UL
                     broken++;
                     continue;
                 }
-                map[key] = line.Substring(tab + 1).Trim().Replace("\\n", "\n");
+                map[key.Replace("\\n", "\n")] = line.Substring(tab + 1).Trim().Replace("\\n", "\n");
             }
             return map;
         }

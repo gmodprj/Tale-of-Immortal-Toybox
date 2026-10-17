@@ -13,6 +13,7 @@ namespace MOD_sWP6UL
     //   rzhtext <원문…>              번역표(TextTranslationService.Replacer)로 그 글을 바꿔 본다. 띄어쓰기는 한 칸으로 이어 붙이고 "\n" 두 글자는 줄바꿈.
     //                                 돌려주는 줄: changed=<참/거짓> <결과>(줄바꿈은 다시 "\n").
     //   rzhstat                       번역표 적용 요약(file= rows= tables= cells=)과 화면 글 치환 통계(patched= calls= replaced= ms=).
+    //   rzhleft                       화면 글 치환 뒤에도 한자가 남은 글(TextPatch.Leftover)을 .devremote\zh-left.txt에 한 줄씩(줄바꿈은 "\n") 적는다.
     internal static class DevCommandsZh
     {
         public static string Execute(string[] p)
@@ -25,9 +26,23 @@ namespace MOD_sWP6UL
                     return Translate(p);
                 case "rzhstat":
                     return TextTranslationService.LastSummary + " | " + TextPatch.Stats();
+                case "rzhleft":
+                    return Leftover();
                 default:
                     return null;
             }
+        }
+
+        private static string Leftover()
+        {
+            var lines = new StringBuilder();
+            foreach (string text in TextPatch.Leftover)
+            {
+                lines.Append(text.Replace("\r", "").Replace("\n", "\\n")).Append('\n');
+            }
+            string path = Path.Combine(DevCommands.Dir, "zh-left.txt");
+            File.WriteAllText(path, lines.ToString(), Encoding.UTF8);
+            return "left=" + TextPatch.Leftover.Count + " written=" + path;
         }
 
         private static string Translate(string[] p)
