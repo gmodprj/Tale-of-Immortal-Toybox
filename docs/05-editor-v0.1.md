@@ -2528,6 +2528,25 @@
 
 - 지금의 번역표(43절, LocalText 키 기반)로는 위 글을 바꿀 수 없다. 후보 (1): 원문 기반 번역표 `Translations/mod-texts.txt`(원문\t한국어)를 두고, 종족 틀이 읽어 둔 `ConfTransfMonstItem`의 `monstName`·`transfInfo`를 반사로 바꿔 끼우고, 틀의 글 조립 함수(`AddTipTransf`·`GetDescRichText`·`ShowPlayRaceInfo`·`ShowNpcRaceInfo`·`UpdataCreateUIRaceTransfSkill`)에 Harmony 뒤붙임을 걸어 라벨 조각을 치환한다. 다른 DLL 모드의 버튼 글도 같은 표로. 후보 (2): 모드 폴더의 JSON을 직접 고친다 — 게임 폴더 읽기 전용 규칙과 `workshop.ps1 -Install`의 `/MIR` 덮어쓰기 때문에 비추천.
 
-### 실측·검증
+### 실측·검증(회차 `zh-1017a`, 고정본 base, 개발 DLL, 2026-10-17 12:4x)
 
-- (게임이 꺼지면 회차에서 `rzh all`을 돌려 채운다.)
+- `rzh all`: 8초, 표 19개에서 한자 33,047칸(유일 31,906, `.devremote\zh-all.txt` 1.0MB). 그 가운데 **원문 칸**(한국어 칸이 따로 있어 화면에 안 나오는 것)이 대부분이다: `textBlock`·`modTextBlock`의 `ch`·`tc`, `npcNameFirst`·`npcNameLast`·`herdNPCNameFirst`의 `name`·`tc`, `battleSkillPrefixName`의 `text`·`tc`, `guideBase`의 `desc*`. 자산 이름 칸(`dramaDialogue.backgroud`·`dramaNpc.avatar`·`itemProps.icon`·`worldFortuitousEventBase.icon`·`dramaOptions.function`)도 글이 아니다. 원작 표의 `fishingBase`(測試魚 28), `fairyChickenFarmEvents.description` 7, `startGameTip.version`은 원작 개발용 칸이라 뺀다. `rloc dump written=4`(LocalText 모드 행 가운데 통째로 남은 것은 50절의 미성년 3행 + 플래그 1행뿐).
+- **화면에 보이는 표 안의 중국어 = 129칸, 약 2,500자**(`.devremote\zh-display-20261017.txt`에서 원작 표 셋을 뺀 것):
+  - `battleSkillAttack.name` 37(`变身技` 1425457392 = 종족 틀, `龙游四方`·`龙炎之环`·`千峰聚灵剑`·`焚天火元`·`天舞宝轮`·`幽盈碧羽`·`旋翼`·`乱羽散华`·`雷球电光`·`雷云护体`·`火坠苍穹`·`分元地火`·`金鸿追命`·`金箭狂涌`·`绝影霹雳`·`剑里藏针`·`寒冰旋风`·`寒风凌冽`·`凤凰冲击`·`穿心乱羽`·`无言箭羽`·`孔雀绞杀`·`龙卷冲击`·`玄羽追命`·`金铎`·`乾坤`·`草木灵生`·`木灵绽放`·`水灵绽放`·`水元猛射`·`火神`·`裂土飞石`·`气势长虹`·`神通庇佑`·`天炎陨落`·`永恒之火` = 용족(id 9629…·9632…)의 변신·종족 기술), `desc` 2(千峰聚灵剑의 긴 설명, 孔雀绞杀).
+  - `battleEffect.desc` 12(`千杀标记`·`“浴火重生”`·`巨大化`·`“血狱魂碑”`·`永冻寒灾`·`寒灾冻结`·`增伤4%`·`增伤15%`, `受到的伤害增加{icon_zhijieshanghai}<y>1</y>%…` 둘, 충전 점수 설명, `减少{icon_yisu}<y>90</y>%移动速度`).
+  - `roleCreateFeature.name`·`tips` 25씩(id 1204100xx `女娲专属`·`夜雨楼专属`·`衡天专属`·`李四专属`·`武罗专属`·`后羿专属`·`扶桑专属`·`鲮鱼专属`·`蓼菱仙子`·`冰夷专属`·`魃专属`·`句芒专属`·`玄冥专属`·`斗魂专属`·`缚命专属`·`后土专属`·`神目专属`·`烽岚专属`·`天幻专属`·`昆吾专属`·`江岚燕专属`·`血星河专属`·`圣阳专属` — 극 NPC 전용 운명(2956998877 극 NPC 실체화로 추정), `55663000`·`55663001` `肉傀测试`·`泡芙测试`). `tips`는 "固定效果：\n进入战斗会随机释放…专属技能组…" 꼴 1,634자. 운명 탭 후보에도 이 이름으로 나온다(50절 검토).
+  - `modNpcAddWorld.name1`·`name2`(모드 NPC의 성·이름): 112241015~019 `岳临霄`·`晏清寒`·`苏秋湫`·`李栖鸾`·`烬棠`([嘟哒] 3662905899), 99999554 `陆嘉静`(3508355457), 99999520 `裴语涵`(3502554970), 86954106 `叶骨衣`(3492065971), 58666301~303 `喵酱`·`墨棠`·`姜虞墨`(출처 미확인). `joinSchoolName` 4(`云上瑶池`·`天枢圣地`·`青洛剑宗`·`咸鱼观海山`)는 종문 찾기용 값일 수 있다(화면 표시 여부 미확인). 이미 만들어진 세이브의 NPC 이름은 세이브에 복사돼 있어 표를 고쳐도 그대로다.
+  - `dramaOptions.text` 2(`取消`·`易容`)와 `dramaDialogue.dialogue` 1(`是否进行易容？`): 얼굴 만들기(2832167498)가 코드로 만드는 확인 창.
+- 회차는 `SAVE RESTORED AND IDENTICAL`, 설치 DLL은 배포 빌드 9cf06ae로 되돌아갔다.
+
+### 전체 집계(LocalText 밖에 남은 중국어)
+
+| 층 | 수 | 어디 | 바꾸는 길 |
+|---|---|---|---|
+| 표 안의 글 칸 | 129칸 약 2,500자 | 위 다섯 표 | 시작 때 표의 칸을 바꿔 끼움(원문 기반 번역표) |
+| 종족 JSON | 유일 30개 2,364자 | `TransfMonstBase.json`의 `monstName`·`transfInfo` | 틀이 읽어 둔 `ConfTransfMonstItem`을 반사로 바꾸거나 화면 글 치환 |
+| 종족 틀 DLL 라벨 | 약 25개 | 코드 조립 | Harmony 뒤붙임 또는 화면 글 치환 |
+| 다른 DLL 버튼 글 | 8개 | 捏脸·영석·장식 모드 | 화면 글 치환 |
+| LocalText | 3행(의도) | 50절 | — |
+
+- 화면 글 치환이란 `TMP_Text.text`·`Text.text` 설정에 Harmony 앞붙임을 걸어 한자가 든 글만 원문 기반 번역표로 바꾸는 것이다. 네 층을 한 번에 덮지만 설계(어느 글을 어떻게 맞출지, 성능, 병기 한자와의 충돌)가 필요하다 — 다음 단계는 스펙.
