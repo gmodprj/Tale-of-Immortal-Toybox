@@ -560,9 +560,17 @@ namespace MOD_sWP6UL
             if (IsFav)
             {
                 int saved = FavoriteStore.AmountOf(id);
+                // 수량은 Enter뿐 아니라 칸을 떠날 때도 저장한다(사용자 보고: 고친 수량이 남지 않았다. 05 문서 55절). 저장되면 지급 버튼의 수량 글도 바꾼다.
+                Button give = null;
                 NumberField.Build(row, "ResAmount" + id, ColAmount, (h - (RowH - 4)) / 2, AmountW, RowH - 4, saved.ToString(), null,
-                    new Action<int>(v => SetAmount(id, v)));
-                Ui.Button("ItemGive" + id, row, "지급 x" + saved, ColGive, 2, GiveW, RowH - 4,
+                    new Action<int>(v =>
+                    {
+                        if (SetAmount(id, v) && give != null)
+                        {
+                            give.GetComponentInChildren<Text>().text = "지급 x" + FavoriteStore.AmountOf(id);
+                        }
+                    }), true);
+                give = Ui.Button("ItemGive" + id, row, "지급 x" + saved, ColGive, 2, GiveW, RowH - 4,
                     new Action(() => Say(EditService.GiveItem(Player, id, FavoriteStore.AmountOf(id)))), !entry.Missing);
             }
             else
@@ -611,11 +619,17 @@ namespace MOD_sWP6UL
             Say(text);
         }
 
-        private void SetAmount(int id, int amount)
+        // 저장했으면 참. 같은 수량이면 아무것도 하지 않는다(칸을 떠날 때마다 오므로 결과 칸을 채우지 않는다).
+        private bool SetAmount(int id, int amount)
         {
+            if (amount == FavoriteStore.AmountOf(id))
+            {
+                return false;
+            }
             string text;
-            FavoriteStore.SetAmount(id, amount, out text);
+            bool ok = FavoriteStore.SetAmount(id, amount, out text);
             Say(text);
+            return ok;
         }
 
         // 보이는(걸러진) 즐겨찾기 가운데 게임에 있는 것을 저장된 수량으로 차례로 준다. 비급 줄은 저장된 권수를 모두 넣었을 때 넣음이다.

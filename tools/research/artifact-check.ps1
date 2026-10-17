@@ -268,7 +268,7 @@ switch ($Part) {
   }
   'hud-battle-slots' {
     # 전투 화면의 신기 칸. 연요호 칸은 연요호를 가지면, 호천안 칸은 기술을 장착하면, 쌍어패 칸은 반쪽을 준 NPC가 있으면 켜진다.
-    # 게임은 셋을 거의 같은 자리(쌍어패·호천안 493,58, 연요호 490,65)에 둔다. 둘 이상이면 오른쪽으로 60씩 나란히 놓여야 한다.
+    # 게임은 셋을 거의 같은 자리(쌍어패·호천안 493,58, 연요호 490,65)에 둔다. 둘 이상이면 위로 60씩 쌓여야 한다(05 문서 55절. 오른쪽에는 모드의 기술 단추가 온다).
     function IntoBattle { Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null }
     function LeaveBattle {
       Rc 'click 956 749' 1500 | Out-Null
@@ -288,11 +288,11 @@ switch ($Part) {
     Cmd 'pigive' 400 | Out-Null
     IntoBattle
     $p = Cmd 'bwpos' 200
-    Check 'the three battle slots sit side by side' ($p -match 'pisces=493,58' -and $p -match 'godEye=553,58' -and $p -match 'devil=610,65') $p
+    Check 'the three battle slots are stacked upward' ($p -match 'pisces=493,58' -and $p -match 'godEye=493,118' -and $p -match 'devil=490,185') $p
     Shot 'artifact-battle-slots'
     Rc 'click 956 749' 2000 | Out-Null
     $p = Cmd 'bwpos' 200
-    Check 'they stay side by side after the battle starts' ($p -match 'pisces=493,58' -and $p -match 'godEye=553,58' -and $p -match 'devil=610,65') $p
+    Check 'they stay stacked after the battle starts' ($p -match 'pisces=493,58' -and $p -match 'godEye=493,118' -and $p -match 'devil=490,185') $p
     LeaveBattle
     Check 'back on the map' ((Cmd 'uilist' 200) -match '  MapMain layer') (Cmd 'uilist' 200)
     Check 'no callback exception in the log' ((Traps) -eq 0)

@@ -6,7 +6,8 @@ namespace MOD_sWP6UL
 {
     // 게임 화면의 신기 표시(쌍어패·호천안·연요호)를 나란히 놓는다. 게임은 신기를 하나만 가진다고 보고 셋을 같은 자리에 두어, 둘 이상이면 겹친다(05 문서 37절).
     // - 지도 화면 초상 왼쪽 아래의 버튼: 게임의 자리 -240,-93. 오른쪽으로 46씩(아래로는 화면 끝에 잘리고 위에는 운명 표시가 있다).
-    // - 전투 화면 오른쪽 아래의 칸: 게임의 자리 쌍어패·호천안 493,58, 연요호 490,65. 오른쪽으로 60씩. 칸은 조건이 맞을 때만 켜진다
+    // - 전투 화면 오른쪽 아래의 칸: 게임의 자리 쌍어패·호천안 493,58, 연요호 490,65. **위로** 60씩 쌓는다(전에는 오른쪽으로 60씩이었으나,
+    //   종족 틀 같은 모드가 그 오른쪽에 자기 기술 단추를 두어 겹쳤다. 사용자 보고 2026-10-17, 05 문서 55절). 칸은 조건이 맞을 때만 켜진다
     //   (연요호: 가지면, 호천안: 기술을 장착하면, 쌍어패: 반쪽을 준 NPC가 있으면).
     // 켜진 것이 둘 이상이면 쌍어패 → 호천안 → 연요호 순서로 놓고, 하나뿐이거나 꺼진 것은 게임의 자리에 둔다.
     // 화면이 새로 만들어지거나(전투를 다녀온 지도, 새 전투) 켜진 것이 바뀔 때만 옮긴다. 세이브와 게임 자료는 바꾸지 않는다.
@@ -16,6 +17,7 @@ namespace MOD_sWP6UL
         {
             private readonly string what;
             private readonly float step;
+            private readonly bool vertical;   // 참이면 위로(y+), 거짓이면 오른쪽으로(x+) step씩
             private IntPtr lastScreen = IntPtr.Zero;
             private IntPtr failedScreen = IntPtr.Zero;
             private int lastMask = -1;
@@ -23,10 +25,11 @@ namespace MOD_sWP6UL
             private Vector2[] targets = new Vector2[0];
             private int driftLogs;
 
-            public Row(string what, float step)
+            public Row(string what, float step, bool vertical)
             {
                 this.what = what;
                 this.step = step;
+                this.vertical = vertical;
             }
 
             // screen은 그 화면의 포인터(새로 만들어졌는지 가린다), items는 쌍어패·호천안·연요호 순서의 표시들.
@@ -118,8 +121,9 @@ namespace MOD_sWP6UL
                     }
                     var rt = items[i].GetComponent<RectTransform>();
                     bool on = (mask & (1 << i)) != 0;
-                    // 칸마다 게임이 둔 높이와 첫 칸과의 가로 차이는 지킨다(연요호 칸은 첫 칸보다 3 왼쪽, 7 위).
-                    targets[i] = on && shown > 1 ? new Vector2(homes[i].x + step * slot, homes[i].y) : homes[i];
+                    // 칸마다 게임이 둔 자리와의 차이는 지킨다(연요호 칸은 첫 칸보다 3 왼쪽, 7 위).
+                    targets[i] = !on || shown <= 1 ? homes[i]
+                        : vertical ? new Vector2(homes[i].x, homes[i].y + step * slot) : new Vector2(homes[i].x + step * slot, homes[i].y);
                     rt.anchoredPosition = targets[i];
                     if (on)
                     {
@@ -129,8 +133,8 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static readonly Row MapRow = new Row("지도 화면", 46f);
-        private static readonly Row BattleRow = new Row("전투 화면", 60f);
+        private static readonly Row MapRow = new Row("지도 화면", 46f, false);
+        private static readonly Row BattleRow = new Row("전투 화면", 60f, true);
 
         public static void Tick()
         {

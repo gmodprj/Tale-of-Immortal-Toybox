@@ -114,10 +114,20 @@ namespace MOD_sWP6UL
 
         // 기본 행: 경지 범위가 0~0인 항목은 플레이어가 배우는 기술이 아니다(괴물용·부품). 이름 키가 풀리지 않는 것도 뺀다.
         // 모드 행(isModExtend): 경지 범위가 0~0이고 한국어 이름이 "0"이어도 넣는다(실측, 인계 8.3e절). 경지는 1~10.
-        private static void Add(List<Entry> list, int kindIndex, bool isMod, int id, string nameKey, string descKey, int gradeMin, int gradeMax, string basType)
+        // 무예·영술·절기·신통의 className이 "0"인 기본 행은 분류 전체의 묶음(className 1)에서 뽑히지 않는다. 그 가운데 자기 묶음도 없고
+        // 설명도 없는 것(멸신참 321111, 마인참 321112)은 NPC 전용이라 게임이 만들지 못한다(사용자 보고 2026-10-17, 05 문서 55절). 목록에서 뺀다.
+        private static void Add(List<Entry> list, int kindIndex, bool isMod, int id, string nameKey, string descKey, int gradeMin, int gradeMax, string basType, string className)
         {
             bool nameFromCh, descFromCh;
             string name = EditService.Compact(ResolveText(nameKey, out nameFromCh));
+            if (!isMod && className == "0" && OwnCombine(Kinds[kindIndex], id) == 0)
+            {
+                string rawDesc = ResolveText(descKey, out descFromCh);
+                if (string.IsNullOrEmpty(rawDesc) || rawDesc == "0" || rawDesc == descKey)
+                {
+                    return;
+                }
+            }
             // 모드가 이름 키를 LocalText에 넣지 않으면 이름이 비거나 "0"이다(46절). 번호로 찾을 수 있게 이름을 두고 목록 끝으로 보낸다.
             bool nameless = isMod && (name.Length == 0 || name == "0" || name == EditService.Compact(nameKey));
             if (nameless)
@@ -159,7 +169,7 @@ namespace MOD_sWP6UL
                 var all = g.conf.battleStepBase._allConfList;
                 for (int i = 0; i < all.Count; i++)
                 {
-                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "");
+                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "", "");
                 }
             }
             else if (kind.Type == MartialType.Ability)
@@ -167,7 +177,7 @@ namespace MOD_sWP6UL
                 var all = g.conf.battleAbilityBase._allConfList;
                 for (int i = 0; i < all.Count; i++)
                 {
-                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "");
+                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "", "");
                 }
             }
             else
@@ -181,7 +191,7 @@ namespace MOD_sWP6UL
                         : kind.Type == MartialType.SkillRight ? type == 3 : type == 4;
                     if (match)
                     {
-                        Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, all[i].basType);
+                        Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, all[i].basType, all[i].className);
                     }
                 }
             }
