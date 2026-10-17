@@ -18,30 +18,30 @@ switch ($Part) {
     $s = Tr
     Check 'giving adds one treasure' ($s -match 'treasures=1 \[(\w+):3031101:') "$r | $s"
     $sole = $Matches[1]
-    Check 'the new treasure is unequipped and empty' ($s -match "\[$sole:3031101:[^\]]*:100/100:-:0\]") $s
+    Check 'the new treasure is unequipped and empty' ($s -match "\[${sole}:3031101:[^\]]*:100/100:-:0\]") $s
     $r = Cmd "trequip $sole" 800
-    Check 'equip succeeds' ($r -match '장착했습니다' -and (Tr) -match "\[$sole:[^\]]*:eq:0\]") "$r | $(Tr)"
+    Check 'equip succeeds' ($r -match '장착했습니다' -and (Tr) -match "\[${sole}:[^\]]*:eq:0\]") "$r | $(Tr)"
     $r = Cmd 'trmake 1001' 800
     $s = Tr
-    Check 'making a spirit adds one at level 1 with dark talents' ($r -match '만들었습니다' -and $s -match 'spirits=1 \[(\d+):1001:[^:]+:Lv1/5:0/200:0/\d+:-\]') "$r | $s"
+    Check 'making a spirit adds one at level 1 with dark talents' ($r -match '만들었습니다' -and $s -match 'spirits=1 \[(-?\d+):1001:[^:]+:Lv1/5:0/200:0/\d+:-\]') "$r | $s"
     $sp = $Matches[1]
     $r = Cmd 'trmake 1001' 800
     Check 'a second spirit of the same kind is refused' ($r -match '하나만' -and (Tr) -match 'spirits=1 ') $r
     $r = Cmd "trput $sole $sp" 800
-    Check 'the spirit goes into the equipped treasure' ($r -match '넣었습니다' -and (Tr) -match "\[$sole:[^\]]*:eq:$sp\]" -and (Tr) -match "\[$sp:1001:[^\]]*:$sole\]") "$r | $(Tr)"
+    Check 'the spirit goes into the equipped treasure' ($r -match '넣었습니다' -and (Tr) -match "\[${sole}:[^\]]*:eq:$sp\]" -and (Tr) -match "\[${sp}:1001:[^\]]*:$sole\]") "$r | $(Tr)"
     $r = Cmd "trdel $sp" 800
     Check 'a spirit inside a treasure is not deleted' ($r -match '먼저 빼세요' -and (Tr) -match 'spirits=1 ') $r
     $r = Cmd "trlight $sp" 2000
-    Check 'all shown talents are lit' ($r -match '재능 \d+개를 켰습니다' -and (Tr) -match "\[$sp:1001:[^\]]*:(\d+)/\1:") "$r | $(Tr)"
+    Check 'all shown talents are lit' ($r -match '재능 \d+개를 켰습니다' -and (Tr) -match "\[${sp}:1001:[^\]]*:(\d+)/\1:") "$r | $(Tr)"
     $r = Cmd "trlevel $sp" 800
-    Check 'the level goes up by one' ($r -match 'Lv1 → Lv2' -and (Tr) -match "\[$sp:1001:[^:]+:Lv2/5:") "$r | $(Tr)"
+    Check 'the level goes up by one' ($r -match 'Lv1 → Lv2' -and (Tr) -match "\[${sp}:1001:[^:]+:Lv2/5:") "$r | $(Tr)"
     $r = Cmd "trpull $sole" 800
-    Check 'pulling empties the treasure and keeps the spirit' ($r -match '뺐습니다' -and (Tr) -match "\[$sole:[^\]]*:eq:0\]" -and (Tr) -match "\[$sp:1001:[^\]]*:-\]") "$r | $(Tr)"
+    Check 'pulling empties the treasure and keeps the spirit' ($r -match '뺐습니다' -and (Tr) -match "\[${sole}:[^\]]*:eq:0\]" -and (Tr) -match "\[${sp}:1001:[^\]]*:-\]") "$r | $(Tr)"
     "INFO pull path: $r"
     $r = Cmd "trdel $sp" 800
     Check 'a free spirit is deleted' ($r -match '지웠습니다' -and (Tr) -match 'spirits=0') "$r | $(Tr)"
     $r = Cmd 'trunequip' 800
-    Check 'unequip succeeds' ($r -match '해제했습니다' -and (Tr) -match "\[$sole:[^\]]*:-:0\]") "$r | $(Tr)"
+    Check 'unequip succeeds' ($r -match '해제했습니다' -and (Tr) -match "\[${sole}:[^\]]*:-:0\]") "$r | $(Tr)"
     Check 'the change log has treasure lines' (LogHas '법보')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
@@ -56,12 +56,13 @@ switch ($Part) {
     Check 'a treasure is given from the screen' ((Tr) -match '3031102') (Tr)
     Press 'Back' | Out-Null
     Press 'TreasureMakeOpen' | Out-Null
-    Check 'the make screen lists the spirits' ((IsAt 'SpiritMake1002') -and (IsAt 'SpiritMake2024'))
+    Cmd 'ui set SpiritKindSearch 100' | Out-Null
+    Check 'the make screen lists the spirits' ((IsAt 'SpiritMake1002') -and (IsAt 'SpiritMake1001'))
     Cmd 'ui set SpiritKindSearch 창애' | Out-Null
     Check 'the search narrows the list' ((Cmd 'uipos SpiritMake1001') -match 'no element named' -and (IsAt 'SpiritMake1002'))
     Press 'SpiritMake1002' | Out-Null
     $s = Tr
-    Check 'a spirit is made from the screen' ($s -match '\[(\d+):1002:') $s
+    Check 'a spirit is made from the screen' ($s -match '\[(-?\d+):1002:') $s
     $sp = $Matches[1]
     Check 'the make button turns off for an owned spirit' (IsOff 'SpiritMake1002')
     Press 'Back' | Out-Null
@@ -70,9 +71,9 @@ switch ($Part) {
     $sole = $Matches[1]
     Check 'put is off while no treasure is equipped' (IsOff "SpiritPut$sp")
     Press "TreasureEquip$sole" | Out-Null
-    Check 'the equip button equips' ((Tr) -match "\[$sole:[^\]]*:eq:0\]" -and (Cmd "uitext TreasureState$sole") -match "text='장착 중'") (Tr)
+    Check 'the equip button equips' ((Tr) -match "\[${sole}:[^\]]*:eq:0\]" -and (Cmd "uitext TreasureState$sole") -match "text='장착 중'") (Tr)
     Press "SpiritPut$sp" | Out-Null
-    Check 'the put button puts the spirit into the equipped treasure' ((Tr) -match "\[$sole:[^\]]*:eq:$sp\]" -and (Cmd "uitext TreasureSpirit$sole") -match 'Lv1') "$(Tr) | $(Cmd "uitext TreasureSpirit$sole")"
+    Check 'the put button puts the spirit into the equipped treasure' ((Tr) -match "\[${sole}:[^\]]*:eq:$sp\]" -and (Cmd "uitext TreasureSpirit$sole") -match 'Lv1') "$(Tr) | $(Cmd "uitext TreasureSpirit$sole")"
     Check 'delete is off while the spirit is inside' (IsOff "SpiritDel$sp")
     Press "SpiritLight$sp" 2000 | Out-Null
     Check 'the light button lights every shown talent' ((Cmd "uitext SpiritTalents$sp") -match "text='재능 (\d+)/\1'") (Cmd "uitext SpiritTalents$sp")
@@ -81,14 +82,14 @@ switch ($Part) {
     Check 'the level button raises the level' ((Cmd "uitext SpiritState$sp") -match "text='Lv 2/") (Cmd "uitext SpiritState$sp")
     Shot 'treasure'
     Press "TreasurePull$sole" | Out-Null
-    Check 'the pull button empties the treasure' ((Tr) -match "\[$sole:[^\]]*:eq:0\]" -and (Cmd "uitext TreasureSpirit$sole") -match '없음') (Tr)
+    Check 'the pull button empties the treasure' ((Tr) -match "\[${sole}:[^\]]*:eq:0\]" -and (Cmd "uitext TreasureSpirit$sole") -match '없음') (Tr)
     Check 'the pull button turns off when empty' (IsOff "TreasurePull$sole")
     Press "SpiritDel$sp" | Out-Null
-    Check 'delete asks first' ((Tr) -match "\[$sp:1002:" -and (Cmd "uitext SpiritDel$sp") -match '정말') (Cmd "uitext SpiritDel$sp")
+    Check 'delete asks first' ((Tr) -match "\[${sp}:1002:" -and (Cmd "uitext SpiritDel$sp") -match '정말') (Cmd "uitext SpiritDel$sp")
     Press "SpiritDel$sp" 1500 | Out-Null
-    Check 'the second press deletes the spirit' ((Tr) -notmatch "\[$sp:1002:") (Tr)
+    Check 'the second press deletes the spirit' ((Tr) -notmatch "\[${sp}:1002:") (Tr)
     Press "TreasureEquip$sole" | Out-Null
-    Check 'the unequip button unequips' ((Tr) -match "\[$sole:[^\]]*:-:0\]") (Tr)
+    Check 'the unequip button unequips' ((Tr) -match "\[${sole}:[^\]]*:-:0\]") (Tr)
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   default { throw "알 수 없는 Part: $Part" }
