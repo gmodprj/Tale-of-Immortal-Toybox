@@ -24,7 +24,7 @@ function Shot([string]$name) {
 # 정상 줄(Init, Destroy, state, 단축키 안내)이 아닌 "[TlToybox] " 줄을 고른다. 명령과 변경 이력은 "[TlToybox][...]"이라 걸리지 않는다.
 function ModWarnings {
   # 검사 errors가 일부러 내는 시험 예외(test-exception)의 줄과, 깨진 공법 망각의 대체 경로가 남기는 "(fallback)" 줄(검사 actions가 따로 센다)은 경고로 세지 않는다.
-  Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] ' -and $_ -notmatch '\[TlToybox\] (Init|Destroy|state: |translations: )' -and $_ -notmatch ': (Insert|F2|F3)\s*$' -and $_ -notmatch 'InvalidOperationException: test-exception' -and $_ -notmatch '\(fallback\) ' }
+  Get-Content -LiteralPath $log | Where-Object { $_ -match '\[TlToybox\] ' -and $_ -notmatch '\[TlToybox\] (Init|Destroy|state: |translations: |texts: )' -and $_ -notmatch ': (Insert|F2|F3)\s*$' -and $_ -notmatch 'InvalidOperationException: test-exception' -and $_ -notmatch '\(fallback\) ' }
 }
 # 버튼 콜백 안의 예외는 화면에 나오지 않고 로그의 "trampoline" 줄에만 남는다. 그 줄의 수.
 function Traps { @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'trampoline' }).Count }
