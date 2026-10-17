@@ -1,7 +1,7 @@
-# 06. 작업 인계 (2026-10-16 기준)
+# 06. 작업 인계 (2026-10-17 저녁 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
-세부 실험 기록은 `docs/05-editor-v0.1.md`(1~46절)에 있고, 이 문서는 그 길잡이다.
+세부 실험 기록은 `docs/05-editor-v0.1.md`(1~56절)에 있고, 이 문서는 그 길잡이다.
 
 **이어받는 순서**: 1절(상태)을 훑고 → 8절(다음에 할 일)을 읽고 → 일을 시작할 때 5절(검증 방법)과 6절(함정)을 본다.
 
@@ -9,7 +9,7 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이고 작업 트리는 깨끗하다. `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절. 마지막이 `feat/ultimate-research`(44절 조사))뿐이다(2026-10-16 11시 기준). 병합을 마친 작업·문서 브랜치는 사용자 지시로 모두 지웠다(2026-10-14~16). 병합 뒤 지울지는 사용자에게 묻는다.
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다(2026-10-17 저녁 1bbeaa9 이후. 이 문서 정리의 병합이 그 뒤). `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절), 그리고 **다른 세션이 쓰는** `fix/editor-input-leak`(51절의 것. 병합은 끝났으나 그 세션이 남겼다)과 `docs/mod-prereqs`(메인 체크아웃 `E:\TlToybox`가 이 브랜치에 있고 추적되지 않은 `tools/workshop/descriptions-20261017.txt`가 있다. 건드리지 않는다)이다. 그래서 작업은 `.claude\worktrees\<이름>`에 `develop`에서 딴 워크트리를 만들어 하고, 병합은 워크트리에서 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다(2026-10-14~17. 병합 뒤 지울지는 사용자에게 묻는다).
 - **지금 게임에 설치된 것**(2026-10-17 16:40 기준):
   - 편집기 모드: 배포 빌드(개발 도구 제외) `ModExportData\Mod_sWP6UL\ModCode\dll\MOD_sWP6UL.dll`. `develop` 6c12d31(56절 법보 탭, 55절 후속 셋, 54절 LocalText 밖 중국어 글 한글화, 51절 입력 누수 수정, 3차 번역표 6,275행 포함. 조사·검사용 개발 명령은 배포 빌드에서 빠짐)와 같다 — 2026-10-17 16:40에 사용자 지시·게임 꺼짐 뒤 워크트리 `.claude\worktrees\editor-followups`에서 develop을 체크아웃해 `tools/install.ps1`로 설치, `installed build: 6c12d31`(1,139,712바이트). 게임을 켜면 `Latest.log`의 `[TlToybox] Init build=6c12d31`과 `[TlToybox] texts: … tables=6 cells=131`로 확인할 수 있다(49·54절). 처음 켤 때 데이터 폴더에 `translations\texts.txt`(245줄)가 풀린다(앞 설치본에서 이미 풀렸으면 그대로). 바로 앞 설치본은 8f26b36(2026-10-17 14:38), 그 앞은 9cf06ae(11:42). 51절의 수정은 회차의 가상 입력으로만 검사했고 실제 마우스 확인은 사용자 몫이다(8.5절). 54절은 고정본 회차(캐릭터 만들기 화면의 종족 기술·변신 설명)에서만 확인했고 사용자 세이브에서의 확인은 사용자 몫이다.
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
@@ -18,13 +18,14 @@
   - 모드 데이터 폴더 `%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\TlToybox`: 설정·즐겨찾기·프리셋·자동 백업과 번역 파일 `translations\mods.txt`(43·46절. DLL 안의 것이 첫 실행 때 풀리고, 파일이 이미 있으면 내장본에만 있는 키가 끝에 덧붙는다. 사용자가 고친 줄은 그대로).
   - 사용자가 2026-10-16 오전에 이 설치본(당시 43절까지)으로 플레이했다(월말 안내 캡처. 8.3a절). 창작마당 모드·모드 비급·한글 이름·모드 신통의 확인 결과는 아직 듣지 못했다(8.5절).
 - **직전 작업(2026-10-16, 하루에 다섯 단계)**: G2a 창작마당 모드 받기·설치(05 문서 41절, `tools/workshop.ps1`. 스펙 없이 도구 스크립트로) → G2b·G2c 설계 전 실험(8.3e절, `ws-1016a`~`g`) → G2b 모드 공법의 비급(42절, 스펙·계획 `2026-10-16-mod-skill-books*`, `ws-1016h`~`m`) → G2c 모드 글 한글화(43절, 스펙·계획 `2026-10-16-mod-korean*`, 번역 59행, `ws-1016n`~`r`) → 모드 신통 비급(44절, 사용자 요청 "다시 확인": 옵션 번호 치환으로 42절의 차단을 풂, 브랜치 `fix/mod-ultimate-books`, `ws-1016s`~`w`). 2026-10-15에는 G1(38절), 비급 지급(39절), 도호 관리(40절). → 2026-10-16 오후: W 창작마당 확장(45절. 스펙·계획 `2026-10-16-workshop-expand*`. 목록 일곱 칸·이력, `-Search` 후보표(80개에 요약·추천), `-Doc` 등록부, 사용자가 고른 8개 받기·회차 `ws-1017a` 검증·설치, Steam 컬렉션). 리뷰 R은 별도 세션(`docs/08-review-2026-10-16.md`, 브랜치 `docs-review-1016`, 병합 전). → 같은 날 K 새 모드 8개 한글화(46절. 스펙 `2026-10-16-mod-korean-2-design.md`, 번역 765행 추가로 824행, `EnsureFile` 덧붙이기, 회차 `ws-1017b`(RED)·`ws-1017c`(GREEN)). → 같은 날 X 리뷰 수정 묶음(47·48절. 스펙 `2026-10-16-review-fixes-design.md`, 계획 `plans/2026-10-16-review-fixes.md`, 회차 `ws-1017e`(RED)·`f`·`g`(GREEN)·`h`~`k`(최종)·`l`~`n`(리뷰 후속). 탭 줄 재배치(화폐 그룹·안전 단추·고정 번호)와 작은 수정 열 가지). → 같은 날 Y 리뷰 남은 도구 묶음(49절. 스펙 `2026-10-16-review-tools-design.md`, 회차 `ws-1017p`·`q`). → 같은 날 밤~17일 새벽: 창작마당 3차(50절. 브랜치 `feat/workshop-batch3`, 회차 `ws-1017r`·`s`).
-- **직전 작업(2026-10-17 오전)**: 창 위의 휠·포인터가 뒤의 지도에 새는 버그(사용자 보고) 수정 — 05 문서 51절, 브랜치 `fix/editor-input-leak`(develop에 병합), 회차 `fix-1017a`~`e`. 원인은 게임 메서드의 네이티브 코드 해독(새 개발 명령 `xrefmap`·`xrefl`·`xrefd`)으로 찾았다: `MapWorldMgr.OnUpdate`가 UI 조건 없이 `Input.mouseScrollDelta`와 오른쪽 단추 끌기를 읽는다. 수정은 `UI/PointerGuard.cs`(Harmony 패치 넷 + 카메라 eventMask). 검사는 가상 입력(`uipointer`·`uiwheel`·`uikey`)으로 `ui-check.ps1 -Part input`(17개). 실제 마우스로는 시험하지 못했다(8.5절).
-- **같은 날 오전, 나란히 한 작업**: NPC 몸(입화)이 비어 보인다는 사용자 보고의 조사 — 05 문서 52절, 브랜치 `feat/body-portrait-check`(워크트리 `.claude\worktrees\body-portrait-check`, develop에 병합), 회차 `body-1017a`~`i`. 창작마당 필수 항목은 빠진 것이 없고, Fatury 틀이 싣는 모드 목록이 게임의 저장된 모드 순서(PlayerPrefs `Mod_LoadData`)를 따른다는 것과 2815562168의 `Body\149` 그림이 깨졌다는 것을 확인했다. 사용자 승인으로 모드 순서를 35개로 켜 두었다(1절). 사용자가 본 깨짐 범위(100번대 중반~200번대 초반)는 고정본에서 재현되지 않았다(8.5절). 조사 도구 `tools/research/fatury-scan.py`·`fatury-log.py`, 개발 명령 `rdress`·`rbodyq`/`rbodyr`·`rnpcinfo` 등(`DevCommandsDress.cs`).
-- **같은 날 낮**: 남은 중국어 글 조사 — 05 문서 53절, 브랜치 `feat/zh-survey`(develop에 병합), 회차 `zh-1017a`. 사용자가 보낸 종족 기술 설명의 중국어는 LocalText 밖의 글이다: 표 안의 글 칸 129칸(용족 기술 이름 37, 효과 설명 12, 극 NPC 전용 운명 이름·설명 25씩, 모드 NPC 성·이름 21, 얼굴 만들기 확인 창 3), 종족 JSON 30개, 종족 틀 DLL 라벨 약 25개, 다른 DLL 버튼 글 8개. 지금의 번역표(LocalText 키)로는 못 바꾸므로 원문 기반 번역표 + 화면 글 치환(또는 표 칸 바꿔 끼움)의 설계가 필요하다(다음에 할 일 (7)). 개발 명령 `rzh [표|all]`(`DevCommandsZh.cs`)이 표를 훑는다.
-- **같은 날 오후**: LocalText 밖 중국어 글 한글화 — 05 문서 54절, 스펙·계획 `2026-10-17-zh-text-korean*`, 브랜치 `feat/zh-korean`(워크트리 `.claude\worktrees\zh-korean`, develop에 병합), 회차 `zh-1017b`~`h`. 원문 기반 번역표 `Translations/texts.txt`(245줄. 데이터 폴더 `translations\texts.txt`로 풀림), 시작 때 여섯 표의 글 칸 131개를 전체 일치로 바꿔 끼움(`TextTranslationService`), `TMP_Text.text`·`Text.text` 설정자의 Harmony 앞붙임으로 한자가 든 글만 치환(`TextPatch`. 한자가 남으면 원문 그대로), LocalText의 ch→kr 전체 일치 사전(불러오기 화면의 팁). 캐릭터 만들기 화면의 종족 기술·변신 설명이 한국어로 나오는 것을 캡처로 확인했다(`.devremote\zh-1017g-peacock-transf.png`). 남긴 것: 시작 화면 패치 노트·모드 목록 창(일부러), 사용자 세이브에서의 확인. 개발 명령 `rzhtext`·`rzhstat`·`rzhleft`·`rzhapply`.
-- **같은 날 늦은 오후**: 사용자 보고 넷 가운데 셋 — 05 문서 55절, 브랜치 `fix/editor-followups`(워크트리 `.claude\worktrees\editor-followups`, develop에 병합), 회차 `fu-1017a`·`b`. 즐겨찾기 수량 칸은 Enter 없이 칸을 떠나도 저장(`NumberField.commitOnEndEdit`), 전투 HUD의 신기 칸은 오른쪽 대신 **위로** 60씩(종족 틀의 기술 단추와 겹침), 게임이 못 만드는 기본 기술 셋(멸신참·마인참·극풍인. `className` 0, 자기 묶음 없음)은 기술 추가 목록에서 뺌. `check-lib.ps1`의 경고 판정에 `texts:` 줄 제외. 넷째 법보·기령 관리는 56절(별도 브랜치). 6c12d31로 설치됨(16:40).
-- **같은 날 저녁**: 법보 탭 — 05 문서 56절, 스펙·계획 `2026-10-17-treasure-tab*`, 브랜치 `feat/treasure-tab`(같은 워크트리, develop에 병합), 회차 `tr-1017a`·`b`. 탭 16: 가진 법보(장착·해제·기령 빼기), 기령(재능 켜기·레벨 올리기·장착한 빈 법보에 넣기·지우기), 하위 화면 기령 만들기(32종)·법보 지급(열 종). `TreasureService`가 게임 행동(`UnitActionPropEquip/Unequip`, `UnitActionEquipSprite`. 빼기는 기령 번호 0으로 넣기)과 기령 자료 메서드(`AddSprite`·`ActiveTanlet`·`AddExp`·`DelSpriteInSoleID`)를 부른다. 검사 `treasure-check.ps1 -Part service|ui` FAIL 0, 캡처 `.devremote\check-treasure.png`. 전투·게임 화면에서의 실제 반영은 사용자 확인 항목. 6c12d31로 설치됨(16:40).
-- **다음에 할 일**: (0) 설치는 끝났다(6c12d31, 2026-10-17 16:40). 사용자 확인(8.5절): 전투에서 위로 쌓인 신기 칸이 종족 기술 단추와 겹치지 않는지, 법보 탭에서 켠 재능·올린 레벨·넣은 기령이 전투와 게임의 기령 화면에 반영되는지, 즐겨찾기 수량이 칸을 떠나도 남는지, 종족 기술·변신 설명과 극 NPC 운명 이름이 한국어인지, 실제 마우스로 창 위의 휠·오른쪽 끌기·호버. 사용자가 종족 기술·변신 설명과 극 NPC 운명 이름이 한국어인지, 실제 마우스로 창 위의 휠·오른쪽 끌기·호버를 확인(8.5절). (1) 사용자 확인(8.5절): 새 모드 8개의 실제 효과와 한국어 글(종족 선택·요도희·절색방·BGM), 새 탭 줄·화폐 그룹·안전 단추의 쓰임새. (2) 리뷰에서 남긴 것(48·49절 끝): 12(내보내기 format 2)·10·11·15·T2~T5·낮음 21~49. (3) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절). (4) 게임의 `Mods\TlToyboxDevRemote.dll`(2026-10-12 빌드)도 환경 변수를 읽는 새 빌드로 바꾸려면 사용자 확인(기본 경로는 같아 회차에는 영향 없음). (5) X 후보: 이름 키가 없는 모드 기술 168개의 "이름 없음(번호)" 표시(50절 검토). (6) 입화(52절, 해결): 사용자가 11:1x에 의복 정상 출력을 확인했다. 남은 것은 2815562168 `Body\149` 폴더를 뺄지(사용자 결정)와, `workshop.ps1 -Install` 뒤 모드 순서(`Mod_LoadData`) 갱신 단계를 41절 절차에 넣을지. 10:04 세션이 24개를 읽은 까닭은 미확인으로 둔다. (7) LocalText 밖의 중국어 글 한글화: 끝남(54절, 설치됨). 남은 것은 사용자 세이브에서의 확인. 사용자가 또 중국어를 보고하면 회차에서 `rzhleft`로 그 글의 원문을 받아 `Translations/texts.txt`에 줄을 더한다(부분 치환은 조각이 하나라도 빠지면 글 전체가 중국어로 남는다). 시작 화면 패치 노트와 모드 목록 창은 일부러 둔다.
+- **2026-10-17의 작업(시간순. 모두 develop에 병합, 6c12d31에 설치됨)**:
+  - 오전 — 창 위의 휠·포인터가 뒤의 지도에 새는 버그 수정(51절, 브랜치 `fix/editor-input-leak`, 회차 `fix-1017a`~`e`). 게임 메서드의 네이티브 코드 해독(`xrefmap`·`xrefl`·`xrefd`)으로 `MapWorldMgr.OnUpdate`가 UI 조건 없이 입력을 읽는 것을 찾아 `UI/PointerGuard.cs`(Harmony 패치 넷 + 카메라 eventMask)로 막았다. 검사는 가상 입력(`ui-check.ps1 -Part input`). 실제 마우스는 사용자 확인(8.5절).
+  - 오전 — NPC 몸(입화)이 비어 보이는 보고의 조사(52절, 회차 `body-1017a`~`i`·`create-1017a`~`f`·`rel-1017a`). Fatury 틀은 PlayerPrefs `Mod_LoadData`의 모드만 싣는다 → 사용자 승인으로 35개 모두 켬(위). 2815562168의 `Body\149`는 깨진 PNG. 도구 `fatury-scan.py`·`fatury-log.py`, 개발 명령 `rdress`·`rbodyq`·`rbodyr`·`rnpcinfo`·`ruigrid`, `session.ps1 -Login`.
+  - 낮 — 남은 중국어 글 조사(53절, 회차 `zh-1017a`, 개발 명령 `rzh`): LocalText 밖의 글 네 층(표 칸 129, 종족 JSON 30, 종족 틀 DLL 라벨 25, 다른 DLL 버튼 8).
+  - 오후 — LocalText 밖 중국어 글 한글화(54절, 스펙·계획 `2026-10-17-zh-text-korean*`, 회차 `zh-1017b`~`h`): 원문 기반 번역표 `Translations/texts.txt`(245줄 → 데이터 폴더 `translations\texts.txt`), 시작 때 여섯 표의 글 칸 131개 바꿔 끼움(`TextTranslationService`), `TMP_Text.text`·`Text.text` 설정자의 Harmony 앞붙임(`TextPatch`. 한자가 남으면 원문 그대로), LocalText ch→kr 전체 일치 사전. 캐릭터 만들기 화면의 종족 기술·변신 설명이 한국어(캡처 `.devremote\zh-1017g-peacock-transf.png`). 개발 명령 `rzhtext`·`rzhstat`·`rzhleft`·`rzhapply`.
+  - 늦은 오후 — 사용자 보고 셋(55절, 회차 `fu-1017a`·`b`): 즐겨찾기 수량 칸은 칸을 떠나도 저장(`NumberField.commitOnEndEdit`), 전투 HUD의 신기 칸은 오른쪽 대신 **위로** 60씩(종족 틀의 기술 단추와 겹침), 게임이 못 만드는 기본 기술 셋(멸신참·마인참·극풍인)은 기술 추가 목록에서 뺌. `check-lib.ps1`의 경고 판정에 `texts:` 줄 제외. 전투 불러오기가 한 번 멈췄다(원인 미확인, 55절 끝).
+  - 저녁 — 법보 탭(56절, 스펙·계획 `2026-10-17-treasure-tab*`, 회차 `tr-1017a`·`b`): 탭 16에 가진 법보(장착·해제·기령 빼기), 기령(재능 켜기·레벨 올리기·장착한 빈 법보에 넣기·지우기), 하위 화면 기령 만들기(32종)·법보 지급(열 종). `TreasureService`, 개발 명령 `tr`·`tr*`, 검사 `treasure-check.ps1 -Part service|ui` FAIL 0(캡처 `.devremote\check-treasure.png`).
+- **다음에 할 일**: (0) 설치는 끝났다(6c12d31, 2026-10-17 16:40). 사용자 확인 목록은 8.5절의 마지막 묶음("2026-10-17 설치본"). (1) 사용자 확인(8.5절): 새 모드 8개의 실제 효과와 한국어 글(종족 선택·요도희·절색방·BGM), 새 탭 줄·화폐 그룹·안전 단추의 쓰임새. (2) 리뷰에서 남긴 것(48·49절 끝): 12(내보내기 format 2)·10·11·15·T2~T5·낮음 21~49. (3) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절). (4) 게임의 `Mods\TlToyboxDevRemote.dll`(2026-10-12 빌드)도 환경 변수를 읽는 새 빌드로 바꾸려면 사용자 확인(기본 경로는 같아 회차에는 영향 없음). (5) X 후보: 이름 키가 없는 모드 기술 168개의 "이름 없음(번호)" 표시(50절 검토). (6) 입화(52절, 해결): 2815562168 `Body\149` 폴더를 뺄지(사용자 결정)와 `workshop.ps1 -Install` 뒤 모드 순서(`Mod_LoadData`) 갱신 단계를 41절 절차에 넣을지. 10:04 세션이 24개를 읽은 까닭은 미확인으로 둔다. (7) 중국어가 또 보이면 회차에서 `rzhleft`로 그 글의 원문을 받아 `Translations/texts.txt`에 줄을 더한다(54절. 부분 치환은 조각이 하나라도 빠지면 글 전체가 중국어로 남는다. 시작 화면 패치 노트와 모드 목록 창은 일부러 둔다). (8) 전투 불러오기 멈춤(55절, 한 번): 다시 나면 그 순서(편집기 열린 채 `numbers` 검사 뒤 `awset 1,3` → `fight 1011 20` → 전투 확인)로 재현한다. (9) 법보 탭 후속 후보(56절, 사용자가 원하면): 법보의 경지·강화·접두 옵션, 기령의 친밀도·장비.
 - 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 사용자가 계속 플레이하므로 세이브의 날짜는 수시로 바뀐다(2026-10-16 오전 캡처: 2년 7월 8일, 결정 초기). 고정본(5절)은 영향을 받지 않는다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
 
@@ -69,21 +70,22 @@
 |---|---|
 | `docs/00-design-brief.md` | 기획서(기준 문서) |
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
-| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~49절). 기능을 바꾸면 절을 추가한다 |
+| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~56절). 기능을 바꾸면 절을 추가한다 |
 | `docs/06-handoff.md` | 이 문서 |
 | `docs/07-divine-artifacts.md` | 시작 신기 셋(쌍어패·호천안·연요호)과 특수 선천운명 셋(식혼검·음양안·연화검의)의 조사. 게임 확인(7절), 편집기 후보(8절), 미확인(9절) |
-| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`), 선법 탭(`2026-10-14-immortal-tab*`), 신기 탭(`2026-10-14-artifact-tab*`), 도호(`2026-10-15-appellation*`), 비급(`2026-10-15-martial-books*`), 자원 탭(`2026-10-15-resources-tab*`), 창작마당 설치(`2026-10-15-workshop-install*`), 한글화(`2026-10-16-mod-korean*`), 모드 공법의 비급(`2026-10-16-mod-skill-books*`), 창작마당 확장(`2026-10-16-workshop-expand*`), 새 모드 한글화(`2026-10-16-mod-korean-2*`), 리뷰 수정(`2026-10-16-review-fixes*`), 리뷰 도구 묶음(`2026-10-16-review-tools*`) |
+| `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`), 선법 탭(`2026-10-14-immortal-tab*`), 신기 탭(`2026-10-14-artifact-tab*`), 도호(`2026-10-15-appellation*`), 비급(`2026-10-15-martial-books*`), 자원 탭(`2026-10-15-resources-tab*`), 창작마당 설치(`2026-10-15-workshop-install*`), 한글화(`2026-10-16-mod-korean*`), 모드 공법의 비급(`2026-10-16-mod-skill-books*`), 창작마당 확장(`2026-10-16-workshop-expand*`), 새 모드 한글화(`2026-10-16-mod-korean-2*`), 리뷰 수정(`2026-10-16-review-fixes*`), 리뷰 도구 묶음(`2026-10-16-review-tools*`), LocalText 밖 글 한글화(`2026-10-17-zh-text-korean*`), 법보 탭(`2026-10-17-treasure-tab*`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
-| `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리)도 여기 있다 |
+| `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리), 한글화의 `TranslationService.cs`·`TranslationTable.cs`(LocalText 키 번역표)·`TextTranslationService.cs`·`TextReplacer.cs`(원문 기반 번역표, 54절), 법보·기령의 `SpriteService.cs`(프리셋)·`TreasureService.cs`(법보 탭)도 여기 있다 |
+| `src/ModCode/ModMain/Translations/` | DLL에 내장되는 번역표: `mods.txt`(LocalText 키<TAB>한국어, 6,275행. 43·46·50절), `texts.txt`(원문<TAB>한국어, 245줄. 54절). 설치 뒤 첫 실행 때 데이터 폴더 `translations\`로 풀린다 |
 | `src/ModCode/ModMain/Presets/` | 기본 프리셋 열 개(JSON). DLL에 EmbeddedResource로 들어간다. 손으로 고치지 않고 `tools/research/preset-build.ps1`의 표를 고쳐 다시 만든다 |
-| `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미, 글 높이 재기), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀), `StatusOverlay.cs`(켜 둔 기능 표시), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(`ListView`, `SearchBox`, `DetailPane`, `Confirm`, `NumberField`, `AmountBar`) |
+| `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미, 글 높이 재기), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀), `StatusOverlay.cs`(켜 둔 기능 표시), `PointerGuard.cs`(창 위 입력이 지도에 새지 않게 하는 Harmony 패치, 51절), `TextPatch.cs`(화면 글의 한자 치환 Harmony 패치, 54절), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(`ListView`, `SearchBox`, `DetailPane`, `Confirm`, `NumberField`, `AmountBar`) |
 | `src/ModCode/ModMain/Safety/` | 백업, 변경 이력 |
 | `src/ModCode/ModMain/Dev/` | 개발 빌드 전용 명령(배포 빌드에서 제외) |
 | `tools/install.ps1` | 배포 빌드를 만들어 게임에 설치 |
 | `tools/workshop.ps1`, `tools/workshop/` | 창작마당 모드 도구(`-Status`·`-Download`·`-Install`·`-Uninstall`·`-Search`·`-Doc`)와 목록 `mods.txt`(일곱 칸)·이력 `history.txt`·후보표 `candidates-*.md`·컬렉션 ID `collection.txt`·설명문 `collection-desc.txt`. 시험 `tools/workshop.tests.ps1`(78개). 41·45절 |
 | `docs/09-workshop-mods.md` | 창작마당 모드 등록부. `tools/workshop.ps1 -Doc`이 만든다(손으로 고치지 않는다) |
 | `tools/DevRemote/` | 게임을 화면 밖에서 조작하는 도구(MelonMod + 스크립트). `session.ps1`이 검증 한 회차를 묶고, `session.tests.ps1`이 그 안전 규칙을 시험한다(34개) |
-| `tools/research/` | 게임 어셈블리 조사 스크립트, 게임 내 자동 검증(`ui-check.ps1`, `datebag-check.ps1`, `preset-check.ps1`, `major-breakthrough-check.ps1`. 공통 함수는 `check-lib.ps1`), 기본 프리셋을 만드는 `preset-build.ps1` |
+| `tools/research/` | 게임 어셈블리 조사 스크립트, 게임 내 자동 검증(`ui-check.ps1`, `datebag-check.ps1`, `preset-check.ps1`, `immortal-check.ps1`, `artifact-check.ps1`, `treasure-check.ps1`, `major-breakthrough-check.ps1`. 공통 함수는 `check-lib.ps1`), 기본 프리셋을 만드는 `preset-build.ps1`, Python 조사 스크립트 `fatury-scan.py`·`fatury-log.py`(52절)·`check-texts.py`(54절. `py -3 -I -X utf8`로 돌린다) |
 | `ModProject_sWP6UL/`, `.devremote/`, `.superpowers/` | git 제외. 모드 에디터 프로젝트, 조작 도구의 작업 폴더(세이브 복사본, 고정본 `fixtures\`), 계획 실행 중의 임시 기록 |
 
 `src/ModCode/ModMain/Adapters`, `Features`, `Resolvers`는 처음 뼈대만 만들고 쓰지 않았다(`.gitkeep`만 있음). `tests/ModMain.Tests`는 게임 없이 도는 시험 프로젝트다(49절. `dotnet run --project tests/ModMain.Tests -c Release`).
@@ -190,7 +192,8 @@
   - 자원 탭: `rgroups`(전체·기타·중복·합과 그룹별 수, 표에 없는 분류 번호), `rfav [reset|reload|add <번호> <수량>|set <번호> <수량>|del <번호>|addbook <분류> <기술> <경지> <최소 품질> <수량>|setbook <기술> <경지> <최소 품질> <수량>|delbook <기술> <경지> <최소 품질>]`(즐겨찾기 상태. `reset`은 파일을 지우고 다시 읽게 한다), `rbook <분류> <기술> <경지> <최소 품질> <권수>`(비급 만들기), `rbooks [기술]`(가방의 비급), `rbookstudy <soleID>`(게임 학습이 받아들이는지), `rskill <분류> <기술>`(경지 범위), `rownskills <분류> <경지>`(그 기술 하나만 나오는 묶음이 있는 기술). 분류는 0 무예/영술 ~ 4 신통. 모드 공법: `rmods [경지]`(카탈로그의 모드 항목: 분류:번호:이름:basType:NameFromCh:막힘 이유:원본. 그 경지 기준, 기본 3), `rlearn <분류> <번호> <경지>`(공법 탭 배우기의 문장. 05 문서 42절).
   - 도호 탭: `ttl`(가진 것·장착·오성·획득 창·편집기가 닫은 창 수), `ttlgive|ttldel|ttlequip <번호>`, `ttlunequip`, `ttlholders <번호>`, `ttlnpcgive <unitID|any> <번호>`(검사 준비), `ttlrewardopen`·`ttlrewardclose`(일반 보상 창 열고 닫기).
   - 창작마당: `wsmods`(`g.mod`의 경로, 로드 목록 `paths`(모드 ID|폴더), 모드 자료 `mods`(모드 ID:이름:판:창작마당 번호), DLL 경로 `ns`, 순서 자료 `order`. 05 문서 41절). 회차 안에서 모드를 넣을 때는 `pwsh tools/workshop.ps1 -Install -Yes -NoHistory`(이력에 남기지 않는다. 45절).
-  - 한글화: `rloc`(마지막 적용 결과 `file=… rows=… applied=… fallback=… unused=… broken=…`), `rloc apply`(지금 파일로 다시), `rloc dump`(사전에 없는 모드 행을 `translations\untranslated.txt`에 키<TAB><TAB>중국어로), `rloc key <키>`(`ls=… kr=… ch=…`). 05 문서 43절. LocalText 밖의 글(54절): `rzhtext <원문…>`(번역표로 바꿔 봄. `\n` 두 글자는 줄바꿈), `rzhstat`(표 적용 요약 `file= rows= lt= tables= cells=`과 화면 글 치환 통계 `patched= calls= replaced= ms=`), `rzhleft`(치환 뒤에도 한자가 남은 화면 글을 `.devremote\zh-left.txt`에. 번역표에 더할 원문을 받는 길), `rzhapply`(번역표를 다시 읽어 표 칸 다시 적용).
+  - 한글화: `rloc`(마지막 적용 결과 `file=… rows=… applied=… fallback=… unused=… broken=…`), `rloc apply`(지금 파일로 다시), `rloc dump`(사전에 없는 모드 행을 `translations\untranslated.txt`에 키<TAB><TAB>중국어로), `rloc key <키>`(`ls=… kr=… ch=…`). 05 문서 43절. LocalText 밖의 글(54절): `rzhtext <원문…>`(번역표로 바꿔 봄. `\n` 두 글자는 줄바꿈), `rzhstat`(표 적용 요약 `file= rows= lt= tables= cells=`과 화면 글 치환 통계 `patched= calls= replaced= ms=`), `rzhleft`(치환 뒤에도 한자가 남은 화면 글을 `.devremote\zh-left.txt`에. 번역표에 더할 원문을 받는 길), `rzhapply`(번역표를 다시 읽어 표 칸 다시 적용), `rzh [표 이름|all] [최대 줄]`(설정 표의 한자 칸을 `.devremote\zh-<표>.txt`로. 53절).
+  - 입화(52절): `rdress <dressID>`, `rbody`·`rbodyq`·`rbodyr`(몸 그림 자산과 Fatury의 비동기 적재 탐침), `rbodyof <unitID>`, `rprops`, `rsetbody <번호>`, `ropenui`·`rcloseui <UIType 이름>`, `rnpcinfo`, `ruigrid <스크롤 이름> [all]`(목록 칸의 이름과 그림. 캐릭터 만들기 의복 목록 확인).
 - `rc.ps1 -Cmd "click x y" -NoShot` / `"hit x y"` / `"scroll x y delta"` — 게임 좌표(1920x1080)의 UI 요소를 누르거나 이름을 확인한다.
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. `-Do move -X -Y`·`-Do wheel -X -Y -Delta`(WM_MOUSEMOVE·WM_MOUSEWHEEL)도 있으나 Unity의 `Input`에는 닿지 않는다(51절 실측). 마우스는 개발 명령의 가상 입력(`uipointer`·`uiwheel`·`uikey`)으로 한다. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다.
@@ -221,6 +224,10 @@
 - 사용자의 게임이 켜져 있으면 `session.ps1 -Begin`이 시작 전에 멈춘다(세이브는 건드리지 않는다). 그 뒤 `mod.ps1`을 부르면 `.devremote\mod-cmd.txt`가 남으니 지운다(개발 빌드 회차가 열리면 그 명령이 실행된다).
 - **기록만 보는 검사는 실제 보유를 놓친다.** 프리셋의 역천개명 검사가 경지별 기록만 봐서, 아홉을 적용했는데 운명은 넷만 붙어 있는 것을 놓쳤다(같은 계열을 게임이 지웠다. 34절). 검토자가 찾았다. 게임이 여러 곳에 적는 값은 효과가 나는 쪽(운명의 보유 `phas`)을 본다.
 - 검사 스크립트 안에서 `check-lib.ps1`의 변수(`$log`, `$data`, `$work`)와 같은 이름의 변수를 만들지 않는다. `$log`를 덮어써 `Traps`가 깨진 적이 있다.
+- 모드가 `[TlToybox] ` 로그 줄을 새로 내면 `check-lib.ps1`의 `ModWarnings` 제외 목록에 넣는다. 54절의 `texts:` 줄이 모든 검사의 `no warning from the mod`를 실패시켰다(55절).
+- 검사는 앞 실행이 남긴 자료를 물려받는다. `Press`는 꺼진 단추를 누르면 예외로 멈추므로(법보 탭 `ui`: 앞 실행이 만든 기령의 `만들기`), 자료를 만드는 검사는 새 회차에서 돌리거나 다른 번호를 쓴다. 하위 화면의 검색어(`kindQuery` 등)는 탭이 기억하므로 검사가 먼저 맞춘다(56절).
+- 개발 명령이 `NO RESPONSE`면 `.devremote\mod-cmd.txt`가 남아 다음 명령이 "파일이 이미 있으므로"로 막힌다. 지우고 다시 보낸다. 전투 불러오기 화면에서 게임이 멈추면(55절, 한 번) 폴링도 멈춘다. 게임 창이 응답하면 `-End`의 창 닫기로 끝난다.
+- 화면 밖 게임에 보낸 Enter 키가 한 회차 내내 하나도 닿지 않은 적이 있다(`fu-1017a`: `favorites`의 Enter 검사 넷과 `numbers` 둘 실패, 같은 검사가 `fu-1017b`에서는 모두 통과). 키에 기대는 검사의 실패는 새 회차에서 다시 본 뒤 판정한다.
 - `session.ps1 -Begin`은 스스로 개발 빌드를 만든다. "고치기 전의 DLL로 검사가 실패하는 것을 본다"를 하려면 코드를 고치기 전에 회차를 열어야 한다(프리셋 열 개의 검사는 이 때문에 실패를 보지 못했다).
 - 게임 행동을 흉내 내는 기능(경지 올리기 등)은 같은 구간을 정식 행동으로 지난 결과와 통째로 비교한다(개발 명령 `snap`. 35절). 능력치만 맞춰 놓고 선력·선법·임무·칭호를 놓친 적이 있다.
 - 검사가 통과해도 **버튼과 표시만 본 것인지 실제 효과를 본 것인지** 구별한다. 피해 배율은 버튼과 화면 위쪽 표시만 검사하고 있었고, 사용자가 "적용되지 않는다"고 알린 뒤에야 적의 체력 감소를 보는 검사를 만들었다(33절). 새 기능의 검사는 게임의 값이 바뀌는 것까지 본다.
@@ -244,7 +251,8 @@
 PowerShell과 도구:
 
 - 변수 이름의 대소문자를 구분하지 않는다. `$T`와 `$t`를 한 스크립트에 쓰면 덮어쓴다. 비교 `-eq`도 글자의 대소문자를 구분하지 않는다(`'restart' -eq 'RESTART'`가 참). 구분하려면 `-ceq`.
-- 큰따옴표 글 안의 `"$p: …"`는 드라이브 표기로 읽혀 구문 오류가 난다. `"$($p): …"`로 쓴다.
+- 큰따옴표 글 안의 `"$p: …"`는 드라이브(범위) 표기로 읽혀 구문 오류가 난다. `"$($p): …"`나 `"${p}: …"`로 쓴다(`treasure-check.ps1`의 `"\[${sole}:"`, 56절).
+- 정규식 치환을 `sed`로 하면 역슬래시·괄호 이스케이프가 꼬인다. PowerShell의 `[IO.File]::ReadAllText` → `-replace`(작은따옴표 패턴) → `WriteAllText(UTF8 BOM 없음)`이 안전하다.
 - `mod.ps1`·`rc.ps1`은 배열 매개변수가 있어 `pwsh -File`로 부르면 인수가 어긋난다. `&`로 부른다.
 - 큰따옴표 글 안에서 변수 바로 뒤에 한글이 오면 변수 이름의 일부로 읽힌다(`"$total개"`). `"$($total)개"`로 쓴다.
 - `if` 식이 빈 배열을 돌려주면 `$null`이 된다. `@(if (...) { ... })`로 감싼다.
@@ -268,7 +276,11 @@ PowerShell과 도구:
 - 신기 목록(`g.data.world.animaWeapons`)이 비면 게임이 불러올 때 시작 연출·신기 선택·튜토리얼 전투를 다시 튼다. 신기를 바꾸는 코드와 검사는 목록을 비우지 않는다(07 문서 7.2절).
 - 실행 중의 관리자와 저장되는 세계 자료가 같은 값을 따로 가질 때가 있다(연요호의 손상: `g.world.devilDemonMgr.devilDemonData`와 `g.data.world.devilDemonData`, 호요: 추가하면 관리자의 `potMonDatas`에 바로 들어가고, 세계 자료의 `potMonList`는 그때 0이었다가 저장 후 다시 불러온 뒤에 채워져 있었다). 둘 다 쓰거나 실행 중의 쪽을 쓴다(37절).
 - 역천개명은 계열(`FateFeature.group`, 0이 아님)마다 하나다. 같은 계열을 다른 대경지에 붙이면 게임이 앞의 운명을 지우고 기록만 남긴다. `FateService.HeldElsewhere`로 먼저 본다(34절).
-- 같은 번호의 기령은 하나만 가질 수 있다(`AddSprite`가 null). 심법 세트는 장착한 종류가 아니라 비급마다의 세트 번호로 켜진다(34절).
+- 같은 번호의 기령은 하나만 가질 수 있다(`AddSprite`가 null). 기령의 `soleID`는 음수일 수 있다(56절). 심법 세트는 장착한 종류가 아니라 비급마다의 세트 번호로 켜진다(34절).
+- 설정 표의 `allConfList`는 `localText` 말고는 `IReadOnlyList<T>` 래퍼라 반사로 `Count`·`Item`을 못 찾는다(NullReferenceException). 표를 반사로 돌 때는 `_allConfList`를 쓴다(54절).
+- Fatury 틀은 PlayerPrefs `Mod_LoadData`에 `isLoad:true`인 모드의 자산만 싣는다. 새 창작마당 모드를 넣으면 모드 창에서 저장하거나 이 값을 다시 써야 그림이 보인다(52절).
+- 모드의 글: 종족 틀 DLL은 줄바꿈을 CRLF로 넣고 TMP가 두 글자 `\n`도 줄바꿈으로 그린다. 설명의 `{icon_…}`·`<y>…</y>`·`&…&`는 TMP 태그와 값으로 바뀐 뒤 `text` 설정자에 온다. 불러오기 화면 모드는 LocalText의 `ch`를 그대로 화면에 낸다(54절. 원문 기반 번역표는 이 셋을 모두 받게 되어 있다).
+- 기본 공법 가운데 `battleSkillAttack.className`이 `"0"`이고 자기 묶음(`battleSkillCombine.baseID`)도 없는 것(멸신참·마인참·극풍인)은 NPC 전용이라 옵션 없이 만들어도 게임이 받지 않는다(55절).
 - 게임의 행동은 요청한 것 말고 다른 데이터도 바꾼다. 운명 추가 행동(`UnitActionLuckAdd`)은 역천개명 분류의 운명을 지금 대경지의 역천개명 기록에도 적는다(30·31절). 가방의 `allProps`에는 영석과 화폐도 들어 있다(28절). 새 기능을 만들면 "바꾼 것"만이 아니라 "그대로여야 할 것"도 검사한다.
 - 게임 화면의 표시 조건은 데이터 위치와 다를 수 있다(운명 17절, 역천개명 18절). "넣었다"와 "게임 화면에 나온다"는 따로 확인한다.
 - 저장값은 `unit.data.unitData.propertyData`, 화면 값은 `unit.data.dynUnitData`의 `DynInt.value`. 수명·나이는 개월로 저장되고 년으로 표시된다.
@@ -301,6 +313,10 @@ PowerShell과 도구:
 | 프리셋 | 적용한 세이브로 오래 플레이했을 때, 신혼의 게임 화면 위치와 교체 때의 경험치, 명우의 효과·옵션 개수의 한도. 프리셋에 없는 기령·명우는 앞의 것이 남는다. 공략은 2022년 것이고 채운 줄은 작성자의 판단 | 34절, `specs/2026-10-14-preset-builds.md` |
 | 신기 | 호천안 기술과 호요의 전투 사용, 천도비호의 발동, 요수 해금으로 오른 "요수 격파"가 호천안 돌파를 여는지, 호요 상한 28의 출처, 불러올 때마다 호천안 화면이 뜨는 원인, 쌍어옥패 점수의 게임 상한, 쌍어패 반쪽 주기의 정식 흐름 | 37절, 07 문서 9절 |
 | 모드를 뺀 뒤의 세이브 동작 | 미확인(첫 릴리스 때 확인하기로 했다) | — |
+| 창 위 입력 막기 | 가상 입력으로만 검사. 실제 마우스의 휠·오른쪽 끌기·호버는 사용자 확인 | 51절 |
+| LocalText 밖 글 한글화 | 새 모드의 글에 번역표에 없는 조각이 하나라도 있으면 그 글 전체가 중국어로 남는다(`rzhleft`로 원문을 받아 줄을 더한다). 시작 화면 패치 노트·모드 목록 창은 번역하지 않는다. 사용자 세이브에서는 미확인 | 54절 |
+| 전투 HUD 신기 칸 | 위로 쌓은 칸이 종족 틀의 기술 단추·다른 모드의 단추와 겹치지 않는지는 사용자 세이브에서 미확인(고정본 인물은 종족 단추가 없다). 전투 불러오기 멈춤 한 번(원인 미확인) | 55절 |
+| 법보 탭 | 켠 재능·올린 레벨·넣은 기령이 전투와 게임의 기령 화면에 반영되는지 미확인. 법보의 경지·강화·접두 옵션, 기령의 친밀도·장비는 범위 밖. NPC를 편집 대상으로는 시험하지 않았다 | 56절 |
 
 ## 8. 다음에 할 일
 
@@ -568,6 +584,7 @@ PowerShell과 도구:
 - 창작마당 모드 확장(45절): 새 모드 8개(도감 틀, 요도희, 극 NPC 실체화, 종족 틀, 종족 확장, 용족, 팔황 절색방, BGM 교체)를 설치한 뒤 플레이했을 때의 이상 여부, 캐릭터 생성의 종족 선택·요도희 획득(화봉주 종문)·절색방 극(주성 진입)·BGM이 실제로 보이고 들리는지, 기존 세이브에 어떻게 들어가는지. 모드 글은 46절의 번역으로 한국어로 보여야 한다. 캐릭터 생성의 종족 설명, 절색방 화면의 긴 안내문, 요도희의 대사에서 자리 표시가 풀린 문장 전체와 어색한 번역(데이터 폴더의 `translations\mods.txt`를 고치면 다음 실행부터 바뀐다).
 - 창작마당 3차(50절): 11개(음양쌍수·환희연 강화판·운상요지·설정·농앵 동행 등)를 설치하고 플레이했을 때의 이상 여부, 극 대사의 긴 글과 `{name|B}`·`[A0]` 같은 자리 표시가 풀린 문장, 아이템·운명 이름이 한국어로 자연스러운지, 원문으로 둔 3행이 어디서 보이는지. 번역표가 든 DLL(95e2038)은 2026-10-17 07:06에 설치했다.
 - 입화 몸 그림(52절): 캐릭터 생성창 의복은 11:1x에 정상 확인(해결). 아직 들을 것: NPC 대화(호청의)의 몸도 정상인지, 2815562168의 `Body\149`(깨진 PNG. 지금은 원작 101번 옷으로 보임)를 게임 폴더에서 뺄지 — 빼면 원작 149번이 쓰이지만 `workshop.ps1 -Install`이 되살린다.
+- **2026-10-17 설치본(6c12d31, 16:40)의 확인 묶음**: 창 위에서 실제 휠·오른쪽 끌기·호버가 뒤의 지도에 새지 않는지(51절) / 캐릭터 만들기와 인물 화면의 종족 기술·변신 설명, 극 NPC 전용 운명 이름, 얼굴 만들기 확인 창, 영석 모드 단추가 한국어인지와 남은 중국어(54절. 남으면 캡처 → `rzhleft`) / 전투에서 신기 셋이 위로 쌓여 종족 기술 단추와 겹치지 않는지(55절) / 즐겨찾기 수량을 고치고 다른 곳을 눌러도 남는지(55절) / 기술 추가 목록에서 멸신참이 사라졌는지(55절) / 법보 탭에서 켠 재능·올린 레벨·넣은 기령이 전투와 게임의 기령 화면에 반영되는지, NPC를 대상으로 했을 때(56절).
 
 ### 8.6 검토에서 사소하다고 보고 고치지 않은 것
 
@@ -590,12 +607,14 @@ PowerShell과 도구:
 예전부터 남은 미확인: 신법·심법·신통의 모두 배우기, 부적의 강제 추가, NPC에게 추가한 기술의 저장 후 유지.
 - 창작마당 확장(45절): 항목 페이지의 요청 제한 뒤 "이어 받기"가 없다(다시 돌리면 처음부터), 음악 질의(`音乐`·`BGM`·`特效`)가 설명 본문까지 맞춰 음악이 아닌 모드가 섞인다, 미등록 컬렉션은 API 비교가 안 된다(`-Doc` 4절 `조회 실패: result=9`), `-Status`의 DLL 수가 debug·ModProject 복사본까지 센다(2945768219가 15).
 - 창작마당 3차(50절): 이름 키가 LocalText에 없는 모드 기술 168개가 공법·자원 탭에 "이름 없음(번호)"로 남는다(번역 밖. 모드 이름을 붙이거나 접는 옵션은 X 후보). 번역표의 절 머리 주석에 창작마당 번호를 더 적는 일은 하지 않았다(`# 3426669627 음양쌍수 …`).
+- 2026-10-17 작업(51~56절): 52절의 `Body\149`(깨진 PNG)는 그대로 둠, 10:04 세션이 모드 24개를 읽은 까닭 미확인 / 54절의 `是的是的发` 한 줄(출처 미확인), `joinSchoolName` 4칸(종문 찾기 값 가능성으로 제외), 세이브 안 NPC 이름은 붙인 이름 줄이 있어야 바뀜 / 55절의 전투 불러오기 멈춤 한 번(재현 안 됨) / 56절의 NPC 대상 미시험.
 
 ### 8.7 남겨 둔 것
 
 - 실험 브랜치 열넷(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`, `feat/workshop-research`, `feat/modskill-research`, `feat/korean-research`, `feat/ultimate-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
-- `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다.
+- `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다. 조사 산출물도 여기 있다: `zh-all.txt`·`zh-display-20261017.txt`·`zh-left.txt`(53·54절), `playerprefs-Mod_LoadData-*.txt`(52절), 캡처 `zh-1017*.png`·`check-treasure.png`·`fu-1017b-*.png`.
+- 2026-10-17 저녁에 사용자 지시로 지운 브랜치·워크트리: `feat/zh-korean`·`docs/install-1017b`(워크트리 `zh-korean`), `fix/editor-followups`·`feat/treasure-tab`·`docs/install-1017c`(워크트리 `editor-followups`). 모두 develop에 병합된 뒤였다.
 - 2026-10-13에 쓴 회차 이름(다시 쓰지 않는다): `rate1`~`rate2`, `preset1`~`preset2`, `ratetab1`~`ratetab11`(`5b`, `6b`~`6d` 포함), `dmg1`~`dmg3`, `cd1`, `cmb1`~`cmb9`. 
 - 2026-10-14에 쓴 회차 이름: `grade-1014a`~`s`, `immo-1014a`~`b`, `hdr-1014a`~`c`, `imm-1014a`, `immtab1`~`immtab8`(`2b`~`2d`, `4b`·`4c` 포함), `immfix1`~`2`, `art-1014a`(게임이 켜져 있어 열리지 않았다. 다시 쓰지 않는다), `art-1014b`~`d`, `atab1`~`atab18`(`2b`~`2d`, `4b`~`4d`, `5b` 포함), `preset-1014a`~`d`, `ptab1`~`ptab25`(`8b`~`8e`, `21b` 포함), `pbuild1`~`pbuild27`(`2b` 포함), `awui-1014a`, `hud-1014a`~`d`, `bwui-1014a`~`b`, `bhud-1014a`~`d`, `bdev-1014a`(게임이 켜져 있어 열리지 않았다), `hudr-1014a`, `key-1014a`~`d`, `drift-1014a`~`b`, `akey-1014a`~`j`, `rate-1014a`~`b`, `cost-1014a`~`d`, `click-1014a`~`l`, `eyeclick-1014a`~`c`(`a`는 게임이 켜져 있어 열리지 않았다), `typing-1014a`~`k`, `month-1014a`. 다음은 날짜를 붙여 짓는 편이 안전하다(예: `fix-1015a`).
 - 2026-10-15에 쓴 회차 이름: `res-1015a`~`q`, `book-1015a`~`o`(`e2`, `e3` 포함), `apl-1015a`~`f`, `ttl-1015a`~`o`, `apl-1015g`, `ws-1015a`~`b`.
