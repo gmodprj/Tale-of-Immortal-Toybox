@@ -46,6 +46,7 @@ namespace MOD_sWP6UL
             JsonTests();
             ExportFilesTests();
             TranslationTableTests();
+            TextReplacerTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -142,6 +143,22 @@ namespace MOD_sWP6UL
             List<string> missing = TranslationTable.MissingLines(new[] { "a\t1", "# c", "nokey" }, "a\t2\r\nb\t3\n# z\nb\t4\n\nc\t5");
             Check("table: MissingLines keeps only the first embedded line of each new key", missing.Count == 2 && missing[0] == "b\t3" && missing[1] == "c\t5", string.Join("|", missing));
             Check("table: MissingLines of a null embedded text is empty", TranslationTable.MissingLines(new string[0], null).Count == 0);
+        }
+
+        // TextReplacer(원문 기반 치환. 스펙 2026-10-17-zh-text-korean-design.md 3.3절).
+        private static void TextReplacerTests()
+        {
+            var zh = new TextReplacer(new Dictionary<string, string> { { "变身技-", "변신기-" }, { "变身技", "변신기" }, { "幽莹", "유영" }, { "无", "없음" }, { "（未解锁）", "(미해금)" }, { "体力{icon_tili}*<y>100</y>%", "체력{icon_tili}*<y>100</y>%" } });
+            bool changed;
+            Check("zh: HasChinese sees CJK only", TextReplacer.HasChinese("变身") && !TextReplacer.HasChinese("변신 abc") && !TextReplacer.HasChinese("") && !TextReplacer.HasChinese(null) && TextReplacer.HasChinese("a㐀b"));
+            Check("zh: whole match wins even for one char", zh.Replace("无", out changed) == "없음" && changed);
+            Check("zh: one-char key is not used for partial replace", zh.Replace("无敌", out changed) == "无敌" && !changed);
+            Check("zh: longer key first", zh.Replace("变身技-幽莹（未解锁）", out changed) == "변신기-유영(미해금)" && changed, zh.Replace("变身技-幽莹（未解锁）", out changed));
+            Check("zh: placeholders kept", zh.Replace("体力{icon_tili}*<y>100</y>%，灵力", out changed) == "체력{icon_tili}*<y>100</y>%，灵力" && changed);
+            string same = "변신기";
+            Check("zh: text without CJK returns same instance", object.ReferenceEquals(zh.Replace(same, out changed), same) && !changed);
+            Check("zh: null and empty pass through", zh.Replace(null, out changed) == null && !changed && zh.Replace("", out changed) == "" && !changed);
+            Check("zh: count and empty map", zh.Count == 6 && new TextReplacer(new Dictionary<string, string>()).Replace("变身", out changed) == "变身" && !changed);
         }
     }
 }

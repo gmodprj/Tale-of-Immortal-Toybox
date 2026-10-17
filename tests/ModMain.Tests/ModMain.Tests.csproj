@@ -16,5 +16,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\Json.cs" Link="Linked\Json.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\ExportFiles.cs" Link="Linked\ExportFiles.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\TranslationTable.cs" Link="Linked\TranslationTable.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TextReplacer.cs" Link="Linked\TextReplacer.cs" />
   </ItemGroup>
 </Project>
