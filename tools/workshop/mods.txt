@@ -3,7 +3,7 @@
 # 상태: 설치(받고 설치한다) · 보류(받아 두되 설치하지 않는다) · 제외(받지도 설치하지도 않는다). 종류: 틀·외형·공법·세계관·음악·기능(보류 줄만 -).
 # 모드ID는 게임이 읽은 soleID(05 문서 41절 표, wsmods). 모르면 -. tools/workshop.ps1은 이 목록에 있는 ID만 다룬다.
 2814703549 | 설치 | 틀 | Fatury | Fatury 틀 | q9CYCo | 2815562168이 필요로 함. DLL 3(Fatury.dll, UnityEngine.InputLegacyModule.dll, YamlDotNet.dll)
-2815562168 | 설치 | 외형 | 原版17个女性人物动态立绘替换 | 원작 여성 인물 17명 동적 입화 교체 | ymWzeD | Fatury 필요. 111MB
+2815562168 | 설치 | 외형 | 原版17个女性人物动态立绘替换 | 원작 여성 인물 17명 동적 입화 교체 | ymWzeD | Fatury 필요. 111MB. ModAssets\Fatury\Game\Portrait\Woman\Body\149\_child\sprite\image.png가 PNG가 아님(원본 패키지부터. 정적 입화 149번이 원작 101번 옷으로 보임. 05 문서 51절)
 3200319699 | 설치 | 외형 | 【木头】AI动态立绘 | [木头] AI 동적 입화 | 13mJF0 | 206MB
 3001496635 | 설치 | 외형 | 【软甜废独家】《五官头饰动态立绘》-原创本人手画 | [软甜废] 이목구비·머리 장식 동적 입화 | IoRGjg | DLL 1(MOD_IoRGjg.dll)
 2993500314 | 설치 | 외형 | 动态头发美化 | 동적 머리카락 미화 | FsilSZ |
