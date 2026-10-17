@@ -2550,3 +2550,51 @@
 | LocalText | 3행(의도) | 50절 | — |
 
 - 화면 글 치환이란 `TMP_Text.text`·`Text.text` 설정에 Harmony 앞붙임을 걸어 한자가 든 글만 원문 기반 번역표로 바꾸는 것이다. 네 층을 한 번에 덮지만 설계(어느 글을 어떻게 맞출지, 성능, 병기 한자와의 충돌)가 필요하다 — 다음 단계는 스펙.
+
+## 54. LocalText 밖 중국어 글 한글화: 원문 기반 번역표, 표 칸 바꿔 끼움, 화면 글 치환 (2026-10-17 추가)
+
+53절의 후속. 사용자 지시 "스펙과 구현, 그냥 진행". 브랜치 `feat/zh-korean`(워크트리 `.claude\worktrees\zh-korean`), 스펙 `docs/superpowers/specs/2026-10-17-zh-text-korean-design.md`, 계획 `docs/superpowers/plans/2026-10-17-zh-text-korean.md`, 회차 `zh-1017b`~`h`(b·c·h는 고정본 세계 안, d~g는 `-Login`으로 캐릭터 만들기 화면).
+
+### 구조
+
+- **번역표 `Translations/texts.txt`**(원문<TAB>한국어, 245줄). 규칙: `#` 줄과 빈 줄 무시, `\n`은 줄바꿈(원문에도. 라벨 원문 `秒\n变身效果：`), `\_`는 공백(앞뒤 공백은 지우므로 조각 번역의 끝 공백용), 같은 원문은 뒤의 것, 한 글자 원문은 글 전체가 같을 때만. DLL에 내장하고(`EmbeddedResource Translations\*.txt`) 데이터 폴더 `translations\texts.txt`에 푼다. 파일이 있으면 내장본에만 있는 줄을 끝에 덧붙인다(mods.txt와 같은 규칙. `TextTranslationService.EnsureFile`). 검사 `py -3 -I -X utf8 tools/research/check-texts.py src/ModCode/ModMain/Translations/texts.txt`(탭·중복·한 글자 경고·자리 표시 `{…}` `<…>` `&…&` `$…$` `\n`의 수·남은 한자) → `OK 245줄 (경고 13)`.
+- **`Services/TextReplacer.cs`**(순수. `tests/ModMain.Tests`가 링크): (1) 글 전체가 원문과 같으면 그 한국어, (2) 아니면 길이 2 이상의 원문을 긴 것부터(같은 길이는 서수) 부분 치환, (3) 치환 뒤에도 한자가 남으면 **원문 그대로**(반쯤 바뀐 글을 보이지 않는다). 줄바꿈이 든 원문은 두 글자 `\n` 꼴과 CRLF 꼴도 같은 번역으로 등록한다. 전체 일치 전용 사전(LocalText의 ch→kr)은 부분 치환에 쓰지 않는다. 한자(U+4E00~9FFF, U+3400~4DBF)가 없는 글은 한 번 훑고 그대로 돌려준다.
+- **`Services/TextTranslationService.cs`**(`ModMain.Init`에서 `TranslationService.Apply()` 뒤): texts.txt를 읽고, LocalText에서 ch에 한자가 있고 kr이 한국어(비어 있지 않고, ch와 다르고, 한자 없음)인 행의 ch→kr 사전을 만들어(40,710개) `TextReplacer`를 세운 뒤, 여섯 표의 글 칸을 **전체 일치로 바꿔 끼운다**: `battleSkillAttack`(name·desc), `battleEffect`(desc), `roleCreateFeature`(name·tips), `modNpcAddWorld`(name1·name2), `dramaOptions`(text), `dramaDialogue`(dialogue). 표는 `ConfMgr`의 속성을 반사로 얻고 `_allConfList`를 돈다(`allConfList`는 localText 말고는 `IReadOnlyList<T>` 래퍼라 `Count`·`Item`을 반사로 못 찾아 NullReferenceException — 회차 `zh-1017b`). 로그 `[TlToybox] texts: file=<풀어 둠|있음|덧붙임 n|없음> rows= broken= lt= tables= cells= <표=수…>`. `modNpcAddWorld.joinSchoolName`은 종문을 이름으로 찾는 값일 수 있어(53절) 건드리지 않는다.
+- **`UI/TextPatch.cs`**: Harmony `TlToybox.text` 앞붙임을 `TMPro.TMP_Text.text`와 `UnityEngine.UI.Text.text` 설정자에 건다. 한자가 든 글만 `TextReplacer.Replace`. 통계(`calls`·`replaced`·누적 ms)와 치환 뒤에도 한자가 남은 글 300개(`Leftover`)를 모은다. 번역표와 LocalText 사전이 모두 비면 걸지 않고, 걸지 못하면 로그 한 줄(PointerGuard와 같은 처리).
+- 개발 명령(`DevCommandsZh.cs`): `rzhtext <원문…>`(번역표로 바꿔 봄. `\n` 두 글자는 줄바꿈), `rzhstat`(표 적용 요약 | `patched= calls= replaced= ms=`), `rzhleft`(남은 글을 `.devremote\zh-left.txt`에. 글 속 `\`는 `\\`, CR은 `\r`, 줄바꿈은 `\n`), `rzhapply`(번역표를 다시 읽어 표 칸 다시 적용).
+
+### 번역표 내용(245줄)
+
+| 묶음 | 줄 | 비고 |
+|---|---|---|
+| 종족 틀 DLL(3018337316) 라벨 | 33 | `种族技能`·`变身技-`·`（未解锁）`·`\n（解锁境界：<경지>）` 10개(닫는 괄호까지 한 원문으로)·`秒\n变身持续时间：` 등. 전각 콜론은 그대로 두어 간격을 살림 |
+| 경지 이름 | 10 | 연기경~등선경 |
+| 종족 JSON `monstName` | 12 | 용신·화봉·…·유영·봉황(음독) |
+| 종족 JSON `transfInfo` 통째 | 18 | 자리 표시 그대로. 표 칸이나 원문 그대로 오는 글용 |
+| `transfInfo` 조각 | 27 | 화면에는 `{icon_tili}`→`<sprite name="tili">`, `<y>100</y>`→`<color=#F5FF00>100</color>`, `&zz_kongque_hdsh&`→`<color=#F5FF00>3.6 </color>`처럼 바뀐 뒤 글이 오므로 자리 표시 사이 조각(`%，灵力`, `%，变身后引爆自身护盾，并对周围敌人造成`, `倍护盾伤害及施加2秒眩晕效果，同时每隔`, `秒。` …)으로도 둔다. 값 뒤에 붙는 조각은 `\_`로 끝 공백 |
+| 표 `battleSkillAttack` 이름·설명 | 36+1 | 용족 기술. 음독(용유사방·천봉취령검…), 읽기 어려운 것만 뜻(목령 개화·신통 가호·영원의 불꽃). 千峰聚灵剑의 긴 설명은 `$s_jianzhan$`·`&303_dmg&` 수를 맞춤 |
+| 표 `battleEffect.desc` | 12 | 천살 표식, 받는 피해 {icon}<y>1</y>% 증가 … |
+| 표 `roleCreateFeature` 이름·설명 | 25+25 | `X专属`→`X 전용`(여와·야우루·형천·이사·무라·후예·부상·능어·요릉선자·빙이·발·구망·현명·투혼·박명·후토·신목·봉람·천환·곤오·강람연·혈성하·성양), 여와·야우루의 긴 설명은 줄 수를 맞춤 |
+| 표 `modNpcAddWorld` 성·이름 | 10+11+11 | 한 글자 성은 표 칸에서만. 붙인 이름(악임소·안청한·…·강우묵, 세이브의 苏烬棠=소신당)은 화면 글용 |
+| 얼굴 만들기·영석·장식 모드 버튼 | 10 | 취소·역용·역용을 하시겠습니까?·완료·플레이어가 종주입니다·영석 꺼내기/넣기·모두 가져가기·모드 더 보기·모드 소개와 받는 방법 |
+| 불러오기 팁(원작) | 2 | LocalText 사전이 맡으므로 없어도 되나 기록으로 둠 |
+
+용어는 mods.txt와 맞췄다: 체력·영력·염력·영석·쿨타임·신법·신통·좌클릭·회피·회심·패체·보호막·역천개명. `码`는 mods.txt처럼 단위 없이("500 거리").
+
+### 실측(고정본 base, 개발 DLL)
+
+- `zh-1017b`(13:47): 화면 글 치환은 걸렸다(`rzhtext 变身技-幽莹（未解锁）` → `변신기-유영(미해금)`). 표 칸은 0 — `allConfList` 문제(위). 부분 치환이 반쯤 바뀐 글을 만들었다: 친밀도 글 "苏烬棠"→"苏신당", 시작 화면 패치 노트의 "筑基境"만 "축기경". → 한자가 남으면 원문을 돌려주게 바꿈.
+- `zh-1017c`(13:55): `texts: … tables=6 cells=131 battleSkillAttack=42 battleEffect=14 roleCreateFeature=50 modNpcAddWorld=22 dramaOptions=2 dramaDialogue=1`. `rzh all`에서 다섯 표의 글 칸이 사라졌다(남은 것은 `joinSchoolName` 52와 자산 이름 칸 `backgroud`·`function`). 남은 화면 글에 불러오기 화면의 팁("修炼技能需要达到一定的资质要求…", "下一条提示")이 있었다 — LocalText(`loading_text6`, `uiLoadingBig_textNextTip`)에 한국어 `kr`이 있는데 모드가 `ch`를 그대로 낸다(불러오기 그림 교체 모드로 추정). → LocalText ch→kr 전체 일치 사전(40,710개. TranslationService 뒤에 만들므로 모드 행의 kr은 mods.txt의 한국어).
+- `zh-1017d`(14:04, `-Login`): 캐릭터 만들기 화면(길은 52절) → 종족 드롭다운 `Group:Facade/Dropdown`(화살표 (1369,319), 목록 `scroll 1320 440 -3`, 항목 이름 `Item N: <종족>`. 인족·요호·마족·선족·신족·죽요…용족(12)…빙봉(20)·구봉(21)·공작(22)·빙룡(23)·적룡·곤붕·금룡·목룡·수룡·화룡) → 종족을 고르면 `종족 기술` 아래 아이콘(게임 좌표 (1220·1312·1404, 657). 빙룡은 없음) → `uipointer <x> 657`로 설명 창. 용족 "치화용식", "뇌정만균(미해금)"+"(해금 경지: 결정경)"이 한국어(캡처 `.devremote\zh-1017d-skill1.png`·`skill2.png`). 공작의 변신 설명만 중국어로 남았다: `rzhleft`에 찍힌 글은 `变身持续时间：20秒\n…变身效果：体力<space=0.3em><voffset=-0.1em><size=130%><sprite name="tili">…<color=#F5FF00>100</color>%，灵力…` — 자리 표시가 TMP 태그로 바뀐 뒤의 글이라 `transfInfo` 통째 원문이 맞지 않는다. → 조각 27줄과 `\_`.
+- `zh-1017e`(14:17): 변신 설명이 여전히 남았다. 스크래치 `zh-sim.py`(TextReplacer 흉내)로 남은 글을 돌리니 줄바꿈이 실제 줄바꿈이면 0조각, 두 글자 `\n`이면 4조각(`秒`·`变身主动回收间隔时间`·`秒`·`变身效果`)이 남는다 → 모드 DLL은 줄바꿈을 두 글자로 넣고 TMP가 줄을 바꾼다고 보고 두 글자 꼴을 덧붙임.
+- `zh-1017f`(14:22): 그래도 남았다 → CRLF 꼴도 덧붙이고 `rzhleft`가 `\`·CR·줄바꿈을 구별하게 고침.
+- `zh-1017g`(14:27): 공작 "변신기-공작(미해금)"의 설명 전체가 한국어 — "변신 지속 시간：20초 / 변신 수동 해제 간격：1초 / 변신 효과：체력 ♥ *100%, 영력 *100%, 염력 *100%, 변신하면 자신의 보호막을 터뜨려 주위의 적에게 보호막의 3.6 배 피해와 2초 기절을 주고, 1.5 초마다 좌클릭 기술을, 9.5 초마다 우클릭 기술을 자동으로 쓴다. (해금 경지: 금단경)"(캡처 `.devremote\zh-1017g-peacock-transf.png`). 즉 그 글의 줄바꿈은 CRLF였다. 남은 글은 시작 화면 패치 노트(`【1.2.107 版本更新内容】`)와 모드 목록 경고 창(모드 이름)뿐.
+- `zh-1017h`(14:3x, 세계 안): `rzhstat` 표 131칸·lt 40,710·`patched=True`, 남은 글은 위 둘뿐(불러오기 팁은 사라짐). 세계 진입까지 설정자 호출 156회, 캐릭터 만들기까지 721회, 치환에 쓴 시간 누적 1ms 미만. `Init` 로그 간격으로 본 `texts` 단계(사전 40,710개 + 표 131칸)는 약 1.3초.
+- 단위 시험 `dotnet run -c Release --project tests/ModMain.Tests` FAILS=0(TextReplacer 12·TranslationTable 3 추가). 모든 회차 `SAVE RESTORED AND IDENTICAL`, 설치 DLL은 배포 빌드 9cf06ae로 되돌아갔다(54절은 **아직 설치되지 않음**).
+
+### 두지 않은 것·남은 것
+
+- 시작 화면의 패치 노트(원작 `startGameTip`, 중국어)와 모드 목록 경고 창의 모드 이름은 번역하지 않는다. 캐릭터 만들기 화면에서 한 번 찍힌 `是的是的发​`(출처 미확인)도 두었다.
+- `joinSchoolName` 4칸(종문 이름 매칭 가능성), 이미 만들어진 세이브 안의 NPC 이름(세이브 값. 화면 글 치환이 "苏烬棠 친밀도"를 바꾸려면 붙인 이름 줄이 필요하다 — 고정본의 苏烬棠만 넣음).
+- 부분 치환은 한자가 하나도 남지 않을 때만 쓰므로, 새 모드의 글에 번역표에 없는 조각이 하나라도 있으면 그 글 전체가 중국어로 남는다. 그때는 회차에서 `rzhleft`로 원문을 받아 `texts.txt`에 줄을 더한다(조각의 줄바꿈 꼴은 신경 쓰지 않아도 된다).
+- 사용자의 세이브(인물 신환)와 실제 플레이에서는 확인하지 못했다. 설치는 사용자 확인 뒤 `tools/install.ps1`.
