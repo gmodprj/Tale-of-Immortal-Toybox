@@ -91,6 +91,11 @@ namespace MOD_sWP6UL
             {
                 return scan;
             }
+            string zh = DevCommandsZh.Execute(p);
+            if (zh != null)
+            {
+                return zh;
+            }
             string translation = DevCommandsTranslation.Execute(p);
             if (translation != null)
             {
