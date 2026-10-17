@@ -2628,3 +2628,58 @@
 - `check-lib.ps1`의 `ModWarnings`가 54절의 `[TlToybox] texts:` 로그 줄을 경고로 세어 `no warning from the mod` 검사가 모두 실패했다. 제외 목록에 넣었다(`-Part base` FAIL 0).
 - **전투 불러오기 멈춤(한 번, 원인 미확인)**: `fu-1017a`에서 `favorites`·`numbers` 검사 뒤(편집기가 열린 채) `hud-battle-slots`가 `awset 1,3` → `fight 1011 20` → 전투 확인을 누르자 불러오기 화면(팁 "선진은 당신이…")에서 10분 넘게 멈췄다. 게임 창은 응답했고 CPU는 계속 썼으며 개발 명령은 `NO RESPONSE`(폴링 타이머가 돌지 않음). `-End`가 창 닫기로 끝냈다. `fu-1017b`에서 같은 명령(전투만, `awset 1,3`+전투, 셋+전투)은 모두 6초에 들어갔다. 차이는 앞선 검사와 열린 편집기뿐이다. 다시 나면 그 순서로 재현한다.
 - 단위 시험 FAILS=0, 배포 구성 빌드 경고 0. 설치는 하지 않았다.
+
+## 56. 법보 탭 — 가진 법보와 기령 (2026-10-17 추가)
+
+사용자 요청(2026-10-17 오후, 55절의 넷째): "법보와 기령관리도 추가 검토". 질문 없이 진행하라고 해 범위는 스펙의 결정대로다. 스펙 `docs/superpowers/specs/2026-10-17-treasure-tab-design.md`, 계획 `docs/superpowers/plans/2026-10-17-treasure-tab.md`, 브랜치 `feat/treasure-tab`(워크트리 `.claude\worktrees\editor-followups`), 회차 `tr-1017a`·`b`(고정본 base).
+
+### 쓰는 법
+
+탭 "법보"(탭 줄의 끝, `Tab16`). 편집 대상(플레이어 또는 NPC)에 적용되고 왼쪽에 표시가 붙는다. 세계 밖이면 "세계 자료가 없습니다".
+
+- 첫 줄: `법보 — <대상>`, `기령 만들기…`, `법보 지급…`, 설명(회색).
+- **가진 법보**(줄 44, 최대 다섯 줄): 이름 `[번호]` · 품질 · 경지 · 내구 `지금/최대` · `장착 중` · `기령: 이름 Lvn`/`없음` · `장착`(장착 중이면 `해제`) · `기령 빼기`(든 기령이 있을 때).
+- **기령**: 이름 `[번호]` · `Lv n/최대` · `경험치 지금/다음`(최고면 `(최고)`) · `재능 켬/보임` · `법보: 이름`/`없음` · `재능 켜기`(꺼진 보이는 재능이 있을 때) · `레벨 올리기`(최고가 아닐 때) · `넣기`(장착한 빈 법보가 있고 이 기령이 어디에도 없을 때. 대상 법보 이름이 "기령 n" 머리글에 보인다) · `지우기`(두 번 눌러 확인. 어디에도 없을 때).
+- 하위 화면 **기령 만들기**: 검색(이름·번호), 32종 줄마다 `가짐`/`-`, `만들기`(가지면 꺼짐). **법보 지급**: 열 종 줄마다 품질·시작 경지·가진 수, `지급`(하나).
+- 모든 조작은 결과 문장과 변경 이력(`법보` 칸), 첫 변경 전 자동 백업.
+
+### 규칙과 실측(회차 `tr-1017a`·`b`)
+
+| 항목 | 내용 |
+|---|---|
+| 법보 | 아이템 분류 401, 열 종 `3031101`~`3031110`(황염호각·참뢰정추·청명현종·혈문가면·치양지치·벽해응주·서영두봉·황극천검·탄천벽새·이진고금. 품질 5~6, 시작 경지 `ConfArtifactShapeItem.initGrade` 2~10, 내구 최대 `durable` 100). 가진 것은 `propData.allProps`의 `PropsData` → `To<PropsArtifact>()`의 `grade`·`durable`·`spriteSoleID`. 장착은 `IsEquipProps(soleID)` |
+| 장착·해제 | `UnitActionPropEquip(soleID, 2)`·`UnitActionPropUnequip(2)`를 `IsCreateAction`으로 물은 뒤 `CreateAction`(34절의 순서). 둘 다 바로 반영됐다(`tr`의 `eq`/`-`) |
+| 기령 | `artifactSpriteData.sprites`의 `Sprite`(`soleID`는 **음수일 수 있다**(실측 `-79797966`). `spriteID`, `level`, `exp`, `talents`). 32종(1001~1008 품질 5, 2001~2024 품질 1·3). 레벨 경험치는 `artifactSpriteLevel`(1001~1008은 Lv1~5: 0·200·500·1000·2000, 2001~은 Lv1~4) |
+| 만들기 | `AddSprite(번호)` → Lv1, 경험치 0, 재능 0/49(1002 창애: 보이는 재능 49). 같은 번호를 다시 만들면 null(거부 문장) |
+| 넣기 | `UnitActionEquipSprite(PropsArtifact, spriteSoleID)`. 장착한 빈 법보에만(스펙). 넣으면 `spriteSoleID`가 그 기령이 된다 |
+| 빼기 | **`UnitActionEquipSprite(법보, 0)`이 동작한다**(결과 문장의 "(행동)"). 자료를 직접 지우는 길(`spriteSoleID = 0`, "(직접)")은 쓰이지 않았다. 뺀 기령은 남는다 |
+| 재능 켜기 | 꺼진 보이는 재능(`isShow` 1)을 `ActiveTanlet`으로 모두. 49/49 |
+| 레벨 올리기 | `AddExp(다음 경험치 - 지금)`. 1001 Lv1(0) → `AddExp(200)` → **Lv2, 경험치 200**(게임이 경험치로 레벨을 올린다. 더하기 1은 필요 없었다). 다음은 500 |
+| 지우기 | `DelSpriteInSoleID`. 법보에 든 기령은 거부("먼저 빼세요") |
+| 지급 | `EditService.GiveItem(아이템, 1)`(가방이 차면 게임이 넣지 않는다) |
+
+### 구조
+
+- `Services/TreasureService.cs`(읽기 `Treasures`·`Spirits`·`Kinds`·`ItemKinds`, 조작 `Equip`·`Unequip`·`PullSpirit`·`PutSpirit`·`LightTalents`·`LevelUp`·`Delete`·`Create`·`Give`), `UI/Tabs/TreasureTab.cs`(그리기만), `SpriteService`의 `Shown`·`ArtifactSlot`을 internal로. `EditorWindow`의 탭 배열 끝에 `TreasureTab`, 번호 16.
+- 요소 이름: `TreasureNoData`, `TreasureMakeOpen`, `TreasureGiveOpen`, `TreasureList`, `TreasureState<sole>`, `TreasureSpirit<sole>`, `TreasureEquip<sole>`, `TreasurePull<sole>`, `SpiritList`, `SpiritState<sole>`, `SpiritTalents<sole>`, `SpiritLight<sole>`, `SpiritLevel<sole>`, `SpiritPut<sole>`, `SpiritDel<sole>`, `SpiritKindSearch`, `SpiritKindList`, `SpiritOwned<번호>`, `SpiritMake<번호>`, `TreasureKindList`, `TreasureGive<번호>`, 하위 화면의 `Back`.
+- 개발 명령(`Dev/DevCommandsTreasure.cs`, 플레이어 기준): `tr`(상태 한 줄 `treasures=n [sole:번호:이름:q품질:g경지:내구/최대:eq|-:든 기령] spirits=m [sole:번호:이름:Lvn/최대:경험치/다음:켬/보임:든 법보]`), `trgive <아이템>`, `trequip <sole>`, `trunequip [sole]`, `trmake <기령>`, `trput <법보 sole> <기령 sole>`, `trpull <법보 sole>`, `trlight`·`trlevel`·`trdel <기령 sole>`.
+
+### 검증(고정본, `tools/research/treasure-check.ps1`)
+
+| 부분 | 보는 것 | 결과 |
+|---|---|---|
+| `service` | 없음 → 지급 → 장착 → 만들기(Lv1, 0/200, 0/49) → 같은 번호 거부 → 넣기 → 든 기령 지우기 거부 → 재능 49/49 → Lv2 → 빼기(기령 남음) → 지우기 → 해제, 변경 이력 | FAIL 0(16, `tr-1017a`·`b`) |
+| `ui` | 탭 16, 지급 화면 열 종과 지급, 만들기 화면의 검색·만들기·꺼진 단추, 장착 전 `넣기` 꺼짐, 장착·넣기·든 기령의 `지우기` 꺼짐·재능 켜기(49/49)와 단추 꺼짐·레벨 올리기(Lv 2/5)·빼기와 단추 꺼짐·지우기 두 번·해제, 캡처 `check-treasure.png` | FAIL 0(22, `tr-1017b`) |
+| `ui-check.ps1 -Part tabs` | 탭 탐침에 16(`TreasureGiveOpen`) | FAIL 0 |
+| 빌드·시험 | 두 구성 경고 0, 단위 시험 FAILS=0 | 통과 |
+
+검사 스크립트에서 고친 것: PowerShell은 `"$sole:"`을 범위 변수로 읽으므로 `${sole}:`로 적어야 한다 / 기령 `soleID`가 음수라 정규식에 `-?` / 하위 화면의 검색어(`kindQuery`)는 탭이 기억하므로 검사가 먼저 `100`으로 맞춘다 / 32종 목록의 끝 줄은 화면 밖이라 `IsAt`로 보지 않는다.
+
+캡처로 본 것: 법보 두 줄(황염호각 미장착·기령 없음, 참뢰정추 장착 중·기령 창애 Lv2), 기령 한 줄(창애 Lv 2/5, 경험치 200/500, 재능 49/49, 법보: 참뢰정추), 머리글의 넣기 대상 안내, 단추 넷이 줄 안에 든다.
+
+### 확인하지 못한 것, 한계
+
+- 켠 재능·올린 레벨·넣은 기령이 전투와 게임의 기령 화면에서 실제로 반영되는지(고정본 회차에서는 자료만 봤다. 사용자 확인 항목).
+- NPC를 편집 대상으로 했을 때(NPC의 `artifactSpriteData`가 null이면 "세계 자료가 없습니다"가 아니라 빈 목록으로 보일 수 있다 — `Ready`는 null이면 거짓이라 안내 글이 나온다. NPC로는 시험하지 않았다).
+- 법보의 경지·강화·접두 옵션, 기령의 친밀도·선물·장비는 범위 밖(스펙 1절).
+- 설치는 하지 않았다(사용자 확인 뒤).

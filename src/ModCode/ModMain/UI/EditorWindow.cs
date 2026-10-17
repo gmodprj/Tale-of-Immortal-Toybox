@@ -481,9 +481,9 @@ namespace MOD_sWP6UL
             tabs = new EditorTab[]
             {
                 new AttributesTab(), new ResourcesTab(), new VaultTab(), new GradeTab(), new MartialTab(), new ImmortalTab(), new ArtifactTab(), new LuckTab(),
-                new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new PresetTab(), new SafetyTab(), new AppellationTab(),
+                new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new PresetTab(), new SafetyTab(), new AppellationTab(), new TreasureTab(),
             };
-            tabNumbers = new[] { 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SafetyNumber, 15 };
+            tabNumbers = new[] { 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SafetyNumber, 15, 16 };
             safetyIndex = Array.IndexOf(tabNumbers, SafetyNumber);
         }
 

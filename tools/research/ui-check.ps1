@@ -6,7 +6,7 @@ param([Parameter(Mandatory)][string]$Part)
 # 탭 번호마다 그 탭에만 있는 버튼 하나(05 문서 47절: 번호는 고정이고 2는 비었다. 14는 제목 줄의 안전 단추). 탭이 제대로 그려졌는지 보는 데 쓴다.
 $tabProbe = @(
   @(0, 'Restore'), @(1, 'BagApply'), @(3, 'VaultModeBag'), @(4, 'FillExp'), @(5, 'SkillAddOpen'), @(6, 'ImmortalAddOpen'), @(7, 'ArtifactPoint'),
-  @(8, 'LuckAddOpen'), @(9, 'ArtLearnAll'), @(10, 'NpcRefresh'), @(11, 'Freeze'), @(12, 'God'), @(13, 'PresetRestore'), @(14, 'BackupNow'), @(15, 'AplClassAll'))
+  @(8, 'LuckAddOpen'), @(9, 'ArtLearnAll'), @(10, 'NpcRefresh'), @(11, 'Freeze'), @(12, 'God'), @(13, 'PresetRestore'), @(14, 'BackupNow'), @(15, 'AplClassAll'), @(16, 'TreasureGiveOpen'))
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }

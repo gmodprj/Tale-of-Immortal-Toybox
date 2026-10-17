@@ -10,7 +10,7 @@ namespace MOD_sWP6UL
     {
         public const int FirstGrade = 2;        // 프리셋이 법보와 기령을 넣기 시작하는 대경지(법보 3031101의 최저 경지가 축기다)
         private const int ArtifactClass = 401;  // ItemProps.className: 법보
-        private const int ArtifactSlot = 2;     // UnitActionPropEquip의 칸 번호. 실측에서 쓴 값이다
+        internal const int ArtifactSlot = 2;    // UnitActionPropEquip·UnitActionPropUnequip의 칸 번호. 실측에서 쓴 값이다(TreasureService도 쓴다)
 
         private static Dictionary<int, bool> shown;   // 기령 번호 * 1000 + 재능 번호 → 게임 화면에 보이는 재능인가
 
@@ -37,7 +37,7 @@ namespace MOD_sWP6UL
         }
 
         // 설정 표의 isShow가 1인 재능만 게임 화면에 보인다(기령 1002는 53개 가운데 49개). 보이지 않는 것까지 켜면 화면에 "53/49"로 넘친다(실측).
-        private static bool Shown(int spriteId, int number)
+        internal static bool Shown(int spriteId, int number)
         {
             if (shown == null)
             {
