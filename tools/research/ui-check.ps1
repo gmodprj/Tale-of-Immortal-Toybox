@@ -1281,9 +1281,10 @@ switch ($Part) {
       Cmd 'ui set SkillQuery 열염' | Out-Null
       $t = Cmd 'uitext SkillAdd984555698'
       Check 'a mod skill row shows a disabled button pointing to the books group' ($t -match "text='자원 탭 기술 서적'") $t
-      Press 'SkillAdd984555698' | Out-Null
+      # 꺼진 단추는 Press가 "not interactable"로 거부한다(누르지 못한다는 것이 곧 판정)
+      $refused = try { Press 'SkillAdd984555698' | Out-Null; '' } catch { "$_" }
       $u = Cmd 'uistate'
-      Check 'pressing the disabled mod button does not call learn' ($u -notmatch '모드 공법은 자원 탭의 기술 서적에서 비급으로') $u
+      Check 'the mod row button cannot be pressed and does not call learn' ($refused -match 'not interactable' -and $u -notmatch '모드 공법은 자원 탭의 기술 서적에서 비급으로') "$refused | $u"
       Cmd 'ui set SkillQuery ' | Out-Null
       Press 'SkillLearnAll' | Out-Null; Press 'SkillLearnAll' 8000 | Out-Null
       $s = Cmd 'uistate'
