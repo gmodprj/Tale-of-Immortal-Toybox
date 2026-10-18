@@ -6294,3 +6294,251 @@ yoXH534D	··· ··· ··· ···
 lkncjY6E	··· ··· ··· ···
 KMBbGYxM	··· ··· ··· ···
 tphVxI4r	？？？
+
+# 2026-10-18 창작마당 4차(05 문서 57절). 3269125854 종족 수정 도구는 표 글이 없다(DLL 안의 글만).
+# 2814717778 [大鬼] 동천복지 — 동부·일월천·흠원 이야기(2814686803 UI 틀은 글 없음)
+role_feature_postnatal_tips700188	이 운명의 힘으로 곁의 따라쟁이 용이 일월천에서 화형할 수 있다.
+fateStoryDesc700188	그대가 돌파하는 순간 꼬마 따라쟁이 용의 온몸이 환하게 빛났지만, 눈 깜짝할 사이에 다시 잠잠해져 아무 변화도 없는 듯했다. 그 뒤로 꼬마 용은 쉴 새 없이 그대에게 눈짓을 보내며, 지금 당장 종문의 일월천으로 돌아가야 한다고 말하는 듯했다.
+schoolSloganDesc141	따라쟁이를 기르는 전용 건물 일월천이 있다.
+schoolBuildingName1112	일월천
+dragonDoor_effectTitle	일월천 {0}단계 효과
+dragonDoor_upgradeCostTips	일월천 승급에 필요한 것
+dragonDoor_upgradeEffectTips	일월천의 효능
+dragonDoor_upgradeFailMax	지금 지역의 영력으로는 일월천을 더 승급할 수 없다
+dragonDoor_transfigurationFail1	일월천의 단계가 너무 낮아 화형할 수 없다
+dragonDoor_des	1. 일월천을 승급해 용아에게 새로운 효과를 붙일 수 있다.\n2. 영석을 얼마간 써서 일월천을 승급할 수 있다.\n3. 일월천이 어느 단계에 이르면 신비한 특수 효과가 생긴다.\n4. 일월천에서 용아와 어울리며 정을 쌓을 수 있다.
+dragonDoor_levelMaxTips	일월천은 지역마다 한 번만 단계를 올릴 수 있다. 지금 올릴 수 없으면 옮긴 뒤에 계속 올릴 수 있다.
+dragonDoor_levelTips	일월천의 단계가 오르면 새 효과를 고를 수 있다.
+dragonDoor_unLockTips	먼저 일월천 {0}단계를 돌파해야 한다
+dragonDoor_unLockTips2	일월천 1단계를 활성화하면 해금
+dragonDoor_levelUpTips2	지금 지역의 영력으로는 일월천을 더 승급할 수 없다
+dragonDoor_lockTips	본 종문의 종주가 아니면 일월천에 들어갈 수 없다
+drama_dialogue1304501	용주, 큰일 났습니다. 일월천을 한 차례 손보신 뒤로 흠원 벌 요괴 한 마리가 자꾸 찾아와 못의 영기를 빨아 갑니다. 지금도 흠원이 종문 근처를 맴돌고 있습니다.
+drama_dialogue1304503	흠원은 몹시 탐욕스러워 벌써 영지의 영기를 잔뜩 빨아 갔습니다. 우리 종문의 일월천은 예로부터 용족이 몸을 담그고 쉬는 곳이니, 저 요물이 까닭 없이 눌러앉게 둘 수는 없습니다.
+drama_dialogue1304506	며칠 전 제가 제자들을 이끌고 그 요괴를 쫓았지만, 흠원은 팔황의 옛 짐승이라 결코 만만치 않습니다. 저희 수위가 얕아 일월천 밖으로 몰아내는 데 그쳤고, 요물은 아직 종문 근처를 맴돕니다. 그러니 용주께서 직접 나서 흠원을 쫓아 주십시오!
+drama_dialogue1304513	이 물건은 본디 역대 용주께서 간수하시던 것으로, 일월천의 영기가 배어 있어 서로 이어져 있습니다. 그래서 일월천이 버려지자 책자도 스스로 봉인되어 숨어 버렸지요. 용주께서 요즘 일월천을 다시 손보시니 과연 이 책이 다시 빛을 보았습니다. 우리 종문의 비사가 마침내 끊기지 않게 되었습니다.
+drama_dialogue1304530	용주께서 일월천을 손보셨으니 참으로 우리 종문의 경사입니다. 다만…… 다만 아뢸 일이 하나 더 있습니다.
+drama_dialogue1304531	며칠 전 흠원이 일월천의 영기를 마구 빨아들여 물이 몹시 탁해졌습니다. 제 짧은 생각으로는 현황모기를 한 덩이 구해 일월천을 되살리는 것이 좋겠습니다.
+drama_dialogue1304534	이렇게 하면 일월천은 머지않아 예전의 영기를 되찾을 것입니다.
+drama_dialogue1304535	용주, 방금 일월천 근처에 자줏빛 기운이 감돌기에 가 보았더니, 봉인된 종문 비록이 또 한 권 있었습니다. 종주께서 받아 주십시오.
+drama_dialogue1304565	종주, 보십시오. 일월천이 점점 옛 모습을 되찾으면서 종문 비사가 또 한 권 빛을 보았습니다. 용주께서 받아 주십시오!
+drama_dialogue1304590	용주께 아룁니다. 일월천이 날로 되살아나며 영기가 점점 짙어지는데, 흠원은 여전히 우리 종문 근처에 눌러앉아 있습니다. 제 짐작으로는 저 요괴가 기어이 우리 영지를 차지하려는 것 같습니다.
+drama_dialogue1304592	음…… 그런데 제가 보기에 흠원은 일월천의 영기를 먹고 자란 덕에 꽤 강해진 듯합니다. 이번 걸음은 종주께서 부디 조심하십시오!
+drama_dialogue1304593	음…… 그런데 제가 보기에 흠원은 일월천의 영기를 먹고 자란 덕에 꽤 강해진 듯합니다. 이번 걸음은 종주께서 부디 조심하십시오!
+drama_dialogue1304620	종주를 뵙습니다! 이곳은 우리 종문의 따라쟁이들이 가장 좋아하는 쉼터입니다. 제 짧은 생각으로는 종문의 자원으로 일월천을 <r>승급</r>할 수 있습니다. 못을 승급하면 따라쟁이가 몸을 담글 때 남다른 <r>특수 효과</r>가 생깁니다.
+drama_dialogue1304621	예전에 문중의 선배께서 일월천을 어느 단계까지 손보면 따라쟁이에게 신기한 효과가 있다고 하셨습니다. 용주 곁에 따라쟁이가 있다면 자주 이곳에 데려와 함께 <r>어울려</r> 주십시오. 이 일월천의 신묘한 효능이라면 머지않아 따라쟁이가 <r>용으로 탈바꿈</r>해 팔황을 날아오를 것입니다.
+taskDesc2110551	운애가 일월천의 영기를 채우라며 <r>현황모기</r>를 모아 달라고 했다.\n이것은 <g>{#areaName4}</g> 지역의 {#building1001Name1}, {#building1001Name2}, {#building1001Name3}, {#building1001Name4}, {#building1001Name5}, {#building1001Name6} 안에 나타나는 <r>대요수</r>를 쓰러뜨리면 얻을 수 있다.\n<g>{#areaName4}</g> 지역의 <g>부서진 쇄령진</g>에서도 얻을 수 있다<y>(첫 공략이 아닐 때)</y>(<g>부서진 쇄령진</g>의 위치는 주점에서 수소문해 보자). (일월천으로 돌아가 임무를 마친다)\n
+drama_dialogue1305050	용주 형님, 형님을 따라 종문에 힘을 많이 보탰더니 요즘 몹시 지칩니다. 일월천으로 데려가 좀 쉬게 해 주시지요?
+drama_dialogue1305051	일월천에 와 보니 운애와 모조조가 함께 있었다. 둘은 못가에 정갈한 요리 한 상을 차려 두었다.
+caveName2008	공방
+caveName2009	주점
+caveName2011	건목
+caveName1007	전송진
+caveName1006	영각
+caveName1005	취선루
+caveName3002	진법
+caveName3003	한루
+caveName4004	곁채
+caveTips100	동부의 이름을 쓴 현판이다.
+caveDes2008	마을 공방의 기능이 있다. 4단계까지 올릴 수 있고, 1단계 오를 때마다 한 주의 공방 기능이 더해진다.
+caveDes2009	마을 주점의 기능이 있다. 4단계까지 올릴 수 있고, 1단계 오를 때마다 한 주의 주점 기능이 더해진다.
+caveDes2011	건목에는 온갖 아이템을 보관할 수 있다.
+caveDes1007	전송진으로 전송진이 있는 다른 곳으로 이동할 수 있다.
+caveDes1006	영각에서 수련해 수위를 올릴 수 있다.
+caveDes1005	취선루에서는 원한 풀기, 천교와 인연 맺기, 쉬며 상태 회복 등 여러 가지를 할 수 있다. 자주 들러 보자.
+caveDes3002	진법을 켜면 동부에서 방해받지 않고 수련할 수 있다.
+caveDes3003	한루는 동부 주인이 사는 곳으로, 경대가 있어 옷을 갈아입고 화장을 할 수 있다.
+caveDes4004	곁채는 가까운 벗과 친지가 사는 곳으로, 경대가 있어 벗과 친지가 옷을 갈아입고 화장을 할 수 있다.
+caveName100	백운 현판
+caveDes100	꾸밈없이 소박한 현판. 글을 쓸 수 있다.
+caveName105	금문 현판
+caveDes105	금빛 찬란한 현판. 상고의 대능이 특수한 황금으로 진법을 새겨 늘 금빛을 내뿜는다! 글을 쓸 수 있다.
+caveName101	당강 현판
+caveDes101	당강의 가죽으로 만든 현판. 웅장하고 당당하다! 글을 쓸 수 있다.
+caveName104	수요 비석
+caveDes104	나무 요괴의 껍질로 만든 비석. 웅장하고 당당하다! 글을 쓸 수 있다.
+caveName3001	영전
+caveDes3001	영기가 가득한 공간. 영초를 심을 수 있다.
+caveName3004	지하 감옥
+caveDes3004	음산한 지하 감옥.
+caveName42685182	일월천
+caveTips42685182	해와 달의 정화를 받아 감로를 맺는다. 마시면 강한 힘을 얻는다.
+caveDes42685182	해와 달의 정화를 받아 감로를 맺는다. 마시면 강한 힘을 얻는다.
+role_feature_postnatal_name42685182	일월 정화
+role_feature_postnatal_tips42685182	일월천 샘물로 우린 차를 마셔 해와 달의 정화를 받았다. 공격력 +10%, 행운 +10, 오성 +20
+role_feature_postnatal_name123010217	지하 감옥에 갇힘
+role_feature_postnatal_tips123010217	지하 감옥에 갇혀 움직임이 제한된다.
+drama_option42685182	샘물을 마신다
+drama_option42685183	용아를 보러 왔다
+drama_option42685184	샘물을 마신다
+Cave_ModName	동천복지
+Cave_NeedModName	UI 틀
+Cave_NeedModTips	{0} 모드를 쓰려면 {1} 모드가 있어야 합니다. {0}이(가) 제대로 설치되지 않은 것으로 보여 모드 기능이 제대로 동작하지 않을 수 있습니다. 모드 상점에서 <b>大鬼</b>를 검색해 {1}을(를) 구독하고, 로컬 모드에서 {1}을(를) {0} 모드 위로 옮기세요.
+Cave_NpcWaiChu	외출 중이라 지금은 얼굴을 바꿀 수 없습니다!
+Cave_NpcLiDui	동행 끝내기
+Cave_NpcZuDui	동행
+Cave_NpcWaiChu2	외출 중이라 지금은 동행을 청할 수 없습니다!
+Cave_LongBattleTalk	용아는 주인과 생사를 함께하겠어요.
+Cave_LongIdleTalk	용아는 여기서 주인을 기다릴게요
+Cave_LongBattle	쉬기
+Cave_LongIdle	출전
+Cave_LongTalk1	주인님(〃▽〃)
+Cave_LongTalk2	손을 어디에 두시는 거예요
+Cave_LongTalk3	이러지 마세요
+Cave_TongbuXiugaiDongfuMingzi	동부 이름도 함께 바꾸기
+Cave_ShuxieNeirong	{0} 내용 쓰기
+Cave_DakaiZhenfaTips	동부의 법진을 켰습니다!
+Cave_GuanbiZhenfaTips	동부의 법진을 껐습니다!
+Cave_GongnengWeikai	아직 열리지 않은 기능입니다. 기대해 주세요!
+Cave_Level	단계
+Cave_Ji	단계
+Cave_DieLikai	{0}이(가) 죽어 도가 꺼지고 동부를 떠났습니다.
+Cave_GerenLikai	{0}이(가) 초대를 받아들여 {1}에 들어와 살게 되었습니다.
+Cave_JujueYaoqing	{0}이(가) {1}의 초대를 거절했습니다.
+Cave_WanCheng	완료
+Cave_BaocunNielian	얼굴 만들기를 저장하고 나가시겠습니까?
+Cave_TuichuNielian	그냥 나가시겠습니까? 얼굴 만들기 결과는 저장되지 않습니다!
+Cave_ShuZhuang	경대 —
+Cave_FristOpenHomeDram	어서 오세요! 주 화면에 귀가 단추가 생겼습니다. 귀가 단추를 누르면 곧바로 집으로 돌아갑니다!
+Cave_Wangou	통신 구매
+Cave_Zichan	자산
+Cave_Huoban	동료
+Cave_Jishi	기록
+Cave_BuyTips	영석 {0}개를 들여 {0}을(를) 사시겠습니까?
+Cave_BuyLog	영석 {0}개를 들여 선거각에서 {1}을(를) 샀다.
+Cave_BuyLog2	영석 {0}개를 들여 선거각에서 {1} 1단계 {2}을(를) 샀다.
+Cave_Jiage	가격
+Cave_Lingshi	영석
+Cave_Dianjigoumai	눌러서 사기
+Cave_Dqchiyous	지금 가진 수
+Cave_Use	사용 중
+Cave_UnUse	사용 안 함
+Cave_ClickPut	눌러서 놓기
+Cave_ClickOut	눌러서 창고로 거두기\n(마우스 휠을 누르면 좌표를 초기화한다)
+Cave_LevelUpNeed	승급에 필요한 것
+Cave_CurState	지금 상태
+Cave_LevelUpTp	승급 후
+Cave_LingshiAnd	영석이
+Cave_Cost	비용
+Cave_LevelUp	승급
+Cave_NpcState1	입주함(동부에 있음)
+Cave_NpcState2	입주함(외출 중)
+Cave_NpcState3	초대 중
+Cave_NpcState4	입주 안 함
+Cave_State	상태
+Cave_Yaoqing	초대
+Cave_Qingli	내보내기
+Cave_Yjx_Fsyq	{0}에게 초대를 보냈습니다!
+Cave_Xfsfjcs	{0}이(가) {1}에게 비검전서를 보내 {2}에 들어와 살라고 청했다
+Cave_NeedJiuguanShengji	주점의 입주 인원이 가득 찼습니다. 주점을 승급하세요!
+Cave_YjQlDf	{0}을(를) 동부에서 내보냈습니다!
+Cave_Q_Qll	{0}이(가) {1}을(를) {2}에서 내보냈다.
+Cave_ShuomingOnceTips	(이 설명은 한 번만 나옵니다. 다시 읽으려면 업데이트 공지 【2.0 미리 체험판】을 보세요)
+Cave_pos	위치
+Cave_rota	회전
+Cave_scale	크기
+Cave_ClickCheckPosi	눌러서 위치 확정
+Cave_ClickOutCangku	눌러서 창고 자리로 되돌리기
+Cave_ImageFile	그림 파일
+Cave_ClickChangeBuildImage	눌러서 건물 그림 바꾸기
+Cave_OpTips	마우스로 끌어 위치를, Ctrl을 누른 채 끌어 크기를, Alt를 누른 채 끌어 각도를 조정한다
+Cave_Dingju	정착
+Cave_DingjuShibai1	여기에는 다른 건물이 있어 정착할 수 없습니다!
+Cave_DingjuShibai2	여기에는 정착할 수 없습니다!
+Cave_QueDingCavePosi	여기에 정착하시겠습니까?
+Cave_OkCavePosi	손님, 동부를 다 지어 드렸습니다. 저희는 먼저 물러가겠습니다!
+Cave_GoHome	귀가
+Cave_BuyDram1	도우는 아직 어디에 정착할지 못 정하셨나요? 영원 빙원도 괜찮다고 봐요!
+Cave_BuyDram2	도우는 한곳에 오래 있어 질려서 동부 자리를 옮기고 싶으신가요?
+Cave_BuyDram3	동부 주소를 옮기시겠습니까?
+Cave_BuyDram4	여기서는 온갖 동천복지를 팔고, 이사도 몇 번이든 공짜로 해 드립니다. 도우께서도 보러 오셨나요?
+Cave_BuyDram5	동부를 고르시겠습니까?
+Cave_BuyDram6	선거루
+Cave_BuyDram7	동부 사기
+Cave_BuyDram8	영석 {0}개를 들여 {1}을(를) 사시겠습니까?
+Cave_beijingName1	작은 다리 흐르는 물
+Cave_beijingName2	얼음 하늘 눈 땅
+Cave_beijingName3	극한 황무지
+Cave_BuyDram9	영석도 없이 뭘 구경하러 왔어요? 공짜로 얻어 가려는 건가요?
+Cave_BuyDram10	이 영석은 받아 두겠습니다. 도우께서는 동부를 지으려는 곳에 가서 화면 오른쪽의 건설 단추를 누르시면 됩니다!
+Cave_BuyDram11	의 동부
+Cave_HelpText1	동부 업데이트
+Cave_HelpText2	동천복지 모드를 써 주셔서 고맙습니다!\nQQ 그룹: 50948165\n빌리빌리 ID: 八荒大鬼\n\n\n개인 홈페이지: www.yellowshge.com\n\n\n\n
+Cave_HelpText3	빌리빌리에서 팔로우
+Cave_HelpText4	홈페이지 가기
+Cave_HelpText5	3DM 포럼 가기
+Cave_HelpText6	업데이트
+Cave_HelpText7	계획
+Cave_HelpText8	동천복지 업데이트 공지
+Cave_HelpText9	동천복지 판 계획
+Cave_HelpText10	초대 안내: NPC를 동부에 초대하면 다음 달에 답을 합니다. 답하기 전까지 객실 하나를 비워 둡니다. 다음 달 NPC가 거절하면 그 객실에 다른 NPC를 다시 초대할 수 있고, 받아들이면 NPC가 그 객실에 들어와 삽니다. 입주한 NPC는 자주 동부에 머뭅니다.
+Cave_HelpText11	차례로
+Cave_HelpText12	다음 단계
+Cave_HelpText13	업데이트됨
+Cave_HelpText14	미리 체험판
+Cave_HelpText15	{0}년 {1}월 {2}일 {3}시
+Cave_HelpYudao1	기연으로 대능의 잔혼을 찾을 수 있다. 되살려 보면 다른 세계에서 허공을 깨고 온 이로, 영혼을 고치려면 희귀한 재료가 필요하다. 대능을 살려 내면 그 연단 전승을 얻어 새 연단 체계가 열린다.\n새 연단 체계 추가. 연단실 건물과 기능 추가.
+Cave_HelpYudao2	건물마다 관리 NPC를 손보아, 벗을 배치해 일을 돕게 할 수 있다.\n건물마다 달마다 영석으로 유지비를 낸다.\n벗의 일하기 기능 추가. 벗이 동주를 도와 영석을 번다.
+Cave_HelpYudao3	진법 기능을 늘린다(취령진 등).\n큰 지도에 기연을 더해 다른 수선자의 동부를 만날 수도 있다.
+Cave_HelpYudao4	안채 기능 추가. 도려와 함께 다음 세대를 낳을 수 있다.\n아이 기르기 기능 추가. 성격과 선천운명 등을 빚을 수 있다.
+Cave_HelpYudao5	생태를 본뜬 시련탑 추가. 괴물을 잡으며 시련을 치러 재료를 얻는다.\n정보루 추가. 온갖 정보를 모을 수 있다.\n화원 건물 추가. 벗·기령과 함께 놀며 어울릴 수 있다.
+Cave_HelpYudao6	지하 감옥 건물 추가. 쓰러뜨린 적을 가둘 수 있다.\n영전 건물 추가. 영과를 심을 수 있다.\n이름 바꾸기와 성격 기능 추가(플레이어와 동료).
+Cave_HelpYudao7	주요 건물 영각의 기능 추가. 공짜로 수련할 수 있다.\n객실 기능 추가. 벗을 초대해 살게 할 수 있다.\n업데이트 내용 표시, 판 계획 표시, 업데이트 알림 기능 추가.\n성형 건물 추가. 머리 모양·눈·코 등을 바꿀 수 있다.
+Cave_HelpYudao8	동부 사기 기능, 동부 건설 틀과 주요 건물 기능 추가.
+Cave_HelpGengxin1	1. 동부 사기 기능 추가. 정착한 뒤 언제든 집에 돌아가 동부를 열 수 있다.\n2. 동부 배경과 건물 그림을 직접 꾸미는 기능 추가.\n3. 건물 놓기와 일부 주요 건물 기능 추가.
+Cave_HelpGengxin2	1. 업데이트 공지 기능 추가, 공지 알림 개선.\n2. 직접 지은 건목과 마을의 건목이 이어지지 않던 문제 수정(<color=red>도우께서는 이전 판에서 먼저 동부 건목의 물건을 꺼내 두세요</color>).\n3. 어떤 경우 정착·귀가 단추가 사라져 나오지 않던 문제 수정.\n4. 건물에 들어갔다가 오른쪽 단추로 취소하면 곧장 큰 지도로 돌아가던 문제 수정.\n5. 버그 제보를 해 준 3DM의 <color=blue>dingchao52cc</color>, <color=blue>Karasunny</color> 도우께 감사드립니다.
+Cave_HelpGengxin3	1. 직접 넣은 그림이 흐릿하던 문제 수정.\n2. 4단계에 이르지 않았는데 4단계 공방으로 바꿀 수 있던 문제와 비슷한 문제 수정.\n3. 영각 기능 추가. 영각에서 공짜로 수련할 수 있고, 영각의 네 단계가 네 주 영각의 수련 효과에 해당한다.\n4. 업데이트 알림 추가. 모드를 업데이트할 수 있으면 시작 화면 오른쪽 위에 업데이트 단추가 생기고, 누르면 곧장 포럼으로 가서 모드를 업데이트한다. 5. 동부 기록 추가. 동부에서 있었던 소소한 일과 아름다운 추억을 남긴다.\n6. 객실 기능 추가. NPC를 초대해 살게 할 수 있다.
+Cave_HelpGengxin4	1. 약속한 NPC가 동부로 되돌려 보내지던 문제 수정(이미 일어난 것은 약속 시간이 끝날 때까지 기다리세요).\n2. 건물을 다시 놓으면 좌표를 초기화해, 화면 밖으로 밀려 되찾지 못하는 일을 막음.\n3. 버그 제보를 해 준 3DM의 <color=blue>guigu007</color> 도우께 감사드립니다.\n4. 동부 기록의 순서 조정.
+Cave_HelpGengxin5	1. 동부에 입주한 NPC가 달이 넘어갈 때 저절로 동주에 대한 호감도가 오르도록 개선.\n2. 동부 건물 단계 표시 개선. 단계 상한이 1이면 단계를 표시하지 않는다.
+Cave_HelpGengxin6	1. 모드 틀을 개선하고 알려진 버그 몇 가지를 고쳤다.\n2. 주 화면 단추 표시 개선.\n3. 한루와 곁채에 얼굴 만들기 기능 추가. 한루에서는 자기 얼굴을, 곁채에서는 동부에 있는 동료의 얼굴을 만들 수 있다.\n4. 판 예고 추가.\n5. 건물 이름 수정.\n6. 글꼴 표시 개선.\n7. 동료 때문에 버벅이던 문제 개선.\n8. 동부 이름 바꾸기 기능 추가.\n9. 동료를 초대하거나 내보낼 때 스크롤 위치가 초기화되던 문제 개선.\n10. 건물 크기 조정과 직접 넣은 그림 지원(png, jpg, gif).\n11. 동부 메뉴 자동 숨김 추가.\n12. 직접 만든 새 건물 추가 지원. 관심 있으면 cave 폴더의 안내 문서를 보세요.\n13. 동부 현판 이름의 형식을 직접 정할 수 있다. Cave 폴더의 DataCustom.json 파일에서 고친다.\n14. 여러 모양의 현판 추가.\n15. 건물에 게임 안의 특수 효과를 붙일 수 있게 함.\n16. 진법 기능 추가. 켜 두면 동부에서 달을 넘길 때 다른 사람을 막는다.
+Cave_HelpGengxin7	1. 새 모드 틀을 썼다.\n2. 동행 기능 추가. 곁채에서 NPC에게 동행을 청해 함께 전투에 들어갈 수 있다.\n3. 안내 글 개선.
+Cave_HelpGengxin8	1. 동부에 건물 일월천 추가(청린지를 대신한다. 청린지의 기능이 있고 효과가 더 좋다).\n2. 알려진 버그 여럿 수정.\n3. 번체 중국어 지원 추가.
+npc_name42685192	팔황대귀
+drama_option42685185	도려로 맞는다
+drama_option42685186	계속 가둔다
+# 2822252336 指点 — 가르치기(자질·경지) 대화
+mX1I8Glw	축기 돌파
+GSd4EnRK	다음 경지로 돌파할 재료를 얻었다
+puYBGqzB	축기 돌파
+UQSJPErr	축기 돌파
+v1npVpsq	축기 돌파
+g20qjnun	축기 돌파
+Fppi3nrt	시험
+nxY3M9PI	시험
+ewcqZxLU	(무엇을 가르칠까?)
+csuiAz6R	시험
+A1leAHp0	시험
+YPaZ7vQR	병목 돌파 시험
+KepJJE7g	경험치 채우기와 돌파 시험
+57z9APCB	가르치기 시험
+Clq5qCXi	도
+bQLwGQG6	가르침에 감사드립니다. 이번 이야기로 얻은 것이 많습니다.
+4vzIRrQw	돌아가기
+lrNkytdp	닫기
+VX6M8MBM	(어떤 자질?)
+vHfPMqQk	무법 자질
+JWYtd7Sj	영근 자질
+gAQ6EstV	돌아가기
+Fw5mNfmg	취소
+T0yXcIcQ	(어떤 자질?)\n<color="red"><color="red"/>주: 상대의 자질보다 백의 자리가 1 이상 커야 가르칠 수 있다.
+V9YMdC1t	(어떤 자질?)\n<color="red"><color="red"/><color="red"><color="red"/>주: 상대의 자질보다 백의 자리가 1 이상 커야 가르칠 수 있다.
+N6SLSrmF	그대의 가르침에 상대가 크게 깨달아 속성이 올랐다.
+8fwbec7F	속성 상승
+ihbURJPg	닫기
+3TcIgodE	(상대는 경지 돌파까지 아직 거리가 있다.)
+yZDCzHom	돌아가기
+HC4yLn9F	그대의 가르침에 상대가 무언가 깨달은 듯하다.
+VycdUuc8	깨달은 듯함
+UZMd6jRk	닫기
+qykM8utk	
+IPixGW2Q	
+2pqY7bbS	
+ZrloYlmM	
+# 2814673099 동료(파티) — 파티 대화
+drama_option-1979165529	파티를 청한다
+drama_option-1979165528	끝낸다
+role_feature_postnatal_tips-1979165529	다른 이와 함께 파티를 이룰 준비
+role_feature_postnatal_name-1979165529	파티원이 됨
+taskName-1979165529	파티 결성
+taskDesc-1979165529	다른 도우를 청해 파티를 이루었다. 자신감이 크게 솟는다
+drama_option-1979165527	파티 해산
