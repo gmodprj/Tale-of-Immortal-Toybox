@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace MOD_sWP6UL
 {
-    // 법보 탭: 편집 대상이 가진 법보와 기령. 장착·해제, 기령 빼기·넣기, 재능 켜기, 레벨 올리기, 지우기, 기령 만들기, 법보 지급.
+    // 법보 탭: 편집 대상이 가진 법보와 기령. 장착·해제, 수리(60절), 기령 빼기·넣기, 재능 켜기, 레벨 올리기, 지우기, 기령 만들기, 법보 지급.
     // 그리기만 하고 일은 TreasureService가 한다(스펙 docs/superpowers/specs/2026-10-17-treasure-tab-design.md, 05 문서 56절).
     internal sealed class TreasureTab : EditorTab
     {
@@ -68,6 +68,8 @@ namespace MOD_sWP6UL
                 }
             }
             Ui.Label(content, "가진 법보 " + treasures.Count, 0, y, 300, 30, 18).color = Ui.Dim;
+            bool anyWorn = treasures.Exists(t => TreasureService.RepairBlock(t) == null);
+            Ui.Button("TreasureRepairAll", content, "모두 수리", 310, y - 2, 120, 32, new Action(() => Say(TreasureService.RepairAll(Target))), anyWorn);
             y += 32;
             // ListView의 높이에는 아래 이동 줄(38 + 간격 6)이 들어 있다. 최대 다섯 줄을 보인다.
             float tH = Math.Min(230, Math.Max(48, treasures.Count * 44 + 4)) + 44;
@@ -91,7 +93,10 @@ namespace MOD_sWP6UL
             state.color = t.Equipped ? Ui.Warn : Ui.Dim;
             state.gameObject.name = "TreasureState" + sole;
             float bx = Right - 90 - 6 - 112;
-            Text spirit = Ui.Label(row, "기령: " + t.SpiritText, 700, 0, bx - 710, h, 16);
+            float rx = bx - 6 - 72;
+            // 수리: 내구를 모양 설정의 최대까지(05 문서 60절). 가득하거나 최대를 모르면 끈다.
+            Ui.Button("TreasureRepair" + sole, row, "수리", rx, (h - 36) / 2, 72, 36, new Action(() => Say(TreasureService.Repair(Target, sole))), TreasureService.RepairBlock(t) == null);
+            Text spirit = Ui.Label(row, "기령: " + t.SpiritText, 700, 0, rx - 710, h, 16);
             spirit.color = t.SpiritSole == 0 ? Ui.Dim : Color.white;
             spirit.gameObject.name = "TreasureSpirit" + sole;
             bool equipped = t.Equipped;

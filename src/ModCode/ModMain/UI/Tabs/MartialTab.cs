@@ -99,6 +99,15 @@ namespace MOD_sWP6UL
             Ui.Label(content, "종류", 338, 0, 120, 30, 18).color = Ui.Dim;
             Ui.Label(content, "경지", 468, 0, 80, 30, 18).color = Ui.Dim;
             Ui.Label(content, "숙련 경험치", 558, 0, 150, 30, 18).color = Ui.Dim;
+            // 기술 학습 상한(05 문서 60절): 게임의 기술 칸 수에 더한다. NPC에게도 적용된다(게임 함수가 인물을 받지 않는다).
+            float gx = ContentW - 160 - 12 - MartialGridService.Steps.Length * 70;
+            Ui.Label(content, "학습 상한", gx - 96, 0, 92, 30, 16).color = Ui.Dim;
+            for (int i = 0; i < MartialGridService.Steps.Length; i++)
+            {
+                int step = MartialGridService.Steps[i];
+                Ui.Button("MartialGrid" + step, content, MartialGridService.StepName(step), gx + i * 70, 0, 66, 30,
+                    new Action(() => Say(MartialGridService.Set(step))), true, MartialGridService.Bonus == step);
+            }
             Ui.Button("SkillAddOpen", content, "기술 추가", ContentW - 160, 0, 160, 30, new Action(() =>
             {
                 skillGrade = 0;

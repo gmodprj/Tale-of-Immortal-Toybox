@@ -9,6 +9,8 @@ namespace MOD_sWP6UL
     //   trmake <기령 번호>           기령 만들기
     //   trput <법보 sole> <기령 sole> / trpull <법보 sole>   넣기 / 빼기
     //   trlight <기령 sole> / trlevel <기령 sole> / trdel <기령 sole>   재능 모두 켜기 / 레벨 올리기 / 지우기
+    //   trdur <법보 sole> <값>        내구를 그 값으로(수리 검사 준비. 05 문서 60절)
+    //   trrepair <법보 sole>|all      수리 / 모두 수리
     internal static class DevCommandsTreasure
     {
         public static string Execute(string[] p)
@@ -35,6 +37,10 @@ namespace MOD_sWP6UL
                     return TreasureService.LevelUp(Me(), int.Parse(p[1]));
                 case "trdel":
                     return TreasureService.Delete(Me(), int.Parse(p[1]));
+                case "trdur":
+                    return SetDurable(Me(), p[1], int.Parse(p[2]));
+                case "trrepair":
+                    return p[1] == "all" ? TreasureService.RepairAll(Me()) : TreasureService.Repair(Me(), p[1]);
                 default:
                     return null;
             }
@@ -43,6 +49,19 @@ namespace MOD_sWP6UL
         private static WorldUnitBase Me()
         {
             return g.world == null ? null : g.world.playerUnit;
+        }
+
+        private static string SetDurable(WorldUnitBase unit, string soleId, int value)
+        {
+            foreach (TreasureService.Treasure t in TreasureService.Treasures(unit))
+            {
+                if (t.SoleId == soleId && t.Data != null)
+                {
+                    t.Data.durable = value;
+                    return "durable " + t.Name + " -> " + t.Data.durable + "/" + t.DurableMax;
+                }
+            }
+            return "no treasure " + soleId;
         }
 
         private static string EquippedSole(WorldUnitBase unit)
