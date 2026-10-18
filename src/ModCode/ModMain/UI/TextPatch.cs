@@ -22,9 +22,10 @@ namespace MOD_sWP6UL
 
         public static string Ensure()
         {
-            if (harmony != null || Failure != null)
+            // 이미 걸었으면 그대로. 앞서 실패했으면 다음 Init에서 다시 걸어 본다(리뷰 10의 N2. 실패 로그는 이유가 바뀔 때만).
+            if (harmony != null)
             {
-                return Failure;
+                return null;
             }
             TextReplacer replacer = TextTranslationService.Replacer;
             if (replacer == null || (replacer.Count == 0 && replacer.WholeOnlyCount == 0))
@@ -41,11 +42,16 @@ namespace MOD_sWP6UL
             catch (Exception e)
             {
                 instance.UnpatchSelf();
-                Failure = "화면 글 치환을 게임에 연결하지 못했습니다(" + e.GetType().Name + ": " + e.Message + ")";
-                MelonLogger.Msg("[TlToybox] " + Failure);
+                string failure = "화면 글 치환을 게임에 연결하지 못했습니다(" + e.GetType().Name + ": " + e.Message + ")";
+                if (failure != Failure)
+                {
+                    MelonLogger.Msg("[TlToybox] " + failure);
+                }
+                Failure = failure;
                 return Failure;
             }
             harmony = instance;
+            Failure = null;
             return null;
         }
 

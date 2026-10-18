@@ -121,7 +121,8 @@ namespace MOD_sWP6UL
             Replacer = new TextReplacer(map, localText);
             int tables = 0, cells = 0, errors = 0;
             var detail = new StringBuilder();
-            if (Replacer.Count > 0)
+            // LocalText 사전만 있어도 표 칸을 바꾼다(ApplyTable의 Whole은 두 사전을 다 본다. 리뷰 10의 N1).
+            if (Replacer.Count > 0 || Replacer.WholeOnlyCount > 0)
             {
                 foreach (string[] target in Targets)
                 {

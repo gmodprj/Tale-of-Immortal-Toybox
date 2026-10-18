@@ -58,6 +58,10 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] 설정 파일을 읽지 못했습니다: " + e.Message);
             }
+            catch (UnauthorizedAccessException e)
+            {
+                MelonLogger.Msg("[TlToybox] 설정 파일을 읽지 못했습니다: " + e.Message);
+            }
             return KeyCode.Insert;
         }
     }

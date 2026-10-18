@@ -85,6 +85,11 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] 변경 이력 파일 기록 실패: " + e.Message);
             }
+            catch (UnauthorizedAccessException e)
+            {
+                // 세이브 쓰기는 이미 끝났다. 여기서 던지면 버튼 보호가 "오류"로 보여 성공한 변경이 실패처럼 보인다(리뷰 08의 29번).
+                MelonLogger.Msg("[TlToybox] 변경 이력 파일 기록 실패: " + e.Message);
+            }
         }
     }
 }

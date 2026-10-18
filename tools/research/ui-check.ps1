@@ -1274,6 +1274,24 @@ switch ($Part) {
     $s = Cmd 'uistate'
     Press 'Back' | Out-Null
     Check 'the second press learns them' ((Range 'MartialListRange') -gt $had) "$had -> $(Range 'MartialListRange'); $s"
+    # 리뷰 08의 22번(10 문서 5절): 모드 공법 줄은 배우기 단추가 꺼져 있고 길을 알린다. 모두 배우기는 모드를 따로 센다
+    if ((Cmd 'rmods' 3000) -match '1:984555698:') {
+      $had = Range 'MartialListRange'
+      Press 'SkillAddOpen' | Out-Null; Press 'SkillKind1' | Out-Null
+      Cmd 'ui set SkillQuery 열염' | Out-Null
+      $t = Cmd 'uitext SkillAdd984555698'
+      Check 'a mod skill row shows a disabled button pointing to the books group' ($t -match "text='자원 탭 기술 서적'") $t
+      # 꺼진 단추는 Press가 "not interactable"로 거부한다(누르지 못한다는 것이 곧 판정)
+      $refused = try { Press 'SkillAdd984555698' | Out-Null; '' } catch { "$_" }
+      $u = Cmd 'uistate'
+      Check 'the mod row button cannot be pressed and does not call learn' ($refused -match 'not interactable' -and $u -notmatch '모드 공법은 자원 탭의 기술 서적에서 비급으로') "$refused | $u"
+      Cmd 'ui set SkillQuery ' | Out-Null
+      Press 'SkillLearnAll' | Out-Null; Press 'SkillLearnAll' 8000 | Out-Null
+      $s = Cmd 'uistate'
+      Check 'learn-all counts mod skills apart from the out-of-range ones' ($s -match '모드 공법 \d+개는 자원 탭의 기술 서적에서 받습니다') $s
+      Press 'Back' | Out-Null
+      Check 'learn-all still learns the plain ones' ((Range 'MartialListRange') -ge $had) "$had -> $(Range 'MartialListRange')"
+    } else { 'INFO mod skill 984555698 is not loaded; mod row check skipped' }
 
     # 기예 모두 배우기: 아직 다 배우지 않은 분류를 고른다(단추 글 "<분류> (배움/전체)")
     Press 'Tab9' | Out-Null

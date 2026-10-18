@@ -2738,3 +2738,36 @@
 - 2023년 이전 갱신 모드(동료 2022-07, 동천복지 2023-03)의 현재 판(v1.2.113) 호환은 로드·예외 없음까지만 확인.
 - 얼굴 만들기 2832167498의 예외(2026-10-17 17:06 사용자 실행, `MOD_0lkK4v.Dress.open` → `UIModDress.InitData`의 NullReferenceException)는 이 묶음과 무관하며 원인 미확인.
 - 회차 이름: `ws-1018a`(설치·`rloc dump`), `ws-1018b`(번역 검증).
+
+## 58. 리뷰 10의 작은 수정 묶음 (2026-10-18 추가)
+
+사용자 요청(2026-10-18): 코드 리뷰 `docs/10-review-2026-10-18.md` 5절의 "작은 수정 묶음(08의 22·29·30·38, N1·N2·N7)부터". 브랜치 `fix/review-1018-small`, 회차 `rv-1018a`~`e`(고정본 base).
+
+### 고친 것
+
+| 번호 | 파일 | 바꾼 것 |
+|---|---|---|
+| 08-22 | `UI/Tabs/MartialTab.cs`(`DrawSkillRow`), `Services/SkillCatalog.cs`(`LearnAll`) | 공법 탭 기술 추가 목록의 모드 공법 줄: 이름 앞 `[모드] `, 상태 `비급으로`, 단추 `SkillAdd<번호>`는 꺼진 `자원 탭 기술 서적`(전에는 켜진 `배우기`가 늘 거부됐다). `모두 배우기`는 모드 행을 "경지 범위 밖"이 아니라 따로 세어 `모드 공법 n개는 자원 탭의 기술 서적에서 받습니다.`를 붙인다 |
+| 08-29 | `Safety/ChangeLog.cs`, `UI/EditorHost.cs`, `Services/LuckService.cs`(둘), `Services/ArtifactKeyService.cs` | `IOException`만 잡던 다섯 곳에 `UnauthorizedAccessException`도 잡는다(기존 꼴대로 `catch` 블록 하나 더). 이력 파일 쓰기가 거부돼도 이미 끝난 세이브 쓰기가 "오류"로 보이지 않는다 |
+| 08-30 | `Services/GradeService.cs`(`Complete`) | 돌파 마무리의 예외를 `[TlToybox] 돌파 마무리 실패(경지 <번호>): <예외>`로 로그에 남긴다(같은 이유는 한 번) |
+| 08-38 | `Services/WorldService.cs`(`OnHit`) | 본체를 `OnHitCore`로 옮기고 `OnHit`이 `try`로 감싼다(같은 예외는 한 번 로그). `hitUnit.data`·`attackUnit.data`의 null 검사 |
+| N1 | `Services/TextTranslationService.cs` | 표 칸 치환 조건을 `Count > 0 \|\| WholeOnlyCount > 0`으로 |
+| N2 | `UI/TextPatch.cs`(`Ensure`) | 패치에 실패했으면 다음 `Init`에서 다시 건다. 이미 걸었으면 그대로. 실패 로그는 이유가 바뀔 때만 |
+| N7 | `UI/PointerGuard.cs` | 휠·단추·포인터 판정 접두 셋의 빈 `catch`가 첫 예외 한 번을 `창 위 입력 막기 오류(<자리>)`로 로그(`WarnPrefix`) |
+
+검사: `ui-check.ps1`의 `confirm2`(기술 모두 배우기 뒤)에 모드 줄 넷 — 꺼진 단추 글, `Press`가 `not interactable`로 거부하고 `Learn`의 거부 문장이 안 나옴, 모두 배우기 문장의 `모드 공법 n개`, 일반 기술은 여전히 익힘. 모드 공법 984555698(열염장, 3390738990)이 실려 있을 때만 돈다.
+
+### 실측·검증
+
+- 빌드: 배포·개발 구성 경고 0·오류 0, `tests/ModMain.Tests` FAIL 0.
+- `rv-1018a`(edcf669): `base`·`tabs`·`translation`·`actions`·`rates-battle` FAIL 0. `input` FAIL 1(`a wheel over the list scrolls the list`) — 아래 "순서 의존".
+- `rv-1018b`(develop 3652859, 수정 전): 깨끗한 회차의 `input` 17/17 PASS, `translation` 뒤에 돌린 `input`은 같은 FAIL 1. **이번 수정과 무관한, 원래 있던 순서 의존**이다.
+- `rv-1018c`(수정 브랜치): `input` 먼저 FAIL 0, `actions` FAIL 0, `confirm2` 새 검사 넷 PASS(같은 회차의 두 번째 실행이라 앞 검사 `the second press learns them`만 "0개를 익혔습니다"로 FAIL — 첫 실행이 이미 다 익힘). `rv-1018e`(깨끗한 회차): `confirm2`의 앞 다섯 PASS 뒤 명령 채널의 `out.txt` 잠김으로 도구가 멈춤.
+- 모든 회차 `-End`가 `SAVE RESTORED AND IDENTICAL`.
+
+### 확인하지 못한 것, 한계
+
+- **목록 휠 순서 의존(원인 미확인)**: 같은 회차에서 `translation` 검사를 돌린 뒤에는 자원 탭 아이템 목록(`Row0` 위 가상 포인터)이 가상 휠에 넘어가지 않는다. 편집기를 닫았다 열어도 그대로이고, 깨끗한 회차에서는 넘어간다. `translation`이 번역 파일을 고쳐 `rloc apply`를 여러 번 부르고 기술 서적 그룹·검색을 쓰는 것과 관련 있어 보인다. 실제 마우스에도 생기는지는 미확인. 따로 조사한다.
+- **명령 채널 경합**: `rv-1018d`는 회차를 열자마자 보낸 첫 명령이 `mod.ps1`의 파일 이동에서 "이미 있음", `rv-1018e`는 `out.txt`가 다른 프로세스에 잠겨 검사 도구가 멈췄다(회차 결과가 아닌 도구 문제). 49절 이후 처음 본 현상이라 원인 미확인.
+- N2의 재시도, 08-38의 예외 보호, 08-29의 접근 거부, 08-30의 로그는 실패를 일부러 만들지 않아 실패 경로는 실행하지 않았다(코드로만).
+- 회차 이름: `rv-1018a`~`e`.

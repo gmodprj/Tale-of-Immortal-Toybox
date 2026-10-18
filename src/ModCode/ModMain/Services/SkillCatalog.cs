@@ -559,12 +559,12 @@ namespace MOD_sWP6UL
                 return backupError + " 변경을 중단했습니다.";
             }
             Dictionary<int, int> have = LearnedCounts(unit, kindIndex);
-            int learned = 0, plain = 0, refused = 0, skipped = 0;
+            int learned = 0, plain = 0, refused = 0, skipped = 0, mods = 0;
             foreach (Entry entry in All(kindIndex))
             {
                 if (entry.IsMod)
                 {
-                    skipped++;
+                    mods++;
                     continue;
                 }
                 if (have.ContainsKey(entry.BaseId))
@@ -592,6 +592,7 @@ namespace MOD_sWP6UL
             return kind.Tab + ": " + learned + "개를 익혔습니다(경지 " + grade + ")."
                 + (plain > 0 ? " 그중 " + plain + "개는 옵션 없이 만들었습니다." : "")
                 + (skipped > 0 ? " 경지 범위 밖 " + skipped + "개는 건너뛰었습니다." : "")
+                + (mods > 0 ? " 모드 공법 " + mods + "개는 자원 탭의 기술 서적에서 받습니다." : "")
                 + (refused > 0 ? " " + refused + "개는 게임이 만들지 못했습니다." : "");
         }
     }
