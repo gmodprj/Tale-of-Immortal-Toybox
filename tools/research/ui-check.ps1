@@ -2465,8 +2465,11 @@ switch ($Part) {
     $r = Cmd "mgridstudy $sole" 3000
     Check 'the game accepts the book past the old cap' ($r -match 'can=0') $r
     # 비급 학습은 시간을 쓰는 행동이라 우연 이야기 창(DramaFortuitous)이 몇 쪽 뜨고, 다 넘긴 뒤에 배운다(cr-1018b 실측).
-    for ($i = 0; $i -lt 12 -and (Cmd 'uilist' 300) -match 'DramaFortuitous'; $i++) {
-      if ((Rc 'hit 979 821' 300) -match 'goBtnItem') { Rc 'click 979 821' 2500 | Out-Null } else { Start-Sleep -Milliseconds 800 }
+    # 그 뒤에 대화 창(DramaDialogue, 화면 전체가 '다음' 단추)이 이어질 수 있다(cr-1018d).
+    for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 300) -match 'DramaFortuitous|DramaDialogue'; $i++) {
+      if ((Rc 'hit 979 821' 300) -match 'goBtnItem') { Rc 'click 979 821' 2500 | Out-Null }
+      elseif ((Rc 'hit 960 540' 300) -match 'btnNext') { Rc 'click 960 540' 2000 | Out-Null }
+      else { Start-Sleep -Milliseconds 800 }
     }
     $s = Cmd 'mgrid' 300
     Check 'after the study event the book is learned past the old cap' ($s -match "무예/영술:$($before + 1)/") $s
