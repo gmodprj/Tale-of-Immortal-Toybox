@@ -83,6 +83,8 @@ function RestoreFile([string]$file, [string]$kept, [string]$absent) {
 function Launch {
   # 여기서 게임이 보이면 이 스크립트가 띄운 것이 아니다. 띄우지도, pid를 적지도 않는다.
   if (Running) { throw '게임이 실행 중입니다. 이 스크립트가 띄운 게임이 아니므로 건드리지 않습니다. 사용자에게 종료를 요청하고 기다립니다.' }
+  # 앞 게임이 가져가지 못한 명령 파일이 남아 있으면 새 게임이 그 옛 명령을 실행하고, 다음 명령의 Move가 "이미 있음"으로 실패한다(회차 rv-1018d. 05 문서 59절). 띄우기 전에 채널 파일을 치운다.
+  DeleteFiles (@('mod-cmd.txt', 'mod-cmd.tmp', 'mod-out.txt', 'cmd.txt', 'cmd.tmp', 'out.txt') | ForEach-Object { Join-Path $dir $_ })
   if ($DryRun) { 'DRY LAUNCH'; return }
   [IO.File]::WriteAllText($flag, '')
   $blind = (Test-Path $modeFile) -and ([IO.File]::ReadAllText($modeFile).Trim() -eq 'release')
