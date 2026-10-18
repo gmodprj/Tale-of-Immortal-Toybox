@@ -6,14 +6,16 @@ param([string]$GameDir = 'E:\Games\Tale of Immortal', [switch]$Launch, [int]$Bli
 $dir = & (Join-Path $PSScriptRoot 'devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 $log = Join-Path $GameDir 'MelonLoader\Latest.log'
 
+. (Join-Path $PSScriptRoot 'channel.ps1')   # 파일 교환의 경합 막기(05 문서 59절)
+
 function Send([string]$c) {
   $out = Join-Path $dir 'out.txt'
-  if (Test-Path $out) { [IO.File]::Delete($out) }
-  $cmd = Join-Path $dir 'cmd.txt'; if (Test-Path $cmd) { [IO.File]::Delete($cmd) }
-  [IO.File]::WriteAllText((Join-Path $dir 'cmd.tmp'), $c)
-  [IO.File]::Move((Join-Path $dir 'cmd.tmp'), (Join-Path $dir 'cmd.txt'))
+  Remove-ChannelFile $out
+  # 시작 화면에서는 앞 명령을 기다릴 까닭이 없다. 남은 명령은 버린다(예전 동작).
+  Remove-ChannelFile (Join-Path $dir 'cmd.txt')
+  [void](Send-ChannelCommand $dir $c 'cmd')
   for ($n = 0; $n -lt 50 -and -not (Test-Path $out); $n++) { [Threading.Thread]::Sleep(100) }
-  if (Test-Path $out) { ([IO.File]::ReadAllText($out)).Trim() } else { 'NO RESPONSE' }
+  if (Test-Path $out) { $text = Read-ChannelFile $out; if ($null -eq $text) { 'NO RESPONSE' } else { $text.Trim() } } else { 'NO RESPONSE' }
 }
 
 function ReadLog { $fs = [IO.File]::Open($log, 'Open', 'Read', 'ReadWrite'); $sr = New-Object IO.StreamReader($fs); $t = $sr.ReadToEnd(); $sr.Close(); $fs.Close(); $t }
