@@ -2830,3 +2830,43 @@
 - 인물 화면을 개발 명령(`ropenui PlayerInfo`)으로 열 때 동료 모드(`TeamBest.dll`, 2814673099)의 `UIPlayerInfo.Init` 후위 패치가 NullReferenceException을 냈다(`CreatePlayerInfoNewPatch`). 편집기와 무관하며, 게임에서 직접 열 때도 나는지는 미확인(사용자 확인 항목).
 - 법보의 최대 내구가 강화·경지로 바뀌는지는 보지 않았다(모양 설정 값만 쓴다).
 - 회차 이름: `cr-1018a`~`e`.
+
+## 61. 기예 제작 재료 지급 — 설계 전 실험 (2026-10-18 추가)
+
+스펙 `docs/superpowers/specs/2026-10-18-craft-materials-design.md`(사용자 선택: 재료 지급). 4절의 실험 E1~E5. 브랜치 `feat/craft-materials-exp`, 회차 `mat-1018a`·`b`(고정본 base). 개발 명령 `Dev/DevCommandsCraft.cs`: `cmlearn`·`cmgive`·`cmbag`·`cmherb`·`cmpill`·`cmpillui`·`cmforge`·`cmforgeui`·`cmrune`.
+
+| 실험 | 결과 |
+|---|---|
+| E5 가방 | 같은 재료는 한 칸에 겹친다(5031061이 한 칸에서 26 → 76 → 126, 칸 수 91 그대로). 한 벌에 필요한 새 칸 = 가방에 아직 없는 재료 종류 수 |
+| E1 연단 | 오행 여덟 값의 순서는 처방 칸 순서(화·수·뇌·풍·토·목·음·양)가 맞다: `RefineElixirBase.Init`의 `elementBaseValue`가 `0,0,150,0,0,250,0,0`(단방 6051011의 뇌 150·목 250). `herbalRequier`/`herbalRequierCount`가 그대로 `5031061`/`50`(주약 개수). `AddMasterial`로 가방 약재를 넣으면 `curElementValue`가 오행 합이 된다(표에 없는 값을 가진 약재도 있다: 5031724는 화 1·수 47). 게임의 연단 준비 화면(`UIRefineElixirPre`, 캡처 `.devremote\mat-1018b-pillpre*.png`)은 필요 재료(주약 × 50)가 모자라면 ×, 채우면 ✓를 보이고, 필요 원소(뇌 150·목 250)는 미니게임에서 약재로 채우는 막대다 → **시작 조건은 주약 개수와 단로**, 오행은 보조 약재로 미니게임에서 채운다 |
+| E2 단로 | 고정본은 단로가 없다. 단로의 `basRequire`는 화면의 "연단 자질 n 필요"(인물의 연단 자질과 비교, 고정본 102). 단로에는 처방 등급 조건이 보이지 않았다. `basRequire` 값은 0·10·20·40·100·200·400. 가장 낮은 단로 6061011(잡동단로, 자질 10, 내구 20/20)으로 준비 화면이 열렸다 |
+| E3 연기 | `UnitActionPropArtifactShapeMade.IsCreate`: 핵심·불씨가 없으면 1, 보조 재료가 정확히 `materialNum`개가 아니면 3("충분한 보조 재료를 넣어주십시오", 10·30·37개에서 3, 20개에서 0). 혼합 값(`ArtifactShapeMixed.mixed`)은 시작 조건이 아니다(20개의 합 100도 0) — 게임 화면의 "불순물 함량"이라 작을수록 좋다(단계가 높은 재료일수록 작다). 날짜(2월 24일 → 3월 1일)는 판정에 영향 없음. 게임의 연기 화면(`UIArtifactShapeMade`, 캡처 `mat-1018b-forgeui.png`): 핵심 재료(연기 자질 101 = `basEqpRequire`와 비교되는 인물 값), 보조 재료, 불순물 함량, 희소 재료, 연기진화(불씨) 칸 |
+| E4 부적 | 도보 6092020 단계 1: `UIRuneSelectDraw.InitData(group 101)` → `AutoFillRequireProps`가 `requier1`의 첫 재료 5021164 × 2를 채웠고 화면에 "최대 … 20장 제작 가능"(캡처 `mat-1018a-rune.png`). 두 번째 칸(+)은 빈 선택 칸이라 `requier2 '0'`은 재료 없음. 단계는 한 화면에서 고른다 — 배움은 도보 단위(기존 `ArtService.Learned`와 같다) |
+
+설계에 반영한 규칙(스펙 3·6절 갱신): 연단 한 벌 = 주약 × 개수 + 오행 부족분(요구 − 주약이 주는 값)을 한 가지 오행만 가진 약재로(가장 낮은 단계, 값으로 나눠 올림) + 쓸 수 있는 단로가 없을 때만 `basRequire`가 인물 연단 자질 이하인 가장 낮은 단로 하나. 연기 한 벌 = 핵심 재료 1 + 보조 재료 정확히 `materialNum`개(재료 종류 둘 가운데 불순물이 가장 작은 한 가지) + 가장 낮은 불씨 1. 부적 한 벌 = `requier1`의 첫 재료 × `requier1Count`.
+
+## 62. 기예 제작 재료 지급 (2026-10-18 추가)
+
+스펙 `docs/superpowers/specs/2026-10-18-craft-materials-design.md`, 계획 `docs/superpowers/plans/2026-10-18-craft-materials.md`, 실험 61절. 브랜치 `feat/craft-materials-exp`, 회차 `mat-1018c`~`e`.
+
+### 규칙
+
+- 기예 탭의 `제작 재료…`(`ArtMaterialsOpen`) → 하위 화면: 분류 칩 `MatKind0`(연단)·`MatKind1`(연기)·`MatKind2`(부적), `배운 것만`(`MatLearnedOnly`, 기본 켜짐), 검색 `MatQuery`(처방 이름·번호), 묶음 `MatCount1`·`5`·`10`. 줄마다 처방 이름(배우지 않았으면 `(배우지 않음)`), 품질 또는 단계, 재료 요약(`MatSummary<키>`), `재료 지급`(`MatGive<키>`). 키는 연단·연기가 처방 번호, 부적이 `<도보>_<단계>`. 아래 칸 `MatDetail`(재료 전체, 연단의 요구 오행, 연기의 조건).
+- 한 벌(`CraftPlan`, 단위 시험 11): 연단 = 주약 × 개수 + 오행 부족분마다 그 오행만 가진 약재(가장 낮은 단계, 같으면 값이 큰 것) × ⌈부족분/값⌉ + 쓸 단로가 가방에 없을 때만 `basRequire` ≤ 연단 자질인 가장 낮은 단로 1(묶음과 무관). 연기 = 핵심 1 + 보조 재료 정확히 `materialNum`개(종류 안에서 불순물 `mixed`가 가장 작은 것) + 가장 낮은 불씨 1. 부적 = `requier1`의 첫 재료 × `requier1Count`. 게임이 숨긴 아이템(`ItemProps.hide = 1`)은 후보에서 뺀다 — 단로 표의 환령과(700203·700204, 요구 0)가 처음에 골라졌다(`mat-1018c`).
+- 지급(`CraftMaterialService.Give`): 새 칸(겹쳐지는 재료는 가방에 아직 없는 종류마다 1칸, 겹쳐지지 않는 재료(`ItemProps.isOverlay` 0, 예: 연기 핵심 재료 className 512 열 가지)는 가방에 있든 없든 한 개마다 1칸 — 최종 리뷰에서 고침)이 남은 칸(`GetGridMaxNum − GetGridCurNum`)보다 많으면 아무것도 주지 않고 `가방 칸 n개가 더 있어야 합니다`. 아니면 줄마다 `EditService.TryGiveItem`(첫 지급 전 백업), 이력 `기예 재료  <처방>  <n종 m개 × k>`, 문장 `<분류> <처방>: 재료 n종 m개를 넣었습니다(묶음 k).`과 안내(채울 약재 없음, 쓸 단로 없음, 연기 자질 부족, 배우지 않음).
+- 연기 줄은 인물 연기 자질(`dynUnitData.refineWeapon`)이 `basEqpRequire`보다 낮으면 경고 색으로 `연기 자질 n 이상이 필요합니다(지금 m). 능력치 탭에서 바꿀 수 있습니다.`를 붙인다(재료는 준다).
+- 개발 명령: `matlist <분류> [all] [검색어]`, `matgive <분류> <키> <묶음>`, 실험 명령 `cm*`(61절)은 그대로.
+
+### 실측·검증
+
+- 최종 리뷰(브랜치 전체, Important 둘): 겹쳐지지 않는 재료의 칸을 적게 세던 것(연기 묶음 10이 핵심 재료 10칸을 1칸으로 셈)과 지급 실패 이유를 버리던 것을 고쳤다(첫 실패의 이유를 문장에 붙이고, 백업 실패면 바로 멈춤). 넣을 재료가 하나도 없으면 "지급할 재료가 없습니다"(이력 없음). 단위 시험 13, 검사 `materials` 12(`a forge bundle of ten needs a slot for every core piece`: 남은 칸 5에서 연기 묶음 10 거부), `mat-1018f` FAIL 0.
+- `mat-1018c`·`d`(손으로): 연단 6051011 → 주약 5031061 x50·뇌 5031112 x15·잡동단로 6061011 x1(3종 66개), 게임 연단 준비 화면의 필요 재료 ✓(캡처 `.devremote\mat-1018d-pill.png`); 묶음 5 → 주약 +250, 단로는 더 주지 않음. 연기 6181110 → 핵심 5121111·보조 5251001 x20·불씨 5221101, `UnitActionPropArtifactShapeMade.IsCreate` = 0. 부적 6092020 단계 1 → 5021164 x2, 게임 부적 화면 자동 채우기 `filled=1`.
+- 검사 `ui-check.ps1 -Part materials`(11개: 화면, 연단 요약·지급·이력·묶음 5, 배운 것만, 연기 미습득 안내·게임 판정 0, 부적 자동 채우기, 가방이 찼을 때 한 벌 거부, 콜백 예외 0). `gridfill`로 가방을 채우므로 회차의 마지막에. `mat-1018e`: `base`·`tabs`·`materials` FAIL 0, `-End` `SAVE RESTORED AND IDENTICAL`. 배포·개발 구성 경고 0, 단위 시험 FAIL 0.
+
+### 확인하지 못한 것, 한계
+
+- 재료만 준다. 연단 미니게임·연기 굽기·부적 그리기의 성공과 품질은 보장하지 않는다(실제 제작은 사용자 확인 항목). 연단 보조 약재는 요구 오행을 딱 맞추는 수라, 미니게임에서 버리는 것이 있으면 모자랄 수 있다(묶음을 늘려 받는다).
+- 연기의 순도(`pureType`·`pureRequire`)와 불순물 합 `mixedRequire`는 시작 판정에 쓰이지 않았다(61절). 결과 품질에 어떻게 쓰이는지는 보지 않았다.
+- 모드가 더한 처방(같은 표에 들어오면 목록에 보인다)은 검사하지 않았다.
+- 고정본 인물로만 봤다(연단 자질 102, 연기 자질 101). 연기 자질 경고 문구는 실제로 뜨는 경우를 보지 않았다.
+- 회차 이름: `mat-1018a`~`e`(a·b는 61절 실험).

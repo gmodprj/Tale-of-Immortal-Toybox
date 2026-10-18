@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace MOD_sWP6UL
 {
     // 기예 탭: 게임 기예 화면의 여섯 분류. 서적을 골라 배우게 하거나 배운 기록을 지운다.
-    internal sealed class ArtTab : EditorTab
+    internal sealed partial class ArtTab : EditorTab
     {
         private const float RowH = 32;
         private const float DetailH = 70;
@@ -36,6 +36,8 @@ namespace MOD_sWP6UL
                 Ui.Button("ArtKind" + i, content, each.Tab + " (" + ArtService.LearnedCount(each) + "/" + ArtService.Books(each, "").Count + ")", i * 176, 0, 170, 40,
                     new Action(() => { artKind = index; list.Reset(); detail.Clear(); Redraw(); }), true, artKind == i);
             }
+            // 기예 제작 재료(05 문서 62절): 연단·연기·부적 처방의 재료를 가방에 넣는 하위 화면.
+            Ui.Button("ArtMaterialsOpen", content, "제작 재료…", ContentW - 180, 0, 180, 40, new Action(OpenMaterials));
             ArtService.Kind kind = ArtService.Kinds[artKind];
             list.EmptyText = "조건에 맞는 " + kind.Book + "이(가) 없습니다.";
 

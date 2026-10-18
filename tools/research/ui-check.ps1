@@ -2483,6 +2483,68 @@ switch ($Part) {
     Check 'another book is refused again at the default cap' ((Cmd "rbookstudy $sole2" 600) -match 'can=[1-9]') (Cmd "rbookstudy $sole2" 600)
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'materials' {
+    # 기예 제작 재료 지급(05 문서 62절). 고정본: 단방 6051011은 배움, 단로 없음, 주약 5031061 26개, 연기보 6181110은 배우지 않음, 도보 6092020은 배움.
+    # gridfill로 가방을 채우므로 회차의 마지막에 돌린다.
+    $traps = Traps
+    function Have([int]$id) { $n = 0; foreach ($m in [regex]::Matches((Cmd "cmbag $id" 300), ':(\d+)')) { $n += [int]$m.Groups[1].Value }; $n }
+    Cmd 'editor' | Out-Null; Press 'Tab9' | Out-Null
+    Press 'ArtMaterialsOpen' | Out-Null
+    Check 'the materials screen opens with three kinds and learned-only on' ((IsAt 'MatKind0') -and (IsAt 'MatKind2') -and (Cmd 'uitext MatLearnedOnly') -match "text='배운 것만'") (Cmd 'uistate')
+    # 연단
+    Cmd 'ui set MatQuery 6051011' | Out-Null
+    $sum = Cmd 'uitext MatSummary6051011'
+    Check 'the pill row lists the main herb x50 and a furnace note' ($sum -match 'x50' -and $sum -match '단로 1') $sum
+    $main0 = Have 5031061; $furn0 = Have 6061011; $lei0 = Have 5031112
+    Press 'MatGive6051011' 3000 | Out-Null
+    $u = Cmd 'uistate'
+    Check 'giving puts one pill set into the bag' ((Have 5031061) -eq $main0 + 50 -and (Have 5031112) -eq $lei0 + 15 -and (Have 6061011) -eq $furn0 + 1 -and $u -match '재료 3종 66개를 넣었습니다\(묶음 1\)') "$u | main $main0->$(Have 5031061) lei $lei0->$(Have 5031112) furnace $furn0->$(Have 6061011)"
+    Check 'the give is in the change log' (@(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 20 -Encoding UTF8 | Where-Object { $_ -match '기예 재료' }).Count -gt 0)
+    Cmd 'cmpillui 6051011' 2500 | Out-Null
+    Shot 'materials-pill'
+    Cmd 'rcloseui RefineElixirPre' | Out-Null
+    Cmd 'editor' | Out-Null
+    Press 'MatCount5' | Out-Null
+    Press 'MatGive6051011' 3000 | Out-Null
+    Check 'a bundle of five multiplies the herbs and adds no second furnace' ((Have 5031061) -eq $main0 + 300 -and (Have 6061011) -eq $furn0 + 1 -and (Cmd 'uistate') -match '묶음 5') "$(Have 5031061) $(Have 6061011) | $(Cmd 'uistate')"
+    Press 'MatCount1' | Out-Null
+    Cmd 'ui set MatQuery ' | Out-Null
+    # 연기(고정본은 연기보를 배우지 않았다): 보조 재료는 불순물이 가장 작은 5251001(불순물 4) 20개
+    Press 'MatKind1' | Out-Null
+    Check 'learned-only hides an unlearned forge recipe' (-not (IsAt 'MatGive6181110')) (Cmd 'uistate')
+    Press 'MatLearnedOnly' | Out-Null
+    Press 'MatGive6181110' 3000 | Out-Null
+    $u = Cmd 'uistate'
+    Check 'the forge give says the recipe is not learned yet' ($u -match '아직 배우지 않았습니다') $u
+    $f = Cmd 'cmforge 6181110 5251001' 1000
+    Check 'the given forge set passes the game check' ($f -match 'isCreate=0') $f
+    # 부적
+    Press 'MatKind2' | Out-Null
+    Press 'MatGive6092020_1' 3000 | Out-Null
+    $r = Cmd 'cmrune 6092020 1' 2500
+    Check 'the given rune materials are auto-filled by the game' ($r -match 'filled=1 5021164x2') $r
+    Cmd 'rcloseui RuneSelectDraw' | Out-Null
+    # 겹쳐지지 않는 연기 핵심 재료는 한 개가 한 칸이다(리뷰 Important 1): 남은 칸을 5로 두면 묶음 10(핵심 10칸)은 거부된다
+    $g = Cmd 'gridfill 0' 1000
+    if ($g -match '-> (\d+)/(\d+)') { $free = [int]$Matches[2] - [int]$Matches[1] } else { $free = -1 }
+    if ($free -gt 5) { Cmd "gridfill $($free - 5)" 8000 | Out-Null }
+    Cmd 'editor' | Out-Null; Press 'Tab9' | Out-Null; Press 'ArtMaterialsOpen' | Out-Null; Press 'MatKind1' | Out-Null
+    $core0 = Have 5121111
+    Press 'MatCount10' | Out-Null
+    Press 'MatGive6181110' 3000 | Out-Null
+    $u = Cmd 'uistate'
+    Check 'a forge bundle of ten needs a slot for every core piece' ($u -match '가방 칸 \d+개가 더 있어야 합니다' -and (Have 5121111) -eq $core0) "free=$free | $u | core $core0 -> $(Have 5121111)"
+    Press 'MatCount1' | Out-Null
+    # 가방이 모자라면 아무것도 주지 않는다
+    Cmd 'gridfill 600 5' 6000 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab9' | Out-Null; Press 'ArtMaterialsOpen' | Out-Null; Press 'MatKind2' | Out-Null
+    Cmd 'ui set MatQuery 6092050' | Out-Null
+    $before = Have 5021404
+    Press 'MatGive6092050_5' 3000 | Out-Null
+    $u = Cmd 'uistate'
+    Check 'a full bag refuses the whole set' ($u -match '가방 칸 \d+개가 더 있어야 합니다' -and (Have 5021404) -eq $before) "$u | $before -> $(Have 5021404)"
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

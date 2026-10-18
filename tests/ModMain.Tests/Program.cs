@@ -47,6 +47,7 @@ namespace MOD_sWP6UL
             ExportFilesTests();
             TranslationTableTests();
             TextReplacerTests();
+            CraftPlanTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -175,6 +176,84 @@ namespace MOD_sWP6UL
             Check("zh: whole-only dictionary matches the whole text only", lt.Replace("修炼技能需要", out changed) == "기술 수련" && changed && lt.Replace("修炼技能需要幽莹", out changed) == "修炼技能需要幽莹" && !changed && lt.Count == 1 && lt.WholeOnlyCount == 1);
             // Whole: 표 칸 바꿔 끼우기(TextTranslationService.ApplyTable)가 쓴다. 글 전체가 원문과 같을 때만 한국어, 아니면 null(부분 치환 없음).
             Check("zh: Whole returns the value only for an exact key", zh.Whole("无") == "없음" && zh.Whole("幽莹") == "유영" && zh.Whole("变身技-幽莹（未解锁）") == null && zh.Whole("") == null && zh.Whole(null) == null);
+        }
+
+        private static string Lines(List<CraftPlan.Line> lines)
+        {
+            var parts = new List<string>();
+            foreach (CraftPlan.Line l in lines)
+            {
+                parts.Add(l.Id == 0 ? "[" + l.Note + "]" : l.Id + "x" + l.Count);
+            }
+            return string.Join(",", parts);
+        }
+
+        private static int[] E(int index, int value)
+        {
+            var v = new int[8];
+            v[index] = value;
+            return v;
+        }
+
+        // 기예 재료 한 벌(docs/superpowers/specs/2026-10-18-craft-materials-design.md 6절, 05 문서 61절의 실측 값).
+        private static void CraftPlanTests()
+        {
+            // 오행 순서 화0 수1 뇌2 풍3 토4 목5 음6 양7
+            var elems = new Dictionary<int, int[]>
+            {
+                { 5031061, E(5, 5) }, { 5031233, E(5, 10) }, { 5031122, new[] { 0, 0, 5, 5, 0, 0, 0, 0 } },
+            };
+            Func<int, int[]> of = id => elems.ContainsKey(id) ? elems[id] : new int[8];
+            var herbs = new List<CraftPlan.Herb>
+            {
+                new CraftPlan.Herb { Id = 5031324, Level = 4, Elements = E(2, 20) },
+                new CraftPlan.Herb { Id = 5031102, Level = 2, Elements = E(2, 5) },
+                new CraftPlan.Herb { Id = 5031112, Level = 2, Elements = E(2, 10) },
+                new CraftPlan.Herb { Id = 5031041, Level = 2, Elements = E(4, 5) },
+                new CraftPlan.Herb { Id = 5031061, Level = 2, Elements = E(5, 5) },
+                new CraftPlan.Herb { Id = 5031122, Level = 2, Elements = new[] { 0, 0, 5, 5, 0, 0, 0, 0 } },
+            };
+            string a = Lines(CraftPlan.PillSet(new[] { 0, 0, 150, 0, 0, 250, 0, 0 }, new List<int> { 5031061 }, new List<int> { 50 }, of, herbs));
+            Check("pill: main herbs and the lei deficit", a == "5031061x50,5031112x15", a);
+            string b = Lines(CraftPlan.PillSet(new[] { 0, 0, 300, 100, 200, 600, 0, 0 }, new List<int> { 5031233, 5031122 }, new List<int> { 40, 20 }, of, herbs));
+            Check("pill: two mains and three deficits", b == "5031233x40,5031122x20,5031112x20,5031041x40,5031061x40", b);
+            string c = Lines(CraftPlan.PillSet(new[] { 0, 0, 30, 0, 0, 0, 0, 0 }, new List<int>(), new List<int>(), of, herbs));
+            Check("pill: empty main list", c == "5031112x3", c);
+            string d = Lines(CraftPlan.PillSet(new[] { 0, 0, 0, 0, 0, 0, 50, 0 }, new List<int>(), new List<int>(), of, herbs));
+            Check("pill: a missing element herb is reported", d.Contains("음 50 (채울 약재 없음)"), d);
+            string k = Lines(CraftPlan.Times(new List<CraftPlan.Line> { new CraftPlan.Line { Id = 5031061, Count = 300 }, new CraftPlan.Line { Note = "x" } }, 10));
+            Check("pill: k multiplies counts", k == "5031061x3000,[x]", k);
+
+            var furnaces = new List<CraftPlan.Candidate>
+            {
+                new CraftPlan.Candidate { Id = 6061021, Mixed = 20 }, new CraftPlan.Candidate { Id = 6061011, Mixed = 10 },
+            };
+            Check("furnace: lowest usable", CraftPlan.PickFurnace(furnaces, 102) == 6061011);
+            Check("furnace: none usable", CraftPlan.PickFurnace(furnaces, 0) == 0);
+
+            var mats = new List<CraftPlan.Candidate>
+            {
+                new CraftPlan.Candidate { Id = 5231101, Class = 523, Mixed = 15 }, new CraftPlan.Candidate { Id = 5231105, Class = 523, Mixed = 5 },
+                new CraftPlan.Candidate { Id = 5251104, Class = 525, Mixed = 6 }, new CraftPlan.Candidate { Id = 9999, Class = 600, Mixed = 1 },
+            };
+            var fires = new List<CraftPlan.Candidate>
+            {
+                new CraftPlan.Candidate { Id = 5221102, Level = 2 }, new CraftPlan.Candidate { Id = 5221101, Level = 1 },
+            };
+            string f = Lines(CraftPlan.ForgeSet(5121111, 20, new List<int> { 525, 523 }, mats, fires));
+            Check("forge: exact count of the purest", f == "5121111x1,5231105x20,5221101x1", f);
+            string g = Lines(CraftPlan.ForgeSet(5121111, 20, new List<int> { 700 }, mats, fires));
+            Check("forge: no candidate", g.Contains("(보조 재료를 찾지 못함)") && g.StartsWith("5121111x1"), g);
+
+            string r = Lines(CraftPlan.RuneSet("5021164|5021674", 2));
+            Check("rune: first of the pair", r == "5021164x2", r);
+
+            var set = new List<CraftPlan.Line> { new CraftPlan.Line { Id = 1, Count = 5 }, new CraftPlan.Line { Id = 2, Count = 1 }, new CraftPlan.Line { Id = 3, Count = 9 }, new CraftPlan.Line { Note = "n" } };
+            Check("slots: only new ids count", CraftPlan.NewSlots(set, id => id == 1, id => true) == 2);
+            // 겹쳐지지 않는 재료(연기 핵심 재료 className 512, isOverlay 0)는 한 개가 한 칸이고, 이미 가방에 있어도 칸이 더 든다(리뷰 Important 1).
+            var forge10 = new List<CraftPlan.Line> { new CraftPlan.Line { Id = 5121111, Count = 10 }, new CraftPlan.Line { Id = 5251001, Count = 200 } };
+            Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
+            Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
     }
 }
