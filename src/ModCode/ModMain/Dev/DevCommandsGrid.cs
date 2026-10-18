@@ -6,6 +6,7 @@ namespace MOD_sWP6UL
     // 개발 전용. 기술 학습 상한(05 문서 60절)의 확인.
     //   mgrid            bonus=<더한 칸> grade=<대경지> 그리고 종류마다 <탭>:<배운 수>/<게임의 칸 수>
     //   mgridset <값>    상한 단계를 바꾼다(MartialGridService.Set. 0·10·50·200)
+    //   mgridstudy <비급 soleID>   게임의 학습 행동으로 그 비급을 실제로 배운다. can=<IsCreateAction 결과> 뒤 mgrid
     internal static class DevCommandsGrid
     {
         public static string Execute(string[] p)
@@ -16,9 +17,35 @@ namespace MOD_sWP6UL
                     return State();
                 case "mgridset":
                     return MartialGridService.Set(int.Parse(p[1]));
+                case "mgridstudy":
+                    return Study(p[1]);
                 default:
                     return null;
             }
+        }
+
+        private static string Study(string sole)
+        {
+            WorldUnitBase me = g.world == null ? null : g.world.playerUnit;
+            if (me == null)
+            {
+                return "not ready";
+            }
+            var all = me.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].soleID == sole)
+                {
+                    var action = new UnitActionPropMartialStudy(all[i]);
+                    int can = me.IsCreateAction(action, false);
+                    if (can == 0)
+                    {
+                        me.CreateAction(action, false);
+                    }
+                    return "can=" + can + " " + State();
+                }
+            }
+            return "no prop " + sole;
         }
 
         private static string State()

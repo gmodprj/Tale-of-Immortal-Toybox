@@ -2444,6 +2444,34 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'grid' {
+    # 기술 학습 상한(05 문서 60절). 고정본은 결정 초기(대경지 3)에 무예 8/8로 꽉 차 있다.
+    $traps = Traps
+    $s = Cmd 'mgrid' 300
+    Check 'the cap starts at the game default and the martial slots are full' ($s -match 'bonus=0 ' -and $s -match '무예/영술:(\d+)/(\d+)' -and [int]$Matches[1] -ge [int]$Matches[2]) $s
+    $base = [int]$Matches[2]
+    $o = Cmd 'rbook 0 12111 3 1 1' 6000
+    $sole = if ((Cmd 'rbooks 12111' 3000) -match '(\w+):12111:') { $Matches[1] } else { '' }
+    Check 'a martial book was made' ($sole -ne '') "$o | $(Cmd 'rbooks 12111' 3000)"
+    $r = Cmd "rbookstudy $sole" 600
+    Check 'the game refuses the book while the slots are full' ($r -match 'can=[1-9]') $r
+    Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
+    Check 'the cap buttons are on the martial tab' ((Cmd 'uitext MartialGrid10') -match "text='\+10'" -and (Cmd 'uitext MartialGrid200') -match "text='해제'") (Cmd 'uitext MartialGrid200')
+    Press 'MartialGrid10' | Out-Null
+    $s = Cmd 'mgrid' 300
+    Check 'the +10 button adds ten slots to every kind' ($s -match 'bonus=10 ' -and $s -match "무예/영술:\d+/$($base + 10)" -and (Cmd 'uistate') -match '학습 상한: \+10') "$s | $(Cmd 'uistate')"
+    $before = if ($s -match '무예/영술:(\d+)/') { [int]$Matches[1] } else { -1 }
+    $r = Cmd "mgridstudy $sole" 3000
+    Check 'the game learns the book past the old cap' ($r -match 'can=0' -and $r -match "무예/영술:$($before + 1)/") $r
+    Check 'the cap change is in the change log' (@(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 20 -Encoding UTF8 | Where-Object { $_ -match '학습 상한' }).Count -gt 0)
+    Press 'MartialGrid0' | Out-Null
+    $s = Cmd 'mgrid' 300
+    Check 'the default button restores the game count and keeps what was learned' ($s -match 'bonus=0 ' -and $s -match "무예/영술:$($before + 1)/$base") $s
+    $o = Cmd 'rbook 0 12112 3 1 1' 6000
+    $sole2 = if ((Cmd 'rbooks 12112' 3000) -match '(\w+):12112:') { $Matches[1] } else { '' }
+    Check 'another book is refused again at the default cap' ((Cmd "rbookstudy $sole2" 600) -match 'can=[1-9]') (Cmd "rbookstudy $sole2" 600)
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
