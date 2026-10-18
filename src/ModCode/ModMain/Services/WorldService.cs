@@ -166,13 +166,33 @@ namespace MOD_sWP6UL
         }
 #endif
 
+        // 타격마다 게임이 부른다. 여기서 난 예외가 전투로 번지지 않게 막고, 같은 예외는 한 번만 로그에 남긴다(리뷰 08의 38번).
         private static void OnHit(ETypeData e)
+        {
+            try
+            {
+                OnHitCore(e);
+            }
+            catch (Exception ex)
+            {
+                string why = ex.GetType().Name + ": " + ex.Message;
+                if (why != hitWarned)
+                {
+                    hitWarned = why;
+                    MelonLoader.MelonLogger.Msg("[TlToybox] 타격 처리 오류(배율·무적을 이번 타격에 걸지 못함): " + why);
+                }
+            }
+        }
+
+        private static string hitWarned;
+
+        private static void OnHitCore(ETypeData e)
         {
 #if DEVTOOLS
             DevHits++;
 #endif
             var data = e.Cast<EBattleTypeData.UnitHitDynIntHandler>();
-            if (data.hitUnit != null && data.hitUnit.data.unitType == UnitType.Player)
+            if (data.hitUnit != null && data.hitUnit.data != null && data.hitUnit.data.unitType == UnitType.Player)
             {
 #if DEVTOOLS
                 DevOnPlayer++;
@@ -194,7 +214,7 @@ namespace MOD_sWP6UL
                 return;
             }
             UnitCtrlBase attacker = data.hitData == null ? null : data.hitData.attackUnit;
-            if (Multiplier > 1 && attacker != null && attacker.data.unitType == UnitType.Player)
+            if (Multiplier > 1 && attacker != null && attacker.data != null && attacker.data.unitType == UnitType.Player)
             {
 #if DEVTOOLS
                 int devBase = data.dynV.baseValue;

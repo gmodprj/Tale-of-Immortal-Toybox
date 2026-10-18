@@ -23,6 +23,17 @@ namespace MOD_sWP6UL
         private static Camera[] masked = new Camera[0];
         private static int[] savedMasks = new int[0];
         private static bool tickWarned;
+        private static bool prefixWarned;
+
+        // 접두 함수의 예외는 게임으로 번지지 않게 삼키되, 처음 한 번은 로그에 남긴다(리뷰 10의 N7. Tick과 같은 꼴).
+        private static void WarnPrefix(string where, Exception e)
+        {
+            if (!prefixWarned)
+            {
+                prefixWarned = true;
+                MelonLogger.Msg("[TlToybox] 창 위 입력 막기 오류(" + where + "): " + e.GetType().Name + ": " + e.Message);
+            }
+        }
 
         public static string Ensure()
         {
@@ -97,8 +108,9 @@ namespace MOD_sWP6UL
                 }
 #endif
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                WarnPrefix("휠", e);
             }
             return true;
         }
@@ -140,8 +152,9 @@ namespace MOD_sWP6UL
                 }
 #endif
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                WarnPrefix("단추", e);
             }
             return true;
         }
@@ -156,8 +169,9 @@ namespace MOD_sWP6UL
                     return false;
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                WarnPrefix("포인터 판정", e);
             }
             return true;
         }

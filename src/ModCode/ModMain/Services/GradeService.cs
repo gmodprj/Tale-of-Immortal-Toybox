@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using MelonLoader;
 
 namespace MOD_sWP6UL
 {
@@ -141,10 +142,18 @@ namespace MOD_sWP6UL
             {
                 UnitActionRoleUpGrade.ActionUpGradeComplete(unit, row, false);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                // 경지 자체는 이미 바뀌었다. 마무리(임무·선법·숨은 운명)가 빠졌을 수 있음을 로그에 남긴다(리뷰 08의 30번). 같은 이유는 한 번만.
+                string why = e.GetType().Name + ": " + e.Message;
+                if (completeWarned.Add(why))
+                {
+                    MelonLogger.Msg("[TlToybox] 돌파 마무리 실패(경지 " + row.id + "): " + why);
+                }
             }
         }
+
+        private static readonly HashSet<string> completeWarned = new HashSet<string>();
 
         // 경지에 묶인 칭호를 게임의 규칙으로 다시 판정한다(정식 돌파가 하는 일. 예: 영단도인은 구령경에서 잃는다).
         private static void DropTitles(WorldUnitBase unit)

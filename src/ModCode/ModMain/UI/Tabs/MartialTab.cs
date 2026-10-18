@@ -292,13 +292,19 @@ namespace MOD_sWP6UL
             string blocked = SkillCatalog.BlockReason(entry, skillGrade);
             int have;
             learnedCounts.TryGetValue(entry.BaseId, out have);
-            Ui.Label(row, entry.Name + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 8, 0, 800, 26, 18);
-            Text state = Ui.Label(row, have > 0 ? "배움" + (have > 1 ? " x" + have : "") : blocked != null ? "배울 수 없음" : "-", 820, 0, 200, 26, 16);
+            Ui.Label(row, (entry.IsMod ? "[모드] " : "") + entry.Name + "  [" + entry.BaseId + "]  경지 " + entry.GradeMin + "~" + entry.GradeMax, 8, 0, 800, 26, 18);
+            Text state = Ui.Label(row, have > 0 ? "배움" + (have > 1 ? " x" + have : "") : entry.IsMod ? "비급으로" : blocked != null ? "배울 수 없음" : "-", 820, 0, 200, 26, 16);
             state.color = have > 0 ? Ui.Warn : Ui.Dim;
             Text desc = Ui.Wrapped(row, entry.Desc, 24, SecondLineY, 1050, row.sizeDelta.y - SecondLineY - 4, 15, TextAnchor.UpperLeft);
             desc.color = Ui.Dim;
             desc.gameObject.name = "SkillDesc" + entry.BaseId;
             float x = ContentW - Ui.ScrollBarWidth - 178;
+            // 모드 공법은 여기서 배울 수 없다(Learn이 늘 거부한다. 05 문서 42절). 버튼을 끄고 길을 알린다(리뷰 08의 22번).
+            if (entry.IsMod)
+            {
+                Ui.Button("SkillAdd" + entry.BaseId, row, "자원 탭 기술 서적", x, 7, 170, 36, null, false);
+                return;
+            }
             if (blocked == null)
             {
                 Ui.Button("SkillAdd" + entry.BaseId, row, have > 0 ? "한 개 더 추가" : "배우기", x, 7, 170, 36,

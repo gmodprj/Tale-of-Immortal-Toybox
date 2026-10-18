@@ -169,6 +169,9 @@ namespace MOD_sWP6UL
             catch (IOException)
             {
             }
+            catch (UnauthorizedAccessException)
+            {
+            }
             return result;
         }
 
@@ -190,6 +193,9 @@ namespace MOD_sWP6UL
                 File.WriteAllLines(TrackFile, new List<string>(all).ToArray());
             }
             catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
         }

@@ -370,6 +370,10 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] 신기 단축키 설정을 읽지 못했습니다: " + e.Message);
             }
+            catch (UnauthorizedAccessException e)
+            {
+                MelonLogger.Msg("[TlToybox] 신기 단축키 설정을 읽지 못했습니다: " + e.Message);
+            }
         }
 
         // 다른 줄(hotkey=, window= 등)은 그대로 두고 신기 줄만 바꾼다.
