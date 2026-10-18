@@ -249,7 +249,11 @@ namespace MOD_sWP6UL
             Check("rune: first of the pair", r == "5021164x2", r);
 
             var set = new List<CraftPlan.Line> { new CraftPlan.Line { Id = 1, Count = 5 }, new CraftPlan.Line { Id = 2, Count = 1 }, new CraftPlan.Line { Id = 3, Count = 9 }, new CraftPlan.Line { Note = "n" } };
-            Check("slots: only new ids count", CraftPlan.NewSlots(set, id => id == 1) == 2);
+            Check("slots: only new ids count", CraftPlan.NewSlots(set, id => id == 1, id => true) == 2);
+            // 겹쳐지지 않는 재료(연기 핵심 재료 className 512, isOverlay 0)는 한 개가 한 칸이고, 이미 가방에 있어도 칸이 더 든다(리뷰 Important 1).
+            var forge10 = new List<CraftPlan.Line> { new CraftPlan.Line { Id = 5121111, Count = 10 }, new CraftPlan.Line { Id = 5251001, Count = 200 } };
+            Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
+            Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
     }
 }

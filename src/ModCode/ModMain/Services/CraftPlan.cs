@@ -171,18 +171,28 @@ namespace MOD_sWP6UL
             return result;
         }
 
-        // 같은 재료는 한 칸에 겹친다(05 문서 61절 E5). 새 칸 = 가방에 아직 없는 번호의 수.
-        public static int NewSlots(IEnumerable<Line> set, Func<int, bool> inBag)
+        // 겹쳐지는 재료는 한 칸에 겹친다(05 문서 61절 E5): 가방에 아직 없는 번호마다 한 칸.
+        // 겹쳐지지 않는 재료(isOverlay 0, 예: 연기 핵심 재료)는 가방에 있든 없든 한 개가 한 칸(리뷰 Important 1, BagExportService.NeededSlots와 같은 규칙).
+        public static int NewSlots(IEnumerable<Line> set, Func<int, bool> inBag, Func<int, bool> stacks)
         {
             var seen = new HashSet<int>();
+            long slots = 0;
             foreach (Line l in set)
             {
-                if (l.Id != 0 && !inBag(l.Id))
+                if (l.Id == 0)
                 {
-                    seen.Add(l.Id);
+                    continue;
+                }
+                if (!stacks(l.Id))
+                {
+                    slots += l.Count;
+                }
+                else if (!inBag(l.Id) && seen.Add(l.Id))
+                {
+                    slots++;
                 }
             }
-            return seen.Count;
+            return (int)Math.Min(int.MaxValue, slots);
         }
     }
 }

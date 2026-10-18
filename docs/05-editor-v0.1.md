@@ -2853,12 +2853,13 @@
 
 - 기예 탭의 `제작 재료…`(`ArtMaterialsOpen`) → 하위 화면: 분류 칩 `MatKind0`(연단)·`MatKind1`(연기)·`MatKind2`(부적), `배운 것만`(`MatLearnedOnly`, 기본 켜짐), 검색 `MatQuery`(처방 이름·번호), 묶음 `MatCount1`·`5`·`10`. 줄마다 처방 이름(배우지 않았으면 `(배우지 않음)`), 품질 또는 단계, 재료 요약(`MatSummary<키>`), `재료 지급`(`MatGive<키>`). 키는 연단·연기가 처방 번호, 부적이 `<도보>_<단계>`. 아래 칸 `MatDetail`(재료 전체, 연단의 요구 오행, 연기의 조건).
 - 한 벌(`CraftPlan`, 단위 시험 11): 연단 = 주약 × 개수 + 오행 부족분마다 그 오행만 가진 약재(가장 낮은 단계, 같으면 값이 큰 것) × ⌈부족분/값⌉ + 쓸 단로가 가방에 없을 때만 `basRequire` ≤ 연단 자질인 가장 낮은 단로 1(묶음과 무관). 연기 = 핵심 1 + 보조 재료 정확히 `materialNum`개(종류 안에서 불순물 `mixed`가 가장 작은 것) + 가장 낮은 불씨 1. 부적 = `requier1`의 첫 재료 × `requier1Count`. 게임이 숨긴 아이템(`ItemProps.hide = 1`)은 후보에서 뺀다 — 단로 표의 환령과(700203·700204, 요구 0)가 처음에 골라졌다(`mat-1018c`).
-- 지급(`CraftMaterialService.Give`): 새 칸(가방에 아직 없는 재료 종류 수)이 남은 칸(`GetGridMaxNum − GetGridCurNum`)보다 많으면 아무것도 주지 않고 `가방 칸 n개가 더 있어야 합니다`. 아니면 줄마다 `EditService.TryGiveItem`(첫 지급 전 백업), 이력 `기예 재료  <처방>  <n종 m개 × k>`, 문장 `<분류> <처방>: 재료 n종 m개를 넣었습니다(묶음 k).`과 안내(채울 약재 없음, 쓸 단로 없음, 연기 자질 부족, 배우지 않음).
+- 지급(`CraftMaterialService.Give`): 새 칸(겹쳐지는 재료는 가방에 아직 없는 종류마다 1칸, 겹쳐지지 않는 재료(`ItemProps.isOverlay` 0, 예: 연기 핵심 재료 className 512 열 가지)는 가방에 있든 없든 한 개마다 1칸 — 최종 리뷰에서 고침)이 남은 칸(`GetGridMaxNum − GetGridCurNum`)보다 많으면 아무것도 주지 않고 `가방 칸 n개가 더 있어야 합니다`. 아니면 줄마다 `EditService.TryGiveItem`(첫 지급 전 백업), 이력 `기예 재료  <처방>  <n종 m개 × k>`, 문장 `<분류> <처방>: 재료 n종 m개를 넣었습니다(묶음 k).`과 안내(채울 약재 없음, 쓸 단로 없음, 연기 자질 부족, 배우지 않음).
 - 연기 줄은 인물 연기 자질(`dynUnitData.refineWeapon`)이 `basEqpRequire`보다 낮으면 경고 색으로 `연기 자질 n 이상이 필요합니다(지금 m). 능력치 탭에서 바꿀 수 있습니다.`를 붙인다(재료는 준다).
 - 개발 명령: `matlist <분류> [all] [검색어]`, `matgive <분류> <키> <묶음>`, 실험 명령 `cm*`(61절)은 그대로.
 
 ### 실측·검증
 
+- 최종 리뷰(브랜치 전체, Important 둘): 겹쳐지지 않는 재료의 칸을 적게 세던 것(연기 묶음 10이 핵심 재료 10칸을 1칸으로 셈)과 지급 실패 이유를 버리던 것을 고쳤다(첫 실패의 이유를 문장에 붙이고, 백업 실패면 바로 멈춤). 넣을 재료가 하나도 없으면 "지급할 재료가 없습니다"(이력 없음). 단위 시험 13, 검사 `materials` 12(`a forge bundle of ten needs a slot for every core piece`: 남은 칸 5에서 연기 묶음 10 거부), `mat-1018f` FAIL 0.
 - `mat-1018c`·`d`(손으로): 연단 6051011 → 주약 5031061 x50·뇌 5031112 x15·잡동단로 6061011 x1(3종 66개), 게임 연단 준비 화면의 필요 재료 ✓(캡처 `.devremote\mat-1018d-pill.png`); 묶음 5 → 주약 +250, 단로는 더 주지 않음. 연기 6181110 → 핵심 5121111·보조 5251001 x20·불씨 5221101, `UnitActionPropArtifactShapeMade.IsCreate` = 0. 부적 6092020 단계 1 → 5021164 x2, 게임 부적 화면 자동 채우기 `filled=1`.
 - 검사 `ui-check.ps1 -Part materials`(11개: 화면, 연단 요약·지급·이력·묶음 5, 배운 것만, 연기 미습득 안내·게임 판정 0, 부적 자동 채우기, 가방이 찼을 때 한 벌 거부, 콜백 예외 0). `gridfill`로 가방을 채우므로 회차의 마지막에. `mat-1018e`: `base`·`tabs`·`materials` FAIL 0, `-End` `SAVE RESTORED AND IDENTICAL`. 배포·개발 구성 경고 0, 단위 시험 FAIL 0.
 

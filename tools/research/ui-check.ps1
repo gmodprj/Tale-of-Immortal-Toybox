@@ -2524,6 +2524,17 @@ switch ($Part) {
     $r = Cmd 'cmrune 6092020 1' 2500
     Check 'the given rune materials are auto-filled by the game' ($r -match 'filled=1 5021164x2') $r
     Cmd 'rcloseui RuneSelectDraw' | Out-Null
+    # 겹쳐지지 않는 연기 핵심 재료는 한 개가 한 칸이다(리뷰 Important 1): 남은 칸을 5로 두면 묶음 10(핵심 10칸)은 거부된다
+    $g = Cmd 'gridfill 0' 1000
+    if ($g -match '-> (\d+)/(\d+)') { $free = [int]$Matches[2] - [int]$Matches[1] } else { $free = -1 }
+    if ($free -gt 5) { Cmd "gridfill $($free - 5)" 8000 | Out-Null }
+    Cmd 'editor' | Out-Null; Press 'Tab9' | Out-Null; Press 'ArtMaterialsOpen' | Out-Null; Press 'MatKind1' | Out-Null
+    $core0 = Have 5121111
+    Press 'MatCount10' | Out-Null
+    Press 'MatGive6181110' 3000 | Out-Null
+    $u = Cmd 'uistate'
+    Check 'a forge bundle of ten needs a slot for every core piece' ($u -match '가방 칸 \d+개가 더 있어야 합니다' -and (Have 5121111) -eq $core0) "free=$free | $u | core $core0 -> $(Have 5121111)"
+    Press 'MatCount1' | Out-Null
     # 가방이 모자라면 아무것도 주지 않는다
     Cmd 'gridfill 600 5' 6000 | Out-Null
     Cmd 'editor' | Out-Null; Press 'Tab9' | Out-Null; Press 'ArtMaterialsOpen' | Out-Null; Press 'MatKind2' | Out-Null

@@ -101,6 +101,13 @@ namespace MOD_sWP6UL
             return item == null || item.hide == 1;
         }
 
+        // 한 칸에 겹쳐지는 아이템인지(ItemProps.isOverlay. BagExportService와 같은 판정).
+        private static bool Stacks(int id)
+        {
+            ConfItemPropsItem item = g.conf.itemProps.GetItem(id);
+            return item != null && item.isOverlay != 0;
+        }
+
         private static string NameOf(int id, string fallback)
         {
             ItemCatalog.Entry e = ItemCatalog.Get(id);
@@ -310,15 +317,21 @@ namespace MOD_sWP6UL
                     }
                 }
             }
-            int need = CraftPlan.NewSlots(lines, id => bag.Contains(id));
+            int need = CraftPlan.NewSlots(lines, id => bag.Contains(id), Stacks);
             int free = data.GetGridMaxNum() - data.GetGridCurNum();
             string head = KindNames[r.Kind] + " " + r.Name + ": ";
             if (need > free)
             {
                 return head + "가방 칸 " + (need - free) + "개가 더 있어야 합니다(자원 탭의 가방 칸 단추).";
             }
+            if (!lines.Exists(l => l.Id != 0))
+            {
+                // 줄이 모두 안내뿐이면(재료를 찾지 못함) 아무것도 주지 않았다고 말한다(리뷰 7). 이력은 남기지 않는다.
+                return head + "지급할 재료가 없습니다." + Notes(lines, furnaceNote, r);
+            }
             int kinds = 0, items = 0;
             var failed = new List<string>();
+            string firstWhy = null;
             foreach (CraftPlan.Line l in lines)
             {
                 if (l.Id == 0)
@@ -330,13 +343,27 @@ namespace MOD_sWP6UL
                 {
                     kinds++;
                     items += l.Count;
+                    continue;
                 }
-                else
+                // 실패 이유를 버리지 않는다. 첫 지급이 백업 실패로 막히면 나머지도 막히므로 바로 멈춘다(리뷰 2).
+                failed.Add((EditService.ItemName(l.Id) ?? l.Id.ToString()) + " " + l.Count);
+                if (firstWhy == null)
                 {
-                    failed.Add((EditService.ItemName(l.Id) ?? l.Id.ToString()) + " " + l.Count);
+                    firstWhy = text;
+                }
+                if (kinds == 0 && text != null && text.Contains("변경을 중단했습니다"))
+                {
+                    return head + text;
                 }
             }
             ChangeLog.Add(EditService.NameOf(me), "기예 재료", r.Name, kinds + "종 " + items + "개 × " + k, failed.Count == 0 && kinds > 0);
+            return head + "재료 " + kinds + "종 " + items + "개를 넣었습니다(묶음 " + k + ")."
+                + (failed.Count > 0 ? " 넣지 못함: " + string.Join(", ", failed) + "(" + firstWhy + ")." : "")
+                + Notes(lines, furnaceNote, r);
+        }
+
+        private static string Notes(List<CraftPlan.Line> lines, string furnaceNote, Recipe r)
+        {
             var notes = new List<string>();
             foreach (CraftPlan.Line l in lines)
             {
@@ -345,9 +372,7 @@ namespace MOD_sWP6UL
                     notes.Add(l.Note);
                 }
             }
-            return head + "재료 " + kinds + "종 " + items + "개를 넣었습니다(묶음 " + k + ")."
-                + (failed.Count > 0 ? " 넣지 못함: " + string.Join(", ", failed) + "." : "")
-                + (notes.Count > 0 ? " " + string.Join(" ", notes) : "")
+            return (notes.Count > 0 ? " " + string.Join(" ", notes) : "")
                 + (furnaceNote != null ? " " + furnaceNote : "")
                 + (r.Warning != null ? " " + r.Warning : "")
                 + (r.Learned ? "" : " 이 처방은 아직 배우지 않았습니다(기예 탭에서 배울 수 있습니다).");
