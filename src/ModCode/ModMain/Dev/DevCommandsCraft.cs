@@ -10,7 +10,9 @@ namespace MOD_sWP6UL
     //   cmbag [아이템]                   가방의 칸 수와(아이템을 주면) 그 아이템의 줄: sole:수
     //   cmherb <약재>                    약재의 오행 여덟 값(ItemHerbal → RoleEffect)
     //   cmpill <단방>                    단방 표, 주약, 가방의 약재로 RefineElixirBase를 만들어 오행 합을 본다(단로는 가방의 첫 단로)
-    //   cmforge <연기보> [types]         가방의 재료로 UnitActionPropArtifactShapeMade를 만들어 IsCreate(false). types=1이면 첫 종류만
+    //   cmforge <연기보> [재료 번호,…] [tip]   가방의 재료로 UnitActionPropArtifactShapeMade를 만들어 IsCreate. 재료 번호를 주면 그 줄만 넘긴다. tip이면 isTip=true(게임 안내가 화면에 뜬다)
+    //   cmforgeui <연기보>               게임의 연기 화면(UIArtifactShapeMade)을 연다(조건 문구를 캡처로 읽는다)
+    //   cmpillui <단방>                  게임의 연단 준비 화면(UIRefineElixirPre)을 가방의 첫 단로로 연다
     //   cmrune <도보> <단계>             부적 그리기 화면을 열고 AutoFillRequireProps 뒤의 재료와 고른 처방
     internal static class DevCommandsCraft
     {
@@ -29,7 +31,11 @@ namespace MOD_sWP6UL
                 case "cmpill":
                     return Pill(int.Parse(p[1]));
                 case "cmforge":
-                    return Forge(int.Parse(p[1]), p.Length > 2 && p[2] == "1");
+                    return Forge(int.Parse(p[1]), p.Length > 2 && p[2] != "tip" ? p[2] : null, Array.IndexOf(p, "tip") > 0);
+                case "cmforgeui":
+                    return ForgeUi(int.Parse(p[1]));
+                case "cmpillui":
+                    return PillUi(int.Parse(p[1]));
                 case "cmrune":
                     return Rune(int.Parse(p[1]), int.Parse(p[2]));
                 default:
@@ -198,7 +204,49 @@ namespace MOD_sWP6UL
             return sb.ToString();
         }
 
-        private static string Forge(int shapeMaterialId, bool firstTypeOnly)
+        private static string ForgeUi(int shapeMaterialId)
+        {
+            try
+            {
+                UIArtifactShapeMade ui = g.ui.OpenUI<UIArtifactShapeMade>(UIType.ArtifactShapeMade);
+                ui.InitData(shapeMaterialId, true);
+                return "opened shapeMaterial=" + (ui.shapeMaterialItem == null ? "-" : ui.shapeMaterialItem.id.ToString());
+            }
+            catch (Exception ex)
+            {
+                return "ERROR " + ex.GetType().Name + ": " + ex.Message;
+            }
+        }
+
+        private static string PillUi(int formulaId)
+        {
+            try
+            {
+                DataWorld.World.PillFormulaData formula = null;
+                var list = g.data.world.pillFormulas;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i].id == formulaId)
+                    {
+                        formula = list[i];
+                    }
+                }
+                List<DataProps.PropsData> furnaces = Props(x => g.conf.makePillFurnace.GetItem(x.propsID) != null);
+                if (formula == null || furnaces.Count == 0)
+                {
+                    return "formula=" + (formula != null) + " furnaces=" + furnaces.Count;
+                }
+                UIRefineElixirPre ui = g.ui.OpenUI<UIRefineElixirPre>(UIType.RefineElixirPre);
+                ui.InitData(furnaces[0].To<DataProps.PropsPillFurnaceData>(), formula);
+                return "opened";
+            }
+            catch (Exception ex)
+            {
+                return "ERROR " + ex.GetType().Name + ": " + ex.Message;
+            }
+        }
+
+        private static string Forge(int shapeMaterialId, string onlyIds, bool tip)
         {
             ConfArtifactShapeMaterialItem m = g.conf.artifactShapeMaterial.GetItem(shapeMaterialId);
             if (m == null)
@@ -210,14 +258,19 @@ namespace MOD_sWP6UL
             {
                 types.Add(m.materialType[i]);
             }
-            if (firstTypeOnly)
+            var only = new List<int>();
+            foreach (string s in (onlyIds ?? "").Split(','))
             {
-                types.RemoveRange(1, types.Count - 1);
+                int v;
+                if (int.TryParse(s, out v))
+                {
+                    only.Add(v);
+                }
             }
             List<DataProps.PropsData> main = Props(x => x.propsID == m.coreMaterialID);
             List<DataProps.PropsData> rare = Props(x => x.propsID == m.rareMaterial);
             List<DataProps.PropsData> fire = Props(x => ClassOf(x.propsID) == 522);
-            List<DataProps.PropsData> mats = Props(x => types.Contains(ClassOf(x.propsID)));
+            List<DataProps.PropsData> mats = Props(x => types.Contains(ClassOf(x.propsID)) && (only.Count == 0 || only.Contains(x.propsID)));
             var sb = new StringBuilder();
             int mixed = 0, count = 0;
             var il = new Il2CppSystem.Collections.Generic.List<DataProps.PropsData>();
@@ -236,7 +289,7 @@ namespace MOD_sWP6UL
                 var action = new UnitActionPropArtifactShapeMade(main.Count > 0 ? main[0] : null, rare.Count > 0 ? rare[0] : null, il,
                     fire.Count > 0 ? fire[0] : null, m, true);
                 action.unit = Me();
-                sb.Append(" isCreate=").Append(Me().IsCreateAction(action, false));
+                sb.Append(" isCreate=").Append(Me().IsCreateAction(action, tip));
             }
             catch (Exception ex)
             {
