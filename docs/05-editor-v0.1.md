@@ -2721,7 +2721,8 @@
 
 - `pwsh tools/workshop.ps1 -Install -Id 2822252336,3269125854,2814673099,2814686803,2814717778 -Yes` → `INSTALLED` 5, 이력 설치 5. `-Status` 받음 39/39·설치 39/39 | 보류 5 | 제외 1. `-Doc` 등록부: 설치본 982.3MB, DLL 모드 15.
 - PlayerPrefs `Mod_LoadData`에 다섯 줄을 `isLoad:true`로 끝에 더했다(UI 틀이 동천복지 앞. 40개 모두 켜짐. 앞 값은 `.devremote\playerprefs-Mod_LoadData-before-ws-1018a.bin`). 회차에서는 이 값 없이도 새 폴더가 실렸지만, 모드 창의 순서와 Fatury의 목록(52절)을 맞추려고 넣었다.
-- 편집기 DLL은 번역표 6,518행이 든 배포 빌드로 바꿔야 한글이 보인다(아래 설치 줄. 인계 1절).
+- 편집기 DLL은 번역표 6,518행이 든 배포 빌드로 바꿔야 한글이 보인다(인계 1절). 10:11에 `tools/install.ps1`로 develop 8500271을 설치했다(`installed build: 8500271-dirty`, 1,162,240바이트).
+- Steam 컬렉션 3820620999(10:3x, 사용자가 내장 브라우저에서 Steam에 다시 로그인한 뒤. 앞서는 로그인이 풀려 관리 페이지가 "존재하지 않음"이었다): 45절과 같이 다섯 개를 같은 출처 POST `/sharedfiles/favorite`로 즐겨찾기에 넣고(모두 200) `managecollection`의 즐겨찾기 목록에서 `ToggleChildInCollection`으로 더함(다시 불러와 39개), `editcollection`의 설명을 `tools/workshop/collection-desc.txt`(39개 기준, 1,333자)로 바꿔 저장(`savesuccess=1`, 페이지의 아이템 39·설명 첫 줄 확인). 즐겨찾기 다섯은 계정에 남는다.
 
 ### 토이박스 반영 검토
 
