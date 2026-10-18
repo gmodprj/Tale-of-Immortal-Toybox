@@ -332,6 +332,83 @@ namespace MOD_sWP6UL
             return ok ? "법보: " + t.Name + "을(를) 장착했습니다." : "법보 " + t.Name + ": 게임이 장착하지 않았습니다.";
         }
 
+        // 수리: 지금 내구를 법보 모양 설정의 내구(ConfArtifactShapeItem.durable)까지 채운다. 게임의 수리 화면(UIArtifactShapeRepair)이 재료로 올리는 값과 같은 칸이다(05 문서 60절).
+        public static string Repair(WorldUnitBase unit, string soleId)
+        {
+            Treasure t = Find(unit, soleId);
+            if (t == null)
+            {
+                return "법보: 그 법보가 없습니다.";
+            }
+            string why = RepairBlock(t);
+            if (why != null)
+            {
+                return "법보 " + t.Name + ": " + why;
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            return RepairOne(unit, t);
+        }
+
+        // 내구가 모자란 법보를 모두 수리한다.
+        public static string RepairAll(WorldUnitBase unit)
+        {
+            List<Treasure> worn = Treasures(unit).FindAll(t => RepairBlock(t) == null);
+            if (worn.Count == 0)
+            {
+                return "법보: 수리할 법보가 없습니다(모두 내구가 가득합니다).";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            int ok = 0;
+            var failed = new List<string>();
+            foreach (Treasure t in worn)
+            {
+                string r = RepairOne(unit, t);
+                if (r.StartsWith("법보: "))
+                {
+                    ok++;
+                }
+                else
+                {
+                    failed.Add(t.Name);
+                }
+            }
+            return "법보: " + ok + "개를 수리했습니다." + (failed.Count > 0 ? " 고치지 못함 " + failed.Count + "(" + string.Join(", ", failed) + ")." : "");
+        }
+
+        // 수리할 수 없는 까닭. 할 수 있으면 null(탭의 단추를 켜고 끄는 데도 쓴다).
+        public static string RepairBlock(Treasure t)
+        {
+            if (t.Data == null)
+            {
+                return "법보 자료를 읽지 못했습니다.";
+            }
+            if (t.DurableMax <= 0)
+            {
+                return "최대 내구를 알 수 없습니다.";
+            }
+            return t.Durable >= t.DurableMax ? "내구가 이미 가득합니다(" + t.Durable + "/" + t.DurableMax + ")." : null;
+        }
+
+        private static string RepairOne(WorldUnitBase unit, Treasure t)
+        {
+            int before = t.Durable;
+            t.Data.durable = t.DurableMax;
+            Update(unit);
+            Treasure after = Find(unit, t.SoleId);
+            bool ok = after != null && after.Durable == t.DurableMax;
+            ChangeLog.Add(Name(unit), Field, t.Name + " 내구 " + before, (after == null ? "?" : after.Durable.ToString()) + "/" + t.DurableMax, ok);
+            return ok ? "법보: " + t.Name + "을(를) 수리했습니다(내구 " + before + " -> " + t.DurableMax + ")."
+                : "법보 " + t.Name + ": 내구를 채우지 못했습니다(" + (after == null ? "?" : after.Durable.ToString()) + "/" + t.DurableMax + ").";
+        }
+
         public static string Unequip(WorldUnitBase unit, string soleId)
         {
             Treasure t = Find(unit, soleId);

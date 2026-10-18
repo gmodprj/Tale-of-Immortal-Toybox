@@ -50,6 +50,9 @@ $modsDir = Join-Path $GameDir 'ModExportData'            # 게임의 로컬 모�
 $keptModFolders = Join-Path $dir 'session-modfolders.txt'  # 회차 전부터 ModExportData에 있던 폴더 이름들
 $configFile = Join-Path $data 'config.txt'
 $keptConfig = Join-Path $dir 'session-config.txt'      # 회차 전의 config.txt(창 위치 등)
+$gridFile = Join-Path $data 'martial-grid.txt'
+$keptGrid = Join-Path $dir 'session-martial-grid.txt'    # 회차 전의 기술 학습 상한 설정(05 문서 60절)
+$noGrid = Join-Path $dir 'session-martial-grid.absent'
 $presetsDir = Join-Path $data 'presets'
 $keptPresets = Join-Path $dir 'session-presets'          # 회차 전의 presets 폴더(프리셋 파일)
 $noPresets = Join-Path $dir 'session-presets.absent'     # 회차 전에 presets 폴더가 없었다는 표시
@@ -171,6 +174,7 @@ if ($Begin) {
   if (Test-Path -LiteralPath $bagFile) { Copy-Item -LiteralPath $bagFile -Destination $keptBag } else { [IO.File]::WriteAllText($noBag, '') }
   KeepFile $favFile $keptFav $noFav
   KeepFile "$favFile.bak" $keptFavBak $noFavBak
+  KeepFile $gridFile $keptGrid $noGrid
   if (-not $DryRun) {
     Copy-Item -LiteralPath $installed -Destination $keptDll
     Copy-Item -LiteralPath $dll -Destination $installed -Force
@@ -242,6 +246,11 @@ if ($End) {
     RestoreFile "$favFile.bak" $keptFavBak $noFavBak
     DeleteFiles "$favFile.tmp"
     'FAVORITES RESTORED'
+  }
+  # 기술 학습 상한 설정을 회차 전으로 되돌린다(검사가 상한을 바꾼다).
+  if ((Test-Path $keptGrid) -or (Test-Path $noGrid)) {
+    RestoreFile $gridFile $keptGrid $noGrid
+    'MARTIAL GRID RESTORED'
   }
   if (Test-Path $keptDll) {
     Copy-Item -LiteralPath $keptDll -Destination $installed -Force

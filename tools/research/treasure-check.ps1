@@ -2,6 +2,8 @@
 # tools\DevRemote\session.ps1 -Begin <이름> -Fixture base로 게임이 떠서 세계에 들어가 있어야 한다. 고정본 인물은 법보·기령이 없다.
 #   -Part service   개발 명령(tr·trgive·trequip·trmake·trput·trdel·trlight·trlevel·trpull·trunequip)으로 서비스의 흐름. 끝나면 법보 하나(해제)가 남는다.
 #   -Part ui        편집기 탭 16의 줄과 단추로 같은 흐름(service 뒤에 같은 회차에서 돌려도 된다. 다른 번호의 법보·기령을 쓴다).
+#   -Part repair    수리(05 문서 60절): 개발 명령 trdur로 내구를 낮추고 trrepair·탭의 수리·모두 수리 단추로 채운다. 끝에서 저장한다 → session.ps1 -Restart → -Part repair-restart.
+#   -Part repair-restart  저장한 뒤 다시 켜도 수리한 내구가 남는지.
 param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
@@ -91,6 +93,51 @@ switch ($Part) {
     Press "TreasureEquip$sole" | Out-Null
     Check 'the unequip button unequips' ((Tr) -match "\[${sole}:[^\]]*:-:0\]") (Tr)
     Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'repair' {
+    $soleFile = Join-Path $work 'treasure-repair-soles.txt'
+    Cmd 'trgive 3031103' 800 | Out-Null; Cmd 'trgive 3031104' 800 | Out-Null
+    $s = Tr
+    $a = if ($s -match '\[(\w+):3031103:[^\]]*:(\d+)/(\d+):') { $Matches[1] } else { '' }
+    $max = [int]$Matches[3]
+    $b = if ($s -match '\[(\w+):3031104:') { $Matches[1] } else { '' }
+    Check 'two treasures were given with a known maximum durability' ($a -ne '' -and $b -ne '' -and $max -gt 0) $s
+    Check 'repair is refused while the durability is full' ((Cmd "trrepair $a" 800) -match '이미 가득') (Cmd "trrepair $a" 800)
+    Cmd "trdur $a 10" 300 | Out-Null
+    Check 'the durability can be lowered for the test' ((Tr) -match "\[${a}:3031103:[^\]]*:10/${max}:") (Tr)
+    $r = Cmd "trrepair $a" 800
+    Check 'repair fills the durability' ($r -match '수리했습니다' -and (Tr) -match "\[${a}:3031103:[^\]]*:${max}/${max}:") "$r | $(Tr)"
+    Check 'repair is in the change log' (LogHas '내구 10')
+    Cmd "trdur $a 5" 300 | Out-Null; Cmd "trdur $b 7" 300 | Out-Null
+    $r = Cmd 'trrepair all' 1500
+    Check 'repair-all fills every worn treasure' ($r -match '2개를 수리했습니다' -and (Tr) -match "\[${a}:[^\]]*:${max}/${max}:" -and (Tr) -match "\[${b}:3031104:[^\]]*:(\d+)/\1:") "$r | $(Tr)"
+    $r = Cmd 'trrepair all' 800
+    Check 'repair-all says when nothing is worn' ($r -match '수리할 법보가 없습니다') $r
+    # 탭의 단추
+    Cmd "trdur $a 20" 300 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab16' | Out-Null
+    Check 'the row repair button is off for a full treasure' (IsOff "TreasureRepair$b")
+    Press "TreasureRepair$a" | Out-Null
+    Check 'the row repair button repairs' ((Tr) -match "\[${a}:3031103:[^\]]*:${max}/${max}:" -and (Cmd 'uistate') -match '수리했습니다') "$(Tr) | $(Cmd 'uistate')"
+    Check 'the row repair button turns off afterwards' (IsOff "TreasureRepair$a")
+    Check 'repair-all is off when nothing is worn' (IsOff 'TreasureRepairAll')
+    Cmd "trdur $a 3" 300 | Out-Null; Cmd "trdur $b 4" 300 | Out-Null
+    Press 'Tab1' | Out-Null; Press 'Tab16' | Out-Null   # 다시 그려 단추 상태를 새로 읽는다
+    Press 'TreasureRepairAll' 1500 | Out-Null
+    Check 'the repair-all button repairs both' ((Cmd 'uistate') -match '2개를 수리했습니다' -and (Tr) -match "\[${a}:[^\]]*:${max}/${max}:" -and (Tr) -match "\[${b}:[^\]]*:(\d+)/\1:") "$(Tr) | $(Cmd 'uistate')"
+    Shot 'treasure-repair'
+    # 하나는 닳은 채로 저장해 다시 켠 뒤 둘 다 확인한다
+    Cmd "trdur $b 9" 300 | Out-Null
+    [IO.File]::WriteAllText($soleFile, "$a $b $max")
+    Check 'the game saves' ((Cmd 'save' 5000) -notmatch 'ERROR') 'save'
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
+  'repair-restart' {
+    $parts = ([IO.File]::ReadAllText((Join-Path $work 'treasure-repair-soles.txt'))).Split(' ')
+    $a = $parts[0]; $b = $parts[1]; $max = $parts[2]
+    $s = Tr
+    Check 'the repaired durability survives a restart' ($s -match "\[${a}:3031103:[^\]]*:${max}/${max}:") $s
+    Check 'the lowered durability survives a restart too (the write is real save data)' ($s -match "\[${b}:3031104:[^\]]*:9/") $s
   }
   default { throw "알 수 없는 Part: $Part" }
 }

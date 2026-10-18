@@ -32,6 +32,15 @@ namespace MOD_sWP6UL
                 MelonLogger.Msg("[TlToybox] texts failed: " + e.GetType().Name + ": " + e.Message);
             }
             BattleService.OnInit();
+            try
+            {
+                // 기술 학습 상한(05 문서 60절): 설정 파일의 값이 0이 아니면 패치를 건다.
+                MartialGridService.Ensure();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] martial grid failed: " + e.GetType().Name + ": " + e.Message);
+            }
 #if DEVTOOLS
             StartDevPoll();
 #endif

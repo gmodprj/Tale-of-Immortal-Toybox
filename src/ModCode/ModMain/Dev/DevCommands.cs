@@ -96,6 +96,11 @@ namespace MOD_sWP6UL
             {
                 return zh;
             }
+            string grid = DevCommandsGrid.Execute(p);
+            if (grid != null)
+            {
+                return grid;
+            }
             string treasure = DevCommandsTreasure.Execute(p);
             if (treasure != null)
             {
