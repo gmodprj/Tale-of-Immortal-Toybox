@@ -1,21 +1,21 @@
-# 09. 창작마당 모드 등록부 (생성 2026-10-17 03:25)
+# 09. 창작마당 모드 등록부 (생성 2026-10-18 10:10)
 
 이 문서는 pwsh tools/workshop.ps1 -Doc 이 만든다. 손으로 고치지 않는다. 고치려면 tools/workshop/mods.txt 와 history.txt 를 고친 뒤 다시 돌린다. 설계: docs/superpowers/specs/2026-10-16-workshop-expand-design.md 3.4절.
 게임 폴더 E:\Games\Tale of Immortal, SteamCMD E:\SteamCmd\steamcmd.exe, 받은 자리 E:\SteamCmd\steamapps\workshop\content\1468810.
 
 ## 1. 요약
 
-- 상태: 설치 34, 보류 3, 제외 1 (줄 38)
-- 설치 줄 34: 받음 34/34, 설치 34/34
-- 설치본 크기: 976.8MB (설치된 설치 줄의 폴더 합)
-- DLL이 든 설치 모드: 10개
+- 상태: 설치 39, 보류 5, 제외 1 (줄 45)
+- 설치 줄 39: 받음 39/39, 설치 39/39
+- 설치본 크기: 982.3MB (설치된 설치 줄의 폴더 합)
+- DLL이 든 설치 모드: 15개
 
 ## 2. 모드 표
 
 | ID | 상태 | 종류 | 원문 이름 | 한국어 이름 | 모드ID | 받음 | 설치 | 설치본 | DLL | 비고 | 링크 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 2814703549 | 설치 | 틀 | Fatury | Fatury 틀 | q9CYCo | 1.9MB 2024-12-28 | 예 | 같음 | Fatury.dll,UnityEngine.InputLegacyModule.dll,YamlDotNet.dll | 2815562168이 필요로 함. DLL 3(Fatury.dll, UnityEngine.InputLegacyModule.dll, YamlDotNet.dll) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814703549) |
-| 2815562168 | 설치 | 외형 | 原版17个女性人物动态立绘替换 | 원작 여성 인물 17명 동적 입화 교체 | ymWzeD | 111.3MB 2023-02-26 | 예 | 같음 | - | Fatury 필요. 111MB | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2815562168) |
+| 2815562168 | 설치 | 외형 | 原版17个女性人物动态立绘替换 | 원작 여성 인물 17명 동적 입화 교체 | ymWzeD | 111.3MB 2023-02-26 | 예 | 같음 | - | Fatury 필요. 111MB. ModAssets\Fatury\Game\Portrait\Woman\Body\149\_child\sprite\image.png가 PNG가 아님(원본 패키지부터. 정적 입화 149번이 원작 101번 옷으로 보임. 05 문서 52절) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2815562168) |
 | 3200319699 | 설치 | 외형 | 【木头】AI动态立绘 | [木头] AI 동적 입화 | 13mJF0 | 206.4MB 2025-01-06 | 예 | 같음 | - | 206MB | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3200319699) |
 | 3001496635 | 설치 | 외형 | 【软甜废独家】《五官头饰动态立绘》-原创本人手画 | [软甜废] 이목구비·머리 장식 동적 입화 | IoRGjg | 32MB 2025-06-13 | 예 | 같음 | MOD_IoRGjg.dll | DLL 1(MOD_IoRGjg.dll) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3001496635) |
 | 2993500314 | 설치 | 외형 | 动态头发美化 | 동적 머리카락 미화 | FsilSZ | 15.1MB 2023-06-26 | 예 | 같음 | - |  | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2993500314) |
@@ -52,11 +52,30 @@
 | 2814696167 | 보류 | 세계관 | [无邪]万古神话 | [无邪] 만고신화 | - | 1636MB 2026-10-04 | - | - | MOD_dH6k0J.dll | 대형 통합(전투·돌파·극·NPC 조정, 극 20만 자). 제작자: 어떤 극 모드와도 같이 쓰지 말 것 → 사용자 판단 전 보류. 1636MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814696167) |
 | 2945768219 | 제외 | 외형 | 【执余】女NPC颜值评定优化 | [执余] 여성 NPC 외모 평가 개선 | - | 49.2MB 2024-08-05 | - | - | MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,Assembly-CSharp.dll,ModMain.dll,MOD_ZUQmIr.dll,ModMain.dll,Properties.Resources.Designer.cs.dll | DLL 5에 MySql.Data.dll이 들어 있어 제외(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2945768219) |
 | 3681025074 | 보류 | - | - | - | - | 15.2MB 2026-03-13 | - | - | - | 사용자 시험용. 목록에 넣지 않기로 함(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3681025074) |
+| 2822252336 | 설치 | 기능 | 指点 | 지점(가르치기) | LE2lAt | 0.6MB 2023-10-02 | 예 | 같음 | MOD_LE2lAt.dll | 제작자 轻抚含羞草(2832167498과 같음). 2832167498 설명의 "指点功法捏脸资质境界v1.2.0"은 아니다(얼굴 만들기 호출 없음. 05 문서 57절). 0.6MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2822252336) |
+| 3269125854 | 설치 | 기능 | 种族修改工具（动态版） | 종족 수정 도구(동적판) | EUnXsf | 0.6MB 2024-07-22 | 예 | 같음 | MOD_EUnXsf.dll | 종족 틀 필요. 3018994236이 권함. 0.6MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3269125854) |
+| 2814673099 | 설치 | 기능 | 模组ahlMBV(组队） | 동료(파티) | ahlMBV | 0.3MB 2022-07-02 | 예 | 같음 | TeamBest.dll | 2905956493이 권함(조력 NPC와 파티). 0.3MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814673099) |
+| 2814686803 | 설치 | 틀 | 【大鬼】UI框架 | [大鬼] UI 틀 | GV2cem | 0.3MB 2022-07-12 | 예 | 같음 | GuiUI.dll | 2814717778이 필요로 함(Cave.dll이 GuiUI 참조). 0.3MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814686803) |
+| 2814717778 | 설치 | 세계관 | 【大鬼】洞天福地 | [大鬼] 동천복지 | 8s4Ze4 | 3.7MB 2023-03-11 | 예 | 같음 | Cave.dll | 동부 구매·입주·함께 던전·얼굴 다시 만들기. 2905956493이 권함. 3.7MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814717778) |
+| 2831402551 | 보류 | 기능 | 【大鬼】自动修复存档 | [大鬼] 세이브 자동 복구 | - | 0.3MB 2024-12-25 | - | - | FixData.dll | 모드를 뺀 뒤 남는 자료를 세이브에서 지운다. 2859071194를 뺄 때 필요(설명). 0.3MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2831402551) |
+| 2991543623 | 보류 | 기능 | NPC-AI行动交互优化升级（组队&快速突破&私人对话&功法自动升级&捏脸等） | NPC AI 행동·상호작용 개선(파티·빠른 돌파·개인 대화·공법 자동 성장·얼굴 만들기) | - | 0.2MB 2025-05-27 | - | - | - | 종족 틀 제작자. NPC 돌파·공법 성장 확률을 바꾼다. 0.2MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2991543623) |
 
 ## 3. 이력 (최근 것부터)
 
 | 때 | 동작 | ID | 한국어 이름 |
 |---|---|---|---|
+| 2026-10-18 10:08 | 설치 | 2814717778 | [大鬼] 동천복지 |
+| 2026-10-18 10:08 | 설치 | 2814686803 | [大鬼] UI 틀 |
+| 2026-10-18 10:08 | 설치 | 2814673099 | 동료(파티) |
+| 2026-10-18 10:08 | 설치 | 3269125854 | 종족 수정 도구(동적판) |
+| 2026-10-18 10:08 | 설치 | 2822252336 | 지점(가르치기) |
+| 2026-10-18 09:27 | 받음 | 2991543623 | NPC AI 행동·상호작용 개선(파티·빠른 돌파·개인 대화·공법 자동 성장·얼굴 만들기) |
+| 2026-10-18 09:27 | 받음 | 2831402551 | [大鬼] 세이브 자동 복구 |
+| 2026-10-18 09:27 | 받음 | 2814717778 | [大鬼] 동천복지 |
+| 2026-10-18 09:27 | 받음 | 2814686803 | [大鬼] UI 틀 |
+| 2026-10-18 09:27 | 받음 | 2814673099 | 동료(파티) |
+| 2026-10-18 09:27 | 받음 | 3269125854 | 종족 수정 도구(동적판) |
+| 2026-10-18 09:27 | 받음 | 2822252336 | 지점(가르치기) |
 | 2026-10-16 21:32 | 설치 | 3426669627 | [蛋] 음양쌍수 |
 | 2026-10-16 21:32 | 설치 | 2819617569 | [欢喜缘] 아욕성선·도려삼천 강화판 |
 | 2026-10-16 21:32 | 설치 | 2824722053 | 운상요지 |
@@ -141,4 +160,4 @@
 
 ## 6. 한글화
 
-- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: 6275행(43·46절). 새 모드의 글은 43절의 절차(rloc dump → 번역 → 파일)로 더한다.
+- 번역 파일 src/ModCode/ModMain/Translations/mods.txt: 6518행(43·46절). 새 모드의 글은 43절의 절차(rloc dump → 번역 → 파일)로 더한다.
