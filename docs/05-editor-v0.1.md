@@ -2830,3 +2830,17 @@
 - 인물 화면을 개발 명령(`ropenui PlayerInfo`)으로 열 때 동료 모드(`TeamBest.dll`, 2814673099)의 `UIPlayerInfo.Init` 후위 패치가 NullReferenceException을 냈다(`CreatePlayerInfoNewPatch`). 편집기와 무관하며, 게임에서 직접 열 때도 나는지는 미확인(사용자 확인 항목).
 - 법보의 최대 내구가 강화·경지로 바뀌는지는 보지 않았다(모양 설정 값만 쓴다).
 - 회차 이름: `cr-1018a`~`e`.
+
+## 61. 기예 제작 재료 지급 — 설계 전 실험 (2026-10-18 추가)
+
+스펙 `docs/superpowers/specs/2026-10-18-craft-materials-design.md`(사용자 선택: 재료 지급). 4절의 실험 E1~E5. 브랜치 `feat/craft-materials-exp`, 회차 `mat-1018a`·`b`(고정본 base). 개발 명령 `Dev/DevCommandsCraft.cs`: `cmlearn`·`cmgive`·`cmbag`·`cmherb`·`cmpill`·`cmpillui`·`cmforge`·`cmforgeui`·`cmrune`.
+
+| 실험 | 결과 |
+|---|---|
+| E5 가방 | 같은 재료는 한 칸에 겹친다(5031061이 한 칸에서 26 → 76 → 126, 칸 수 91 그대로). 한 벌에 필요한 새 칸 = 가방에 아직 없는 재료 종류 수 |
+| E1 연단 | 오행 여덟 값의 순서는 처방 칸 순서(화·수·뇌·풍·토·목·음·양)가 맞다: `RefineElixirBase.Init`의 `elementBaseValue`가 `0,0,150,0,0,250,0,0`(단방 6051011의 뇌 150·목 250). `herbalRequier`/`herbalRequierCount`가 그대로 `5031061`/`50`(주약 개수). `AddMasterial`로 가방 약재를 넣으면 `curElementValue`가 오행 합이 된다(표에 없는 값을 가진 약재도 있다: 5031724는 화 1·수 47). 게임의 연단 준비 화면(`UIRefineElixirPre`, 캡처 `.devremote\mat-1018b-pillpre*.png`)은 필요 재료(주약 × 50)가 모자라면 ×, 채우면 ✓를 보이고, 필요 원소(뇌 150·목 250)는 미니게임에서 약재로 채우는 막대다 → **시작 조건은 주약 개수와 단로**, 오행은 보조 약재로 미니게임에서 채운다 |
+| E2 단로 | 고정본은 단로가 없다. 단로의 `basRequire`는 화면의 "연단 자질 n 필요"(인물의 연단 자질과 비교, 고정본 102). 단로에는 처방 등급 조건이 보이지 않았다. `basRequire` 값은 0·10·20·40·100·200·400. 가장 낮은 단로 6061011(잡동단로, 자질 10, 내구 20/20)으로 준비 화면이 열렸다 |
+| E3 연기 | `UnitActionPropArtifactShapeMade.IsCreate`: 핵심·불씨가 없으면 1, 보조 재료가 정확히 `materialNum`개가 아니면 3("충분한 보조 재료를 넣어주십시오", 10·30·37개에서 3, 20개에서 0). 혼합 값(`ArtifactShapeMixed.mixed`)은 시작 조건이 아니다(20개의 합 100도 0) — 게임 화면의 "불순물 함량"이라 작을수록 좋다(단계가 높은 재료일수록 작다). 날짜(2월 24일 → 3월 1일)는 판정에 영향 없음. 게임의 연기 화면(`UIArtifactShapeMade`, 캡처 `mat-1018b-forgeui.png`): 핵심 재료(연기 자질 101 = `basEqpRequire`와 비교되는 인물 값), 보조 재료, 불순물 함량, 희소 재료, 연기진화(불씨) 칸 |
+| E4 부적 | 도보 6092020 단계 1: `UIRuneSelectDraw.InitData(group 101)` → `AutoFillRequireProps`가 `requier1`의 첫 재료 5021164 × 2를 채웠고 화면에 "최대 … 20장 제작 가능"(캡처 `mat-1018a-rune.png`). 두 번째 칸(+)은 빈 선택 칸이라 `requier2 '0'`은 재료 없음. 단계는 한 화면에서 고른다 — 배움은 도보 단위(기존 `ArtService.Learned`와 같다) |
+
+설계에 반영한 규칙(스펙 3·6절 갱신): 연단 한 벌 = 주약 × 개수 + 오행 부족분(요구 − 주약이 주는 값)을 한 가지 오행만 가진 약재로(가장 낮은 단계, 값으로 나눠 올림) + 쓸 수 있는 단로가 없을 때만 `basRequire`가 인물 연단 자질 이하인 가장 낮은 단로 하나. 연기 한 벌 = 핵심 재료 1 + 보조 재료 정확히 `materialNum`개(재료 종류 둘 가운데 불순물이 가장 작은 한 가지) + 가장 낮은 불씨 1. 부적 한 벌 = `requier1`의 첫 재료 × `requier1Count`.
