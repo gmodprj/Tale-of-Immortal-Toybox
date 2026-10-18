@@ -27,7 +27,7 @@ namespace MOD_sWP6UL
                 case "cmbag":
                     return Bag(p.Length > 1 ? int.Parse(p[1]) : 0);
                 case "cmherb":
-                    return string.Join(",", Elements(int.Parse(p[1])));
+                    return string.Join(",", CraftMaterialService.Elements(int.Parse(p[1])));
                 case "cmpill":
                     return Pill(int.Parse(p[1]));
                 case "cmforge":

@@ -96,6 +96,11 @@ namespace MOD_sWP6UL
             {
                 return zh;
             }
+            string materials = DevCommandsMaterials.Execute(p);
+            if (materials != null)
+            {
+                return materials;
+            }
             string craft = DevCommandsCraft.Execute(p);
             if (craft != null)
             {
