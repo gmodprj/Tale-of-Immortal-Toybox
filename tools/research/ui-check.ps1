@@ -2293,7 +2293,7 @@ switch ($Part) {
     Leave
     Tab; Press 'RateReset' | Out-Null
     $s = Cmd 'rstate' 200
-    Check 'reset puts the battle rows back' ($s -match 'cooldown=1 taken=1 god=False damage=1') $s
+    Check 'reset puts the battle rows back' ($s -match 'cooldown=1 artifactCooldown=1 mpCost=1 spCost=1 studyGain=1 itemUse=1 taken=1 god=False damage=1') $s
     Press 'Close' | Out-Null
     Shot 'combat'
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
@@ -2840,6 +2840,51 @@ switch ($Part) {
     Check 'it turns back to x1' (SetRate 'RateItemUse' 'x1')
     $u = Used (Cmd 'tbuse 1011011' 3000); PassDrama
     Check 'with x1 a pill is used up again' ($u -match '^(\d+)->(\d+)$' -and [int]$Matches[2] -eq [int]$Matches[1] - 1) $u
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'mpnone' {
+    # 영력·집중력 소모 "없음"이 전투 중 플레이어의 모든 감소를 막는지(스펙 2026-10-20-trainer-batch1-design.md 5.4·6절, 05 문서 65·66절).
+    # 다른 단계(x0.5)는 지금처럼 기술 소모만 곱한다. 전투를 하나 연다.
+    $traps = Traps
+    function Tab { Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null }
+    function SetRate([string]$name, [string]$want) {
+      Tab
+      for ($i = 0; $i -lt 6 -and (Cmd "uitext $name") -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press $name | Out-Null }
+      $ok = (Cmd "uitext $name") -match "text='$([regex]::Escape($want))'"
+      Cmd 'uitoggle' | Out-Null
+      $ok
+    }
+    function MpSp { if ((Cmd 'tbmp' 300) -match 'mp=(\d+)/\d+ sp=(\d+)/') { @{ mp = [int]$Matches[1]; sp = [int]$Matches[2] } } else { $null } }
+    Tab
+    Check 'the mp note mentions all drains' ((Cmd 'uitext RateNoteMpCost') -match '영력이 줄지 않습니다') (Cmd 'uitext RateNoteMpCost')
+    Check 'the sp note mentions all drains' ((Cmd 'uitext RateNoteSpCost') -match '집중력이 줄지 않습니다') (Cmd 'uitext RateNoteSpCost')
+    Cmd 'uitoggle' | Out-Null
+    Check 'mp cost goes to none' (SetRate 'RateMpCost' '없음')
+    Check 'sp cost goes to none' (SetRate 'RateSpCost' '없음')
+    Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'tbmp' 300) -match 'not in battle'; $i++) { Start-Sleep -Milliseconds 500 }
+    $a = MpSp
+    Cmd 'bcast 1' 800 | Out-Null; Start-Sleep -Milliseconds 800; Cmd 'bcast 2' 800 | Out-Null; Start-Sleep -Seconds 1
+    $b = MpSp
+    Check 'with none skills do not lower mp' ($a -and $b -and $b.mp -ge $a.mp) "mp $($a.mp) -> $($b.mp)"
+    $used = @(0..4 | ForEach-Object { Cmd "tbbuse $_" 2000 } | Where-Object { $_ -match 'IsCreate=True' })
+    $c = MpSp
+    Check 'with none battle pills do not lower sp' ($used.Count -ge 1 -and $c.sp -ge $b.sp) "sp $($b.sp) -> $($c.sp) | $($used -join ' | ')"
+    # x0.5: 기술 소모만 반으로(영력은 줄어든다)
+    Check 'mp cost goes to x0.5' (SetRate 'RateMpCost' 'x0.5')
+    Start-Sleep -Seconds 4
+    $d = MpSp
+    Cmd 'bcast 1' 800 | Out-Null; Start-Sleep -Milliseconds 800; Cmd 'bcast 2' 800 | Out-Null; Start-Sleep -Seconds 1
+    $e = MpSp
+    Check 'with x0.5 skills lower mp again' ($d -and $e -and $e.mp -lt $d.mp) "mp $($d.mp) -> $($e.mp)"
+    Cmd 'bend' 500 | Out-Null
+    for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+    Start-Sleep -Seconds 2
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -match 'BattleEnd'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+    Start-Sleep -Seconds 3
+    Check 'mp cost goes back to x1' (SetRate 'RateMpCost' 'x1')
+    Check 'sp cost goes back to x1' (SetRate 'RateSpCost' 'x1')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
