@@ -23,7 +23,8 @@ namespace MOD_sWP6UL
         // 표의 열(목록 안의 x). 설명은 표에 두지 않는다(줄이 높아져 한 화면에 몇 줄 안 보였다. 사용자 지시 2026-10-15).
         // 지급 열은 목록 안쪽 폭(RightW - 스크롤 막대)의 오른쪽 끝에 붙인다.
         private const float ColStar = 4, ColName = 50, ColKind = 436, ColLevel = 602, ColOwned = 652;
-        private const float NameW = 380, KindW = 160, GiveW = 116, AmountW = 90;
+        private const float NameW = 380, KindW = 160, GiveW = 116, AmountW = 90, OwnedW = 70, DropW = 90;
+        private const float ColDrop = ColOwned + OwnedW + 6;                    // 728
         private const float ColGive = RightW - Ui.ScrollBarWidth - GiveW - 4;   // 990
         private const float ColAmount = ColGive - AmountW - 6;                  // 894
 
@@ -556,7 +557,19 @@ namespace MOD_sWP6UL
             WrapLabel(Ui.Button("ItemName" + id, row, entry.Name, ColName, 2, NameW, h - 4, new Action(() => detail.Show(Detail(entry)))));
             Ui.Wrapped(row, entry.Kind == null ? "-" : entry.Kind.Name, ColKind, 0, KindW, h, 16);
             Ui.Label(row, entry.Missing ? "-" : entry.Level.ToString(), ColLevel, 0, 44, h, 16);
-            Ui.Label(row, entry.Missing ? "-" : Player.data.unitData.propData.GetPropsNum(id).ToString(), ColOwned, 0, 60, h, 16);
+            if (entry.Missing)
+            {
+                Ui.Label(row, "-", ColOwned, 0, 60, h, 16);
+            }
+            else
+            {
+                // 보유 수량 지정·버리기(스펙 2026-10-20-trainer-batch1-design.md 5.3). 칸을 떠날 때도 저장한다.
+                int held = Player.data.unitData.propData.GetPropsNum(id);
+                NumberField.Build(row, "ResOwned" + id, ColOwned, (h - (RowH - 4)) / 2, OwnedW, RowH - 4, held.ToString(), null,
+                    new Action<int>(v => Say(BagService.SetCount(Player, id, v))), true);
+                Confirm.Button("ResDrop" + id, row, "버리기", "정말 버리기", ColDrop, 2, DropW, RowH - 4, "res-drop-" + id,
+                    BagService.DropQuestion(Player, id), new Action(() => Say(BagService.Drop(Player, id))), held > 0);
+            }
             if (IsFav)
             {
                 int saved = FavoriteStore.AmountOf(id);

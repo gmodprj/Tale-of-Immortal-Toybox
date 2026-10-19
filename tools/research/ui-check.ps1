@@ -2662,6 +2662,57 @@ switch ($Part) {
     Check 'the gain goes back to x1' (SetGain 'x1')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'bagcount' {
+    # 자원 탭의 보유 수량 지정·버리기(스펙 2026-10-20-trainer-batch1-design.md 5.3·6절, 05 문서 65·66절).
+    # 고정본: 1011011 x10(장착 아님), 1011052 x7(전투 아이템 칸), 법보 3031101 없음.
+    $traps = Traps
+    function Held([int]$id) { if ((Cmd "count $id") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 } }
+    function BagLines { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '아이템 .*\((1011011|1011052|3031101)\)' }).Count }
+    function Equips { ((Cmd 'tbequips' 300) -replace '^tbequips -> ', '').Trim() }
+    # 칸에 쓰고 다른 칸으로 포커스를 옮겨 저장한다(Enter 키는 화면 밖에서 빠질 때가 있다. 인계 6절).
+    function SetOwned([int]$id, [int]$n) { Cmd "uifocus ResOwned$id" | Out-Null; Cmd "ui set ResOwned$id $n" | Out-Null; Cmd 'uifocus ItemQuery' | Out-Null; Start-Sleep -Milliseconds 400 }
+    function Show([string]$q) { Cmd "ui set ItemQuery $q" | Out-Null; Start-Sleep -Milliseconds 300 }
+    function Said { Cmd 'uistate' 200 }
+    $logged = BagLines
+    Cmd 'editor' | Out-Null; Press 'Tab1' | Out-Null
+    Press 'ResGroupAll' | Out-Null; Press 'ResClear' | Out-Null
+    Show '1011011'
+    Check 'the owned cell is a number field with the count' ((Cmd 'uitext ResOwned1011011') -match "text='10'") (Cmd 'uitext ResOwned1011011')
+    SetOwned 1011011 25
+    Check 'raising the count gives the difference' ((Held 1011011) -eq 25) "held=$(Held 1011011)"
+    SetOwned 1011011 7
+    Check 'lowering the count removes the difference' ((Held 1011011) -eq 7) "held=$(Held 1011011)"
+    SetOwned 1011011 0
+    Check 'zero removes all of it' ((Held 1011011) -eq 0) "held=$(Held 1011011)"
+    SetOwned 1011011 3
+    Check 'it can be put back from zero' ((Held 1011011) -eq 3) "held=$(Held 1011011)"
+    Check 'the changes are in the history' ((BagLines) -ge $logged + 4) "$logged -> $(BagLines)"
+
+    # 전투 아이템 칸에 넣은 묶음: 칸에 남은 채 줄고, 0이면 1이 남는다.
+    $e0 = Equips
+    Show '1011052'
+    Check 'a slotted stack shows its count' ((Cmd 'uitext ResOwned1011052') -match "text='7'") (Cmd 'uitext ResOwned1011052')
+    SetOwned 1011052 3
+    Check 'a slotted stack can be lowered' ((Held 1011052) -eq 3 -and (Equips) -eq $e0) "held=$(Held 1011052) equips=$(Equips)"
+    SetOwned 1011052 0
+    Check 'a slotted stack keeps one and says so' ((Held 1011052) -eq 1 -and (Equips) -eq $e0 -and (Said) -match '장착 중인 1개는 그대로') "held=$(Held 1011052) | $(Said)"
+
+    # 법보 셋, 하나 장착: 버리기는 두 번 누르기이고 장착한 것은 남는다.
+    1..3 | ForEach-Object { Cmd 'trgive 3031101' 1500 | Out-Null }
+    $soles = @([regex]::Matches((Cmd 'tbbag 3031101' 500), 'sole=(\w+)') | ForEach-Object { $_.Groups[1].Value })
+    Check 'three artifacts were given' ($soles.Count -eq 3) ($soles -join ',')
+    Cmd "trequip $($soles[0])" 1500 | Out-Null
+    Check 'the first one is equipped' ((Equips) -match [regex]::Escape($soles[0])) (Equips)
+    Show '3031101'
+    Check 'the artifact row shows three' ((Cmd 'uitext ResOwned3031101') -match "text='3'") (Cmd 'uitext ResOwned3031101')
+    Press 'ResDrop3031101' | Out-Null
+    Check 'the first drop press only asks' ((Held 3031101) -eq 3 -and (Said) -match '모두 버립니다') (Said)
+    Press 'ResDrop3031101' | Out-Null
+    Check 'the second press drops all but the equipped one' ((Held 3031101) -eq 1 -and (Equips) -match [regex]::Escape($soles[0])) "held=$(Held 3031101) equips=$(Equips)"
+    Check 'the drop says the equipped one stayed' ((Said) -match '장착 중인 1개는 그대로') (Said)
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Shot 'bagcount'
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

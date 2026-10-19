@@ -9,7 +9,7 @@ namespace MOD_sWP6UL
     // 가방 칸. 게임의 용량(dynUnitData.propGridNum)에 덧셈을 건다.
     // 건 값은 저장되지 않으므로(실측) 세이브별 추가 칸을 파일에 기억하고, 세계에 들어올 때마다 다시 건다.
     // 줄여서 넘치는 아이템은 사라지지 않고 남는다(실측). 근거: docs/superpowers/specs/2026-10-12-date-bag-design.md 3.4절.
-    internal static class BagService
+    internal static partial class BagService
     {
         public const int Step = 10;
         public const int MaxExtra = 500;
