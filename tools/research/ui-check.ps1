@@ -2062,7 +2062,7 @@ switch ($Part) {
     function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab12' | Out-Null
-    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'RateStudyGain', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'RateStudyGain', 'RateItemUse', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
     $s = RateState
     Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 actionDay=1 speed=1 ' -and $s -notmatch 'patched') $s
 
@@ -2748,6 +2748,100 @@ switch ($Part) {
     Cmd 'uitarget player' | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Shot 'traits'
+  }
+  'itemuse' {
+    # 배율 탭 아이템 소모 없음(스펙 2026-10-20-trainer-batch1-design.md 5.2·6절, 05 문서 65·66절).
+    # 쓰는 아이템(단약·보상자·지도 부적·비급·돌파 재료·전투 단약)은 남고, 영석과 제작 재료는 그대로 줄어야 한다. 달과 전투를 쓴다.
+    $traps = Traps
+    function Held([int]$id) { if ((Cmd "count $id") -match 'count=(\d+)') { [int]$Matches[1] } else { -1 } }
+    function PassDrama {
+      for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 300) -match 'DramaFortuitous|DramaDialogue|GetReward'; $i++) {
+        Cmd 'uiclose GetReward' 300 | Out-Null
+        if ((Rc 'hit 979 821' 300) -match 'goBtnItem') { Rc 'click 979 821' 2500 | Out-Null }
+        elseif ((Rc 'hit 960 540' 300) -match 'btnNext') { Rc 'click 960 540' 2000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+    }
+    function Tab { Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null }
+    function SetRate([string]$name, [string]$want) {
+      Tab
+      for ($i = 0; $i -lt 6 -and (Cmd "uitext $name") -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press $name | Out-Null }
+      $ok = (Cmd "uitext $name") -match "text='$([regex]::Escape($want))'"
+      Cmd 'uitoggle' | Out-Null
+      $ok
+    }
+    function Learned { if ((Cmd 'mgrid' 300) -match '무예/영술:(\d+)/') { [int]$Matches[1] } else { -1 } }
+    function Used([string]$out) { $out -match 'num (\d+) -> (\d+)' | Out-Null; "$($Matches[1])->$($Matches[2])" }
+
+    Tab
+    Check 'the item use row is drawn at x1' ((IsAt 'RateItemUse') -and (Cmd 'uitext RateItemUse') -match "text='x1'") (Cmd 'uitext RateItemUse')
+    Check 'the last rate row still fits in the content area' (IsAt 'God') (Cmd 'uipos God')
+    Cmd 'uitoggle' | Out-Null
+    Check 'it turns to none' (SetRate 'RateItemUse' '없음')
+    Check 'only then it is patched' ((Cmd 'rstate' 200) -match 'itemUse=0\(patched\)') (Cmd 'rstate' 200)
+
+    # 비급: 배우고도 남고 영석 900은 나간다. 달 처음으로 옮겨 날짜를 확보하고 진도 x100으로 한 번에 배운다.
+    Cmd 'tset 2 3 1' 2000 | Out-Null
+    Cmd 'mgridset 10' 1000 | Out-Null
+    $grade = if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { [int]$Matches[1] } else { 3 }
+    $skill = if ((Cmd "rownskills 0 $grade" 3000) -match 'ids=(\d+)') { $Matches[1] } else { '' }
+    Cmd "rbook 0 $skill $grade 1 1" 6000 | Out-Null
+    $book = if ((Cmd "rbooks $skill" 3000) -match "(\w+):$skill`:") { $Matches[1] } else { '' }
+    Check 'the study gain goes to x100' (SetRate 'RateStudyGain' 'x100')
+    $n0 = Learned; $m0 = Held 10001
+    Cmd "adstudy $book none" 4000 | Out-Null; PassDrama
+    Check 'a finished study keeps the book' ((Learned) -eq $n0 + 1 -and (Cmd "rbooks $skill" 2000) -match $book) "learned $n0 -> $(Learned) | $(Cmd "rbooks $skill" 2000)"
+    Check 'the study still pays spirit stones' ((Held 10001) -lt $m0) "$m0 -> $(Held 10001)"
+    Check 'the study gain goes back to x1' (SetRate 'RateStudyGain' 'x1')
+
+    # 지도에서 쓰기: 단약·보상자·지도 부적
+    $u = Used (Cmd 'tbuse 1011011' 3000); PassDrama
+    Check 'eating a pill keeps it' ($u -match '^(\d+)->\1$') $u
+    Cmd 'cmgive 6440014 1' 1500 | Out-Null
+    $u = Used (Cmd 'tbuse 6440014' 3000); PassDrama
+    Check 'opening a box keeps it' ($u -eq '1->1') $u
+    Cmd 'cmgive 6083010 1' 1500 | Out-Null
+    $u = Used (Cmd 'tbuse 6083010' 3000); PassDrama
+    Check 'a map talisman keeps it' ($u -eq '1->1') $u
+
+    # 돌파: 소경지 둘 뒤 대경지(재료를 주고 넣는다). 재료가 남는다.
+    # 소경지가 몇 번 남았는지는 그때그때 다르다(앞 창에 막히기도 한다). 재료를 쓰는 대경지가 나올 때까지 한다.
+    for ($k = 0; $k -lt 5; $k++) {
+      $h1 = Held 5031786; $h2 = Held 5081155
+      $o = Cmd 'upreal' 20000; PassDrama
+      if ($o -match 'require=[1-9]') { break }
+    }
+    Check 'the major breakthrough happened' ($o -match 'require=6 rarity=5 IsCreateAction=0 CreateAction=0') $o
+    Check 'its materials are kept' ((Held 5031786) -eq $h1 + 1 -and (Held 5081155) -eq $h2 + 1) "5031786 $h1 -> $(Held 5031786), 5081155 $h2 -> $(Held 5081155)"
+
+    # 연기 재료는 그대로 줄어든다.
+    Cmd 'cmlearn 6181110' 1500 | Out-Null
+    Cmd 'matgive 1 6181110 1' 5000 | Out-Null
+    $f0 = Held 5251001
+    $o = Cmd 'tbforge 6181110 5251001' 8000; PassDrama
+    Cmd 'uiclose ArtifactShapeMadeSuccess' 300 | Out-Null
+    Check 'forging still uses its materials' ($o -match 'IsCreate=0 Create=0' -and (Held 5251001) -eq $f0 - 20) "$o | $f0 -> $(Held 5251001)"
+
+    # 전투 단약: 두 경로(UnitActionPropUse를 거치는 것과 아닌 것) 모두 가방 수가 남는다.
+    Cmd 'fight 1011 20' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'tbmp' 300) -match 'not in battle'; $i++) { Start-Sleep -Milliseconds 500 }
+    # 체력이 가득이면 회복 단약은 거부된다. 쓰인 칸만 본다(1011161은 행동 없이 바로 줄어드는 길, 05 문서 65절).
+    $used = @(0..4 | ForEach-Object { Cmd "tbbuse $_" 2000 } | Where-Object { $_ -match 'IsCreate=True' })
+    Check 'some battle pills were used' ($used.Count -ge 1 -and ($used -join ' ') -match 'num 12 -> ') ($used -join ' | ')
+    Check 'used battle pills stay in the bag' (@($used | Where-Object { $_ -notmatch 'num (\d+) -> \1 ' }).Count -eq 0) ($used -join ' | ')
+    Cmd 'bend' 500 | Out-Null
+    for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+    Start-Sleep -Seconds 2
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -match 'BattleEnd'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+    Start-Sleep -Seconds 3
+    PassDrama
+
+    # 끄면 다시 줄어든다.
+    Check 'it turns back to x1' (SetRate 'RateItemUse' 'x1')
+    $u = Used (Cmd 'tbuse 1011011' 3000); PassDrama
+    Check 'with x1 a pill is used up again' ($u -match '^(\d+)->(\d+)$' -and [int]$Matches[2] -eq [int]$Matches[1] - 1) $u
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
   default { throw "알 수 없는 Part: $Part" }
 }
