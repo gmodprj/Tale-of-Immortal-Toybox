@@ -96,6 +96,11 @@ namespace MOD_sWP6UL
             {
                 return zh;
             }
+            string tb1 = DevCommandsTrainerBatch1.Execute(p);
+            if (tb1 != null)
+            {
+                return tb1;
+            }
             string actionDay = DevCommandsActionDay.Execute(p);
             if (actionDay != null)
             {
