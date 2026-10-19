@@ -28,18 +28,23 @@
 - 성격을 같은 외재 성격 두 개로 만들거나, 내재 칸에 외재 성격을 넣는 등 게임이 만들 수 없는 조합을 쓴다.
 - 영력 소모 없음이 적의 영력까지 막는다(플레이어만).
 
-## 3. 게임 자료 (어셈블리에서 확인. 동작은 4절에서 실측)
+## 3. 게임 자료 (어셈블리에서 확인, 4절에서 실측. 기록은 05 문서 65절)
 
-| 기능 | 이름 | 비고 |
+| 기능 | 이름 | 실측 |
 |---|---|---|
-| 성격 | `DataUnit.PropertyData.inTrait`, `outTrait1`, `outTrait2` (int, get/set) | 트레이너는 내재 1~7, 외재 8~19로 다룬다(미확인) |
-| 성격 목록 | `g.conf.roleCreateCharacter` (`ConfRoleCreateCharacterBase.GetItem(id)`, `_allConfList`), 줄 `ConfRoleCreateCharacterItem.type` | 이름 칸은 난독화된 문자열 칸(`sc5asd_sd34`·`xdash_54sd` 가운데 하나로 보임, 미확인) |
-| 아이템 사용 | `UnitActionPropUse(PropsData)`, `.CostPropItem()`, `.OnCreate()`, `static SetUse(int)` | 소모가 `CostPropItem` 한 곳인지 미확인 |
-| 아이템 소모 일반 | `WorldUnitData.CostPropItem` 네 오버로드(`(int id,int count,bool)`, `(List,bool)`, `(PropsData,bool)`, `(string soleID,int count,bool)`), `WorldUnitData.CostItem` 둘 | 제작·거래도 이쪽을 쓸 것으로 보임 |
-| 가방 | `DataProps.GetPropsNum(int)`, `DelProps(int propsID,int count)`, `DelProps(string soleID[,int])`, `AddProps(int,int,string)`, `PropsData.propsCount`(get/set), `soleID`, `ConfItemPropsItem.isOverlay` | 지급은 지금처럼 `WorldUnitData.RewardPropItem` |
-| 영력·집중력 | `UnitDataBase.AddMP(int value,bool isShowUI)`, `AddSP(int,bool)`, `mp`/`sp` (get/set) | 기술 소모가 `AddMP`를 거치는지, `set_mp`로 바로 쓰는지 미확인 |
+| 성격 | `DataUnit.PropertyData.inTrait`, `outTrait1`, `outTrait2` (int) | 쓰면 `WorldUnitData.GetCharacter()`와 게임 인물 화면이 바로 따라오고 저장 후에도 남는다 |
+| 성격 목록 | `g.conf.roleCreateCharacter._allConfList` 19줄, `type` 1 내재(1~7)·2 외재(8~19), 이름 `sc5asd_sd34`, 설명 `xdash_54sd`(둘 다 `GameTool.LS`) | 함께 고를 수 없는 짝을 나타내는 칸은 없다 |
+| 아이템 소모 | 모두 `WorldUnitData.CostPropItem(sole, n, …)` 또는 `(PropsData, …)` → `DataProps.DelProps(sole, n)` | `UnitActionPropUse.CostPropItem()`은 불리지 않는다 |
+| 쓰기 행동 | `UnitActionPropUse.OnCreate`(지도 단약·보상자·부적, 일부 전투 단약), `UnitActionPropMartialStudy.OnCreate`(다 배울 때 `martialData.data.soleID`), `UnitActionRoleUpGrade.OnCreate`(`requirePropsSoleID`·`rarityPropsSoleID`) | 비급 공부는 영석도 같은 메서드로 낸다 |
+| 전투 아이템 칸 | `SceneType.battle.battleMap.playerUnitCtrl.props[i].data.propsData.soleID` | 일부 전투 단약은 행동 없이 바로 `CostPropItem(sole)`. `PropItemPill/PropItemBase.OnCreate`(Vector2 인자)에 패치를 걸면 게임이 꺼진다 |
+| 가방 | `GetPropsNum(id)`(장착품도 센다), `DelProps(id, n)`(가방 순서, **장착품부터도 지운다**), `DelProps(sole[, n])`, `RewardPropItem`, `ConfItemPropsItem.isOverlay`, 장착 목록 `unitData.GetAllEquipPropsSoleID()`(장비 + 전투 아이템 칸의 단약 묶음) | 법보 `To<PropsArtifact>()`의 `level`·`grade`·`GetPrefixCount()` |
+| 영력·집중력 | `UnitDataBase.AddMP(int, bool)`, `AddSP(int, bool)` | 기술 영력 소모·전투 단약의 집중력 소모가 음수로 들어온다. `set_mp`·`set_sp`는 패치할 수 없다 |
 
-## 4. 설계 전 실험
+## 4. 설계 전 실험 (끝남, 05 문서 65절)
+
+결과 요약: E1 성격 번호·이름·화면·저장 모두 확인. E2 막을 지점은 "쓰기 행동이 쓰는 sole"(행동의 `OnCreate` 앞뒤로 기억) + 전투 중 "전투 아이템 칸의 sole"이며, 시험 막기로 단약·보상자·비급·돌파 재료·전투 단약이 남고 연기 재료는 줄었다. E3 `DelProps(id, n)`이 장착 법보부터 지운다 → sole 단위로 지운다. E4 `AddMP`·`AddSP` 음수 막기로 영력·집중력이 줄지 않았다.
+
+### 실험 계획(기록)
 
 회차 이름은 `tb1-1020a`부터, 고정본(`-Fixture base`). 실험 명령은 `Dev/DevCommandsTrainerBatch1.cs`(배포 빌드 제외)에 둔다. 결과는 05 문서 65절에 남기고 이 문서의 가정을 고친다.
 
@@ -70,8 +75,8 @@
 - 아이템 줄(화폐·비급 즐겨찾기 줄 제외)의 `보유` 칸을 숫자 칸(`ResOwned<번호>`)으로 바꾼다. 숫자를 쓰고 Enter(또는 칸을 떠나면) 그 수가 되도록 차이만큼 지급하거나 지운다.
 - `보유` 칸 오른쪽에 `버리기`(`ResDrop<번호>`, 가진 것이 없으면 꺼짐). 두 번 누르기(`Confirm`): 첫 누름에 "<이름> n개를 모두 버립니다. 한 번 더 누르면 버립니다."
 - 0을 쓰면 버리기와 같다(두 번 누르기 없이. 숫자를 직접 쓴 것이 확인이다 — 내 판단).
-- 장착 중인 것은 세지 않고 지우지 않는다(E3 결과로 방법 확정).
-- **겹치지 않는 아이템(장비·법보)을 줄일 때의 순서**(사용자 선택 2026-10-20 "약한 것부터"): 장착하지 않은 것 가운데 강화·옵션이 없거나 낮은 것부터 지운다. 버리기는 장착하지 않은 것을 모두 지우되, 첫 누름의 확인 문구에 "강화·옵션이 붙은 것 n개 포함"을 넣는다(n이 0이면 뺀다). 장착품이 있으면 결과 문장 끝에 "장착 중인 n개는 그대로 두었습니다."
+- 장착품(E3: 장비와 전투 아이템 칸에 넣은 단약 묶음)은 지우지 않는다. `보유` 칸의 수는 장착품을 포함한 수(`GetPropsNum`, 게임 가방과 같다)다. 줄일 때는 장착하지 않은 것부터 줄이고, 그래도 모자라면 장착한 **겹치는** 묶음은 1개까지만 줄인다(칸에서 빠지지 않게). 장착한 겹치지 않는 아이템은 줄이지 않는다. 목표 수까지 못 줄이면 결과 문장 끝에 "장착 중인 n개는 그대로 두었습니다." (내 판단)
+- **겹치지 않는 아이템(장비·법보)을 줄일 때의 순서**(사용자 선택 2026-10-20 "약한 것부터"): 장착하지 않은 것 가운데 강화·옵션이 없거나 낮은 것부터 지운다. 버리기는 장착하지 않은 것을 모두 지우되, 첫 누름의 확인 문구에 "강화·옵션이 붙은 것 n개 포함"을 넣는다(n이 0이면 뺀다). 
 - 결과 문장: `<이름>: n개 -> m개`. 가방이 모자라 다 늘지 않으면 지금의 지급 문장과 같이 알린다.
 
 ### 5.4 영력·집중력 소모 없음 — 배율 탭 설명만 바뀜
@@ -81,16 +86,21 @@
 
 ## 6. 동작 규칙
 
-- **성격**: 쓰기 전 검사 — 번호가 그 칸의 종류인지(E1의 종류 칸), 외재 둘이 다른지. 막는 조합은 이 둘뿐이다(검토 뒤 내 판단). E1에서 인물 만들기 화면(`UICreateRole` 계열)이 함께 고를 수 없게 하는 외재 쌍이 확인되면 그 쌍도 칩을 꺼서 막는다. 지금 값이 목록 밖 번호면 칸에 `목록에 없는 번호 n`으로 보이고, 목록 안의 칩으로만 바꿀 수 있다(검토 뒤 내 판단). 백업(`SaveBackup.EnsureOnce`) → 칸 쓰기 → 다시 읽어 판정 → 이력(분류 `성격`). 편집 대상이 NPC면 그 NPC에 쓴다(능력치 탭의 다른 줄과 같다). `EditService.SetTrait(unit, slot, id)`.
-- **아이템 소모 없음**: `RateService`에 켬/끔 한 줄(`Rate`, 단계 `{1f, 0f}`, `ZeroText "없음"`). 패치 대상은 E2에서 정하며, 기본 후보는 `UnitActionPropUse.CostPropItem` 접두에서 `__instance`의 유닛이 플레이어면 `false`를 돌려 건너뛰는 것. 전투 아이템이 다른 경로면 그 경로를 더한다. 처음 켤 때 패치를 붙이고 떼지 않는다(기존 `Hook` 방식). `WorldUnitData.CostPropItem` 전체를 막는 방법은 쓰지 않는다(제작 재료가 같이 막힌다).
-- **가방 수량**: `BagService.SetCount(unit, propsId, n)`와 `BagService.Drop(unit, propsId)`. 지금 수 c(장착품 제외)와 비교해 n>c면 `RewardPropItem(id, n−c)`, n<c면 겹치는 아이템은 `DelProps(id, c−n)`, 겹치지 않는 아이템은 soleID 단위로 장착 아닌 것 가운데 약한 것부터(강화 단계·옵션 수가 작은 순, 같으면 가방 순서. "약함"을 재는 칸은 E3에서 법보 `PropsArtifact.level`·`grade`, 장비 강화·옵션 칸을 확인해 정한다) `DelProps(soleID)`. 백업 → 쓰기 → 다시 세어 판정 → 이력(분류 `아이템 <이름>(<번호>)`, 지금 지급 이력과 같은 꼴). n의 범위 0~99999(내 판단).
-- **영력·집중력**: `UnitDataBase.AddMP`·`AddSP` 접두. `MpCost`(또는 `SpCost`)가 켜져 있고 값이 0이며, 전투 중이고 `__instance`가 플레이어 전투 단위의 자료이며, 넘어온 값이 음수면 건너뛴다. E4에서 기술 소모가 `set_mp`로 바로 쓰이면 지금의 기술값 곱하기(`TickSkillValues`)가 그쪽을 맡으므로 그대로 둔다.
+- **성격**: 쓰기 전 검사 — 번호가 그 칸의 종류인지(E1의 종류 칸), 외재 둘이 다른지. 막는 조합은 이 둘뿐이다(검토 뒤 내 판단. E1: 성격 표에 짝을 막는 칸이 없고, 게임은 같은 외재 둘도 그대로 받는다). 지금 값이 목록 밖 번호면 칸에 `목록에 없는 번호 n`으로 보이고, 목록 안의 칩으로만 바꿀 수 있다(검토 뒤 내 판단). 백업(`SaveBackup.EnsureOnce`) → 칸 쓰기 → 다시 읽어 판정 → 이력(분류 `성격`). 편집 대상이 NPC면 그 NPC에 쓴다(능력치 탭의 다른 줄과 같다). `EditService.SetTrait(unit, slot, id)`.
+- **아이템 소모 없음**(E2 실측): `RateService`에 켬/끔 한 줄(`Rate`, 단계 `{1f, 0f}`, `ZeroText "없음"`). 처음 켤 때 패치를 붙이고 떼지 않는다(기존 `Hook` 방식).
+  - 쓰기 행동 셋의 `OnCreate`에 앞·뒤 패치: 앞에서 행동의 유닛이 플레이어면 "쓰는 sole"을 기억하고(`UnitActionPropUse.propsData.soleID` / `UnitActionPropMartialStudy.martialData.data.soleID` / `UnitActionRoleUpGrade.requirePropsSoleID`+`rarityPropsSoleID`), 뒤에서 지운다(예외가 나도 지우도록 뒤 패치는 `Finalizer`나 다음 `OnCreate`의 앞에서 다시 비운다).
+  - `WorldUnitData.CostPropItem(string sole, int, bool)`·`(PropsData, bool)` 앞 패치: 줄이 켜져 있고 `__instance.unit`이 플레이어이며, sole이 기억한 것이거나 **전투 중 플레이어 전투 아이템 칸의 sole**이면 건너뛴다(`false`). 영석 등 그 밖의 sole은 그대로 낸다(비급 공부의 영석 900).
+  - 막지 않는 것: 제작(연기는 실측. 연단·부적은 같은 쪽으로 보고 검사에서 확인), 판매·선물·임무 제출(행동이 다르다), NPC. `UnitActionPropUse.CostPropItem()`과 `WorldUnitData.CostPropItem` 전체 막기는 쓰지 않는다.
+  - 전투 단위의 한 전투 사용 횟수(`PropItemPill.data.propsData.propsCount`, 5)는 게임 규칙 그대로 줄어든다(가방 수와 별개).
+  - Vector2 인자를 받는 게임 메서드(`PropItemPill.OnCreate` 등)에는 패치를 걸지 않는다(게임이 꺼진다).
+- **가방 수량**: `BagService.SetCount(unit, propsId, n)`와 `BagService.Drop(unit, propsId)`. 지금 수 c = `GetPropsNum`(장착품 포함). n>c면 `RewardPropItem(id, n−c)`. n<c면 **언제나 sole 단위**로 지운다(`DelProps(id, n)`은 장착품부터 지우므로 쓰지 않는다): 장착 목록(`GetAllEquipPropsSoleID`)에 없는 줄부터, 겹치는 아이템은 `DelProps(sole, k)`, 겹치지 않는 아이템은 약한 것부터 `DelProps(sole)`(법보는 `level`·`grade`·`GetPrefixCount()`의 합이 작은 순, 그 밖은 가방 순서). 그래도 남으면 장착한 겹치는 묶음을 1개까지 줄인다(5.3). 백업 → 쓰기 → 다시 세어 판정 → 이력(분류 `아이템 <이름>(<번호>)`, 지금 지급 이력과 같은 꼴). n의 범위 0~99999(내 판단).
+- **영력·집중력**: `UnitDataBase.AddMP`·`AddSP` 접두. `MpCost`(또는 `SpCost`)가 켜져 있고 값이 0이며, 전투 중이고 `__instance`가 플레이어 전투 단위의 자료이며, 넘어온 값이 음수면 건너뛴다(E4 실측: 기술 소모가 `AddMP` 음수로 들어오고, 막으면 줄지 않았다). 지금의 기술값 곱하기(`TickSkillValues`)는 x0.5 등 다른 단계를 위해 그대로 둔다.
 
 ## 7. 검증
 
 - 검사 `ui-check.ps1`에 부분 넷: `traits`, `itemuse`, `bagcount`, `mpnone`.
   - `traits`: 성격 분류가 보이는지, 세 칸의 칩, 칩 누르기 → 저장값·이력, 같은 외재 칩이 꺼지는지, NPC 대상에서도 되는지.
-  - `itemuse`: 켜고 단약 먹기·전투 아이템·비급 공부·돌파 재료·상자 열기 → 수 그대로, 연단 재료 넣기·판매 → 줄어듦, 끄면 다시 줄어듦.
+  - `itemuse`: 켜고 단약 먹기·보상자·지도 부적·비급 공부 완료(비급 남음, 영석은 나감)·대경지 돌파 재료 → 수 그대로, 전투에서 두 경로의 단약(1011111·1011161) → 가방 수 그대로, 연기 재료 → 줄어듦, 끄면 다시 줄어듦. 판매는 할 수 있으면 본다.
   - `bagcount`: 겹치는 아이템 수 늘리기·줄이기·0, 겹치지 않는 아이템 늘리기·줄이기(강화한 것과 안 한 것을 섞어 두고 안 한 것부터 지워지는지), 버리기 두 번 누르기와 "강화된 것 포함" 문구, 장착 법보가 남는지, 이력.
   - `mpnone`: 없음에서 기술 쓰기·적의 영력 깎기 뒤 영력이 그대로, x0.5에서는 기술 소모만 반으로, 적의 영력은 줄어듦.
 - 기존 검사 `rates`(줄 수·정규식), `resources` 계열이 깨지지 않는지 다시 돌린다.
@@ -100,4 +110,5 @@
 
 사용자 선택: 아이템 소모 없음의 범위는 "쓰기 전부", 장비·법보 줄이기는 "약한 것부터"(버리기는 강화된 것 포함을 알림).
 내 판단: 성격은 능력치 탭 여섯째 분류, 아이템 소모 없음은 배율 탭의 켬/끔 줄(쓰기만, 제작·판매는 그대로), 가방 수량은 자원 탭 `보유` 칸을 숫자 칸으로 + `버리기` 두 번 누르기, 0 입력은 확인 없이 버리기, 영력·집중력은 새 줄 없이 기존 `없음` 단계를 넓힌다, 설정은 저장하지 않는다, 플레이어만(성격은 편집 대상). 검토 뒤 더한 것: 성격은 외재 중복·종류 어긋남만 막고(인물 만들기 화면의 짝 규칙이 E1에서 나오면 더한다), 목록 밖 번호는 보이기만 한다.
-빌더에게: 칩 배치와 줄 높이, 실험 명령의 출력 꼴, 패치 대상의 최종 선택(E2·E4 뒤).
+실험 뒤 더한 것: 장착품은 지우지 않되 장착한 겹치는 묶음은 1개까지 줄일 수 있다, 보유 수는 장착품 포함(게임 가방과 같음), 아이템 소모 없음은 행동별 sole + 전투 아이템 칸 sole로 막는다.
+빌더에게: 칩 배치와 줄 높이, 실험 명령의 출력 꼴.

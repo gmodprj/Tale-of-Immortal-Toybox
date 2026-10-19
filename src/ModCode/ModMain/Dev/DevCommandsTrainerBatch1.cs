@@ -15,15 +15,21 @@ namespace MOD_sWP6UL
     //   tbbagdel <sole> [count]          DelProps(soleID[, count])
     //   tbuse <id>                       그 번호의 첫 줄로 UnitActionPropUse를 만들어 IsCreateAction·CreateAction, 수 전후
     //   tbbprops / tbbuse <i>            전투: 플레이어 전투 아이템 목록 / i번을 IsCreate·Create
-    //   tbforge <연기보>                 가방의 재료로 연기 행동을 만들어 CreateAction(재료가 줄어드는지)
-    //   tbtrace on|off|read|clear        아이템 소모·영력 깎기 후보 메서드에 기록용 접두(되돌리지 않음. off는 기록만 멈춤)
-    //   tbblock usecost|addmp on|off     후보 막기: UnitActionPropUse.CostPropItem 건너뛰기 / 전투 중 플레이어의 AddMP·AddSP 음수 건너뛰기
+    //   tbforge <연기보> <재료 번호>     가방의 그 재료로 연기 행동을 만들어 CreateAction(재료가 줄어드는지)
+    //   tbtrace on [묶음,…]|off|read|clear   아이템 소모·영력 깎기 후보 메서드에 기록용 접두(되돌리지 않음. off는 기록만 멈춤)
+    //                                    묶음: use(UnitActionPropUse) wud(WorldUnitData.Cost*) del(DataProps.Del*) count(PropsData.set_propsCount)
+    //                                    act(학습·돌파·버리기·연기 OnCreate) mp(AddMP·AddSP). 기본은 count를 뺀 전부.
+    //                                    전투 아이템의 OnCreate(Vector2 인자)는 접두를 거는 순간 게임이 꺼졌다(tb1-1020a·b). 걸지 않는다
+    //   tbblock usecost|sole|addmp on|off   후보 막기: UnitActionPropUse.CostPropItem 건너뛰기 /
+    //                                    쓰기 행동(PropUse·비급 학습·돌파) 안에서 그 행동의 sole만 WorldUnitData.CostPropItem 건너뛰기 /
+    //                                    전투 중 플레이어의 AddMP·AddSP 음수 건너뛰기
     //   tbmp                             전투 중 플레이어의 mp/sp와 상한
     internal static class DevCommandsTrainerBatch1
     {
         private static HarmonyLib.Harmony harmony;
         private static bool tracing;
-        private static bool blockUseCost, blockMp;
+        private static bool blockUseCost, blockMp, blockSole;
+        private static readonly HashSet<string> protectedSoles = new HashSet<string>();   // 지금 도는 쓰기 행동이 쓰는 아이템
         private static readonly List<string> log = new List<string>();
         private static readonly List<string> patchErrors = new List<string>();
 
@@ -52,9 +58,9 @@ namespace MOD_sWP6UL
                 case "tbbuse":
                     return BattleUse(int.Parse(p[1]));
                 case "tbforge":
-                    return Forge(int.Parse(p[1]));
+                    return Forge(int.Parse(p[1]), int.Parse(p[2]));
                 case "tbtrace":
-                    return Trace(p[1]);
+                    return Trace(p[1], p.Length > 2 ? p[2] : "use,wud,del,act,mp");
                 case "tbblock":
                     return Block(p[1], p[2] == "on");
                 case "tbmp":
@@ -300,7 +306,7 @@ namespace MOD_sWP6UL
             return "IsCreate=" + can + " num " + before + " -> " + Me().data.unitData.propData.GetPropsNum(id) + " (propsData.count=" + pd.propsCount + ")";
         }
 
-        private static string Forge(int shapeMaterialId)
+        private static string Forge(int shapeMaterialId, int materialId)
         {
             ConfArtifactShapeMaterialItem m = g.conf.artifactShapeMaterial.GetItem(shapeMaterialId);
             if (m == null)
@@ -329,7 +335,7 @@ namespace MOD_sWP6UL
                 {
                     fire = pd;
                 }
-                else if (types.Contains(cls) && matCount < m.materialNum)
+                else if (pd.propsID == materialId && matCount < m.materialNum)
                 {
                     il.Add(pd);
                     matCount += pd.propsCount;
@@ -347,12 +353,12 @@ namespace MOD_sWP6UL
 
         // ---- 추적 ----
 
-        private static string Trace(string what)
+        private static string Trace(string what, string groups)
         {
             switch (what)
             {
                 case "on":
-                    EnsurePatched();
+                    EnsurePatched(groups);
                     tracing = true;
                     return "tracing on, patch errors=" + patchErrors.Count + (patchErrors.Count > 0 ? " " + string.Join(" | ", patchErrors.ToArray()) : "");
                 case "off":
@@ -368,10 +374,15 @@ namespace MOD_sWP6UL
 
         private static string Block(string what, bool on)
         {
-            EnsurePatched();
+            EnsurePatched(what == "usecost" ? "use" : "mp");
             if (what == "usecost")
             {
                 blockUseCost = on;
+            }
+            else if (what == "sole")
+            {
+                EnsurePatched("use,wud,act");
+                blockSole = on;
             }
             else if (what == "addmp")
             {
@@ -381,7 +392,7 @@ namespace MOD_sWP6UL
             {
                 return "unknown " + what;
             }
-            return "block usecost=" + blockUseCost + " addmp=" + blockMp + " patch errors=" + patchErrors.Count;
+            return "block usecost=" + blockUseCost + " sole=" + blockSole + " addmp=" + blockMp + " patch errors=" + patchErrors.Count;
         }
 
         private static string Mp()
@@ -402,7 +413,7 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static void Patch(Type type, string name, Type[] args, string prefix)
+        private static void Patch(Type type, string name, Type[] args, string prefix, string postfix = null)
         {
             try
             {
@@ -412,7 +423,9 @@ namespace MOD_sWP6UL
                     patchErrors.Add(type.Name + "." + name + " not found");
                     return;
                 }
-                harmony.Patch(target, new HarmonyLib.HarmonyMethod(typeof(DevCommandsTrainerBatch1).GetMethod(prefix, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)));
+                var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+                harmony.Patch(target, new HarmonyLib.HarmonyMethod(typeof(DevCommandsTrainerBatch1).GetMethod(prefix, flags)),
+                    postfix == null ? null : new HarmonyLib.HarmonyMethod(typeof(DevCommandsTrainerBatch1).GetMethod(postfix, flags)));
             }
             catch (Exception e)
             {
@@ -420,39 +433,65 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static void EnsurePatched()
+        private static readonly HashSet<string> patchedGroups = new HashSet<string>();
+
+        private static void EnsurePatched(string groups)
         {
-            if (harmony != null)
+            if (harmony == null)
             {
-                return;
+                harmony = new HarmonyLib.Harmony("TlToybox.dev.tb1");
             }
-            harmony = new HarmonyLib.Harmony("TlToybox.dev.tb1");
+            foreach (string group in groups.Split(','))
+            {
+                if (patchedGroups.Add(group))
+                {
+                    PatchGroup(group);
+                }
+            }
+        }
+
+        private static void PatchGroup(string group)
+        {
             Type pd = typeof(DataProps.PropsData);
             Type pdList = typeof(Il2CppSystem.Collections.Generic.List<DataProps.PropsData>);
             Type intList = typeof(Il2CppSystem.Collections.Generic.List<int>);
-            Patch(typeof(UnitActionPropUse), "OnCreate", Type.EmptyTypes, "UseOnCreate");
+            switch (group)
+            {
+                case "use":
+            Patch(typeof(UnitActionPropUse), "OnCreate", Type.EmptyTypes, "UseOnCreate", "ProtectEnd");
             Patch(typeof(UnitActionPropUse), "CostPropItem", Type.EmptyTypes, "UseCost");
+                    break;
+                case "wud":
             Patch(typeof(WorldUnitData), "CostPropItem", new[] { typeof(int), typeof(int), typeof(bool) }, "WudCostId");
             Patch(typeof(WorldUnitData), "CostPropItem", new[] { pdList, typeof(bool) }, "WudCostList");
             Patch(typeof(WorldUnitData), "CostPropItem", new[] { pd, typeof(bool) }, "WudCostPd");
             Patch(typeof(WorldUnitData), "CostPropItem", new[] { typeof(string), typeof(int), typeof(bool) }, "WudCostSole");
             Patch(typeof(WorldUnitData), "CostItem", new[] { typeof(int), typeof(bool) }, "WudCostItem");
             Patch(typeof(WorldUnitData), "CostItem", new[] { intList, typeof(bool) }, "WudCostItems");
+                    break;
+                case "del":
             Patch(typeof(DataProps), "DelProps", new[] { typeof(string) }, "DelSole");
             Patch(typeof(DataProps), "DelProps", new[] { typeof(string), typeof(int) }, "DelSoleCount");
             Patch(typeof(DataProps), "DelProps", new[] { typeof(int), typeof(int) }, "DelId");
             Patch(typeof(DataProps), "DelPropsItem", new[] { pd }, "DelItem");
+                    break;
+                case "count":
             Patch(pd, "set_propsCount", new[] { typeof(int) }, "SetCount");
-            Patch(typeof(UnitActionPropMartialStudy), "OnCreate", Type.EmptyTypes, "ActionOnCreate");
-            Patch(typeof(UnitActionRoleUpGrade), "OnCreate", Type.EmptyTypes, "ActionOnCreate");
+                    break;
+                case "act":
+            Patch(typeof(UnitActionPropMartialStudy), "OnCreate", Type.EmptyTypes, "StudyOnCreate", "ProtectEnd");
+            Patch(typeof(UnitActionRoleUpGrade), "OnCreate", Type.EmptyTypes, "UpGradeOnCreate", "ProtectEnd");
             Patch(typeof(UnitActionPropDel), "OnCreate", Type.EmptyTypes, "ActionOnCreate");
             Patch(typeof(UnitActionPropArtifactShapeMade), "OnCreate", Type.EmptyTypes, "ActionOnCreate");
-            Patch(typeof(PropItemPill), "OnCreate", new[] { typeof(Vector2), typeof(Vector2) }, "PropItemOnCreate");
-            Patch(typeof(PropItemBase), "OnCreate", new[] { typeof(Vector2), typeof(Vector2) }, "PropItemOnCreate");
+                    break;
+                case "mp":
             Patch(typeof(UnitDataBase), "AddMP", new[] { typeof(int), typeof(bool) }, "AddMp");
             Patch(typeof(UnitDataBase), "AddSP", new[] { typeof(int), typeof(bool) }, "AddSp");
-            Patch(typeof(UnitDataBase), "set_mp", new[] { typeof(int) }, "SetMp");
-            Patch(typeof(UnitDataBase), "set_sp", new[] { typeof(int) }, "SetSp");
+                    break;
+                default:
+                    patchErrors.Add("unknown group " + group);
+                    break;
+            }
         }
 
         private static string Who(WorldUnitBase u)
@@ -478,6 +517,52 @@ namespace MOD_sWP6UL
         private static void UseOnCreate(UnitActionPropUse __instance)
         {
             Add("PropUse.OnCreate " + Who(__instance.unit) + " " + PdText(__instance.propsData));
+            protectedSoles.Clear();
+            if (IsMe(__instance.unit) && __instance.propsData != null)
+            {
+                protectedSoles.Add(__instance.propsData.soleID);
+            }
+        }
+
+        private static void StudyOnCreate(UnitActionPropMartialStudy __instance)
+        {
+            ActionOnCreate(__instance);
+            protectedSoles.Clear();
+            if (IsMe(__instance.unit) && __instance.martialData != null && __instance.martialData.data != null)
+            {
+                protectedSoles.Add(__instance.martialData.data.soleID);
+            }
+            Add("  protect " + string.Join(",", new List<string>(protectedSoles).ToArray()));
+        }
+
+        private static void UpGradeOnCreate(UnitActionRoleUpGrade __instance)
+        {
+            ActionOnCreate(__instance);
+            protectedSoles.Clear();
+            if (IsMe(__instance.unit))
+            {
+                AddAll(__instance.requirePropsSoleID);
+                AddAll(__instance.rarityPropsSoleID);
+            }
+            Add("  protect " + string.Join(",", new List<string>(protectedSoles).ToArray()));
+        }
+
+        private static void AddAll(UnhollowerBaseLib.Il2CppStringArray soles)
+        {
+            for (int i = 0; soles != null && i < soles.Length; i++)
+            {
+                protectedSoles.Add(soles[i]);
+            }
+        }
+
+        private static void ProtectEnd()
+        {
+            protectedSoles.Clear();
+        }
+
+        private static bool IsMe(WorldUnitBase u)
+        {
+            return u != null && u.Pointer == Me().Pointer;
         }
 
         private static bool UseCost(UnitActionPropUse __instance)
@@ -501,14 +586,18 @@ namespace MOD_sWP6UL
             Add("WUD.CostPropItem(list) " + Who(__instance.unit) + " " + string.Join(",", parts.ToArray()));
         }
 
-        private static void WudCostPd(WorldUnitData __instance, DataProps.PropsData __0)
+        private static bool WudCostPd(WorldUnitData __instance, DataProps.PropsData __0)
         {
-            Add("WUD.CostPropItem(pd) " + Who(__instance.unit) + " " + PdText(__0));
+            bool skip = blockSole && __0 != null && protectedSoles.Contains(__0.soleID) && IsMe(__instance.unit);
+            Add("WUD.CostPropItem(pd) " + Who(__instance.unit) + " " + PdText(__0) + (skip ? " BLOCKED" : ""));
+            return !skip;
         }
 
-        private static void WudCostSole(WorldUnitData __instance, string __0, int __1)
+        private static bool WudCostSole(WorldUnitData __instance, string __0, int __1)
         {
-            Add("WUD.CostPropItem(sole) " + Who(__instance.unit) + " " + __0 + "x" + __1);
+            bool skip = blockSole && protectedSoles.Contains(__0) && IsMe(__instance.unit);
+            Add("WUD.CostPropItem(sole) " + Who(__instance.unit) + " " + __0 + "x" + __1 + (skip ? " BLOCKED" : ""));
+            return !skip;
         }
 
         private static void WudCostItem(WorldUnitData __instance, int __0)
@@ -552,12 +641,6 @@ namespace MOD_sWP6UL
         private static void ActionOnCreate(UnitActionBase __instance)
         {
             Add(__instance.GetIl2CppType().Name + ".OnCreate " + Who(__instance.unit));
-        }
-
-        private static void PropItemOnCreate(PropItemBase __instance)
-        {
-            bool player = RateService.InBattle && __instance.unit != null && __instance.unit.Pointer == SceneType.battle.battleMap.playerUnitCtrl.Pointer;
-            Add(__instance.GetIl2CppType().Name + ".OnCreate(battle) " + (player ? "P" : "N") + " " + PdText(__instance.data == null ? null : __instance.data.propsData));
         }
 
         private static bool AddMp(UnitDataBase __instance, int __0)
