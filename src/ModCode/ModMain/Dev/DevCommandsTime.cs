@@ -86,7 +86,7 @@ namespace MOD_sWP6UL
             var run = g.world.run;
             var date = GameTool.DayToDate(g.data.world.worldDay);
             return "worldDay=" + g.data.world.worldDay + " date=" + date[0] + "-" + date[1] + "-" + date[2]
-                + " roundDay=" + run.roundDay + "/" + run.roundDayMax
+                + " roundMonth=" + run.roundMonth + " roundDay=" + run.roundDay + "/" + run.roundDayMax
                 + " residueDay=" + me.data.unitData.residueDay
                 + " age=" + me.data.unitData.propertyData.age
                 + " moveDay=" + UnitActionMovePlayer.GetCurDay(me)
