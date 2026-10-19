@@ -2597,10 +2597,10 @@ switch ($Part) {
     PassDrama
     $day = if ($s -match ' day=(\d+)') { [int]$Matches[1] } else { -1 }
     $gain = if ($s -match ' exp=(\d+)') { [int]$Matches[1] } else { -1 }
-    $log = Cmd 'adstudylog' 3000
-    $progress = if ($log -match "$book`:(\d+)@") { [int]$Matches[1] } else { -1 }
+    $studyLog = Cmd 'adstudylog' 3000   # $log는 check-lib의 Latest.log 경로라 쓰지 않는다
+    $progress = if ($studyLog -match "$book`:(\d+)@") { [int]$Matches[1] } else { -1 }
     Check 'at x0.5 a book study uses half its days' ($day -gt 0 -and $r0 - $r1 -eq [int][Math]::Round($day * 0.5, [MidpointRounding]::AwayFromZero)) "book=$book day=$day residue $r0 -> $r1 | $s"
-    Check 'at x0.5 the study progress still gets the full gain' ($gain -gt 0 -and ($progress -eq $gain -or $log -notmatch $book)) "gain=$gain progress=$progress | $log"
+    Check 'at x0.5 the study progress still gets the full gain' ($gain -gt 0 -and ($progress -eq $gain -or $studyLog -notmatch $book)) "gain=$gain progress=$progress | $studyLog"
     # 다른 행동은 배율과 무관: 망각은 원래 0일
     $r0 = Residue; $d = Cmd 'addel' 3000; $r1 = Residue
     Check 'forgetting a skill uses no days in the game' ($d -match 'can=0 day=0' -and $r1 -eq $r0) "$r0 -> $r1 | $d"
