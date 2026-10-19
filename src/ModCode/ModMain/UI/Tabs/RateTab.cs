@@ -7,7 +7,8 @@ namespace MOD_sWP6UL
     // 모두 저장하지 않으며 게임을 켤 때마다 꺼진 상태로 시작한다.
     internal sealed class RateTab : EditorTab
     {
-        private const float RowH = 64;
+        // 줄 높이: 줄 수가 늘면 내용 영역(ContentH)에 맞게 줄인다(최대 64. 14줄이면 54).
+        private float RowH = 64;
 
         public override string Title
         {
@@ -16,8 +17,9 @@ namespace MOD_sWP6UL
 
         protected override void Draw()
         {
-            // 줄 수: 배율(받는 피해 제외) + 주는 피해 + 받는 피해 + 무적. 12줄이면 내용 영역 844에 꼭 맞는다(리뷰 08의 41번).
+            // 줄 수: 배율(받는 피해 제외) + 주는 피해 + 받는 피해 + 무적(리뷰 08의 41번).
             int rows = RateService.All.Length - 1 + 3;
+            RowH = Math.Min(64f, (float)Math.Floor((ContentH - 76) / rows));
             Ui.Panel("RateBox", content, 0, 0, ContentW, 60 + rows * RowH + 16, Ui.Section);
             Ui.Label(content, "배율", 16, 6, 200, 36, 21);
             Ui.Button("RateReset", content, "모두 1배로", 100, 6, 150, 38, new Action(() => Say(RateService.Reset())));
@@ -51,8 +53,9 @@ namespace MOD_sWP6UL
         private float Row(float y, string name, string label, string value, bool on, string note, Action onClick)
         {
             Ui.Label(content, label, 16, y + 10, 220, 40, 19);
-            Ui.Button(name, content, value, 240, y + 8, 150, 44, onClick, true, on);
-            UnityEngine.UI.Text text = Ui.Wrapped(content, note, 410, y + 8, ContentW - 430, 44, 15);
+            float h = RowH - 12;
+            Ui.Button(name, content, value, 240, y + 6, 150, h, onClick, true, on);
+            UnityEngine.UI.Text text = Ui.Wrapped(content, note, 410, y + 6, ContentW - 430, h, 15);
             text.color = Ui.Dim;
             text.gameObject.name = name.StartsWith("Rate") ? "RateNote" + name.Substring(4) : name + "Note";
             return y + RowH;

@@ -2062,7 +2062,7 @@ switch ($Part) {
     function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab12' | Out-Null
-    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'RateStudyGain', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
     $s = RateState
     Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 actionDay=1 speed=1 ' -and $s -notmatch 'patched') $s
 
@@ -2608,6 +2608,58 @@ switch ($Part) {
     $r0 = Residue; $d = Cmd 'addel' 3000; $r1 = Residue
     Check 'forgetting a skill uses no days in the game' ($d -match 'can=0 day=0' -and $r1 -eq $r0) "$r0 -> $r1 | $d"
     Check 'the rate goes back to x1' (SetRate 'x1')
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'studygain' {
+    # 비급 학습 진도 배율(05 문서 64절). 학습은 달을 쓰고 이야기 창이 뜬다. 회차의 마지막에.
+    $traps = Traps
+    function PassDrama {
+      for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 300) -match 'DramaFortuitous|DramaDialogue'; $i++) {
+        if ((Rc 'hit 979 821' 300) -match 'goBtnItem') { Rc 'click 979 821' 2500 | Out-Null }
+        elseif ((Rc 'hit 960 540' 300) -match 'btnNext') { Rc 'click 960 540' 2000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+    }
+    function SetGain([string]$want) {
+      Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+      for ($i = 0; $i -lt 6 -and (Cmd 'uitext RateStudyGain') -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press 'RateStudyGain' | Out-Null }
+      $ok = (Cmd 'uitext RateStudyGain') -match "text='$([regex]::Escape($want))'"
+      Cmd 'uitoggle' | Out-Null
+      $ok
+    }
+    function Learned { if ((Cmd 'mgrid' 300) -match '무예/영술:(\d+)/') { [int]$Matches[1] } else { -1 } }
+    # 지금 대경지의 무예 비급 하나를 만들고 sole을 돌려준다. 우연 사건으로 바로 배워지는 일이 있어 매번 새 비급을 쓴다
+    $script:skills = @()
+    $grade = if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { [int]$Matches[1] } else { 3 }
+    if ((Cmd "rownskills 0 $grade" 3000) -match 'ids=([\d,]+)') { $script:skills = $Matches[1].Split(',') }
+    $script:next = 0
+    function NewBook { $id = $script:skills[$script:next]; $script:next++; Cmd "rbook 0 $id $grade 1 1" 6000 | Out-Null; if ((Cmd "rbooks $id" 3000) -match "(\w+):$id`:") { $Matches[1] } else { '' } }
+    function Progress([string]$sole) { if ((Cmd 'adstudylog' 3000) -match "$sole`:(\d+)@") { [int]$Matches[1] } else { 0 } }
+    Cmd 'mgridset 10' 1000 | Out-Null   # 고정본은 무예 칸이 꽉 차 있다(60절)
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Check 'the study gain row is drawn with its note' ((IsAt 'RateStudyGain') -and (Cmd 'uitext RateNoteStudyGain') -match '진도') (Cmd 'uitext RateNoteStudyGain')
+    Check 'the last rate row still fits in the content area' (IsAt 'God') (Cmd 'uipos God')
+    Cmd 'uitoggle' | Out-Null
+    # x1: 진도가 그 학습의 exp만큼
+    Cmd 'tset 2 3 1' 2000 | Out-Null
+    $a = NewBook; $s = Cmd "adstudy $a none" 4000; PassDrama
+    $gain = if ($s -match ' exp=(\d+)') { [int]$Matches[1] } else { -1 }
+    $p1 = Progress $a
+    Check 'at x1 the progress grows by the study exp' ($gain -gt 0 -and ($p1 -eq $gain -or (Cmd "rbooks" 2000) -notmatch $a)) "gain=$gain progress=$p1"
+    # x10: 열 배
+    Check 'the gain goes to x10' (SetGain 'x10')
+    Cmd 'tset 2 4 1' 2000 | Out-Null
+    $b = NewBook; $s = Cmd "adstudy $b none" 4000; PassDrama
+    $gain = if ($s -match ' exp=(\d+)') { [int]$Matches[1] } else { -1 }
+    $p2 = Progress $b
+    Check 'at x10 the progress grows ten times' ($gain -gt 0 -and ($p2 -eq $gain * 10 -or (Cmd "rbooks" 2000) -notmatch $b)) "gain=$gain progress=$p2 | $(Cmd 'rstate' 300)"
+    # x100: 한 번에 배운다(진도 1500 이상 > 필요량 740)
+    Check 'the gain goes to x100' (SetGain 'x100')
+    Cmd 'tset 2 5 1' 2000 | Out-Null
+    $n0 = Learned
+    $c = NewBook; Cmd "adstudy $c none" 4000 | Out-Null; PassDrama
+    Check 'at x100 one study learns the book' ((Learned) -eq $n0 + 1 -and (Cmd "rbooks" 2000) -notmatch $c) "$n0 -> $(Learned)"
+    Check 'the gain goes back to x1' (SetGain 'x1')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   default { throw "알 수 없는 Part: $Part" }

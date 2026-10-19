@@ -85,6 +85,7 @@ namespace MOD_sWP6UL
                 .Append(" lastMartial=").Append(RateService.Martial.Last)
                 .Append(" lastMove=").Append(RateService.Move.Last)
                 .Append(" lastActionDay=").Append(RateService.ActionDay.Last)
+                .Append(" lastStudyGain=").Append(RateService.StudyGain.Last)
                 .Append(" timeScale=").Append(UnityEngine.Time.timeScale.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 .Append(" inBattle=").Append(RateService.InBattle);
             return sb.ToString();
