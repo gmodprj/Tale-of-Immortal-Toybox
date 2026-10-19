@@ -34,10 +34,10 @@
 | 트레이너 기능 | 우리 | 구현 방법(트레이너가 쓰는 게임 API) | 우리 쪽 설계 제안 | 우선 |
 |---|---|---|---|---|
 | 무한 체력 | 있음(배율 탭 무적) | `MartialTool.HitDanage` 계열·`FormulaTool+Battle.BattleDamageDC` 접두에서 피격자가 플레이어면 `hitValue=0`, `UnitDataBase.AddHP` 음수 건너뜀 | 지금의 `OnHit` 방식 유지. 독·지속 피해가 새면 `AddHP` 접두를 더한다 | — |
-| 무한 영력·집중력 | 일부(영력·집중력 소모 배율 x0은 기술 소모만) | `UnitDataBase.AddMP`·`AddSP` 접두에서 플레이어이고 값 < 0이면 건너뜀 | 배율 탭 `영력 소모`·`집중력 소모`의 `없음` 단계에 `AddMP/AddSP` 접두를 더해 모든 소모를 막는다 | 중간 |
+| 무한 영력·집중력 | 있음(05 문서 66절: `없음`이 전투 중 모든 감소를 막음) | `UnitDataBase.AddMP`·`AddSP` 접두에서 플레이어이고 값 < 0이면 건너뜀 | 배율 탭 `영력 소모`·`집중력 소모`의 `없음` 단계에 `AddMP/AddSP` 접두를 더해 모든 소모를 막는다 | 중간 |
 | 일격필살 | 일부(주는 피해 배율) | `FormulaTool+Battle.BattleDamage` 접두 `powA=2e9`, `HitDanage`에서 `hp=0` 후 `Die` | 주는 피해 배율에 `일격` 단계 추가(값 대신 `hitValue`를 대상 체력으로) | 낮음 |
 | 스킬 즉시 사용 | 있음(기술·신기 쿨타임 없음) | `SkillDataAttack/StepDataBase/FieldSkillDataBase/PropItemDataBase`의 `get_cdUseTime`·`lastShotTime`, `ImmortalSkillBase.IsCool`, 4프레임마다 CD 지움 | 우리 것이 다루지 않는 **선법 기술(`ImmortalSkillBase`)·영역 기술(`FieldSkillDataBase`)·명우 기술·전투 아이템**의 쿨타임을 실측 후 추가 | 중간 |
-| 무한 아이템(사용해도 수량 유지) | **없음** | `UnitActionPropUse.CostPropItem`·`SetUse` 건너뜀, `WorldUnitData.CostPropItem`(세 오버로드)·`CostItem`, `DataProps.DelProps` 건너뜀, 단약 CD `GetPropsPillCD`→0 | 배율 탭 줄 `아이템 소모`(켬/끔). **소모 지점 하나**(`WorldUnitData.CostPropItem`)부터 실측하고, 연단·연기 재료 소모와 섞이지 않게 플레이어의 "사용" 행동에만 건다. 트레이너식 "15프레임마다 수량 되돌리기"는 쓰지 않는다 | 높음 |
+| 무한 아이템(사용해도 수량 유지) | 있음(05 문서 66절: 배율 탭 `아이템 소모`. 트레이너가 막던 `UnitActionPropUse.CostPropItem`은 실제로 불리지 않았다, 65절) | `UnitActionPropUse.CostPropItem`·`SetUse` 건너뜀, `WorldUnitData.CostPropItem`(세 오버로드)·`CostItem`, `DataProps.DelProps` 건너뜀, 단약 CD `GetPropsPillCD`→0 | 배율 탭 줄 `아이템 소모`(켬/끔). **소모 지점 하나**(`WorldUnitData.CostPropItem`)부터 실측하고, 연단·연기 재료 소모와 섞이지 않게 플레이어의 "사용" 행동에만 건다. 트레이너식 "15프레임마다 수량 되돌리기"는 쓰지 않는다 | 높음 |
 | 무한 정력 | **없음**(능력치 탭에서 값만 쓴다) | 패치 없이 매 프레임 `propertyData.energy = max(현재, energyMax)` | 배율 탭 줄 `정력 소모` x1·x0.5·x0 — 정력을 깎는 곳(행동의 `costEnergy`)을 찾아 곱한다. 못 찾으면 틱 방식 | 중간 |
 | 법보 내구 유지 | 일부(법보 탭 수리, 60절) | 30프레임마다 `PropsArtifact.durable`을 모양 설정 내구로 | 법보 탭에 `내구 고정` 켬/끔(틱 없이 내구를 깎는 곳에 패치하는 것이 낫다. 실측 필요) | 낮음 |
 
@@ -75,9 +75,9 @@
 
 | 트레이너 기능 | 우리 | 구현 방법 | 설계 제안 | 우선 |
 |---|---|---|---|---|
-| 성격(내재 1·외재 2) | **없음** | `propertyData.inTrait`(1~7)·`outTrait1`·`outTrait2`(8~19, 서로 달라야 함), 목록 `g.conf.roleCreateCharacter` | 능력치 탭 여섯째 분류 `성격`: 세 칸 고르기, 편집 대상(플레이어·NPC). 단순 칸 쓰기라 노력 작음 | 높음 |
+| 성격(내재 1·외재 2) | 있음(05 문서 66절) | `propertyData.inTrait`(1~7)·`outTrait1`·`outTrait2`(8~19, 서로 달라야 함), 목록 `g.conf.roleCreateCharacter` | 능력치 탭 여섯째 분류 `성격`: 세 칸 고르기, 편집 대상(플레이어·NPC). 단순 칸 쓰기라 노력 작음 | 높음 |
 | 마을 창고(건목) 읽기·수량·삭제 | **없음** | `MapBuildTownStorage.GetPlayerStorage().data.propData`·`propDataBook`, `set_propsCount`, `DelProps` | 자원 탭 그룹 `창고` 또는 보관함 탭 셋째 화면. 창고에 넣기도(`AddProps`) | 중간 |
-| 가방 아이템 수량 지정·삭제 | 일부(지급만, 빼기 없음) | `PropsData.set_propsCount`, `propData.DelProps` | 자원 탭의 `보유 중만` 줄에 `수량 지정`·`버리기(두 번)` | 중간 |
+| 가방 아이템 수량 지정·삭제 | 있음(05 문서 66절. 장착품은 지우지 않는다) | `PropsData.set_propsCount`, `propData.DelProps` | 자원 탭의 `보유 중만` 줄에 `수량 지정`·`버리기(두 번)` | 중간 |
 | NPC 가방 편집 | **없음**(자원은 플레이어) | 같은 API를 대상 유닛의 `propData`에 | 자원 탭을 편집 대상 기준으로(가방 칸·화폐는 플레이어 전용 유지) | 낮음 |
 | 법보 추가의 단계(1~6)·한계돌파(rate ≤120) | 일부(법보 지급은 기본값) | `PropsArtifact.SetLevel`/`grade`/`durable`, 비율 `rate` | 법보 탭 `법보 지급` 화면에 단계·강화 고르기, 가진 법보 줄에 `단계 올리기`(56절 후속 후보와 같다) | 중간 |
 | 전승(심법 세트) 부여·해제 | 일부(프리셋 적용 때만) | `suitID` 칸, `g.conf.battleAbilitySuitBase`(`activationClaim`), `suitAbility.AddSuitAbilityFeature`/`UpdateSuitAbilityFeature` | 공법 탭 심법 줄에 `전승` 하위 화면(프리셋의 세트 코드 재사용) | 중간 |

@@ -2978,3 +2978,30 @@
 - 연단·부적 그리기의 소모 경로(연기와 같은 쪽으로 본다).
 - 적이 영력을 깎는 경우.
 - 회차 이름: `tb1-1020a`(성격·가방, 추적 켜자 충돌), `tb1-1020b`(지도 사용·비급·돌파 추적, 전투 패치로 충돌), `tb1-1020c`(sole 막기·연기·전투·영력·성격 저장).
+
+## 66. 트레이너 비교 1묶음 — 성격·아이템 소모 없음·가방 수량·영력/집중력 없음 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "제안 순서 1번(성격, 무한 아이템, 가방 수량 지정·버리기, 무한 영력·집중력)부터 설계해 줘" → "이대로 진행" → "이 세션에서 직접 구현하고 끝에 리뷰해 줘". 스펙·계획 `docs/superpowers/specs/2026-10-20-trainer-batch1-design.md`, `docs/superpowers/plans/2026-10-20-trainer-batch1.md`. 설계 전 실험은 65절. 브랜치 `feat/trainer-batch1`.
+
+### 규칙
+
+- **성격**(능력치 탭 여섯째 분류 `AttrCat5`): 내재 성격(칩 `Trait_in_1`~`7`)과 외재 성격 1·2(`Trait_out1_8`~`19`, `Trait_out2_8`~`19`). 칩 이름은 성격 표의 이름(`GameTool.LS(sc5asd_sd34)`), 지금 값은 켜진 칩과 줄 머리(`TraitNow_<칸>`). 다른 외재 칸과 같은 칩은 꺼진다. 편집 대상(플레이어·NPC)에 쓴다. `EditService.SetTrait`: `TraitRules.Check`(표에 없음·내재/외재 어긋남·외재 중복을 거부) → 백업 → 칸 쓰기 → 다시 읽기 → 이력 `성격(<칸 이름>)`. 문장 `성격(<인물>): 외재 성격 2 의리 -> 애자`.
+- **가방 수량 지정·버리기**(자원 탭 아이템 줄): `보유` 칸이 숫자 칸(`ResOwned<번호>`, 칸을 떠나도 저장)이고 옆에 `버리기`(`ResDrop<번호>`, 두 번 누르기). 수는 장착품 포함(`GetPropsNum`). 늘리기는 지급(`TryGiveItem`), 줄이기는 `BagPlan.Reduce`의 순서로 sole마다 `DelProps(sole[, n])`: 장착하지 않은 줄부터, 겹치지 않는 아이템은 약한 것부터(법보 `level+grade+옵션 수`), 그래도 남으면 장착한 겹치는 묶음(전투 아이템 칸의 단약)을 1개까지. 장착한 겹치지 않는 아이템은 줄이지 않는다. 못 줄인 수는 문장 끝 `장착 중인 n개는 그대로 두었습니다.`. 버리기 확인 문구에 강화·옵션이 붙은 것의 수(`BagPlan.StrongCount`). 0~99999. 이력 `아이템 <이름>(<번호>)`.
+- **아이템 소모**(배율 탭 줄 `RateItemUse`, x1·없음, 저장하지 않음): `없음`이면 `RateGuards`가 쓰기 행동 셋(`UnitActionPropUse`·`UnitActionPropMartialStudy`·`UnitActionRoleUpGrade`)의 `OnCreate` 앞에서 그 행동이 쓰는 sole을 기억하고 뒤에서 지운다. 플레이어의 `WorldUnitData.CostPropItem(sole|PropsData)`가 기억한 sole이거나 전투 중 플레이어 전투 아이템 칸의 sole이면 건너뛴다. 영석(비급 공부의 수업료)과 제작 재료는 그대로 낸다. 처음 켤 때 한 번 건다.
+- **영력·집중력 소모 없음**: `RateMpCost`·`RateSpCost`가 처음 `없음`이 될 때 `UnitDataBase.AddMP`·`AddSP`에 앞 패치를 건다. 전투 중 플레이어 전투 단위 자료의 음수 호출을 건너뛴다(그 줄이 `없음`일 때만). x0.5 등은 지금처럼 기술값 곱하기(37절). 설명 글에 "없음이면 전투 중 영력이 줄지 않습니다(적의 영력 깎기 포함)" / "…집중력이 줄지 않습니다(전투 단약 포함)".
+- 순수 계산 `BagPlan`·`TraitRules`는 게임 형식 없이 `tests/ModMain.Tests`가 시험한다(13개 추가).
+
+### 실측·검증
+
+- 검사 `ui-check.ps1`: `bagcount`(16), `traits`(10), `itemuse`(20), `mpnone`. 회차 `tb1-1020e2`(bagcount 0 실패), `tb1-1020g`(traits·tabs 0), `tb1-1020j`(itemuse 0), `tb1-1020l`(rates·mpnone 0, combat 1 → 아래), `tb1-1020m`(base·tabs·items·numbers·history·combat·studygain 0, 성격 화면 캡처). 고치기 전 실패는 `tb1-1020d`(bagcount)·`f`(traits)·`h`(itemuse)·`k`(mpnone)에서 봤다. 배포 구성 경고 0, `tests/ModMain.Tests` FAILS=0.
+- 회차 `tb1-1020i`: `ItemUse`를 `All` 뒤에 선언해 `All`에 null이 들어가 배율 탭이 그려지지 않았다(고침).
+- 검사 `combat`의 "reset puts the battle rows back"은 `cooldown=1 taken=1`이 붙어 있다고 보아 250f704(신기 쿨타임·영력·집중력 줄)부터 맞지 않았다. 지금 순서의 전체 줄로 고쳤다.
+- 비급 공부의 수업료는 이번 회차에서 600이었다(65절은 900). 검사는 "줄어듦"만 본다.
+
+### 확인하지 못한 것, 한계
+
+- 판매·선물·임무 제출, 연단·부적 그리기의 소모 경로는 따로 재지 않았다(막는 방식이 행동별 sole이라 걸리지 않는다고 본다. 연기는 검사에서 줄어듦을 확인).
+- 적이 영력을 깎는 경우(같은 `AddMP`로 들어온다고 본다).
+- 장비(반지·좌기)의 강함은 0으로 본다(가방 순서로 지운다). 강화·옵션 칸을 읽지 않았다.
+- 게임 화면에서 직접 아이템을 쓴 경우는 보지 않았다(개발 명령이 같은 행동을 만든다).
+- 회차 이름: `tb1-1020d`~`m`(`e2`, `i2` 포함).
