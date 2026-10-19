@@ -2589,8 +2589,11 @@ switch ($Part) {
     Check 'the rate goes to x0.5 for the book' (SetRate 'x0.5')
     Cmd 'tset 2 6 1' 2000 | Out-Null
     Cmd 'mgridset 10' 1000 | Out-Null   # 고정본은 무예 칸이 꽉 차 있다(60절. 회차가 설정을 되돌린다)
-    Cmd "rbook 0 13113 $(if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { $Matches[1] } else { 3 }) 1 1" 6000 | Out-Null
-    $book = if ((Cmd 'rbooks 13113' 3000) -match '(\w+):13113:') { $Matches[1] } else { '' }
+    # 지금 대경지에 맞는 무예 하나(앞 검사가 경지를 바꿀 수 있다)
+    $grade = if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { [int]$Matches[1] } else { 3 }
+    $skill = if ((Cmd "rownskills 0 $grade" 3000) -match 'ids=(\d+)') { $Matches[1] } else { '13113' }
+    Cmd "rbook 0 $skill $grade 1 1" 6000 | Out-Null
+    $book = if ((Cmd "rbooks $skill" 3000) -match "(\w+):$skill`:") { $Matches[1] } else { '' }
     $r0 = Residue
     $s = Cmd "adstudy $book none" 4000
     $r1 = Residue
