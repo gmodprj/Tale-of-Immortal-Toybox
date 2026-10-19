@@ -96,6 +96,11 @@ namespace MOD_sWP6UL
             {
                 return zh;
             }
+            string actionDay = DevCommandsActionDay.Execute(p);
+            if (actionDay != null)
+            {
+                return actionDay;
+            }
             string materials = DevCommandsMaterials.Execute(p);
             if (materials != null)
             {

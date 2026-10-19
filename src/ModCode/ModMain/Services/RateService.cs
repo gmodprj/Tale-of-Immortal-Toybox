@@ -12,7 +12,7 @@ namespace MOD_sWP6UL
     //   공법 숙련: DataUnit.UnitInfoData.AddMartialExpInBattle. 이 메서드가 안에서 AddMartialExp를 부르므로 한 곳에만 건다.
     //   이동: UnitActionMovePlayer.OnCreate가 쓰기 전의 costDay(한 칸의 날짜 비용).
     //   전투 속도: 패치 없이 전투 장면에서 매 프레임 Time.timeScale을 맞춘다.
-    //   기술 행동의 날짜: UnitActionBase.Create 안의 unit.AddResidueDay(day)의 인자. 행동의 day는 바꾸지 않는다(비급 학습의 진행이 day로 계산된다. day를 줄이면 배우지 못했다, 회차 day-1019b).
+    //   기술 수련의 날짜: UnitActionBase.Create 안의 unit.AddResidueDay(day)의 인자. 행동의 day는 바꾸지 않는다(숙련은 생성 때 이미 계산돼 있다).
     //     달 끝의 날짜 판정 IsDayCost(day)에도 같은 배율(05 문서 63절).
     internal static class RateService
     {
@@ -72,16 +72,18 @@ namespace MOD_sWP6UL
             Hook = "MovePrefix",
         };
 
-        // 기술 수련(UnitActionMartialTrain)·기술 참오(Realize)·기술 망각(Del)·비급 학습(UnitActionPropMartialStudy)이 쓰는 날짜. 이동과 같은 단계.
+        // 기술 수련(UnitActionMartialTrain)이 쓰는 날짜. 이동과 같은 단계(05 문서 63절 실측):
+        //   참오(UnitActionMartialRealize)·망각(UnitActionMartialDel)은 게임이 날짜를 쓰지 않는다(day 0. 참오는 아이템·영석).
+        //   비급 학습(UnitActionPropMartialStudy)은 원래 날수만큼 시간이 실제로 흘러야 끝난다. 날짜를 줄이면 비급이 남고 배우지 못해 넣지 않는다.
         public static readonly Rate ActionDay = new Rate
         {
-            Key = "actionDay", Label = "기술 행동의 날짜 소모", Short = "기술 시간", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f },
-            Note = "기술 수련·참오·망각과 비급 학습에 쓰는 날짜를 곱합니다(반올림. 1일 미만이면 0일). x0이면 날짜가 흐르지 않습니다.",
+            Key = "actionDay", Label = "기술 수련의 날짜 소모", Short = "수련 시간", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f },
+            Note = "기술 수련에 쓰는 날짜를 곱합니다(반올림, 얻는 숙련은 그대로). 참오·망각은 날짜를 쓰지 않고, 비급 학습은 줄일 수 없습니다.",
             Hook = "ActionDayPrefix",
         };
 
         // 배율을 거는 행동의 Il2Cpp 형식 이름.
-        private static readonly string[] ActionDayTypes = { "UnitActionMartialTrain", "UnitActionMartialRealize", "UnitActionMartialDel", "UnitActionPropMartialStudy" };
+        private static readonly string[] ActionDayTypes = { "UnitActionMartialTrain" };
 
         public static readonly Rate Speed = new Rate
         {
