@@ -2710,6 +2710,19 @@ switch ($Part) {
     Press 'ResDrop3031101' | Out-Null
     Check 'the second press drops all but the equipped one' ((Held 3031101) -eq 1 -and (Equips) -match [regex]::Escape($soles[0])) "held=$(Held 3031101) equips=$(Equips)"
     Check 'the drop says the equipped one stayed' ((Said) -match '장착 중인 1개는 그대로') (Said)
+
+    # 약한 것부터(사용자 선택 2026-10-20): 둘을 더 주고 하나만 단계를 올린 뒤 1개 줄이면 올리지 않은 것이 지워진다.
+    1..2 | ForEach-Object { Cmd 'trgive 3031101' 1500 | Out-Null }
+    $all = @([regex]::Matches((Cmd 'tbbag 3031101' 500), 'sole=(\w+)') | ForEach-Object { $_.Groups[1].Value })
+    $new = @($all | Where-Object { $_ -ne $soles[0] })
+    Check 'two more artifacts were given' ($all.Count -eq 3 -and $new.Count -eq 2) ($all -join ',')
+    Check 'one of them is raised' ((Cmd "tbartlevel $($new[0]) 5" 500) -match 'level 1 -> 5') (Cmd 'tbbag 3031101' 500)
+    Show '3031101'
+    Press 'ResDrop3031101' | Out-Null
+    Check 'the drop question counts the raised one' ((Said) -match '강화·옵션이 붙은 것 1개 포함') (Said)
+    SetOwned 3031101 2
+    $left = @([regex]::Matches((Cmd 'tbbag 3031101' 500), 'sole=(\w+)') | ForEach-Object { $_.Groups[1].Value })
+    Check 'lowering removes the weaker one first' ($left.Count -eq 2 -and $left -contains $new[0] -and $left -contains $soles[0] -and $left -notcontains $new[1]) "left=$($left -join ',') raised=$($new[0]) plain=$($new[1])"
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Shot 'bagcount'
   }
@@ -2858,6 +2871,8 @@ switch ($Part) {
     function MpSp { if ((Cmd 'tbmp' 300) -match 'mp=(\d+)/\d+ sp=(\d+)/') { @{ mp = [int]$Matches[1]; sp = [int]$Matches[2] } } else { $null } }
     Tab
     Check 'the mp note mentions all drains' ((Cmd 'uitext RateNoteMpCost') -match '영력이 줄지 않습니다') (Cmd 'uitext RateNoteMpCost')
+    # 적이 영력을 깎는 경우는 재지 않았다(05 문서 66절). 화면 글이 약속하지 않는다.
+    Check 'the mp note promises only what was measured' ((Cmd 'uitext RateNoteMpCost') -notmatch '적의') (Cmd 'uitext RateNoteMpCost')
     Check 'the sp note mentions all drains' ((Cmd 'uitext RateNoteSpCost') -match '집중력이 줄지 않습니다') (Cmd 'uitext RateNoteSpCost')
     Cmd 'uitoggle' | Out-Null
     Check 'mp cost goes to none' (SetRate 'RateMpCost' '없음')

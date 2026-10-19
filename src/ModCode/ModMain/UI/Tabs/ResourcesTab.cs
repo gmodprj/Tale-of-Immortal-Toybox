@@ -567,8 +567,19 @@ namespace MOD_sWP6UL
                 int held = Player.data.unitData.propData.GetPropsNum(id);
                 NumberField.Build(row, "ResOwned" + id, ColOwned, (h - (RowH - 4)) / 2, OwnedW, RowH - 4, held.ToString(), null,
                     new Action<int>(v => Say(BagService.SetCount(Player, id, v))), true);
-                Confirm.Button("ResDrop" + id, row, "버리기", "정말 버리기", ColDrop, 2, DropW, RowH - 4, "res-drop-" + id,
-                    BagService.DropQuestion(Player, id), new Action(() => Say(BagService.Drop(Player, id))), held > 0);
+                // 확인 문구는 누르는 순간의 가방으로 만든다(그린 뒤 가방이 바뀔 수 있다).
+                string dropKey = "res-drop-" + id;
+                bool waiting = Confirm.IsPending(dropKey);
+                Ui.Button("ResDrop" + id, row, waiting ? "정말 버리기" : "버리기", ColDrop, 2, DropW, RowH - 4, new Action(() =>
+                {
+                    if (!Confirm.IsPending(dropKey))
+                    {
+                        Confirm.Ask(dropKey, BagService.DropQuestion(Player, id));
+                        return;
+                    }
+                    Confirm.Clear();
+                    Say(BagService.Drop(Player, id));
+                }), held > 0, waiting);
             }
             if (IsFav)
             {

@@ -24,6 +24,7 @@ namespace MOD_sWP6UL
     //                                    쓰기 행동(PropUse·비급 학습·돌파) 안에서 그 행동의 sole만 WorldUnitData.CostPropItem 건너뛰기 /
     //                                    전투 중 플레이어의 AddMP·AddSP 음수 건너뛰기
     //   tbmp                             전투 중 플레이어의 mp/sp와 상한
+    //   tbartlevel <sole> <단계>         가방의 법보 하나의 단계를 PropsArtifact.SetLevel로 바꾼다(검사 bagcount의 "약한 것부터")
     internal static class DevCommandsTrainerBatch1
     {
         private static HarmonyLib.Harmony harmony;
@@ -63,6 +64,8 @@ namespace MOD_sWP6UL
                     return Trace(p[1], p.Length > 2 ? p[2] : "use,wud,del,act,mp");
                 case "tbblock":
                     return Block(p[1], p[2] == "on");
+                case "tbartlevel":
+                    return ArtLevel(p[1], int.Parse(p[2]));
                 case "tbmp":
                     return Mp();
                 default:
@@ -235,6 +238,22 @@ namespace MOD_sWP6UL
             DataProps.PropsData r = count < 0 ? props.DelProps(sole) : props.DelProps(sole, count);
             return "returned=" + (r == null ? "null" : r.propsID + "x" + r.propsCount) + " slots " + slots + " -> " + props.allProps.Count
                 + " equips=" + string.Join(",", Equips().ToArray());
+        }
+
+        private static string ArtLevel(string sole, int level)
+        {
+            var all = Me().data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].soleID == sole)
+                {
+                    DataProps.PropsArtifact a = all[i].To<DataProps.PropsArtifact>();
+                    int before = a.level;
+                    a.SetLevel(level);
+                    return "level " + before + " -> " + a.level;
+                }
+            }
+            return "no prop " + sole;
         }
 
         // ---- E2 아이템 사용 ----

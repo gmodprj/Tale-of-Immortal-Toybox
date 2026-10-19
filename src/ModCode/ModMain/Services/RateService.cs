@@ -119,7 +119,7 @@ namespace MOD_sWP6UL
         public static readonly Rate MpCost = new Rate
         {
             Key = "mpCost", Label = "영력 소모", Short = "영력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
-            Note = "전투에서 무예·절기·신법·신통과 호천안 기술이 쓰는 영력을 곱합니다. 없음이면 전투 중 영력이 줄지 않습니다(적의 영력 깎기 포함).",
+            Note = "전투에서 무예·절기·신법·신통과 호천안 기술이 쓰는 영력을 곱합니다. 없음이면 전투 중 영력이 줄지 않습니다.",
         };
 
         // 집중력 소모: 연요호의 spCost.
