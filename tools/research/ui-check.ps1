@@ -2064,7 +2064,7 @@ switch ($Part) {
     Press 'Tab12' | Out-Null
     foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
     $s = RateState
-    Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 speed=1 ' -and $s -notmatch 'patched') $s
+    Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 actionDay=1 speed=1 ' -and $s -notmatch 'patched') $s
 
     # 이동: x1의 한 칸을 재고, x0.5에서 절반인지 본다.
     $d0 = MoveDay; Cmd 'wmove 1 0' 900 | Out-Null; $plain = (MoveDay) - $d0
@@ -2119,7 +2119,7 @@ switch ($Part) {
     Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
     Press 'RateReset' | Out-Null
     $s = RateState
-    Check 'reset puts everything back' ($s -match 'exp=1\(patched\) martial=1 move=1\(patched\) speed=1 ' -and $s -match 'god=False damage=1') $s
+    Check 'reset puts everything back' ($s -match 'exp=1\(patched\) martial=1 move=1\(patched\) actionDay=1 speed=1 ' -and $s -match 'god=False damage=1') $s
     Start-Sleep -Milliseconds 900
     Check 'overlay is hidden after reset' ((Cmd 'uistate') -match 'status=\[hidden\] ')
     $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null
@@ -2557,12 +2557,15 @@ switch ($Part) {
         else { Start-Sleep -Milliseconds 800 }
       }
     }
-    function Book([int]$id) { Cmd "rbook 0 $id 3 1 1" 6000 | Out-Null; if ((Cmd "rbooks $id" 3000) -match '(\w+):' + $id + ':') { $Matches[1] } else { '' } }
+    # 비급은 지금 대경지로 만든다(경지가 다르면 학습이 거부된다. 앞 검사가 경지를 바꿀 수 있다)
+    function Grade { if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { [int]$Matches[1] } else { 3 } }
+    function Book([int]$id) { Cmd "rbook 0 $id $(Grade) 1 1" 6000 | Out-Null; if ((Cmd "rbooks $id" 3000) -match '(\w+):' + $id + ':') { $Matches[1] } else { '' } }
     function SetRate([string]$want) {
       Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
       for ($i = 0; $i -lt 6 -and (Cmd 'uitext RateActionDay') -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press 'RateActionDay' | Out-Null }
-      Cmd 'uitoggle' | Out-Null
-      (Cmd 'uitext RateActionDay') -match "text='$([regex]::Escape($want))'"
+      $ok = (Cmd 'uitext RateActionDay') -match "text='$([regex]::Escape($want))'"
+      Cmd 'uitoggle' | Out-Null   # 편집기를 닫는다(게임의 이야기 창을 가리지 않게)
+      $ok
     }
     Cmd 'mgridset 10' 1000 | Out-Null   # 고정본은 무예 칸이 꽉 차 있다(60절)
     Cmd 'tset 2 3 1' 2000 | Out-Null    # 달 첫날에서 시작한다(남은 날 30)
