@@ -119,14 +119,14 @@ namespace MOD_sWP6UL
         public static readonly Rate MpCost = new Rate
         {
             Key = "mpCost", Label = "영력 소모", Short = "영력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
-            Note = "전투에서 무예·절기·신법·신통과 호천안 기술이 쓰는 영력을 곱합니다.",
+            Note = "전투에서 무예·절기·신법·신통과 호천안 기술이 쓰는 영력을 곱합니다. 없음이면 전투 중 영력이 줄지 않습니다.",
         };
 
         // 집중력 소모: 연요호의 spCost.
         public static readonly Rate SpCost = new Rate
         {
             Key = "spCost", Label = "집중력 소모", Short = "집중력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
-            Note = "전투에서 연요호가 쓰는 집중력을 곱합니다.",
+            Note = "전투에서 연요호가 쓰는 집중력을 곱합니다. 없음이면 전투 중 집중력이 줄지 않습니다(전투 단약 포함).",
         };
 
         // 비급 학습의 진도(05 문서 64절): UnitActionPropMartialStudy.OnCreate가 World.allMartialStudy에 더하기 전의 행동 exp를 곱한다.
@@ -138,7 +138,15 @@ namespace MOD_sWP6UL
             Hook = "StudyGainPrefix",
         };
 
-        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, Taken };
+        // 아이템 소모 없음(05 문서 65절): 쓰기 행동이 쓰는 아이템과 전투 아이템 칸의 아이템만 막는다. 패치는 RateGuards.
+        public static readonly Rate ItemUse = new Rate
+        {
+            Key = "itemUse", Label = "아이템 소모", Short = "아이템 소모", Steps = new[] { 1f, 0f }, ZeroText = "없음",
+            Note = "플레이어가 아이템을 써도(단약·전투 아이템·비급 공부·돌파 재료·상자 열기·부적) 수가 줄지 않습니다. 제작 재료·판매·선물·퀘스트 제출은 그대로 줄어듭니다.",
+        };
+
+        // All은 위의 줄들보다 뒤에 둔다(정적 필드는 적힌 순서로 초기화된다).
+        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, ItemUse, Taken };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -150,6 +158,14 @@ namespace MOD_sWP6UL
             if (next != 0)
             {
                 string error = EnsurePatched(rate);
+                if (error != null)
+                {
+                    return error;
+                }
+            }
+            if ((rate == MpCost || rate == SpCost) && rate.Steps[next] == 0f)
+            {
+                string error = EnsureDrain();
                 if (error != null)
                 {
                     return error;
@@ -194,7 +210,15 @@ namespace MOD_sWP6UL
         // 그 배율을 처음 켤 때 한 번 건다. 건 뒤에는 떼지 않고 값만 본다.
         private static string EnsurePatched(Rate rate)
         {
-            if (rate.Patched || rate.Hook == null)
+            if (rate.Patched)
+            {
+                return null;
+            }
+            if (rate == ItemUse)
+            {
+                return PatchWith(rate, RateGuards.PatchItemUse);
+            }
+            if (rate.Hook == null)
             {
                 return null;
             }
@@ -225,6 +249,53 @@ namespace MOD_sWP6UL
                     harmony.Patch(typeof(UnitActionBase).GetMethod("IsDayCost"), new HarmonyLib.HarmonyMethod(
                         typeof(RateService).GetMethod("ActionDayCheckPrefix", BindingFlags.Static | BindingFlags.Public)));
                 }
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 배율 패치 실패(" + rate.Key + "): " + e);
+                return "배율: 게임에 연결하지 못해 켜지 않았습니다(" + e.GetType().Name + ").";
+            }
+            rate.Patched = true;
+            return null;
+        }
+
+        // 영력·집중력 "없음"이 처음 켜질 때 한 번: 전투 중 플레이어의 AddMP·AddSP 음수를 막는다(05 문서 65절).
+        // 다른 단계는 기술값 곱하기(TickSkillValues)만 쓰므로 걸지 않는다.
+        private static bool drainPatched;
+
+        private static string EnsureDrain()
+        {
+            if (drainPatched)
+            {
+                return null;
+            }
+            try
+            {
+                if (harmony == null)
+                {
+                    harmony = new HarmonyLib.Harmony("TlToybox.rate");
+                }
+                RateGuards.PatchDrain(harmony);
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 배율 패치 실패(drain): " + e);
+                return "배율: 게임에 연결하지 못해 켜지 않았습니다(" + e.GetType().Name + ").";
+            }
+            drainPatched = true;
+            return null;
+        }
+
+        // 게임 메서드 여럿에 거는 줄(RateGuards). 실패하면 켜지 않는다.
+        private static string PatchWith(Rate rate, Action<HarmonyLib.Harmony> patch)
+        {
+            try
+            {
+                if (harmony == null)
+                {
+                    harmony = new HarmonyLib.Harmony("TlToybox.rate");
+                }
+                patch(harmony);
             }
             catch (Exception e)
             {

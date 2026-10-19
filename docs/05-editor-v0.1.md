@@ -2929,3 +2929,80 @@
 - 신법·절기·심법·신통 비급, 다른 경지의 필요량은 재지 않았다(같은 함수라 같게 걸린다고 본다).
 - 게임 화면에서 직접 비급을 공부했을 때는 보지 않았다(개발 명령이 같은 행동을 만든다).
 - 회차 이름: `gain-1019a`.
+
+## 65. 트레이너 비교 1묶음 — 설계 전 실험 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "제안 순서 1번(성격, 무한 아이템, 가방 수량 지정·버리기, 무한 영력·집중력)부터 설계해 줘" → 설계 `docs/superpowers/specs/2026-10-20-trainer-batch1-design.md` 4절의 실험 E1~E4. 브랜치 `feat/trainer-batch1`, 개발 명령 `Dev/DevCommandsTrainerBatch1.cs`(`tb*`), 회차 `tb1-1020a`~`c`.
+
+### E1 성격
+
+- `g.conf.roleCreateCharacter`는 19줄. `type` 1이 내재(번호 1~7: 무사·정직·인자·중용·광사·이기·사악), 2가 외재(8~19: 천륜·의리·호단·괴팍·애가·명성·권력·애자·임아·정종·전승·충정). 이름은 `sc5asd_sd34`(`role_character_name<n>`), 설명은 `xdash_54sd`(`role_character_desc<n>`), 둘 다 `GameTool.LS`로 한글이 나온다.
+- `propertyData.inTrait`·`outTrait1`·`outTrait2`를 쓰면 `WorldUnitData.GetCharacter()`가 바로 따라오고, 게임의 인물 화면(속성) 위쪽 세 칸에 새 이름이 나온다(캡처 확인). 저장 후 재시작해도 남는다(`tb1-1020c`). NPC에도 같게 쓰인다.
+- 표에는 함께 고를 수 없는 짝을 나타내는 칸이 없다. 외재 둘이 같은 값(8, 8)도 그대로 쓰였다(막는 것은 편집기 몫).
+
+### E3 가방
+
+- 겹치는 아이템(`isOverlay` 1, 단약 1011011): 늘리기 `RewardPropItem(id, 차이)`, 줄이기 `DataProps.DelProps(id, 차이)`, 0, 0에서 다시 넣기 모두 맞다. 0이 되면 칸이 비고 다시 넣으면 새 sole이 생긴다.
+- 겹치지 않는 아이템(법보 3031101, `isOverlay` 0): 하나마다 sole이 따로다. `GetPropsNum`은 **장착한 것도 센다**. `DelProps(id, n)`은 가방 순서대로 지우며 **장착한 법보부터 지웠고 장착 칸에서도 빠졌다**. `DelProps(sole)`은 그 하나만 지운다.
+- 장착 sole 목록 `unitData.GetAllEquipPropsSoleID()`에는 장비(`unitData.equips`)뿐 아니라 **전투 아이템 칸(`unitData.props`)에 넣은 단약 묶음**도 들어 있다(고정본: 1011052·1011051·1011101·1011161 묶음). 법보를 장착하면 이 칸에 들어간다.
+- 법보 자료 `PropsArtifact`: `level`(1), `grade`(2), `GetPrefixCount()`(6), `durable`.
+
+### E2 아이템 사용
+
+| 행동 | 줄어드는 길 | 비고 |
+|---|---|---|
+| 지도에서 단약·보상자(644)·지도 부적(112) 쓰기 (`UnitActionPropUse`) | `UnitActionPropUse.OnCreate` 안에서 `WorldUnitData.CostPropItem(sole, 1)` → `DataProps.DelProps(sole, 1)` | 트레이너가 막던 `UnitActionPropUse.CostPropItem()`은 **불리지 않았다** |
+| 비급 공부 (`UnitActionPropMartialStudy`) | 한 번마다 영석 `CostPropItem(10001, 900)`. 다 배우는 순간 비급을 `CostPropItem(비급 sole, 1)` | 비급의 sole은 `martialData.data.soleID` |
+| 대경지 돌파 (`UnitActionRoleUpGrade`) | 필요 재료·천재지보를 하나씩 `CostPropItem(sole, 1)` (11개) | sole은 `requirePropsSoleID`·`rarityPropsSoleID` |
+| 전투 단약 (전투 아이템 칸) | 종류에 따라 둘: 1011111은 `UnitActionPropUse`를 거쳐 `CostPropItem(sole)`, 1011161은 행동 없이 바로 `CostPropItem(sole)` | 전투 단위의 `PropItemPill.data.propsData.propsCount`(한 전투에 5)는 따로 줄어든다(가방 수와 별개) |
+| 연기 (`UnitActionPropArtifactShapeMade`) | 핵심 재료·보조 재료 `CostPropItem(pd)`, 영석 `CostPropItem(10001, 1200)` | 막지 않을 쪽 |
+
+- **"그 행동이 쓰는 sole만" 막기 시험(`tbblock sole`)**: 행동의 `OnCreate` 앞에서 쓰는 sole을 기억하고 뒤에서 지운다. 그 사이 플레이어의 `WorldUnitData.CostPropItem(sole|pd)`이 기억한 sole이면 건너뛴다. 결과: 단약·보상자는 효과가 나고 수 그대로, 비급은 배우고도 남고(영석 900은 나감), 돌파는 재료 11개 모두 남고 경지가 올랐다, 연기는 재료가 그대로 줄었다(막지 않음), 전투에서 `UnitActionPropUse`를 거친 단약은 남았다. 행동 없이 줄어드는 전투 단약은 이 방식으로 막히지 않는다 → 전투 중에는 "플레이어 전투 아이템 칸(`playerUnitCtrl.props[i].data.propsData.soleID`)에 든 sole"을 막는다.
+- `UnitActionPropUse.CostPropItem()` 건너뛰기(트레이너 방식)는 위 경로에서 효과가 없다.
+
+### E4 영력·집중력
+
+- 무예·절기 발동의 영력 소모는 `UnitDataBase.AddMP(-11)`·`AddMP(-25)`로 들어온다. 전투 단약의 집중력 소모는 `AddSP(-8)`.
+- 전투 중 플레이어 자료(`playerUnitCtrl.data`)의 `AddMP`·`AddSP` 음수를 건너뛰면 영력·집중력이 줄지 않았다(`tbblock addmp`). 적의 영력 깎기는 재지 않았다(같은 함수로 들어온다고 본다).
+- `UnitDataBase.set_mp`·`set_sp`는 Harmony가 찾지 못했다(NullReferenceException. 칸으로 보임).
+
+### 함정
+
+- **전투 아이템의 `PropItemPill.OnCreate`·`PropItemBase.OnCreate`(Vector2 인자 둘)에 접두를 거는 순간 게임이 꺼졌다**(il2cpp 내부, `Player.log`의 `Crash!!!`. `tb1-1020a`·`b` 두 번). Vector2 값 인자를 받는 게임 메서드에는 패치를 걸지 않는다.
+- 달의 남은 날이 0이면 비급 공부가 거부된다(`IsCreateAction` 1). 달을 넘긴 뒤 한다.
+- 개발 명령 `bend`가 이번 전투(수준 20)에서 `ArgumentOutOfRangeException`을 냈지만 결과 창은 떴다.
+
+### 확인하지 못한 것
+
+- 판매·선물·임무 제출의 경로(막는 방식이 행동별 sole이라 걸리지 않는다고 본다. 구현 검사에서 판매를 확인한다).
+- 연단·부적 그리기의 소모 경로(연기와 같은 쪽으로 본다).
+- 적이 영력을 깎는 경우.
+- 회차 이름: `tb1-1020a`(성격·가방, 추적 켜자 충돌), `tb1-1020b`(지도 사용·비급·돌파 추적, 전투 패치로 충돌), `tb1-1020c`(sole 막기·연기·전투·영력·성격 저장).
+
+## 66. 트레이너 비교 1묶음 — 성격·아이템 소모 없음·가방 수량·영력/집중력 없음 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "제안 순서 1번(성격, 무한 아이템, 가방 수량 지정·버리기, 무한 영력·집중력)부터 설계해 줘" → "이대로 진행" → "이 세션에서 직접 구현하고 끝에 리뷰해 줘". 스펙·계획 `docs/superpowers/specs/2026-10-20-trainer-batch1-design.md`, `docs/superpowers/plans/2026-10-20-trainer-batch1.md`. 설계 전 실험은 65절. 브랜치 `feat/trainer-batch1`.
+
+### 규칙
+
+- **성격**(능력치 탭 여섯째 분류 `AttrCat5`): 내재 성격(칩 `Trait_in_1`~`7`)과 외재 성격 1·2(`Trait_out1_8`~`19`, `Trait_out2_8`~`19`). 칩 이름은 성격 표의 이름(`GameTool.LS(sc5asd_sd34)`), 지금 값은 켜진 칩과 줄 머리(`TraitNow_<칸>`). 다른 외재 칸과 같은 칩은 꺼진다. 편집 대상(플레이어·NPC)에 쓴다. `EditService.SetTrait`: `TraitRules.Check`(표에 없음·내재/외재 어긋남·외재 중복을 거부) → 백업 → 칸 쓰기 → 다시 읽기 → 이력 `성격(<칸 이름>)`. 문장 `성격(<인물>): 외재 성격 2 의리 -> 애자`.
+- **가방 수량 지정·버리기**(자원 탭 아이템 줄): `보유` 칸이 숫자 칸(`ResOwned<번호>`, 칸을 떠나도 저장)이고 옆에 `버리기`(`ResDrop<번호>`, 두 번 누르기). 수는 장착품 포함(`GetPropsNum`). 늘리기는 지급(`TryGiveItem`), 줄이기는 `BagPlan.Reduce`의 순서로 sole마다 `DelProps(sole[, n])`: 장착하지 않은 줄부터, 겹치지 않는 아이템은 약한 것부터(법보 `level+grade+옵션 수`), 그래도 남으면 장착한 겹치는 묶음(전투 아이템 칸의 단약)을 1개까지. 장착한 겹치지 않는 아이템은 줄이지 않는다. 못 줄인 수는 문장 끝 `장착 중인 n개는 그대로 두었습니다.`. 버리기 확인 문구에 강화·옵션이 붙은 것의 수(`BagPlan.StrongCount`). 0~99999. 이력 `아이템 <이름>(<번호>)`.
+- **아이템 소모**(배율 탭 줄 `RateItemUse`, x1·없음, 저장하지 않음): `없음`이면 `RateGuards`가 쓰기 행동 셋(`UnitActionPropUse`·`UnitActionPropMartialStudy`·`UnitActionRoleUpGrade`)의 `OnCreate` 앞에서 그 행동이 쓰는 sole을 기억하고 뒤에서 지운다. 플레이어의 `WorldUnitData.CostPropItem(sole|PropsData)`가 기억한 sole이거나 전투 중 플레이어 전투 아이템 칸의 sole이면 건너뛴다. 영석(비급 공부의 수업료)과 제작 재료는 그대로 낸다. 처음 켤 때 한 번 건다.
+- **영력·집중력 소모 없음**: `RateMpCost`·`RateSpCost`가 처음 `없음`이 될 때 `UnitDataBase.AddMP`·`AddSP`에 앞 패치를 건다. 전투 중 플레이어 전투 단위 자료의 음수 호출을 건너뛴다(그 줄이 `없음`일 때만). x0.5 등은 지금처럼 기술값 곱하기(37절). 설명 글에 "없음이면 전투 중 영력이 줄지 않습니다"(적의 영력 깎기는 재지 않아 약속하지 않는다) / "…집중력이 줄지 않습니다(전투 단약 포함)".
+- 순수 계산 `BagPlan`·`TraitRules`는 게임 형식 없이 `tests/ModMain.Tests`가 시험한다(13개 추가).
+
+### 실측·검증
+
+- 검사 `ui-check.ps1`: `bagcount`(16), `traits`(10), `itemuse`(20), `mpnone`. 회차 `tb1-1020e2`(bagcount 0 실패), `tb1-1020g`(traits·tabs 0), `tb1-1020j`(itemuse 0), `tb1-1020l`(rates·mpnone 0, combat 1 → 아래), `tb1-1020m`(base·tabs·items·numbers·history·combat·studygain 0, 성격 화면 캡처). 고치기 전 실패는 `tb1-1020d`(bagcount)·`f`(traits)·`h`(itemuse)·`k`(mpnone)에서 봤다. 배포 구성 경고 0, `tests/ModMain.Tests` FAILS=0.
+- 회차 `tb1-1020i`: `ItemUse`를 `All` 뒤에 선언해 `All`에 null이 들어가 배율 탭이 그려지지 않았다(고침).
+- 검사 `combat`의 "reset puts the battle rows back"은 `cooldown=1 taken=1`이 붙어 있다고 보아 250f704(신기 쿨타임·영력·집중력 줄)부터 맞지 않았다. 지금 순서의 전체 줄로 고쳤다.
+- 비급 공부의 수업료는 이번 회차에서 600이었다(65절은 900). 검사는 "줄어듦"만 본다.
+- 마무리 리뷰 뒤 고침(회차 `tb1-1020n`~`p`): 영력 설명에서 재지 않은 "(적의 영력 깎기 포함)"을 뺐다. `bagcount`에 "약한 것부터"(단계를 올린 법보가 남는지, 개발 명령 `tbartlevel`)와 확인 문구의 "강화·옵션이 붙은 것 1개 포함"을 더했다. 이때 버리기 확인 문구가 줄을 그릴 때 만들어져 그 뒤 가방이 바뀌면 낡은 수를 보이는 것을 찾아, 누르는 순간 만들도록 고쳤다.
+
+### 확인하지 못한 것, 한계
+
+- 판매·선물·임무 제출, 연단·부적 그리기의 소모 경로는 따로 재지 않았다(막는 방식이 행동별 sole이라 걸리지 않는다고 본다. 연기는 검사에서 줄어듦을 확인).
+- 적이 영력을 깎는 경우(같은 `AddMP`로 들어온다고 본다).
+- 장비(반지·좌기)의 강함은 0으로 본다(가방 순서로 지운다). 강화·옵션 칸을 읽지 않았다.
+- 게임 화면에서 직접 아이템을 쓴 경우는 보지 않았다(개발 명령이 같은 행동을 만든다).
+- 회차 이름: `tb1-1020d`~`p`(`e2`, `i2` 포함).

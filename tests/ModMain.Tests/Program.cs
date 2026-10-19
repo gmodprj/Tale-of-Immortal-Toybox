@@ -48,6 +48,8 @@ namespace MOD_sWP6UL
             TranslationTableTests();
             TextReplacerTests();
             CraftPlanTests();
+            BagPlanTests();
+            TraitRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -193,6 +195,57 @@ namespace MOD_sWP6UL
             var v = new int[8];
             v[index] = value;
             return v;
+        }
+
+        private static BagPlan.Stack St(string sole, int count, bool equipped, int strength = 0)
+        {
+            return new BagPlan.Stack { Sole = sole, Count = count, Equipped = equipped, Strength = strength };
+        }
+
+        private static string Cuts(List<BagPlan.Cut> cuts)
+        {
+            var parts = new List<string>();
+            foreach (BagPlan.Cut c in cuts)
+            {
+                parts.Add(c.Sole + (c.All ? " All" : " x" + c.Count));
+            }
+            return string.Join(",", parts);
+        }
+
+        // 성격 칸 검사(docs/superpowers/specs/2026-10-20-trainer-batch1-design.md 6절, 05 문서 65절: 표 type 1 내재·2 외재).
+        private static void TraitRulesTests()
+        {
+            Check("traits in ok", TraitRules.Check(TraitRules.Slot.In, 2, 1, 0) == null);
+            string a = TraitRules.Check(TraitRules.Slot.In, 9, 2, 0);
+            Check("traits in rejects outer", a == "내재 칸에는 내재 성격만 넣을 수 있습니다", a);
+            Check("traits out ok", TraitRules.Check(TraitRules.Slot.Out1, 10, 2, 15) == null);
+            string b = TraitRules.Check(TraitRules.Slot.Out1, 15, 2, 15);
+            Check("traits out same", b == "다른 외재 칸과 같은 성격입니다", b);
+            string c = TraitRules.Check(TraitRules.Slot.Out2, 3, 1, 8);
+            Check("traits out rejects inner", c == "외재 칸에는 외재 성격만 넣을 수 있습니다", c);
+            string d = TraitRules.Check(TraitRules.Slot.In, 99, 0, 0);
+            Check("traits unknown", d == "표에 없는 성격입니다", d);
+        }
+
+        // 가방 줄이기 순서(docs/superpowers/specs/2026-10-20-trainer-batch1-design.md 6절, 05 문서 65절).
+        private static void BagPlanTests()
+        {
+            int kept;
+            string a = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("A", 10, false) }, true, 4, out kept));
+            Check("bagplan overlay plain", a == "A x4" && kept == 0, a + " kept=" + kept);
+            string b = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("A", 10, false) }, true, 10, out kept));
+            Check("bagplan overlay all", b == "A All" && kept == 0, b + " kept=" + kept);
+            string c = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("A", 7, true) }, true, 7, out kept));
+            Check("bagplan overlay equipped keeps one", c == "A x6" && kept == 1, c + " kept=" + kept);
+            string d = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("E", 5, true), St("F", 3, false) }, true, 5, out kept));
+            Check("bagplan overlay free first", d == "F All,E x2" && kept == 0, d + " kept=" + kept);
+            var arts = new List<BagPlan.Stack> { St("X", 1, false, 9), St("Y", 1, false, 3), St("Z", 1, true, 1) };
+            string e = Cuts(BagPlan.Reduce(arts, false, 2, out kept));
+            Check("bagplan artifact weak first", e == "Y All,X All" && kept == 0, e + " kept=" + kept);
+            string f = Cuts(BagPlan.Reduce(arts, false, 3, out kept));
+            Check("bagplan artifact equipped kept", f == "Y All,X All" && kept == 1, f + " kept=" + kept);
+            int strong = BagPlan.StrongCount(new List<BagPlan.Stack> { St("X", 1, false, 9), St("Y", 1, false, 3), St("W", 1, false, 3) });
+            Check("bagplan strong count", strong == 1, "strong=" + strong);
         }
 
         // 기예 재료 한 벌(docs/superpowers/specs/2026-10-18-craft-materials-design.md 6절, 05 문서 61절의 실측 값).

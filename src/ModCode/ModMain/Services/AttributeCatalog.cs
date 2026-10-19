@@ -26,7 +26,10 @@ namespace MOD_sWP6UL
         private const int OwnLifeMaxYears = 8000;
 
         // 분류와 이름, 순서는 게임의 인물 화면(속성)을 따른다.
-        public static readonly string[] Categories = { "개인 속성", "전투 속성", "공법 자질", "영근 자질", "기예" };
+        public static readonly string[] Categories = { "개인 속성", "전투 속성", "공법 자질", "영근 자질", "기예", "성격" };
+
+        // 성격 분류는 능력치 줄이 없고 능력치 탭이 칩으로 그린다(스펙 2026-10-20-trainer-batch1-design.md 5.1).
+        public const int TraitCategory = 5;
 
         public static readonly List<AttributeDef> All = new List<AttributeDef>
         {

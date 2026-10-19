@@ -72,6 +72,66 @@ namespace MOD_sWP6UL
                 : def.Label + ": 썼지만 재조회 값이 다릅니다(저장 " + after + ", 기준 " + baseValue + ").";
         }
 
+        // 성격 이름. 표에 없는 번호는 그 번호를 보인다(05 문서 65절: 이름 칸은 sc5asd_sd34).
+        public static string TraitName(int id)
+        {
+            ConfRoleCreateCharacterItem row = g.conf.roleCreateCharacter.GetItem(id);
+            return row == null ? "목록에 없는 번호 " + id : GameTool.LS(row.sc5asd_sd34);
+        }
+
+        public static string TraitSlotName(TraitRules.Slot slot)
+        {
+            return slot == TraitRules.Slot.In ? "내재 성격" : slot == TraitRules.Slot.Out1 ? "외재 성격 1" : "외재 성격 2";
+        }
+
+        public static int GetTrait(WorldUnitBase unit, TraitRules.Slot slot)
+        {
+            var p = unit.data.unitData.propertyData;
+            return slot == TraitRules.Slot.In ? p.inTrait : slot == TraitRules.Slot.Out1 ? p.outTrait1 : p.outTrait2;
+        }
+
+        // 성격 칸 하나를 쓴다(스펙 2026-10-20-trainer-batch1-design.md 6절). 게임 화면(GetCharacter)이 바로 따라온다(05 문서 65절).
+        public static string SetTrait(WorldUnitBase unit, TraitRules.Slot slot, int id)
+        {
+            string slotName = TraitSlotName(slot);
+            ConfRoleCreateCharacterItem row = g.conf.roleCreateCharacter.GetItem(id);
+            int other = slot == TraitRules.Slot.Out1 ? GetTrait(unit, TraitRules.Slot.Out2) : slot == TraitRules.Slot.Out2 ? GetTrait(unit, TraitRules.Slot.Out1) : 0;
+            string reason = TraitRules.Check(slot, id, row == null ? 0 : row.type, other);
+            if (reason != null)
+            {
+                return slotName + ": " + reason + "(" + TraitName(id) + ").";
+            }
+            int before = GetTrait(unit, slot);
+            if (before == id)
+            {
+                return slotName + ": 이미 " + TraitName(id) + "입니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            var p = unit.data.unitData.propertyData;
+            if (slot == TraitRules.Slot.In)
+            {
+                p.inTrait = id;
+            }
+            else if (slot == TraitRules.Slot.Out1)
+            {
+                p.outTrait1 = id;
+            }
+            else
+            {
+                p.outTrait2 = id;
+            }
+            int after = GetTrait(unit, slot);
+            bool ok = after == id;
+            string who = NameOf(unit);
+            ChangeLog.Add(who, "성격(" + slotName + ")", TraitName(before), TraitName(after), ok);
+            return ok ? "성격(" + who + "): " + slotName + " " + TraitName(before) + " -> " + TraitName(after)
+                : slotName + ": 썼지만 다시 읽은 값이 " + TraitName(after) + "입니다.";
+        }
+
         // 체력·영력·염력·건강·정력·심정의 현재값을 각 상한(보정 포함)까지 채운다.
         public static string RestoreResources(WorldUnitBase unit)
         {
