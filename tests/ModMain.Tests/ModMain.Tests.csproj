@@ -18,5 +18,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\TranslationTable.cs" Link="Linked\TranslationTable.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\TextReplacer.cs" Link="Linked\TextReplacer.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\CraftPlan.cs" Link="Linked\CraftPlan.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\BagPlan.cs" Link="Linked\BagPlan.cs" />
   </ItemGroup>
 </Project>

@@ -48,6 +48,7 @@ namespace MOD_sWP6UL
             TranslationTableTests();
             TextReplacerTests();
             CraftPlanTests();
+            BagPlanTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -193,6 +194,42 @@ namespace MOD_sWP6UL
             var v = new int[8];
             v[index] = value;
             return v;
+        }
+
+        private static BagPlan.Stack St(string sole, int count, bool equipped, int strength = 0)
+        {
+            return new BagPlan.Stack { Sole = sole, Count = count, Equipped = equipped, Strength = strength };
+        }
+
+        private static string Cuts(List<BagPlan.Cut> cuts)
+        {
+            var parts = new List<string>();
+            foreach (BagPlan.Cut c in cuts)
+            {
+                parts.Add(c.Sole + (c.All ? " All" : " x" + c.Count));
+            }
+            return string.Join(",", parts);
+        }
+
+        // 가방 줄이기 순서(docs/superpowers/specs/2026-10-20-trainer-batch1-design.md 6절, 05 문서 65절).
+        private static void BagPlanTests()
+        {
+            int kept;
+            string a = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("A", 10, false) }, true, 4, out kept));
+            Check("bagplan overlay plain", a == "A x4" && kept == 0, a + " kept=" + kept);
+            string b = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("A", 10, false) }, true, 10, out kept));
+            Check("bagplan overlay all", b == "A All" && kept == 0, b + " kept=" + kept);
+            string c = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("A", 7, true) }, true, 7, out kept));
+            Check("bagplan overlay equipped keeps one", c == "A x6" && kept == 1, c + " kept=" + kept);
+            string d = Cuts(BagPlan.Reduce(new List<BagPlan.Stack> { St("E", 5, true), St("F", 3, false) }, true, 5, out kept));
+            Check("bagplan overlay free first", d == "F All,E x2" && kept == 0, d + " kept=" + kept);
+            var arts = new List<BagPlan.Stack> { St("X", 1, false, 9), St("Y", 1, false, 3), St("Z", 1, true, 1) };
+            string e = Cuts(BagPlan.Reduce(arts, false, 2, out kept));
+            Check("bagplan artifact weak first", e == "Y All,X All" && kept == 0, e + " kept=" + kept);
+            string f = Cuts(BagPlan.Reduce(arts, false, 3, out kept));
+            Check("bagplan artifact equipped kept", f == "Y All,X All" && kept == 1, f + " kept=" + kept);
+            int strong = BagPlan.StrongCount(new List<BagPlan.Stack> { St("X", 1, false, 9), St("Y", 1, false, 3), St("W", 1, false, 3) });
+            Check("bagplan strong count", strong == 1, "strong=" + strong);
         }
 
         // 기예 재료 한 벌(docs/superpowers/specs/2026-10-18-craft-materials-design.md 6절, 05 문서 61절의 실측 값).
