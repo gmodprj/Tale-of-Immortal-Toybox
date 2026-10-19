@@ -2062,7 +2062,7 @@ switch ($Part) {
     function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab12' | Out-Null
-    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
     $s = RateState
     Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 speed=1 ' -and $s -notmatch 'patched') $s
 
@@ -2543,6 +2543,60 @@ switch ($Part) {
     Press 'MatGive6092050_5' 3000 | Out-Null
     $u = Cmd 'uistate'
     Check 'a full bag refuses the whole set' ($u -match '가방 칸 \d+개가 더 있어야 합니다' -and (Have 5021404) -eq $before) "$u | $before -> $(Have 5021404)"
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'actionday' {
+    # 기술 행동의 날짜 소모 배율(05 문서 63절). 비급 학습으로 본다(달을 쓰고 이야기 창이 뜬다. 회차의 마지막에).
+    $traps = Traps
+    function Residue { if ((Cmd 'wdate' 300) -match 'residueDay=(-?\d+)') { [int]$Matches[1] } else { -999 } }
+    function Learned { if ((Cmd 'mgrid' 300) -match '무예/영술:(\d+)/') { [int]$Matches[1] } else { -1 } }
+    function PassDrama {
+      for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 300) -match 'DramaFortuitous|DramaDialogue'; $i++) {
+        if ((Rc 'hit 979 821' 300) -match 'goBtnItem') { Rc 'click 979 821' 2500 | Out-Null }
+        elseif ((Rc 'hit 960 540' 300) -match 'btnNext') { Rc 'click 960 540' 2000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+    }
+    function Book([int]$id) { Cmd "rbook 0 $id 3 1 1" 6000 | Out-Null; if ((Cmd "rbooks $id" 3000) -match '(\w+):' + $id + ':') { $Matches[1] } else { '' } }
+    function SetRate([string]$want) {
+      Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+      for ($i = 0; $i -lt 6 -and (Cmd 'uitext RateActionDay') -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press 'RateActionDay' | Out-Null }
+      Cmd 'uitoggle' | Out-Null
+      (Cmd 'uitext RateActionDay') -match "text='$([regex]::Escape($want))'"
+    }
+    Cmd 'mgridset 10' 1000 | Out-Null   # 고정본은 무예 칸이 꽉 차 있다(60절)
+    Cmd 'tset 2 3 1' 2000 | Out-Null    # 달 첫날에서 시작한다(남은 날 30)
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Check 'the action day row is drawn with its note' ((IsAt 'RateActionDay') -and (Cmd 'uitext RateNoteActionDay') -match '기술 수련') (Cmd 'uitext RateNoteActionDay')
+    # x0: 날짜가 흐르지 않고 비급은 배워진다
+    Check 'the rate goes to x0' (SetRate 'x0')
+    $sole = Book 12111; $r0 = Residue; $n0 = Learned
+    $s = Cmd "mgridstudy $sole" 3000
+    $r1 = Residue
+    PassDrama
+    Check 'at x0 studying a book uses no days' ($s -match 'can=0' -and $r1 -eq $r0) "$r0 -> $r1 | $s"
+    Check 'at x0 the book is still learned' ((Learned) -eq $n0 + 1) "$n0 -> $(Learned)"
+    $last = Cmd 'rstate' 300
+    Check 'the scaled call is recorded' ($last -match 'lastActionDay=(\d+)->0') $last
+    $full = if ($last -match 'lastActionDay=(\d+)->') { [int]$Matches[1] } else { 0 }
+    # x0.5: 반올림한 절반만 쓴다
+    Cmd 'tset 2 4 1' 2000 | Out-Null
+    Check 'the rate goes to x0.5' (SetRate 'x0.5')
+    $sole = Book 12112; $r0 = Residue; $n0 = Learned
+    Cmd "mgridstudy $sole" 3000 | Out-Null
+    $r1 = Residue
+    PassDrama
+    $half = [int][Math]::Round($full * 0.5, [MidpointRounding]::AwayFromZero)
+    Check 'at x0.5 studying uses half the days, rounded' ($full -gt 0 -and $r0 - $r1 -eq $half) "full=$full half=$half residue $r0 -> $r1"
+    Check 'at x0.5 the book is learned' ((Learned) -eq $n0 + 1) "$n0 -> $(Learned)"
+    # x1로 되돌리면 원래 날짜
+    Cmd 'tset 2 5 1' 2000 | Out-Null
+    Check 'the rate goes back to x1' (SetRate 'x1')
+    $sole = Book 13111; $r0 = Residue
+    Cmd "mgridstudy $sole" 3000 | Out-Null
+    $r1 = Residue
+    PassDrama
+    Check 'at x1 studying uses the game days' ($r0 - $r1 -eq $full) "full=$full residue $r0 -> $r1"
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   default { throw "알 수 없는 Part: $Part" }

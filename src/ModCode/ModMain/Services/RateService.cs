@@ -12,6 +12,8 @@ namespace MOD_sWP6UL
     //   공법 숙련: DataUnit.UnitInfoData.AddMartialExpInBattle. 이 메서드가 안에서 AddMartialExp를 부르므로 한 곳에만 건다.
     //   이동: UnitActionMovePlayer.OnCreate가 쓰기 전의 costDay(한 칸의 날짜 비용).
     //   전투 속도: 패치 없이 전투 장면에서 매 프레임 Time.timeScale을 맞춘다.
+    //   기술 행동의 날짜: UnitActionBase.Create 안의 unit.AddResidueDay(day)의 인자. 행동의 day는 바꾸지 않는다(비급 학습의 진행이 day로 계산된다. day를 줄이면 배우지 못했다, 회차 day-1019b).
+    //     달 끝의 날짜 판정 IsDayCost(day)에도 같은 배율(05 문서 63절).
     internal static class RateService
     {
         public sealed class Rate
@@ -70,6 +72,17 @@ namespace MOD_sWP6UL
             Hook = "MovePrefix",
         };
 
+        // 기술 수련(UnitActionMartialTrain)·기술 참오(Realize)·기술 망각(Del)·비급 학습(UnitActionPropMartialStudy)이 쓰는 날짜. 이동과 같은 단계.
+        public static readonly Rate ActionDay = new Rate
+        {
+            Key = "actionDay", Label = "기술 행동의 날짜 소모", Short = "기술 시간", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f },
+            Note = "기술 수련·참오·망각과 비급 학습에 쓰는 날짜를 곱합니다(반올림. 1일 미만이면 0일). x0이면 날짜가 흐르지 않습니다.",
+            Hook = "ActionDayPrefix",
+        };
+
+        // 배율을 거는 행동의 Il2Cpp 형식 이름.
+        private static readonly string[] ActionDayTypes = { "UnitActionMartialTrain", "UnitActionMartialRealize", "UnitActionMartialDel", "UnitActionPropMartialStudy" };
+
         public static readonly Rate Speed = new Rate
         {
             Key = "speed", Label = "전투 속도", Short = "속도", Steps = new[] { 1f, 1.5f, 2f, 3f },
@@ -113,7 +126,7 @@ namespace MOD_sWP6UL
             Note = "전투에서 연요호가 쓰는 집중력을 곱합니다.",
         };
 
-        public static readonly Rate[] All = { Exp, Martial, Move, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, Taken };
+        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, Taken };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -189,6 +202,17 @@ namespace MOD_sWP6UL
                 }
                 harmony.Patch(rate.Target, new HarmonyLib.HarmonyMethod(
                     typeof(RateService).GetMethod(rate.Hook, BindingFlags.Static | BindingFlags.Public)));
+                if (rate == ActionDay)
+                {
+                    // Create의 앞뒤로 "지금 플레이어의 기술 행동 안"을 표시하고, 그 안의 AddResidueDay 인자만 곱한다.
+                    harmony.Patch(rate.Target, postfix: new HarmonyLib.HarmonyMethod(
+                        typeof(RateService).GetMethod("ActionDayPostfix", BindingFlags.Static | BindingFlags.Public)));
+                    harmony.Patch(typeof(WorldUnitBase).GetMethod("AddResidueDay"), new HarmonyLib.HarmonyMethod(
+                        typeof(RateService).GetMethod("ResidueDayPrefix", BindingFlags.Static | BindingFlags.Public)));
+                    // 달 끝에 남은 날짜가 원래 값보다 적으면 행동이 거부된다. 판정도 곱한 값으로 한다.
+                    harmony.Patch(typeof(UnitActionBase).GetMethod("IsDayCost"), new HarmonyLib.HarmonyMethod(
+                        typeof(RateService).GetMethod("ActionDayCheckPrefix", BindingFlags.Static | BindingFlags.Public)));
+                }
             }
             catch (Exception e)
             {
@@ -212,6 +236,10 @@ namespace MOD_sWP6UL
             if (rate == Move)
             {
                 return typeof(UnitActionMovePlayer).GetMethod("OnCreate");
+            }
+            if (rate == ActionDay)
+            {
+                return typeof(UnitActionBase).GetMethod("Create");
             }
             return null;
         }
@@ -312,6 +340,88 @@ namespace MOD_sWP6UL
             catch (Exception e)
             {
                 Warn(Move, e);
+            }
+        }
+
+        // 플레이어의 기술 행동이면 참.
+        private static bool IsPlayerSkillAction(UnitActionBase action)
+        {
+            WorldUnitBase me = Player;
+            WorldUnitBase unit = action == null ? null : action.unit;
+            if (me == null || unit == null || unit.data.unitData.unitID != me.data.unitData.unitID)
+            {
+                return false;
+            }
+            return Array.IndexOf(ActionDayTypes, action.GetIl2CppType().Name) >= 0;
+        }
+
+        private static int ScaleDay(int day)
+        {
+            return day <= 0 ? day : (int)Math.Round(day * (double)ActionDay.Value, MidpointRounding.AwayFromZero);
+        }
+
+        // 지금 플레이어의 기술 행동이 Create 중인지. 그 안의 AddResidueDay만 곱한다.
+        private static bool inSkillAction;
+
+        public static void ActionDayPrefix(UnitActionBase __instance)
+        {
+            inSkillAction = false;
+            if (!ActionDay.On)
+            {
+                return;
+            }
+            try
+            {
+                inSkillAction = IsPlayerSkillAction(__instance);
+            }
+            catch (Exception e)
+            {
+                Warn(ActionDay, e);
+            }
+        }
+
+        public static void ActionDayPostfix()
+        {
+            inSkillAction = false;
+        }
+
+        // 매개변수 이름이 다를 수 있어 자리(__0)로 받는다.
+        public static void ResidueDayPrefix(ref int __0)
+        {
+            if (!inSkillAction || !ActionDay.On || __0 <= 0)
+            {
+                return;
+            }
+            try
+            {
+                int before = __0;
+                __0 = ScaleDay(before);
+#if DEVTOOLS
+                ActionDay.Last = before + "->" + __0;
+#endif
+            }
+            catch (Exception e)
+            {
+                Warn(ActionDay, e);
+            }
+        }
+
+        public static void ActionDayCheckPrefix(UnitActionBase __instance, ref int day)
+        {
+            if (!ActionDay.On)
+            {
+                return;
+            }
+            try
+            {
+                if (IsPlayerSkillAction(__instance))
+                {
+                    day = ScaleDay(day);
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(ActionDay, e);
             }
         }
 
