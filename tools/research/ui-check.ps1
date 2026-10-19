@@ -2546,7 +2546,7 @@ switch ($Part) {
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'actionday' {
-    # 기술 수련의 날짜 소모 배율(05 문서 63절). 개발 명령 adtrain(수련할 날이 가장 긴 공법을 10일 수련)으로 본다.
+    # 수련·학습의 날짜 소모 배율(05 문서 63절). 수련은 개발 명령 adtrain(수련할 날이 가장 긴 공법을 10일), 학습은 adstudy·adstudylog로 본다.
     # 수련은 달을 쓰고 이야기 창이 뜰 수 있다. 회차의 마지막에.
     $traps = Traps
     function Residue { if ((Cmd 'wdate' 300) -match 'residueDay=(-?\d+)') { [int]$Matches[1] } else { -999 } }
@@ -2573,7 +2573,7 @@ switch ($Part) {
       [pscustomobject]@{ Used = $r0 - $r1; Out = $o; Exp = $(if ($o -match 'addExp=(\d+)') { [int]$Matches[1] } else { -1 }); Got = $(if ($o -match 'exp (\d+)->(\d+)') { [int]$Matches[2] - [int]$Matches[1] } else { -2 }) }
     }
     Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
-    Check 'the training day row is drawn with its note' ((IsAt 'RateActionDay') -and (Cmd 'uitext RateNoteActionDay') -match '기술 수련') (Cmd 'uitext RateNoteActionDay')
+    Check 'the training day row is drawn with its note' ((IsAt 'RateActionDay') -and (Cmd 'uitext RateNoteActionDay') -match '비급 학습') (Cmd 'uitext RateNoteActionDay')
     Cmd 'uitoggle' | Out-Null
     $t = Train 3
     Check 'at x1 training ten days uses ten days and gives its exp' ($t.Out -match 'can=0' -and $t.Used -eq 10 -and $t.Got -eq $t.Exp -and $t.Exp -gt 0) "$($t.Used) days | $($t.Out)"
@@ -2585,6 +2585,25 @@ switch ($Part) {
     Check 'the rate goes to x0' (SetRate 'x0')
     $t = Train 5
     Check 'at x0 training uses no days and still gives exp' ($t.Used -eq 0 -and $t.Got -eq $t.Exp -and $t.Exp -gt 0) "$($t.Used) days | $($t.Out)"
+    # 비급 학습: 진도(World.allMartialStudy)는 그대로 쌓이고 날짜만 줄어든다(x0.5: 15일 -> 8일)
+    Check 'the rate goes to x0.5 for the book' (SetRate 'x0.5')
+    Cmd 'tset 2 6 1' 2000 | Out-Null
+    Cmd 'mgridset 10' 1000 | Out-Null   # 고정본은 무예 칸이 꽉 차 있다(60절. 회차가 설정을 되돌린다)
+    # 지금 대경지에 맞는 무예 하나(앞 검사가 경지를 바꿀 수 있다)
+    $grade = if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { [int]$Matches[1] } else { 3 }
+    $skill = if ((Cmd "rownskills 0 $grade" 3000) -match 'ids=(\d+)') { $Matches[1] } else { '13113' }
+    Cmd "rbook 0 $skill $grade 1 1" 6000 | Out-Null
+    $book = if ((Cmd "rbooks $skill" 3000) -match "(\w+):$skill`:") { $Matches[1] } else { '' }
+    $r0 = Residue
+    $s = Cmd "adstudy $book none" 4000
+    $r1 = Residue
+    PassDrama
+    $day = if ($s -match ' day=(\d+)') { [int]$Matches[1] } else { -1 }
+    $gain = if ($s -match ' exp=(\d+)') { [int]$Matches[1] } else { -1 }
+    $studyLog = Cmd 'adstudylog' 3000   # $log는 check-lib의 Latest.log 경로라 쓰지 않는다
+    $progress = if ($studyLog -match "$book`:(\d+)@") { [int]$Matches[1] } else { -1 }
+    Check 'at x0.5 a book study uses half its days' ($day -gt 0 -and $r0 - $r1 -eq [int][Math]::Round($day * 0.5, [MidpointRounding]::AwayFromZero)) "book=$book day=$day residue $r0 -> $r1 | $s"
+    Check 'at x0.5 the study progress still gets the full gain' ($gain -gt 0 -and ($progress -eq $gain -or $studyLog -notmatch $book)) "gain=$gain progress=$progress | $studyLog"
     # 다른 행동은 배율과 무관: 망각은 원래 0일
     $r0 = Residue; $d = Cmd 'addel' 3000; $r1 = Residue
     Check 'forgetting a skill uses no days in the game' ($d -match 'can=0 day=0' -and $r1 -eq $r0) "$r0 -> $r1 | $d"

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Reflection;
 using MelonLoader;
@@ -12,7 +12,7 @@ namespace MOD_sWP6UL
     //   공법 숙련: DataUnit.UnitInfoData.AddMartialExpInBattle. 이 메서드가 안에서 AddMartialExp를 부르므로 한 곳에만 건다.
     //   이동: UnitActionMovePlayer.OnCreate가 쓰기 전의 costDay(한 칸의 날짜 비용).
     //   전투 속도: 패치 없이 전투 장면에서 매 프레임 Time.timeScale을 맞춘다.
-    //   기술 수련의 날짜: UnitActionBase.Create 안의 unit.AddResidueDay(day)의 인자. 행동의 day는 바꾸지 않는다(숙련은 생성 때 이미 계산돼 있다).
+    //   수련·학습의 날짜: UnitActionBase.Create 안의 unit.AddResidueDay(day)의 인자. 행동의 day는 바꾸지 않는다(숙련·진도는 생성 때 이미 정해져 있다).
     //     달 끝의 날짜 판정 IsDayCost(day)에도 같은 배율(05 문서 63절).
     internal static class RateService
     {
@@ -72,18 +72,19 @@ namespace MOD_sWP6UL
             Hook = "MovePrefix",
         };
 
-        // 기술 수련(UnitActionMartialTrain)이 쓰는 날짜. 이동과 같은 단계(05 문서 63절 실측):
+        // 기술 수련(UnitActionMartialTrain)과 비급 학습(UnitActionPropMartialStudy)이 쓰는 날짜. 이동과 같은 단계(05 문서 63절 실측):
+        //   수련의 숙련(addExp)과 학습의 진도(exp → World.allMartialStudy[비급].exp, 필요량 ConfBattleSkillCost.GetExp에 닿으면 배움)는
+        //   행동을 만들 때 이미 정해져 날짜와 무관하다. 그래서 흐르는 날짜만 줄이면 같은 결과를 더 짧은 시간에 얻는다.
         //   참오(UnitActionMartialRealize)·망각(UnitActionMartialDel)은 게임이 날짜를 쓰지 않는다(day 0. 참오는 아이템·영석).
-        //   비급 학습(UnitActionPropMartialStudy)은 원래 날수만큼 시간이 실제로 흘러야 끝난다. 날짜를 줄이면 비급이 남고 배우지 못해 넣지 않는다.
         public static readonly Rate ActionDay = new Rate
         {
-            Key = "actionDay", Label = "기술 수련의 날짜 소모", Short = "수련 시간", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f },
-            Note = "기술 수련에 쓰는 날짜를 곱합니다(반올림, 얻는 숙련은 그대로). 참오·망각은 날짜를 쓰지 않고, 비급 학습은 줄일 수 없습니다.",
+            Key = "actionDay", Label = "수련·학습의 날짜 소모", Short = "수련·학습 시간", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f },
+            Note = "기술 수련과 비급 학습에 쓰는 날짜를 곱합니다(반올림. 얻는 숙련·학습 진도는 그대로). 참오·망각은 게임이 날짜를 쓰지 않습니다.",
             Hook = "ActionDayPrefix",
         };
 
         // 배율을 거는 행동의 Il2Cpp 형식 이름.
-        private static readonly string[] ActionDayTypes = { "UnitActionMartialTrain" };
+        private static readonly string[] ActionDayTypes = { "UnitActionMartialTrain", "UnitActionPropMartialStudy" };
 
         public static readonly Rate Speed = new Rate
         {

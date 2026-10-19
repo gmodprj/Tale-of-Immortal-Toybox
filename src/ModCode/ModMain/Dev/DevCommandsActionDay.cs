@@ -22,6 +22,12 @@ namespace MOD_sWP6UL
                     return Del();
                 case "adrealize":
                     return Realize();
+                case "adbook":
+                    return BookState(p[1]);
+                case "adstudylog":
+                    return StudyLog();
+                case "adobj":
+                    return Obj(p.Length > 1 ? p[1] : "unit");
                 default:
                     return null;
             }
@@ -74,13 +80,18 @@ namespace MOD_sWP6UL
             ConfBattleSkillCostItem cost = action.skillCostItem;
             sb.Append("can=").Append(can).Append(" day=").Append(action.day).Append(" exp=").Append(action.exp).Append(" money=").Append(action.money)
               .Append(" costDays=").Append(cost == null ? -1 : cost.days).Append(" talentExp=").Append(cost == null ? -1 : cost.talentExp)
-              .Append(" complete=").Append(action.isStudyComplete);
+              .Append(" complete=").Append(action.isStudyComplete).Append(" oneStudy=").Append(action.isOneStudy).Append(" lastStudy=").Append(UnitActionPropMartialStudy.playerLastStudyMartialData == null ? "-" : UnitActionPropMartialStudy.playerLastStudyMartialData.baseID.ToString()).Append(" isCost=").Append(action.isCost);
             if (can != 0)
             {
                 return sb.ToString();
             }
             int r0 = Residue();
             int savedDays = cost == null ? 0 : cost.days;
+            if (mode.StartsWith("day"))
+            {
+                action.day = int.Parse(mode.Substring(3));
+                sb.Append(" set day=").Append(action.day);
+            }
             if (mode.StartsWith("cfg") && cost != null)
             {
                 float rate = float.Parse(mode.Substring(3), System.Globalization.CultureInfo.InvariantCulture);
@@ -149,6 +160,78 @@ namespace MOD_sWP6UL
                 if (sb.Length > 600)
                 {
                     break;
+                }
+            }
+            return sb.ToString();
+        }
+
+        // 비급 아이템의 값 배열과 학습 판정 문구(GetStudyTip)
+        private static string BookState(string sole)
+        {
+            WorldUnitBase me = Me();
+            var all = me.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].soleID == sole)
+                {
+                    DataProps.PropsData pd = all[i];
+                    DataProps.MartialData md = pd.To<DataProps.MartialData>();
+                    var tip = UnitActionPropMartialStudy.GetStudyTip(me, md, true, true, true);
+                    var last = me.data.unitData.objData;
+                    return "values=" + string.Join(",", pd.values) + " count=" + pd.propsCount + " tip=" + tip.t1 + "|" + tip.t2
+                        + " grade=" + md.grade + " baseID=" + md.baseID;
+                }
+            }
+            return "no prop " + sole;
+        }
+
+        // 비급 학습 기록(World.allMartialStudy)과 가방 비급마다의 필요량(ConfBattleSkillCost.GetExp)
+        private static string StudyLog()
+        {
+            WorldUnitBase me = Me();
+            var sb = new StringBuilder();
+            var log = g.data.world.allMartialStudy;
+            sb.Append("log=").Append(log == null ? -1 : log.Count);
+            if (log != null)
+            {
+                foreach (var kv in log)
+                {
+                    sb.Append(' ').Append(kv.Key).Append(':').Append(kv.Value.exp).Append("@m").Append(kv.Value.lastMonst);
+                }
+            }
+            var all = me.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].propsType != DataProps.PropsDataType.Martial)
+                {
+                    continue;
+                }
+                DataProps.MartialData md = all[i].To<DataProps.MartialData>();
+                var action = new UnitActionPropMartialStudy(all[i]);
+                me.IsCreateAction(action, false);
+                int need = action.skillCostItem == null ? -1 : g.conf.battleSkillCost.GetExp(action.skillCostItem, md);
+                sb.Append(" | book ").Append(all[i].soleID).Append(" base=").Append(md.baseID)
+                  .Append(" need=").Append(need).Append(" gain=").Append(action.exp);
+            }
+            return sb.ToString();
+        }
+
+        // 키-값 자료를 통째로: unit(인물 UnitInfoData.objData) · month(세계 objDataMonth)
+        private static string Obj(string which)
+        {
+            WorldUnitBase me = Me();
+            DataObjectData obj = which == "month" ? g.data.world.objDataMonth : me.data.unitData.objData;
+            if (obj == null || obj.allObject == null)
+            {
+                return "null";
+            }
+            var sb = new StringBuilder();
+            foreach (var group in obj.allObject)
+            {
+                sb.Append('[').Append(group.Key).Append("] ");
+                foreach (var kv in group.Value)
+                {
+                    sb.Append(kv.Key).Append('=').Append(kv.Value).Append(' ');
                 }
             }
             return sb.ToString();
