@@ -273,7 +273,6 @@ PowerShell과 도구:
 - Bash의 here-doc에 긴 한글 문서나 작은따옴표가 든 C# 코드를 넣으면 인용이 깨진다. 긴 내용은 Write 도구로 파일을 만든다.
 - git이 줄바꿈을 CRLF로 바꾼다. 여러 줄 치환을 하기 전에 `\r`을 지우고, 쓸 때 되돌린다.
 - `python` 명령은 Windows 스토어 별칭이라 실행되지 않는다. 실제 Python은 `py -3`(3.14)이다. 게임 설정 표를 세는 일 같은 것은 `py -3 -I -X utf8 <스크립트>`로 하고 출력은 파일로 받는다(콘솔은 CP949라 한자에서 멈춘다). 저장소의 스크립트는 지금처럼 PowerShell로 쓴다.
-
 - 함수 이름 `Mp`도 별칭(Move-ItemProperty)이다. 검사 `mpnone`이 이것으로 멈췄다(66절).
 - 정적 필드는 적힌 순서로 초기화된다. `RateService.All`보다 뒤에 새 줄을 선언하면 `All`에 null이 들어가 배율 탭이 통째로 그려지지 않는다(66절).
 
@@ -281,7 +280,6 @@ PowerShell과 도구:
 
 - **Vector2 같은 값 형식 인자를 받는 게임 메서드(`PropItemPill.OnCreate` 등)에 Harmony 패치를 걸면 그 순간 게임이 꺼진다**(il2cpp 내부, `Player.log`의 `Crash!!!`. 65절).
 - `DataProps.DelProps(번호, 수)`는 가방 순서대로 지워 **장착한 법보부터** 지우고 장착 칸에서도 뺀다. 수를 줄일 때는 sole 단위로 지운다(`BagPlan`, 65·66절). `GetPropsNum`과 `GetAllEquipPropsSoleID`는 장착품(장비와 전투 아이템 칸의 단약 묶음)을 포함한다.
-
 - 창 밖의 게임에 보낸 마우스 메시지(WM_MOUSEMOVE·WM_MOUSEWHEEL)는 Unity의 `Input`에 닿지 않는다(키 메시지는 닿는다). 마우스는 개발 명령의 가상 입력으로 흉내 낸다(51절).
 - 게임 메서드의 호출 추적에 MelonLoader의 `XrefScanner`를 쓰지 않는다: `XrefScan`은 캐시 DB 초기화에 실패하고, `UsedBy`는 게임이 종료됐다(회차 fix-1017a). `xrefl`·`xrefd`(Iced 해독)를 쓴다. 같은 코드가 접힌 메서드는 다른 이름으로 나올 수 있다.
 - Harmony 접두에서 원래 메서드의 매개변수를 이름으로 받으면 언홀로어가 붙인 이름과 다를 때 패치 전체가 실패한다. 자리 이름(`__0`)으로 받는다. 게임의 프레임 처리 안에서만 입력을 가로채려면 그 메서드의 접두·접미로 표시(`InMapUpdate`)를 두고 `Input` 패치가 그 표시를 본다(51절).
