@@ -2713,6 +2713,42 @@ switch ($Part) {
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Shot 'bagcount'
   }
+  'traits' {
+    # 능력치 탭의 성격 분류(스펙 2026-10-20-trainer-batch1-design.md 5.1·6절, 05 문서 65·66절). 고정본 플레이어: 내재 4, 외재 8·9.
+    $traps = Traps
+    function Traits([string]$who) { $o = Cmd 'tbtraits 3' 500; if ($o -match "(?m)$who (\w+) in=(\d+) o1=(\d+) o2=(\d+)") { @{ id = $Matches[1]; in = [int]$Matches[2]; o1 = [int]$Matches[3]; o2 = [int]$Matches[4] } } else { $null } }
+    function TraitLines { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '성격\(' }).Count }
+    $logged = TraitLines
+    Cmd 'uitarget player' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab0' | Out-Null
+    Check 'the trait category is drawn' (IsAt 'AttrCat5') (Cmd 'uipos AttrCat5')
+    Press 'AttrCat5' | Out-Null
+    $missing = @()
+    foreach ($id in 1..7) { if (-not (IsAt "Trait_in_$id")) { $missing += "in_$id" } }
+    foreach ($id in 8..19) { foreach ($slot in 'out1', 'out2') { if (-not (IsAt "Trait_$($slot)_$id")) { $missing += "$($slot)_$id" } } }
+    Check 'all 31 chips are drawn' ($missing.Count -eq 0) ($missing -join ',')
+    $t = Traits 'player'
+    Check 'the fixture player is 4 / 8 / 9' ($t -and $t.in -eq 4 -and $t.o1 -eq 8 -and $t.o2 -eq 9) "$($t.in)/$($t.o1)/$($t.o2)"
+    $p = Pos 'Trait_out1_9'
+    Check 'the chip equal to the other outer slot does nothing' ((Rc "click $($p.x) $($p.y)" 400) -notmatch 'Button\.onClick: Trait_out1_9' -and (Traits 'player').o1 -eq 8) (Cmd 'uistate')
+    Press 'Trait_in_2' | Out-Null
+    Check 'an inner chip writes the inner slot' ((Traits 'player').in -eq 2) (Cmd 'uistate')
+    Press 'Trait_out2_15' | Out-Null
+    Check 'an outer chip writes its slot' ((Traits 'player').o2 -eq 15 -and (Traits 'player').o1 -eq 8) (Cmd 'uistate')
+    Check 'the result names the slot' ((Cmd 'uistate') -match '외재 성격 2') (Cmd 'uistate')
+    Check 'the changes are in the history' ((TraitLines) -ge $logged + 2) "$logged -> $(TraitLines)"
+    # NPC 대상
+    $n = Traits 'npc'
+    Cmd "uitarget $($n.id)" 500 | Out-Null
+    Press 'Tab0' | Out-Null; Press 'AttrCat5' | Out-Null
+    $want = if ($n.in -eq 7) { 6 } else { 7 }
+    Press "Trait_in_$want" | Out-Null
+    $n2 = if ((Cmd 'tbtraits 3' 500) -match "(?m)npc $($n.id) in=(\d+)") { [int]$Matches[1] } else { -1 }
+    Check 'it writes the target npc' ($n2 -eq $want -and (Traits 'player').in -eq 2) "npc in=$n2"
+    Cmd 'uitarget player' | Out-Null
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Shot 'traits'
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

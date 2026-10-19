@@ -49,6 +49,7 @@ namespace MOD_sWP6UL
             TextReplacerTests();
             CraftPlanTests();
             BagPlanTests();
+            TraitRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -209,6 +210,21 @@ namespace MOD_sWP6UL
                 parts.Add(c.Sole + (c.All ? " All" : " x" + c.Count));
             }
             return string.Join(",", parts);
+        }
+
+        // 성격 칸 검사(docs/superpowers/specs/2026-10-20-trainer-batch1-design.md 6절, 05 문서 65절: 표 type 1 내재·2 외재).
+        private static void TraitRulesTests()
+        {
+            Check("traits in ok", TraitRules.Check(TraitRules.Slot.In, 2, 1, 0) == null);
+            string a = TraitRules.Check(TraitRules.Slot.In, 9, 2, 0);
+            Check("traits in rejects outer", a == "내재 칸에는 내재 성격만 넣을 수 있습니다", a);
+            Check("traits out ok", TraitRules.Check(TraitRules.Slot.Out1, 10, 2, 15) == null);
+            string b = TraitRules.Check(TraitRules.Slot.Out1, 15, 2, 15);
+            Check("traits out same", b == "다른 외재 칸과 같은 성격입니다", b);
+            string c = TraitRules.Check(TraitRules.Slot.Out2, 3, 1, 8);
+            Check("traits out rejects inner", c == "외재 칸에는 외재 성격만 넣을 수 있습니다", c);
+            string d = TraitRules.Check(TraitRules.Slot.In, 99, 0, 0);
+            Check("traits unknown", d == "표에 없는 성격입니다", d);
         }
 
         // 가방 줄이기 순서(docs/superpowers/specs/2026-10-20-trainer-batch1-design.md 6절, 05 문서 65절).

@@ -43,6 +43,11 @@ namespace MOD_sWP6UL
             }
 
             const float head = 52;
+            if (attributeCategory == AttributeCatalog.TraitCategory)
+            {
+                DrawTraits(target, head);
+                return;
+            }
             Ui.Label(content, "항목", 0, head, 190, 30, 18).color = Ui.Dim;
             Ui.Label(content, "저장값", 206, head, 110, 30, 18).color = Ui.Dim;
             Ui.Label(content, "게임 화면 값(보정 포함)", 330, head, 220, 30, 18).color = Ui.Dim;
@@ -79,6 +84,44 @@ namespace MOD_sWP6UL
             Ui.Button("Restore", content, "자원 회복", right + 30, footer, 140, 38, new Action(() => Say(EditService.RestoreResources(Target))));
             Ui.Label(content, "저장값 칸에 숫자를 쓰고 Enter를 누르면 그 값으로 바뀝니다.", 0, footer + 52, ContentW, 30, 18).color = Ui.Dim;
             Ui.Label(content, "저장값은 인물 고유의 값이고, 게임 화면에는 운명·장비 등의 보정이 더해진 값이 나옵니다. 편집기는 저장값을 바꿉니다.", 0, footer + 86, ContentW, 30, 15).color = Ui.Dim;
+        }
+
+        private const float ChipW = 140, ChipH = 38, ChipGap = 6;
+        private const int ChipsPerLine = 7;
+
+        // 성격: 내재 하나와 외재 둘. 칩을 누르면 바로 쓴다. 쓸 수 없는 칩(다른 외재 칸과 같은 것)은 꺼 둔다(스펙 5.1·6절).
+        private void DrawTraits(WorldUnitBase target, float y)
+        {
+            var rows = g.conf.roleCreateCharacter._allConfList;
+            TraitRules.Slot[] slots = { TraitRules.Slot.In, TraitRules.Slot.Out1, TraitRules.Slot.Out2 };
+            string[] keys = { "in", "out1", "out2" };
+            for (int s = 0; s < slots.Length; s++)
+            {
+                TraitRules.Slot slot = slots[s];
+                int current = EditService.GetTrait(target, slot);
+                int other = slot == TraitRules.Slot.Out1 ? EditService.GetTrait(target, TraitRules.Slot.Out2)
+                    : slot == TraitRules.Slot.Out2 ? EditService.GetTrait(target, TraitRules.Slot.Out1) : 0;
+                Ui.Label(content, EditService.TraitSlotName(slot) + " — " + EditService.TraitName(current), 0, y, ContentW, 30, 18).gameObject.name = "TraitNow_" + keys[s];
+                y += 34;
+                int n = 0;
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    ConfRoleCreateCharacterItem row = rows[i];
+                    bool wanted = slot == TraitRules.Slot.In ? row.type == TraitRules.InnerType : row.type == TraitRules.OuterType;
+                    if (!wanted)
+                    {
+                        continue;
+                    }
+                    int id = row.id;
+                    bool usable = id == current || TraitRules.Check(slot, id, row.type, other) == null;
+                    Ui.Button("Trait_" + keys[s] + "_" + id, content, GameTool.LS(row.sc5asd_sd34),
+                        (n % ChipsPerLine) * (ChipW + ChipGap), y + (n / ChipsPerLine) * (ChipH + ChipGap), ChipW, ChipH,
+                        new Action(() => Say(EditService.SetTrait(Target, slot, id))), usable, id == current);
+                    n++;
+                }
+                y += ((n + ChipsPerLine - 1) / ChipsPerLine) * (ChipH + ChipGap) + 14;
+            }
+            Ui.Label(content, "성격은 대화·사건 선택지와 NPC의 행동에 영향을 줍니다.", 0, y, ContentW, 30, 18).color = Ui.Dim;
         }
     }
 }
