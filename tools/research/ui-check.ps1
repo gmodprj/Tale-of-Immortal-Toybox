@@ -2588,6 +2588,7 @@ switch ($Part) {
     # 비급 학습: 진도(World.allMartialStudy)는 그대로 쌓이고 날짜만 줄어든다(x0.5: 15일 -> 8일)
     Check 'the rate goes to x0.5 for the book' (SetRate 'x0.5')
     Cmd 'tset 2 6 1' 2000 | Out-Null
+    Cmd 'mgridset 10' 1000 | Out-Null   # 고정본은 무예 칸이 꽉 차 있다(60절. 회차가 설정을 되돌린다)
     Cmd "rbook 0 13113 $(if ((Cmd 'mgrid' 300) -match 'grade=(\d+)') { $Matches[1] } else { 3 }) 1 1" 6000 | Out-Null
     $book = if ((Cmd 'rbooks 13113' 3000) -match '(\w+):13113:') { $Matches[1] } else { '' }
     $r0 = Residue
@@ -2598,7 +2599,7 @@ switch ($Part) {
     $gain = if ($s -match ' exp=(\d+)') { [int]$Matches[1] } else { -1 }
     $log = Cmd 'adstudylog' 3000
     $progress = if ($log -match "$book`:(\d+)@") { [int]$Matches[1] } else { -1 }
-    Check 'at x0.5 a book study uses half its days' ($day -gt 0 -and $r0 - $r1 -eq [int][Math]::Round($day * 0.5, [MidpointRounding]::AwayFromZero)) "day=$day residue $r0 -> $r1"
+    Check 'at x0.5 a book study uses half its days' ($day -gt 0 -and $r0 - $r1 -eq [int][Math]::Round($day * 0.5, [MidpointRounding]::AwayFromZero)) "book=$book day=$day residue $r0 -> $r1 | $s"
     Check 'at x0.5 the study progress still gets the full gain' ($gain -gt 0 -and ($progress -eq $gain -or $log -notmatch $book)) "gain=$gain progress=$progress | $log"
     # 다른 행동은 배율과 무관: 망각은 원래 0일
     $r0 = Residue; $d = Cmd 'addel' 3000; $r1 = Residue
