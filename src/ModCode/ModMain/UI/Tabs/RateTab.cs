@@ -16,7 +16,9 @@ namespace MOD_sWP6UL
 
         protected override void Draw()
         {
-            Ui.Panel("RateBox", content, 0, 0, ContentW, 60 + 11 * RowH + 16, Ui.Section);
+            // 줄 수: 배율(받는 피해 제외) + 주는 피해 + 받는 피해 + 무적. 12줄이면 내용 영역 844에 꼭 맞는다(리뷰 08의 41번).
+            int rows = RateService.All.Length - 1 + 3;
+            Ui.Panel("RateBox", content, 0, 0, ContentW, 60 + rows * RowH + 16, Ui.Section);
             Ui.Label(content, "배율", 16, 6, 200, 36, 21);
             Ui.Button("RateReset", content, "모두 1배로", 100, 6, 150, 38, new Action(() => Say(RateService.Reset())));
             Ui.Label(content, "게임을 다시 켜면 모두 꺼진 상태로 시작합니다. 켜 둔 것은 화면 위쪽 가운데에 표시됩니다.", 270, 10, 1010, 30, 15).color = Ui.Dim;
@@ -28,7 +30,7 @@ namespace MOD_sWP6UL
                 {
                     continue;
                 }
-                string note = rate == RateService.Move && TimeService.Frozen
+                string note = (rate == RateService.Move || rate == RateService.ActionDay) && TimeService.Frozen
                     ? "날짜 고정 중에는 날짜가 흐르지 않습니다. 이 배율은 고정을 끈 뒤에 적용됩니다."
                     : rate.Note;
                 y = Row(y, "Rate" + char.ToUpperInvariant(rate.Key[0]) + rate.Key.Substring(1), rate.Label, rate.Text, rate.On, note,

@@ -2870,3 +2870,40 @@
 - 모드가 더한 처방(같은 표에 들어오면 목록에 보인다)은 검사하지 않았다.
 - 고정본 인물로만 봤다(연단 자질 102, 연기 자질 101). 연기 자질 경고 문구는 실제로 뜨는 경우를 보지 않았다.
 - 회차 이름: `mat-1018a`~`e`(a·b는 61절 실험).
+
+## 63. 기술 수련의 날짜 소모 배율 (2026-10-19 추가)
+
+사용자 요청(2026-10-19, 질문 없이 진행): "기술수련/기술참오/기술망각/비법학습 등에 소요되는 시간도 배율의 이동중 날짜소모와 같은 배율 관리 방식 기능 추가". 브랜치 `feat/action-day-rate`, 회차 `day-1019a`~`i`(고정본 base).
+
+### 게임의 구조(실측)
+
+- 행동의 날짜는 `UnitActionBase.Create`가 쓴다: 행동의 `day`(오프셋 0x18)가 0보다 크면 `unit.AddResidueDay(day, false)` → `WorldRunMgr.AddDay`(실제로 세계 시간이 흐른다). 결과로 갈라지지 않는다(`xrefd UnitActionBase Create AddResidueDay`). 달 끝의 판정은 `UnitActionBase.IsDayCost(day)`(`roundDayResidue`와 비교).
+- 행동별(개발 명령 `adtrain`·`addel`·`adrealize`·`adstudy`):
+
+| 행동 | 형식 | 게임이 쓰는 날짜 | 배율 |
+|---|---|---|---|
+| 기술 수련 | `UnitActionMartialTrain(data, day)` | 고른 날수(예 10일. 숙련 `addExp`는 생성 때 날수로 계산, `OnCreate`가 `AddMartialExp`) | **건다** |
+| 기술 참오 | `UnitActionMartialRealize` | 0일(비용은 `ConfBattleSkillRealizeCostItem`의 아이템·수·영석) | 할 일 없음 |
+| 기술 망각 | `UnitActionMartialDel` | 0일(`addel`: `day=0`, 남은 날 그대로) | 할 일 없음 |
+| 비급 학습 | `UnitActionPropMartialStudy` | 설정 `ConfBattleSkillCostItem.days`(경지 3 무예 15일) | **걸 수 없음** |
+
+- 비급 학습: 1배에서는 15일이 흐르고 비급이 소모돼 배워진다(세 번 모두). 날짜를 줄이면(행동의 `day`를 줄이거나, `AddResidueDay`의 인자만 줄이거나, 실행 동안 설정 `days`와 `day`를 함께 줄이거나) **날짜는 줄어도 비급이 남고 배우지 못했다**(0배·0.1배·0.25배·0.5배 모두, 같은 비급을 다시 배워도). `OnCreate`는 비급 자료(`DataObjectData`)의 값, `roundMonth`, `ConfBattleSkillCost.GetExp`, 난수를 쓴다. 완료 조건은 해독하지 못했다(미확인). 한 번은 0배에서 배워졌으나 다시 재현되지 않았다.
+
+### 규칙
+
+- 배율 탭에 `기술 수련의 날짜 소모`(`RateActionDay`, 상단 표시 `수련 시간`) — 단계 x1·x0.5·x0.25·x0.1·x0, 설명 `RateNoteActionDay`. 날짜 고정 중에는 이동 줄과 같은 안내.
+- `RateService.ActionDay`: 처음 켤 때 패치 셋 — `UnitActionBase.Create` 앞(플레이어의 `UnitActionMartialTrain`이면 표시)·뒤(표시 해제), `WorldUnitBase.AddResidueDay` 앞(표시 중이면 첫 인자를 곱함, 반올림·0.5는 올림), `UnitActionBase.IsDayCost` 앞(같은 배율로 판정). 행동의 `day`는 바꾸지 않는다(숙련은 이미 계산돼 있다). 저장하지 않으며 다른 배율처럼 게임을 켤 때 1배.
+- 배율 상자 높이를 줄 수에서 계산한다(12줄 = 내용 영역 844에 꼭 맞음. 리뷰 08의 41번).
+- 개발 명령: `rstate`에 `actionDay`·`lastActionDay`(전->후). 실험 `adtrain <날수>`(수련할 날이 가장 긴 공법), `addel`(마지막 공법 망각), `adrealize`(참오의 판정만), `adstudy <비급 sole> [none|cfg<배율>]`.
+
+### 실측·검증
+
+- 수련 10일: 1배 남은 날 30→20·숙련 +150, 0.5배 30→25(`lastActionDay=10->5`)·숙련 +220(그 공법의 값 그대로), 0배 30→30·숙련 +150.
+- 검사 `ui-check.ps1 -Part actionday`(11개: 줄과 설명, 1배 10일과 숙련, 0.5배 5일과 숙련 그대로, 기록, 0배 0일과 숙련, 망각은 원래 0일, 1배로 되돌림, 예외 0). 달을 쓰므로 회차의 마지막에. `rates`의 정규식 둘에 `actionDay=1`을 더했다. `day-1019i`: `rates`·`base`·`tabs`·`actionday` FAIL 0. 배포·개발 구성 경고 0.
+
+### 확인하지 못한 것, 한계
+
+- 비급 학습의 시간을 줄이는 길은 이 방식에 없다(위). 학습 완료 조건을 해독하거나, 학습 자체를 편집기가 대신하는(비급 → 공법 추가, 비급 소모) 다른 기능이 필요하다(사용자 결정).
+- 수련을 게임 화면(인물 → 기술 → 기술 수련)에서 직접 했을 때는 보지 않았다(개발 명령이 같은 행동을 만든다).
+- 참오는 판정만 봤다(재료가 없어 거부, `day=0`). 실제 참오에서 날짜가 흐르는지는 미확인.
+- 회차 이름: `day-1019a`~`i`.

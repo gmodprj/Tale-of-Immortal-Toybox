@@ -2062,9 +2062,9 @@ switch ($Part) {
     function WorldDayNow { if ((Cmd 'wdate' 200) -match 'worldDay=(\d+)') { [int]$Matches[1] } else { throw 'wdate 출력을 읽지 못했습니다' } }
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab12' | Out-Null
-    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
+    foreach ($b in 'RateExp', 'RateMartial', 'RateMove', 'RateActionDay', 'RateSpeed', 'RateArtifactCooldown', 'RateMpCost', 'RateSpCost', 'Multiplier', 'God', 'RateReset') { Check "$b is drawn" (IsAt $b) }
     $s = RateState
-    Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 speed=1 ' -and $s -notmatch 'patched') $s
+    Check 'nothing is patched at first' ($s -match 'exp=1 martial=1 move=1 actionDay=1 speed=1 ' -and $s -notmatch 'patched') $s
 
     # 이동: x1의 한 칸을 재고, x0.5에서 절반인지 본다.
     $d0 = MoveDay; Cmd 'wmove 1 0' 900 | Out-Null; $plain = (MoveDay) - $d0
@@ -2119,7 +2119,7 @@ switch ($Part) {
     Press 'God' | Out-Null; Press 'Multiplier' | Out-Null
     Press 'RateReset' | Out-Null
     $s = RateState
-    Check 'reset puts everything back' ($s -match 'exp=1\(patched\) martial=1 move=1\(patched\) speed=1 ' -and $s -match 'god=False damage=1') $s
+    Check 'reset puts everything back' ($s -match 'exp=1\(patched\) martial=1 move=1\(patched\) actionDay=1 speed=1 ' -and $s -match 'god=False damage=1') $s
     Start-Sleep -Milliseconds 900
     Check 'overlay is hidden after reset' ((Cmd 'uistate') -match 'status=\[hidden\] ')
     $d0 = MoveDay; Cmd 'wmove -1 0' 900 | Out-Null
@@ -2543,6 +2543,52 @@ switch ($Part) {
     Press 'MatGive6092050_5' 3000 | Out-Null
     $u = Cmd 'uistate'
     Check 'a full bag refuses the whole set' ($u -match '가방 칸 \d+개가 더 있어야 합니다' -and (Have 5021404) -eq $before) "$u | $before -> $(Have 5021404)"
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+  }
+  'actionday' {
+    # 기술 수련의 날짜 소모 배율(05 문서 63절). 개발 명령 adtrain(수련할 날이 가장 긴 공법을 10일 수련)으로 본다.
+    # 수련은 달을 쓰고 이야기 창이 뜰 수 있다. 회차의 마지막에.
+    $traps = Traps
+    function Residue { if ((Cmd 'wdate' 300) -match 'residueDay=(-?\d+)') { [int]$Matches[1] } else { -999 } }
+    function PassDrama {
+      for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 300) -match 'DramaFortuitous|DramaDialogue'; $i++) {
+        if ((Rc 'hit 979 821' 300) -match 'goBtnItem') { Rc 'click 979 821' 2500 | Out-Null }
+        elseif ((Rc 'hit 960 540' 300) -match 'btnNext') { Rc 'click 960 540' 2000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+    }
+    function SetRate([string]$want) {
+      Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+      for ($i = 0; $i -lt 6 -and (Cmd 'uitext RateActionDay') -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press 'RateActionDay' | Out-Null }
+      $ok = (Cmd 'uitext RateActionDay') -match "text='$([regex]::Escape($want))'"
+      Cmd 'uitoggle' | Out-Null   # 편집기를 닫는다(게임의 이야기 창을 가리지 않게)
+      $ok
+    }
+    function Train([string]$month) {
+      Cmd "tset 2 $month 1" 2000 | Out-Null   # 달 첫날에서(남은 날 30)
+      $r0 = Residue
+      $o = Cmd 'adtrain 10' 4000
+      $r1 = Residue
+      PassDrama
+      [pscustomobject]@{ Used = $r0 - $r1; Out = $o; Exp = $(if ($o -match 'addExp=(\d+)') { [int]$Matches[1] } else { -1 }); Got = $(if ($o -match 'exp (\d+)->(\d+)') { [int]$Matches[2] - [int]$Matches[1] } else { -2 }) }
+    }
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Check 'the training day row is drawn with its note' ((IsAt 'RateActionDay') -and (Cmd 'uitext RateNoteActionDay') -match '기술 수련') (Cmd 'uitext RateNoteActionDay')
+    Cmd 'uitoggle' | Out-Null
+    $t = Train 3
+    Check 'at x1 training ten days uses ten days and gives its exp' ($t.Out -match 'can=0' -and $t.Used -eq 10 -and $t.Got -eq $t.Exp -and $t.Exp -gt 0) "$($t.Used) days | $($t.Out)"
+    Check 'the rate goes to x0.5' (SetRate 'x0.5')
+    $t = Train 4
+    Check 'at x0.5 training ten days uses five days' ($t.Used -eq 5) "$($t.Used) days | $($t.Out)"
+    Check 'at x0.5 the exp is not reduced' ($t.Got -eq $t.Exp -and $t.Exp -gt 0) $t.Out
+    Check 'the scaled call is recorded' ((Cmd 'rstate' 300) -match 'lastActionDay=10->5') (Cmd 'rstate' 300)
+    Check 'the rate goes to x0' (SetRate 'x0')
+    $t = Train 5
+    Check 'at x0 training uses no days and still gives exp' ($t.Used -eq 0 -and $t.Got -eq $t.Exp -and $t.Exp -gt 0) "$($t.Used) days | $($t.Out)"
+    # 다른 행동은 배율과 무관: 망각은 원래 0일
+    $r0 = Residue; $d = Cmd 'addel' 3000; $r1 = Residue
+    Check 'forgetting a skill uses no days in the game' ($d -match 'can=0 day=0' -and $r1 -eq $r0) "$r0 -> $r1 | $d"
+    Check 'the rate goes back to x1' (SetRate 'x1')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   default { throw "알 수 없는 Part: $Part" }
