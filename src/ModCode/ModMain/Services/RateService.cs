@@ -129,7 +129,16 @@ namespace MOD_sWP6UL
             Note = "전투에서 연요호가 쓰는 집중력을 곱합니다.",
         };
 
-        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, Taken };
+        // 비급 학습의 진도(05 문서 64절): UnitActionPropMartialStudy.OnCreate가 World.allMartialStudy에 더하기 전의 행동 exp를 곱한다.
+        // 필요량(ConfBattleSkillCost.GetExp, 경지 3 무예 740)에 닿으면 배운다. 플레이어만.
+        public static readonly Rate StudyGain = new Rate
+        {
+            Key = "studyGain", Label = "비급 학습 진도", Short = "학습 진도", Steps = new[] { 1f, 2f, 5f, 10f, 100f },
+            Note = "비급을 한 번 공부할 때 쌓이는 진도를 곱합니다(필요량에 닿으면 배웁니다). x100이면 대개 한 번에 배웁니다.",
+            Hook = "StudyGainPrefix",
+        };
+
+        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, Taken };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -243,6 +252,10 @@ namespace MOD_sWP6UL
             if (rate == ActionDay)
             {
                 return typeof(UnitActionBase).GetMethod("Create");
+            }
+            if (rate == StudyGain)
+            {
+                return typeof(UnitActionPropMartialStudy).GetMethod("OnCreate", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             }
             return null;
         }
@@ -386,6 +399,28 @@ namespace MOD_sWP6UL
         public static void ActionDayPostfix()
         {
             inSkillAction = false;
+        }
+
+        public static void StudyGainPrefix(UnitActionPropMartialStudy __instance)
+        {
+            if (!StudyGain.On)
+            {
+                return;
+            }
+            try
+            {
+                WorldUnitBase me = Player;
+                WorldUnitBase unit = __instance == null ? null : __instance.unit;
+                if (me == null || unit == null || unit.data.unitData.unitID != me.data.unitData.unitID)
+                {
+                    return;
+                }
+                __instance.exp = Scale(StudyGain, __instance.exp);
+            }
+            catch (Exception e)
+            {
+                Warn(StudyGain, e);
+            }
         }
 
         // 매개변수 이름이 다를 수 있어 자리(__0)로 받는다.
