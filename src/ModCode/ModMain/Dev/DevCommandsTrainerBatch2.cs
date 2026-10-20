@@ -223,7 +223,7 @@ namespace MOD_sWP6UL
             harmony = new HarmonyLib.Harmony("TlToybox.dev.tb2");
             Type unit = typeof(WorldUnitBase);
             Patch(typeof(UnitActionRoleEscape), "CompleteRate", new[] { typeof(int), typeof(int), typeof(int) }, null, "EscapeRate");
-            Patch(typeof(UnitActionRoleEscape), "get_isSureComplete", Type.EmptyTypes, null, "EscapeSure");
+            Patch(typeof(UnitActionRoleEscape), "get_isComplete", Type.EmptyTypes, null, "EscapeComplete");
             Patch(typeof(UnitActionRoleEscape), "OnCreate", Type.EmptyTypes, "ActBegin", "ActEnd");
             Patch(typeof(UnitActionRoleStealItem), "CompleteRate", new[] { unit, unit }, null, "StealRate");
             Patch(typeof(UnitActionRoleStealItem), "DiscoverRate", new[] { unit }, null, "StealDiscover");
@@ -235,7 +235,8 @@ namespace MOD_sWP6UL
             Patch(typeof(PlayerInfoExtendPropsEx), "CanDrop", new[] { typeof(DataProps.PropsData), unit }, null, "CanDrop");
             Patch(typeof(FormulaTool.Relation), "UnitSchooldScore", new[] { unit, unit, typeof(int) }, null, "SchoolScore");
             Patch(typeof(UnitActionFeedback115), "OnCreate", Type.EmptyTypes, "ActBegin", "ActEnd");
-            Patch(typeof(UnitActionRoleRelation), "OnCreate", Type.EmptyTypes, "ActBegin", "RelEnd");
+            Patch(typeof(UnitActionRoleRelation), "get_isComplete", Type.EmptyTypes, null, "RelComplete");
+            Patch(typeof(UnitActionRoleRelation), "PlayerToNPCAction", Type.EmptyTypes, "RelBegin", null);
             Patch(typeof(FormulaTool.Relation), "Score", new[] { typeof(UnitBothRelationType), unit, unit }, null, "RelScoreType");
             Patch(typeof(FormulaTool.Relation), "Score", new[] { typeof(ConfNpcPartFittingItem), unit, unit }, null, "RelScoreFit");
             Patch(typeof(FormulaTool.Relation), "ScoreForceMin", new[] { typeof(ConfNpcPartFittingItem), unit, unit }, null, "RelScoreMin");
@@ -262,14 +263,29 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static void EscapeSure(UnitActionRoleEscape __instance, ref bool __result)
+        private static void EscapeComplete(UnitActionRoleEscape __instance, ref bool __result)
         {
             double v;
-            Add("EscapeSure", Who(__instance.unit) + " -> " + __result);
-            if (Over("EscapeSure", out v))
+            Add("EscapeComplete", Who(__instance.unit) + " sure=" + __instance.isSureComplete + " -> " + __result);
+            if (Over("EscapeComplete", out v))
             {
                 __result = v != 0;
             }
+        }
+
+        private static void RelComplete(UnitActionRoleRelation __instance, ref bool __result)
+        {
+            double v;
+            Add("RelComplete", Who(__instance.unit) + " type=" + __instance.relationType + " -> " + __result);
+            if (Over("RelComplete", out v))
+            {
+                __result = v != 0;
+            }
+        }
+
+        private static void RelBegin(UnitActionRoleRelation __instance)
+        {
+            Add("Act", "PlayerToNPCAction " + Who(__instance.unit));
         }
 
         private static void StealRate(WorldUnitBase __0, WorldUnitBase __1, ref float __result)
@@ -360,11 +376,6 @@ namespace MOD_sWP6UL
         private static void ActEnd(UnitActionBase __instance)
         {
             Add("Act", __instance.GetIl2CppType().Name + " end");
-        }
-
-        private static void RelEnd(UnitActionRoleRelation __instance)
-        {
-            Add("Act", "UnitActionRoleRelation end complete=" + __instance.isComplete + " setComplete=" + __instance.isSetComplete + " addIntim=" + __instance.addIntim);
         }
 
         private static void RelScoreType(UnitBothRelationType __0, WorldUnitBase __1, WorldUnitBase __2, ref int __result)
@@ -459,7 +470,7 @@ namespace MOD_sWP6UL
         private static string Escape(int index, bool sure)
         {
             WorldUnitBase to = Near(index + 1)[index];
-            var action = new UnitActionRoleEscape(to, null);
+            var action = new UnitActionRoleEscape(to, "");
             if (sure)
             {
                 action.isSureComplete = true;
