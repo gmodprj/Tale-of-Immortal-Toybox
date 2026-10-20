@@ -16,6 +16,10 @@ namespace MOD_sWP6UL
     //   tb2escape <npc 번호> sure       행동의 isSureComplete를 켜고 만든다
     //   tb2drop [값]                     지금 난이도의 드롭률(g.conf.gameDifficultyValue.curItem.dropRate)을 읽거나 쓴다
     //   관계 점수 추적: FormulaTool.Relation.Score(관계 종류|어울림 줄, unit, toUnit), ScoreForceMin, UnitAllRelationScore
+    //   tb2invite <npc 번호> [force]    UnitActionRoleInvite(초빙)를 만든다. force면 forceAgree를 켠다
+    //   tb2npcset <npc 번호> <능력치 키> <값>   NPC의 저장값(AttributeCatalog의 키, 예: footSpeed)
+    //   추적에 더함: 연요호 흡수(DevilDemonAbsorb.GetAbsorbRate·CheckMonstCanAbsorb·AbsorbCheck·AbsorbComplete),
+    //               드롭(UIBattleInfoDrop.OnUnitDie, ConfBattleUnitAttr.GetDropID), 초빙(UnitActionRoleInvite.PlayerToNPCAction)
     internal static class DevCommandsTrainerBatch2
     {
         private static HarmonyLib.Harmony harmony;
@@ -68,6 +72,10 @@ namespace MOD_sWP6UL
                     return Relation(int.Parse(p[1]), int.Parse(p[2]));
                 case "tb2relitems":
                     return RelItems();
+                case "tb2invite":
+                    return Invite(int.Parse(p[1]), p.Length > 2 && p[2] == "force");
+                case "tb2npcset":
+                    return NpcSet(int.Parse(p[1]), p[2], int.Parse(p[3]));
                 default:
                     return null;
             }
@@ -241,6 +249,13 @@ namespace MOD_sWP6UL
             Patch(typeof(FormulaTool.Relation), "Score", new[] { typeof(ConfNpcPartFittingItem), unit, unit }, null, "RelScoreFit");
             Patch(typeof(FormulaTool.Relation), "ScoreForceMin", new[] { typeof(ConfNpcPartFittingItem), unit, unit }, null, "RelScoreMin");
             Patch(typeof(FormulaTool.Relation), "UnitAllRelationScore", new[] { unit, unit }, null, "RelAllScore");
+            Patch(typeof(DevilDemonAbsorb), "GetAbsorbRate", new[] { typeof(UnitCtrlMonst) }, null, "AbsorbRate");
+            Patch(typeof(DevilDemonAbsorb), "CheckMonstCanAbsorb", new[] { typeof(UnitCtrlMonst) }, null, "AbsorbCan");
+            Patch(typeof(DevilDemonAbsorb), "AbsorbCheck", new[] { typeof(UnitCtrlBase) }, "AbsorbCheck", null);
+            Patch(typeof(DevilDemonAbsorb), "AbsorbComplete", Type.EmptyTypes, "AbsorbDone", null);
+            Patch(typeof(UIBattleInfoDrop), "OnUnitDie", new[] { typeof(ETypeData) }, "DropDieBegin", "DropDieEnd");
+            Patch(typeof(ConfBattleUnitAttr), "GetDropID", new[] { typeof(int), typeof(bool) }, null, "DropId");
+            Patch(typeof(UnitActionRoleInvite), "PlayerToNPCAction", Type.EmptyTypes, "InviteBegin", null);
         }
 
         private static string Who(WorldUnitBase u)
@@ -418,6 +433,56 @@ namespace MOD_sWP6UL
             }
         }
 
+        private static void AbsorbRate(UnitCtrlMonst __0, ref int __result)
+        {
+            double v;
+            Add("AbsorbRate", "-> " + __result);
+            if (Over("AbsorbRate", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void AbsorbCan(UnitCtrlMonst __0, ref bool __result)
+        {
+            double v;
+            Add("AbsorbCan", "-> " + __result);
+            if (Over("AbsorbCan", out v))
+            {
+                __result = v != 0;
+            }
+        }
+
+        private static void AbsorbCheck()
+        {
+            Add("AbsorbCheck", "");
+        }
+
+        private static void AbsorbDone()
+        {
+            Add("AbsorbDone", "");
+        }
+
+        private static void DropDieBegin()
+        {
+            Add("DropDie", "begin");
+        }
+
+        private static void DropDieEnd(UIBattleInfoDrop __instance)
+        {
+            Add("DropDie", "end curRoomAllDrop=" + (__instance.curRoomAllDrop == null ? -1 : __instance.curRoomAllDrop.Count));
+        }
+
+        private static void DropId(int __0, bool __1, ref string __result)
+        {
+            Add("DropId", __0 + " die=" + __1 + " -> " + __result);
+        }
+
+        private static void InviteBegin(UnitActionRoleInvite __instance)
+        {
+            Add("Act", "Invite.PlayerToNPCAction " + Who(__instance.unit) + " force=" + __instance.forceAgree);
+        }
+
         // ---- 행동 만들기 ----
 
         private static List<WorldUnitBase> Near(int n)
@@ -500,6 +565,31 @@ namespace MOD_sWP6UL
             }
             var action = new UnitActionRoleRelation(to, (UnitRelationType)item.type, item);
             return Run(action, "") + " complete=" + action.isComplete + " setComplete=" + action.isSetComplete + " addIntim=" + action.addIntim;
+        }
+
+        private static string Invite(int index, bool force)
+        {
+            WorldUnitBase to = Near(index + 1)[index];
+            var action = new UnitActionRoleInvite(to);
+            if (force)
+            {
+                action.forceAgree = true;
+            }
+            return Run(action, "") + " complete=" + action.isComplete + " inviteComplete=" + action.isInviteComplete;
+        }
+
+        private static string NpcSet(int index, string key, int value)
+        {
+            WorldUnitBase to = Near(index + 1)[index];
+            AttributeDef def = AttributeCatalog.All.Find(d => d.Key == key);
+            if (def == null)
+            {
+                return "no attribute " + key;
+            }
+            var p = to.data.unitData.propertyData;
+            int before = def.Get(p);
+            def.Set(p, value);
+            return to.data.unitData.unitID + " " + key + " " + before + " -> " + def.Get(p) + " (dyn " + def.DynValue(to.data.dynUnitData) + ")";
         }
 
         private static string RelItems()
