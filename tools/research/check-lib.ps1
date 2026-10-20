@@ -8,7 +8,8 @@ $log = 'E:\Games\Tale of Immortal\MelonLoader\Latest.log'
 $script:fails = 0
 if (-not (Test-Path (Join-Path $work 'session.name'))) { throw 'session.ps1 -Begin으로 연 회차 안에서만 실행합니다(세이브와 모드 파일을 바꾸는 시험이다).' }
 
-function Cmd([string]$c, [int]$wait = 600) { (& "$tools\mod.ps1" -Cmd $c -WaitMs $wait) -join "`n" }
+# $reply: 답을 기다리는 최대 시간(mod.ps1 -ReplyMs). $wait: 답을 받은 뒤 쉬는 시간.
+function Cmd([string]$c, [int]$wait = 600, [int]$reply = 8000) { (& "$tools\mod.ps1" -Cmd $c -WaitMs $wait -ReplyMs $reply) -join "`n" }
 function Rc([string]$c, [int]$wait = 800) { (& "$tools\rc.ps1" -Cmd $c -NoShot -WaitMs $wait) -join "`n" }
 # 게임 창에 키 하나를 보낸다. 0x2D는 Insert, 0x0D는 Enter.
 function Key([int]$vk, [int]$wait = 500) {

@@ -1,7 +1,8 @@
 # 프리셋 탭의 게임 내 검증(docs/superpowers/specs/2026-10-14-preset-tab-design.md 8절).
 # tools\DevRemote\session.ps1 -Begin <이름> -Fixture base로 게임이 떠서 세계에 들어가 있어야 한다.
 # 프리셋 폴더(presets)는 세이브 밖에 있지만 session.ps1 -End가 회차 전 상태로 되돌린다. 이 검사는 폴더를 마음대로 지우고 만든다.
-param([Parameter(Mandatory)][string]$Part)
+# -Range 'a-b': preset-all이 적용할 기본 프리셋 번호 범위(기본 전부). 한 회차의 10분 안에 들게 나눠 돌린다.
+param([Parameter(Mandatory)][string]$Part, [string]$Range = '')
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
 $presetDir = Join-Path $data 'presets'
@@ -41,6 +42,18 @@ function PresetIndex([string]$fileName) {
   $names = (($o -split ' \| ', 2)[1]) -split ';'
   foreach ($entry in $names) { if ($entry -match "^(\d+):$([regex]::Escape($fileName))\s*$") { return [int]$Matches[1] } }
   -1
+}
+# 프리셋 목록(ListView)은 화면에 걸친 줄만 만든다. 기본 프리셋이 열 개를 넘어 한 화면을 넘으므로(05 문서 70절),
+# 이동 줄의 "전체 N개 중 a~b번째"를 읽어 i번째 줄(0부터)이 보일 때까지 "처음"·"다음"으로 옮긴다. 줄이 보이면 $true.
+function ShowRow([int]$i) {
+  for ($k = 0; $k -lt 12; $k++) {
+    $o = Cmd 'uitext PresetListRange' 150
+    if ($o -notmatch '(\d+)~(\d+)') { return $false }
+    $from = [int]$Matches[1] - 1; $to = [int]$Matches[2] - 1
+    if ($i -ge $from -and $i -le $to) { return $true }
+    if ($i -lt $from) { Press 'PresetListFirst' | Out-Null } else { Press 'PresetListNext' | Out-Null }
+  }
+  $false
 }
 $pickedFile = Join-Path $work 'check-preset-picked.json'
 $stateFile = Join-Path $work 'check-preset-state.txt'
@@ -253,6 +266,25 @@ switch ($Part) {
     Check 'a meta file is not listed as a preset' ([int]$l.count -eq $n + 4 -and $l.unreadable -eq '3') "count=$($l.count) unreadable=$($l.unreadable)"
     [IO.File]::Delete((Join-Path $presetDir 'uicheck-lines.meta.json'))
 
+    # 새 기본값 풀기(05 문서 70절): 폴더의 .defaults에 없는 내장 파일만 목록을 열 때 푼다. 사용자가 지운 기본 파일은 다시 풀지 않는다.
+    $record = Join-Path $presetDir '.defaults'
+    Check 'the folder keeps a record of unpacked defaults' ((Test-Path -LiteralPath $record) -and @(Get-Content -LiteralPath $record -Encoding UTF8 | Where-Object { $_ }).Count -eq $n) "record=$(Test-Path -LiteralPath $record)"
+    $last = (Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike 'uicheck*' -and $_.Name -notlike '*.meta.json' } | Sort-Object Name | Select-Object -Last 1).Name
+    [IO.File]::WriteAllLines($record, @(Get-Content -LiteralPath $record -Encoding UTF8 | Where-Object { $_ -and $_ -ne $last }), (New-Object Text.UTF8Encoding $false))
+    [IO.File]::Delete((Join-Path $presetDir $last))
+    Cmd 'plist' 400 | Out-Null
+    Check 'a default missing from the record is unpacked by listing' ((Test-Path -LiteralPath (Join-Path $presetDir $last)) -and (Get-Content -LiteralPath $record -Encoding UTF8) -contains $last) $last
+    # 기록이 없는 옛 폴더: 01~10은 알던 것으로 보고(지웠어도 다시 풀지 않음), 그 밖의 새 기본값만 푼다
+    if ($n -gt 10) {
+      $legacy = (Get-ChildItem -LiteralPath $presetDir -Filter '01-*.json' | Where-Object { $_.Name -notlike '*.meta.json' } | Select-Object -First 1).Name
+      [IO.File]::Delete($record); [IO.File]::Delete((Join-Path $presetDir $legacy)); [IO.File]::Delete((Join-Path $presetDir $last))
+      Cmd 'plist' 400 | Out-Null
+      Check 'an old folder gets the new defaults but not a deleted old one' ((Test-Path -LiteralPath (Join-Path $presetDir $last)) -and -not (Test-Path -LiteralPath (Join-Path $presetDir $legacy)) -and (Test-Path -LiteralPath $record)) "$last / $legacy"
+      Cmd 'prestore' 400 | Out-Null
+    } else {
+      "INFO only ten defaults are embedded; the old-folder case needs a new default"
+    }
+
     # 틀린 줄: 그 줄만 쓸 수 없고 나머지는 쓸 수 있다. 줄마다의 뜻은 아래 JSON의 순서대로:
     # 없는 기술 / 칸이 다른 기술 / 없는 옵션 / (쓸 수 있음) / 같은 칸 둘째 / 글자가 든 번호,
     # (쓸 수 있음) / 같은 유형 둘째 / 구성원이 아닌 세트 / 없는 세트, 역천개명이 아닌 번호 / 없는 대경지, 없는 기령, 없는 신혼, 남의 명우 옵션
@@ -423,7 +455,7 @@ switch ($Part) {
     Press 'Tab13' | Out-Null
     Check 'the preset tab is drawn' (IsAt 'PresetRestore')
     $shown = $true
-    foreach ($i in 0..$n) { $shown = $shown -and (IsAt "PresetDetail$i") -and (IsAt "PresetApply$i") -and (IsAt "PresetFull$i") }
+    foreach ($i in 0..$n) { $shown = $shown -and (ShowRow $i) -and (IsAt "PresetDetail$i") -and (IsAt "PresetApply$i") -and (IsAt "PresetFull$i") }
     Check 'every preset has its three buttons' $shown
     Check 'the note is empty while the defaults are untouched' ((Cmd 'uitext PresetNote' 150) -match "text=''")
 
@@ -431,7 +463,8 @@ switch ($Part) {
     WritePreset 'uicheck-zz-broken.json' '{ "format": 1, '
     Press 'Tab14' | Out-Null; Press 'Tab13' | Out-Null
     $bad = PresetIndex 'uicheck-zz-broken.json'
-    Check 'an unreadable file has no buttons' ($bad -ge 0 -and -not (IsAt "PresetApply$bad") -and -not (IsAt "PresetDetail$bad") -and (IsAt "PresetApply$(PresetIndex 'uicheck-preset.json')"))
+    $good = PresetIndex 'uicheck-preset.json'
+    Check 'an unreadable file has no buttons' ($bad -ge 0 -and (ShowRow $bad) -and (ShowRow $good) -and -not (IsAt "PresetApply$bad") -and -not (IsAt "PresetDetail$bad") -and (IsAt "PresetApply$good"))
     [IO.File]::Delete((Join-Path $presetDir 'uicheck-zz-broken.json'))
 
     # 기본 파일을 고치면 알림이 뜨고, 되돌리기는 두 번 눌러야 한다.
@@ -446,6 +479,7 @@ switch ($Part) {
 
     # 상세보기: 결정 초기(대경지 3)에서 단계 1~3은 적용, 4는 경지 올리기.
     $idx = PresetIndex 'uicheck-preset.json'
+    ShowRow $idx | Out-Null
     Press "PresetDetail$idx" | Out-Null
     # 머리글: 제목은 프리셋 이름만, 설명과 출처는 표 위의 줄바꿈되는 글(사용자 보고: 긴 제목이 돌아가기 밑으로 넘어갔다).
     Check 'the sub-page title is the preset name only' ((Cmd 'uitext SubTitle' 150) -match "SubTitle text='uicheck preset'") (Cmd 'uitext SubTitle' 150)
@@ -480,6 +514,7 @@ switch ($Part) {
     # 목록의 적용: 대경지 2의 역천개명(700016)을 바꾸므로 먼저 묻는다. 지금 대경지(4)까지의 역천개명이 모두 정해진다.
     Press 'Back' | Out-Null
     Check 'back on the list' (IsAt 'PresetRestore')
+    ShowRow $idx | Out-Null
     Press "PresetApply$idx" | Out-Null
     Check 'apply asks first' ((State).fates -match '^2:700016,')
     Press "PresetApply$idx" 5000 | Out-Null
@@ -548,10 +583,13 @@ switch ($Part) {
     # 앞 프리셋의 역천개명·신혼·명우를 다음 프리셋이 바꾼다(프리셋에서 프리셋으로 갈아타기).
     if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
     $c = Fields (Cmd 'pcheck' 900)
-    Check 'there are ten default presets' ((Fields (Cmd 'pdefaults' 200)).embedded -eq '10' -and $c.presets -eq '10' -and $c.unreadable -eq '0') "embedded=$((Fields (Cmd 'pdefaults' 200)).embedded) presets=$($c.presets)"
+    $embedded = (Fields (Cmd 'pdefaults' 200)).embedded
+    Check 'every default preset is listed and readable' ([int]$embedded -ge 10 -and $c.presets -eq $embedded -and $c.unreadable -eq '0') "embedded=$embedded presets=$($c.presets)"
     Check 'no default preset has an unusable line' ($c.problems -eq '0') (Cmd 'pcheck' 900)
-    foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Sort-Object Name) {
-      $r = Cmd "papply $($file.Name) full" 9000
+    $lo = 0; $hi = 99
+    if ($Range -match '^(\d+)-(\d+)$') { $lo = [int]$Matches[1]; $hi = [int]$Matches[2] }
+    foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike '*.meta.json' -and [int]$_.Name.Substring(0, 2) -ge $lo -and [int]$_.Name.Substring(0, 2) -le $hi } | Sort-Object Name) {
+      $r = Cmd "papply $($file.Name) full" 1000 30000   # 적용은 8~17초 걸린다(05 문서 70절)
       $run = Fields $r
       Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
       $ids = ((Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).fates | ForEach-Object { $_.id }) -join ','

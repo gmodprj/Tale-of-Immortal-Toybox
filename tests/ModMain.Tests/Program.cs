@@ -50,6 +50,7 @@ namespace MOD_sWP6UL
             CraftPlanTests();
             BagPlanTests();
             TraitRulesTests();
+            PresetDefaultsTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -210,6 +211,27 @@ namespace MOD_sWP6UL
                 parts.Add(c.Sole + (c.All ? " All" : " x" + c.Count));
             }
             return string.Join(",", parts);
+        }
+
+        private static string Names(List<string> list)
+        {
+            return string.Join(",", list);
+        }
+
+        // 새 기본 프리셋 풀기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 6.1절).
+        private static void PresetDefaultsTests()
+        {
+            var legacy = new List<string>(PresetDefaults.Legacy);
+            var all = new List<string>(legacy) { "11-x.json" };
+            string a = Names(PresetDefaults.ToWrite(new List<string> { "01-풍검.json", "11-x.json" }, new List<string> { "01-풍검.json" }, new List<string>()));
+            Check("defaults new name only", a == "11-x.json", a);
+            string b = Names(PresetDefaults.ToWrite(new List<string> { "01-풍검.json", "11-x.json" }, new List<string> { "01-풍검.json", "11-x.json" }, new List<string>()));
+            Check("defaults deleted one stays deleted", b == "", b);
+            string c = Names(PresetDefaults.ToWrite(all, null, new List<string> { "02-수검.json" }));
+            Check("defaults old folder unpacks only new ones", c == "11-x.json", c);
+            string d = Names(PresetDefaults.ToWrite(new List<string> { "11-x.json" }, new List<string>(), new List<string> { "11-x.json" }));
+            Check("defaults a file on disk is not written", d == "", d);
+            Check("defaults legacy has ten names", PresetDefaults.Legacy.Length == 10 && legacy.Contains("07-창-과룡문.json"));
         }
 
         // 성격 칸 검사(docs/superpowers/specs/2026-10-20-trainer-batch1-design.md 6절, 05 문서 65절: 표 type 1 내재·2 외재).
