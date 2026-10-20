@@ -143,6 +143,63 @@ namespace MOD_sWP6UL
             {
                 System.IO.File.WriteAllText(Path.Combine(Dir, pair.Key), pair.Value, new UTF8Encoding(false));
             }
+            WriteRecord(new List<string>(Defaults().Keys));
+        }
+
+        // 폴더의 .defaults: 풀어 놓은 기본 파일 이름(한 줄에 하나). 없으면 null(2026-10-20 이전의 옛 폴더).
+        private static List<string> ReadRecord()
+        {
+            string path = Path.Combine(Dir, PresetDefaults.RecordName);
+            if (!System.IO.File.Exists(path))
+            {
+                return null;
+            }
+            var names = new List<string>();
+            foreach (string line in System.IO.File.ReadAllLines(path, Encoding.UTF8))
+            {
+                if (line.Trim().Length > 0)
+                {
+                    names.Add(line.Trim());
+                }
+            }
+            return names;
+        }
+
+        private static void WriteRecord(List<string> names)
+        {
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            System.IO.File.WriteAllLines(Path.Combine(Dir, PresetDefaults.RecordName), names.ToArray(), new UTF8Encoding(false));
+        }
+
+        // 이미 있는 폴더에 새로 생긴 기본 프리셋만 푼다(스펙 2026-10-20-preset-drafts-design.md 6.1절). 지운 기본 파일은 다시 풀지 않는다.
+        private static void WriteNewDefaults()
+        {
+            List<string> record = ReadRecord();
+            var embedded = new List<string>(Defaults().Keys);
+            var onDisk = new List<string>();
+            foreach (string file in Directory.GetFiles(Dir, "*.json"))
+            {
+                onDisk.Add(Path.GetFileName(file));
+            }
+            List<string> toWrite = PresetDefaults.ToWrite(embedded, record, onDisk);
+            foreach (string name in toWrite)
+            {
+                System.IO.File.WriteAllText(Path.Combine(Dir, name), Defaults()[name], new UTF8Encoding(false));
+            }
+            if (record != null && toWrite.Count == 0)
+            {
+                return;
+            }
+            // 기록이 없던 옛 폴더는 지금 아는 이름(01~10과 이번에 푼 것)으로 기록을 만든다.
+            var known = new List<string>(record ?? new List<string>(PresetDefaults.Legacy));
+            foreach (string name in embedded)
+            {
+                if (!known.Contains(name))
+                {
+                    known.Add(name);
+                }
+            }
+            WriteRecord(known);
         }
 
         private static string Normal(string text)
@@ -204,6 +261,10 @@ namespace MOD_sWP6UL
                 if (!Directory.Exists(Dir))
                 {
                     WriteDefaults();
+                }
+                else
+                {
+                    WriteNewDefaults();
                 }
                 string[] files = Directory.GetFiles(Dir, "*.json");
                 Array.Sort(files, StringComparer.OrdinalIgnoreCase);
