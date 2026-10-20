@@ -3181,3 +3181,35 @@
 - 13의 辟火掌 변형, 12의 两仪指·金蝉无影 같은 원문의 대안은 메타에만 적었다.
 - 게임에는 설치하지 않았다(사용자 확인 뒤 `tools/install.ps1`). 설치하면 기존 프리셋 폴더에 11~16이 풀리고 `.defaults`가 생긴다.
 - 회차 이름: `pd-1020a`~`e`.
+
+## 71. 만고신화(2814696167) 설치 전 검토 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "관련 모드의 설치 - 검토 - 토이박스 반영 - 한글화 - 창작마당 모드 공법 빌드 진행 (모드 다운로드는 전과 같은 cmd 방식으로)" → 시험 설치 뒤 "설치 전에 다른 극 모드와 겹치는 표·번호를 회차에서 먼저 조사해 줘." 브랜치 `feat/workshop-wangu`. 관련 모드는 본체 하나로 보았다(함께 쓸 수 있는 "万古神话境界修改"는 제작자도 권하지 않는다고 적었다).
+
+### 받기와 파일 검토
+
+- `workshop.ps1 -Download -Id 2814696167`(SteamCMD 캐시 로그인) OK. 1636MB(그림 1174MB, ModRes 449MB). 창작마당 갱신일 2026-10-04.
+- 목록 `mods.txt` 40줄을 보류 → 설치로 바꾸고 모드ID `dH6k0J`(회차 `wg-1020a`의 `wsmods`로 확인)를 적었다. 아직 게임에는 설치하지 않았다.
+- DLL `MOD_dH6k0J.dll`(72KB)을 `ilspycmd`로 읽었다. 네트워크·프로세스·파일 삭제·레지스트리 API는 없다. Harmony 패치 넷:
+  - `DramaFunction.OptionsFunction` 앞붙임: 함수 문자열 가운데 자기 것(`wuxie_taixujing`, `wuxie_playVideo`)만 처리하고 나머지는 남겨 원래 처리로 넘긴다. 빈 글과 `0`이면 원래 처리를 건너뛴다. 같은 메서드를 쓰는 설치 DLL은 11개(문자열 검색)지만 다른 모드의 함수는 지나가므로 막지 않는다.
+  - `SpriteAtlas.GetSprite`·`SpriteTool.GetSpriteBigTex` 앞붙임: 자기 그림이 있을 때만 바꾼다. 그림 92개는 모두 `dH6k0J_` 접두의 새 이름이고, 배경(`Texture`)·아틀라스 이름이 같은 다른 모드 그림은 0개.
+  - `SceneLogin.Init`(로그인 화면).
+  - 지도 화면이 열릴 때마다 지금 난이도 줄의 `gameDifficultyValue.unitAttr`를 太虚镜 값으로 덮는다. 太虚镜을 만지지 않으면 넷 모두 100이라 `atk_100|def_100|hp_100|skillDmg_100|power_190`이 된다(바닐라 예: id 2는 `atk_90|def_85|hp_60|power_120`, id 5는 `atk_95|def_85|hp_100|skillDmg_150|power_190`. `.devremote\wg-excel\dump-gameDifficultyValue.txt`). 표는 메모리 값이라 모드를 빼면 돌아간다. 太虚镜 설정은 세이브의 `MOD_m4Gpg2` 키에 남는다.
+
+### 회차 시험 설치(`wg-1020a`)
+
+- `-Install -Yes -NoHistory` → `-Restart`: `wsmods loaded=41`, 새 예외 없음(로그의 예외는 Fatury의 입화 미리 읽기 캐시와 `ResLateLoadPatch`뿐). `ui-check base`·`tabs` FAIL 0. `rmods` 204 → 563. 이름이 풀린 모드 기술: 草字剑诀(무예 1745041)·仙劫剑诀(절기 1745042)·荒芜剑诀(신통 1745043)·独断万古(8951210, 8951209). 平乱诀은 LocalText에 있으나 기술 이름으로 대조되지 않았다(미확인).
+- `rloc dump written=9672`. 덤프는 데이터 폴더의 `translations\untranslated.txt`에 쓰이는데 `-End`가 번역 폴더를 되돌려 지워졌다. 다음에는 `-End` 전에 `.devremote`로 복사한다.
+
+### 표·번호 겹침(`wg-1020b`~`e`)
+
+- `ModExcel`은 난독화돼 파일로 못 읽는다. 개발 명령 `wsexcel <출력 파일> <모드 폴더>`를 더했다(`DevCommandsWorkshop.cs`): 게임의 `ModImportTool.LoadModExportData(<폴더>\ModExportData.cache)`로 풀어 "표<TAB>id"를 쓴다. 설정에 합치지 않는다.
+  - 처음 쓴 `ModMgr.LoadMod`는 읽은 뒤 설정에 합치고(`LoadModExportDataToConf`), 이미 실린 모드에 부르면 `NullReferenceException`(39개 모두), 편집기 자신(`Mod_sWP6UL`)에 부르면 게임이 멈췄다(`wg-1020c`, 회차가 띄운 게임만 강제 종료하고 `-End`, 세이브는 같음). 폴더 인자는 공백을 담을 수 있게 마지막 인자로 했다(`Tale of Immortal`).
+- 결과(`.devremote\wg-excel\*.tsv`): 만고신화 표 38개·21,973행(LocalText 10,040, DramaDialogue 6,747, DramaOptions 848, GameItemReward 733, BattleAbilityBase·BattleEffect·BattleUnitBase·BattleUnitAttr 각 330 …). 설치 모드 39개 가운데 표가 있는 것은 15개(가장 큰 것: 3426669627 7,420행, 2824722053 5,657행).
+- **(표, id)가 만고신화와 겹치는 설치 모드는 0개.** 만고신화의 id는 거의 모두 ±21억 범위의 해시라 바닐라 행 번호를 덮지 않는다. 1,000만 미만의 작은 번호는 51행(LocalText 18, DramaDialogue 14, GameItemReward 4 등)뿐이고 이것도 다른 모드와 겹치지 않는다. LocalText의 `key` 칸 겹침은 보지 않았다(미확인).
+
+### 판단에 남는 것
+
+- 제작자의 "극 모드와 같이 쓰지 말 것"은 번호 충돌로는 드러나지 않았다. 극의 진행 조건(같은 NPC·사건을 두 모드가 건드리는 것)은 표 번호로 알 수 없어 실제 플레이에서만 드러난다(미확인).
+- 난이도 줄 덮어쓰기는 모드의 설계(太虚镜)이며, 설치하면 지금 난이도의 적 능력치가 바뀐다.
+- 회차 이름: `wg-1020a`~`e`.

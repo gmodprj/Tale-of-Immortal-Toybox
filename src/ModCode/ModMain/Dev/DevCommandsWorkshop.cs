@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Text;
 
 namespace MOD_sWP6UL
@@ -6,6 +8,10 @@ namespace MOD_sWP6UL
     //   wsmods : path=<ModMgr.pathModExportData> loaded=<loadedModCount> cache=<isModCache>
     //            paths=<allModPaths의 t1|t2;…> mods=<modDatas의 soleID:name:ver:publishedFileID;…>
     //            ns=<loadModNamespace;…> order=<GetLoadOrderData의 modFolderName=isLoad;…>
+    //   wsexcel <출력 파일> <모드 폴더> : ModImportTool.LoadModExportData로 그 폴더의 표(ModExportData.Data.items)를 풀어 "표<TAB>id" 줄로 쓴다.
+    //                                     설치하지 않은 모드(받은 폴더)의 난독화된 ModExcel도 읽는다(05 문서 71절: 모드 사이 번호 겹침 조사).
+    //                                     폴더는 마지막 인자이고 공백을 담을 수 있다. 게임 설정에 합치지 않는다(ModMgr.LoadMod는 합치고,
+    //                                     이미 실린 모드를 다시 부르면 예외가 나거나 게임이 멈췄다: 회차 wg-1020c·d).
     internal static class DevCommandsWorkshop
     {
         public static string Execute(string[] p)
@@ -14,8 +20,45 @@ namespace MOD_sWP6UL
             {
                 case "wsmods":
                     return State();
+                case "wsexcel":
+                    return p.Length < 3 ? "usage: wsexcel <출력 파일> <폴더>" : ExcelOne(string.Join(" ", p, 2, p.Length - 2), p[1]);
                 default:
                     return null;
+            }
+        }
+
+        private static string ExcelOne(string folder, string outFile)
+        {
+            try
+            {
+                // 폴더가 아니라 그 안의 ModExportData.cache를 받는다(폴더를 주면 UnauthorizedAccessException).
+                string file = folder.EndsWith(".cache", StringComparison.OrdinalIgnoreCase) ? folder : Path.Combine(folder, "ModExportData.cache");
+                ModExportData.Data data = ModImportTool.LoadModExportData(file);
+                if (data == null || data.items == null)
+                {
+                    return "data=null";
+                }
+                var sb = new StringBuilder();
+                int tables = 0, rows = 0;
+                var e = data.items.GetEnumerator();
+                while (e.MoveNext())
+                {
+                    tables++;
+                    var list = e.Current.Value;
+                    for (int i = 0; list != null && i < list.Count; i++)
+                    {
+                        var row = list[i];
+                        string id = row != null && row.ContainsKey("id") ? row["id"] : "?";
+                        sb.Append(e.Current.Key).Append('\t').Append(id).Append('\n');
+                        rows++;
+                    }
+                }
+                File.WriteAllText(outFile, sb.ToString(), new UTF8Encoding(false));
+                return "tables=" + tables + " rows=" + rows;
+            }
+            catch (Exception ex)
+            {
+                return "error " + ex.GetType().Name + ": " + ex.Message;
             }
         }
 
