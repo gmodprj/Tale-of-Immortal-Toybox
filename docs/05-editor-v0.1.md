@@ -3006,3 +3006,31 @@
 - 장비(반지·좌기)의 강함은 0으로 본다(가방 순서로 지운다). 강화·옵션 칸을 읽지 않았다.
 - 게임 화면에서 직접 아이템을 쓴 경우는 보지 않았다(개발 명령이 같은 행동을 만든다).
 - 회차 이름: `tb1-1020d`~`p`(`e2`, `i2` 포함).
+
+## 67. 트레이너 비교 2묶음 — 설계 전 실험 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "모드창의 공법 참오 속성의 변경에서 불가: 이자리에 나올수 없는 옵션도 강제 추가 가능하게 수정하는 기능도 다음 작업에 포함하여 진행". 설계 `docs/superpowers/specs/2026-10-20-trainer-batch2-design.md` 4절의 E1~E6. 브랜치 `feat/trainer-batch2`, 개발 명령 `Dev/DevCommandsTrainerBatch2.cs`(`tb2*`), 회차 `tb2-1020a`~`c`.
+
+### E1 옵션 자리 강제 — 된다
+
+- 고정본 무예 14111(`fY5GR9`, 왼쪽 장착)의 자리 2(인덱스 1)는 15번의 가중치가 0이다(`tb2slot`: 1~5번 30, 6~16번 0). `SetPrefixID(1, 15)`가 예외 없이 들어가고 품질이 6/6으로 다시 뽑혔다. 비급 값(`cmartial`)에도 15가 들어간다.
+- 저장 후 재시작해도 15번이 그대로 남았다(게임이 다시 뽑거나 지우지 않음).
+- 그 공법을 전투에서 네 번 썼다(`bcast 1`). 모드 예외 없음.
+- 옵션 효과가 실제로 붙는지는 재지 않았다. 게임 화면의 공법 설명(마우스를 올리면 뜨는 창)은 가상 포인터로 띄우지 못해 보지 못했다.
+
+### E2~E6 성공률
+
+| 줄 | 결과 |
+|---|---|
+| 훔치기 | **된다.** `UnitActionRoleStealItem.CompleteRate(unit, toUnit)`은 0~1(0.10~0.66), `DiscoverRate(unit)`은 0.854. 둘 다 정적·인자에 유닛이 있어 플레이어를 가릴 수 있다. 접미로 1과 0을 돌려주자 결과 창에 "절도 성공! / 은폐 성공!"이 나오고 확인 뒤 보상 창이 떠 가방이 한 칸 늘었다. 결과 창(`ActionCourseInfo`)을 바로 닫으면 결과가 적용되지 않는다. |
+| 도주 | 확인 못 함. `UnitActionRoleEscape.CompleteRate(int,int,int)`는 불리지 않았다. 고정본 인물은 각력이 높아(각력 저장값 1로 해도 보정 포함 1101 대 상대 500·600) 실패하는 조건을 만들지 못했다. 행동에 `isSureComplete` 칸과 계산 메서드 `get_isComplete()`가 있다. 생성자의 sole은 null을 받지 않는다(빈 글은 된다). |
+| 포획 | 시험 못 함. 고정본에 연요호가 없다. `ConfPotmonSkillStudyItem.studyRate`·`battleStudyRate`는 칸이라 패치할 수 없다. |
+| 드롭 | 판정을 찾지 못함. `ConfGameDifficultyValueItem.dropRate`는 칸이라 패치할 수 없고, 값을 직접 0으로 해도(`g.conf.gameDifficultyValue.curItem.dropRate`, 기본 100) 적을 다 처치하자 아이템이 떨어졌다. `PlayerInfoExtendPropsEx.CanDrop`은 처치와 결과 창에서 불리지 않았다. |
+| 종문 초빙 | 시험 못 함. 고정본 인물은 종문이 없다. `FormulaTool.Relation.UnitSchooldScore`는 지도에서 불리지 않았다. |
+| 관계 발전 | 판정을 찾지 못함. 의형제 요청(`UnitActionRoleRelation`, 관계 표 3번)은 "외모·성격·친분을 살펴본다 → 거절". `get_isComplete()`를 true로 덮어써도 거절이었다. `FormulaTool.Relation.Score`(관계 종류·어울림 줄)·`ScoreForceMin`·`UnitAllRelationScore`는 불리지 않았다. `addIntim`·`isNPCReduceIntim`은 칸이다. |
+
+### 함정
+
+- 언홀로어가 칸(필드)을 감싼 속성(`get_dropRate`, `get_studyRate`, `get_addIntim`, `get_isSureComplete`)에는 Harmony 패치를 걸 수 없다(NullReferenceException. 65절의 `set_mp`와 같다). 패치할 수 있는 것은 실제 메서드뿐이다.
+- `AccessTools.Method(형식, "OnCreate")`는 그 형식에 없으면 부모의 것을 찾아 건다. `UnitActionRoleRelation`에는 `OnCreate`가 없어 부모(`UnitActionRoleToUnitBase`)에 걸렸고, 훔치기·도주 때도 불렸다.
+- 회차 이름: `tb2-1020a`(E1·훔치기·도주·관계), `tb2-1020b`(관계 점수 추적), `tb2-1020c`(관계 isComplete, 도주 실패 조건, 드롭률).
