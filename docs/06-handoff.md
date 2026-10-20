@@ -9,7 +9,7 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다(2026-10-21 아침, 이 문서 정리의 병합까지). `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절), develop에 병합을 마친 `fix/dress-list-missing`(지울지는 사용자 지시를 기다림)이다. 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다(2026-10-21 아침, 이 문서 정리의 병합까지). `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
 - **지금 게임에 설치된 것**(2026-10-21 07:00 기준. 앞 설치본의 기록은 8.8절):
   - **2026-10-21 07:00 갱신(75절)**: 편집기 DLL을 `develop` e6902ea로 바꿨다 — 사용자 지시("설치까지 진행 - 문서정리 - 핸드오프 - 커밋")·게임 꺼짐 뒤 `tools/install.ps1`, `installed build: e6902ea`(2,981,888바이트). 바로 앞 설치본 134197d(2026-10-20 20:07)와 배포 구성의 기능은 같다(그 뒤의 변경은 문서와 개발 명령 `rdress list`의 출력뿐이고, 개발 명령은 배포 빌드에서 빠진다). 134197d의 내용: 캐릭터 만들기 의복 빈 썸네일 채우기, 만고신화 하위 폴더 표 원문 3,271개 한글화(`tables.txt`, 첫 실행에 데이터 폴더에 풀림), 서식 태그를 벗겨 찾는 전체 일치(74절).
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
@@ -674,7 +674,7 @@ PowerShell과 도구:
 - 2026-10-20 저녁 사용자 지시("브랜치 정리")로 지운 브랜치(모두 develop에 병합된 뒤): `docs/install-1018b`, `docs/install-1020`, `docs/review-1018`, `feat/action-day-rate`, `feat/craft-cap-repair`, `feat/preset-drafts`, `feat/study-gain`, `feat/study-time`, `feat/workshop-wangu`, `fix/channel-wheel`, `fix/review-1018-small`, `fix/wangu-table-texts`, 이 정리의 `docs/handoff-1020`.
 - 2026-10-20에 쓴 회차 이름: `wg-1020a`~`w`(만고신화 71~74절. `p`~`w`는 `-Login`). 그 앞 65~70절의 회차 이름은 각 절에 있다.
 
-- 2026-10-21에 쓴 회차 이름: `wg-1021a`(75절, `-Login`). 병합을 마친 `fix/dress-list-missing`은 남겨 두었다(지울지 사용자 지시를 기다림). 이 정리의 `docs/handoff-1021`은 병합 뒤 지웠다.
+- 2026-10-21에 쓴 회차 이름: `wg-1021a`(75절, `-Login`). 병합을 마친 `fix/dress-list-missing`은 사용자 지시("병합을 끝낸 fix/dress-list-missing 브랜치를 지워 줘")로 지웠다. 이 정리의 `docs/handoff-1021`은 병합 뒤 지웠다.
 
 ### 8.8 설치 이력(2026-10-17~21, 최신이 위)
 
