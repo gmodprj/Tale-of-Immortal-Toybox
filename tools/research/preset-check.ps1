@@ -43,7 +43,7 @@ function PresetIndex([string]$fileName) {
   foreach ($entry in $names) { if ($entry -match "^(\d+):$([regex]::Escape($fileName))\s*$") { return [int]$Matches[1] } }
   -1
 }
-# 프리셋 목록(ListView)은 화면에 걸친 줄만 만든다. 기본 프리셋이 18개가 되어 한 화면을 넘으므로(05 문서 70절),
+# 프리셋 목록(ListView)은 화면에 걸친 줄만 만든다. 기본 프리셋이 열 개를 넘어 한 화면을 넘으므로(05 문서 70절),
 # 이동 줄의 "전체 N개 중 a~b번째"를 읽어 i번째 줄(0부터)이 보일 때까지 "처음"·"다음"으로 옮긴다. 줄이 보이면 $true.
 function ShowRow([int]$i) {
   for ($k = 0; $k -lt 12; $k++) {
