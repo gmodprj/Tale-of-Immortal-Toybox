@@ -99,13 +99,14 @@ namespace MOD_sWP6UL
             {
                 return found;
             }
+            // 벗기는 것은 서식 태그(<b>·</COLOR>·<size=20>처럼 '<' 또는 "</" 뒤가 영문자)뿐이다. 만고신화는 <此人突然出现…>처럼 꺾쇠를 지문 표시로도 쓰므로 그런 조각은 남긴다(리뷰 I1).
             int start = 0;
             while (start < text.Length && text[start] == '<')
             {
                 int close = text.IndexOf('>', start);
-                if (close < 0)
+                if (close < 0 || !IsTag(text, start, close))
                 {
-                    return null;
+                    break;
                 }
                 start = close + 1;
             }
@@ -113,7 +114,7 @@ namespace MOD_sWP6UL
             while (end > start && text[end - 1] == '>')
             {
                 int open = text.LastIndexOf('<', end - 1);
-                if (open < start)
+                if (open < start || !IsTag(text, open, end - 1))
                 {
                     break;
                 }
@@ -130,6 +131,26 @@ namespace MOD_sWP6UL
             }
             found = Exact(inner);
             return found == null ? null : text.Substring(0, start) + found + text.Substring(end);
+        }
+
+        // text[open]='<', text[close]='>'인 조각이 서식 태그인지: 사이에 꺾쇠가 없고 '<'(또는 "</") 다음이 영문자.
+        private static bool IsTag(string text, int open, int close)
+        {
+            int i = open + 1;
+            if (i < close && text[i] == '/')
+            {
+                i++;
+            }
+            if (i >= close)
+            {
+                return false;
+            }
+            char c = text[i];
+            if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')))
+            {
+                return false;
+            }
+            return text.IndexOf('<', open + 1, close - open - 1) < 0;
         }
 
         private string Exact(string text)

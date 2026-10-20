@@ -17,7 +17,13 @@ namespace MOD_sWP6UL
         private static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
         private static readonly HashSet<string> requested = new HashSet<string>();
         private static readonly List<Il2CppSystem.Action<UnityEngine.Object>> handlers = new List<Il2CppSystem.Action<UnityEngine.Object>>();
-        private static bool failedOnce;
+        private const int RequestsPerPoll = 24;
+        private static readonly HashSet<string> filledCells = new HashSet<string>();
+        private static HashSet<string> emptyBefore = new HashSet<string>();
+        private static string lastError;
+        private static bool open;
+        private static int generation;
+        private static int pending;
 
         public static int Filled { get; private set; }
         public static int Missing { get; private set; }
@@ -82,8 +88,13 @@ namespace MOD_sWP6UL
                 UICreatePlayer ui = g.ui.GetUI<UICreatePlayer>(UIType.CreatePlayer);
                 if (ui == null)
                 {
+                    if (open)
+                    {
+                        Clear();
+                    }
                     return;
                 }
+                open = true;
                 Transform content = FindContent(ui.transform);
                 if (content == null || !content.gameObject.activeInHierarchy)
                 {
@@ -91,6 +102,8 @@ namespace MOD_sWP6UL
                 }
                 string sex = IsWoman(ui.transform) ? "Woman" : "Man";
                 float box = BoxSize(content);
+                var emptyNow = new HashSet<string>();
+                int sent = 0;
                 for (int i = 0; i < content.childCount; i++)
                 {
                     Transform cell = content.GetChild(i);
@@ -106,6 +119,12 @@ namespace MOD_sWP6UL
                         continue;
                     }
                     string key = sex + "/" + id;
+                    emptyNow.Add(key);
+                    // 두 번 연달아(0.5초 넘게) 빈 칸만 다룬다. 게임이 칸을 만든 직후 원작 그림을 늦게 붙이는 사이에 끼어들지 않게(리뷰 I3).
+                    if (!emptyBefore.Contains(key))
+                    {
+                        continue;
+                    }
                     Sprite sprite;
                     if (sprites.TryGetValue(key, out sprite))
                     {
@@ -123,37 +142,69 @@ namespace MOD_sWP6UL
                                 float s = box / side;
                                 part.localScale = new Vector3(s, s, 1f);
                             }
+                            filledCells.Add(cell.name);
                             Filled++;
                         }
                         continue;
                     }
-                    Request(key, "Game/Portrait/" + key.Replace("/", "/Body/"));
+                    // 한 번에 많이 보내면 창을 열 때 적재가 몰린다. 폴마다 몇 개씩만(리뷰 I2).
+                    if (sent < RequestsPerPoll && !requested.Contains(key))
+                    {
+                        Request(key, "Game/Portrait/" + key.Replace("/", "/Body/"));
+                        sent++;
+                    }
                 }
+                emptyBefore = emptyNow;
             }
             catch (Exception e)
             {
-                if (!failedOnce)
+                string note = e.GetType().Name + ": " + e.Message;
+                if (note != lastError)
                 {
-                    failedOnce = true;
-                    MelonLogger.Msg("[TlToybox] dress thumbs: " + e.GetType().Name + ": " + e.Message);
+                    lastError = note;
+                    MelonLogger.Msg("[TlToybox] dress thumbs: " + note);
                 }
+            }
+        }
+
+        // 창이 닫히면 읽어 둔 그림을 놓는다(큰 입화 텍스처를 세계에서까지 붙잡지 않게. 리뷰 I2). 아직 안 온 콜백은 세대 번호로 버린다.
+        private static void Clear()
+        {
+            open = false;
+            generation++;
+            sprites.Clear();
+            requested.Clear();
+            emptyBefore = new HashSet<string>();
+            filledCells.Clear();
+            lastError = null;
+            if (pending == 0)
+            {
+                handlers.Clear();
             }
         }
 
         private static void Request(string key, string path)
         {
-            if (!requested.Add(key))
-            {
-                return;
-            }
+            requested.Add(key);
+            int gen = generation;
+            pending++;
             var handler = UnhollowerRuntimeLib.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<UnityEngine.Object>>(
                 new Action<UnityEngine.Object>(o =>
                 {
-                    Sprite sprite = SpriteOf(o);
-                    sprites[key] = sprite;
-                    if (sprite == null)
+                    pending--;
+                    if (gen == generation)
                     {
-                        Missing++;
+                        Sprite sprite = SpriteOf(o);
+                        sprites[key] = sprite;
+                        if (sprite == null)
+                        {
+                            Missing++;
+                        }
+                    }
+                    // 콜백이 끝나기 전에는 대리자를 놓지 않는다(게임이 부를 대상이 사라지지 않게).
+                    if (pending == 0 && !open)
+                    {
+                        handlers.Clear();
                     }
                 }));
             handlers.Add(handler);
@@ -197,7 +248,7 @@ namespace MOD_sWP6UL
             {
                 Transform part = content.GetChild(i).Find("G:imgPart");
                 UnityEngine.UI.Image image = part == null ? null : part.GetComponent<UnityEngine.UI.Image>();
-                if (image == null || image.sprite == null || part.localScale.x <= 0f || sprites.ContainsValue(image.sprite))
+                if (image == null || image.sprite == null || part.localScale.x <= 0f || filledCells.Contains(content.GetChild(i).name))
                 {
                     continue;
                 }

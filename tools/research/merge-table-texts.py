@@ -23,6 +23,16 @@ def read_tsv(path):
     return rows
 
 
+def edge(text):
+    # TranslationTable.Parse가 키·글의 앞뒤 공백을 지우므로 앞뒤 공백은 "\_"로 적는다(리뷰 M1: 끝 공백이 있는 원문 15줄이 맞지 않았다).
+    core = text.strip(' ')
+    lead = len(text) - len(text.lstrip(' '))
+    trail = len(text) - len(text.rstrip(' '))
+    if not core:
+        return (BS + '_') * len(text)
+    return (BS + '_') * lead + core + (BS + '_') * trail
+
+
 src, ko = {}, {}
 for p in sorted(glob.glob(os.path.join(folder, 'chunk-*.tsv'))):
     src.update(read_tsv(p))
@@ -67,5 +77,5 @@ if apply:
         o.write('# 표 칸 전용 번역표(원문<TAB>한국어). 글 전체가 같을 때만 쓰고 화면 글의 부분 치환에는 쓰지 않는다. 05 문서 74절.\n')
         o.write('# 만들기: tools/research/merge-table-texts.py. "\\n"은 원문·번역 모두 줄바꿈 두 글자. 같은 원문은 뒤의 것.\n')
         for a, b in pairs:
-            o.write(a + '\t' + b + '\n')
+            o.write(edge(a) + '\t' + edge(b) + '\n')
     print('written', out_path)
