@@ -34,6 +34,15 @@ namespace MOD_sWP6UL
             BattleService.OnInit();
             try
             {
+                // 캐릭터 만들기 의복 목록의 빈 썸네일 채우기(05 문서 74절).
+                DressThumbService.Ensure();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] dress thumbs failed: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
                 // 기술 학습 상한(05 문서 60절): 설정 파일의 값이 0이 아니면 패치를 건다.
                 MartialGridService.Ensure();
             }
@@ -62,6 +71,7 @@ namespace MOD_sWP6UL
             EditorWindow.Close();
             ResetState();
             BattleService.OnDestroy();
+            DressThumbService.Stop();
             RateService.OnDestroy();
             ArtifactKeyService.OnDestroy();
             InputGuard.Release();

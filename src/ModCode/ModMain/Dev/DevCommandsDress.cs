@@ -10,6 +10,7 @@ namespace MOD_sWP6UL
     //   rbody <from> [to] [Woman|Man] [dyn]     Game/Portrait/<성별>/Body/<n>(dyn이면 PortraitDynamic)을 g.res로 읽어 프리팹과 그 안 그림의 상태
     //   rbodyof <이름 일부>                      이름이 맞는 유닛들의 입화 몸 번호(PortraitModelData.body)와 성별
     //   rprops <itemId>                         ConfItemPropsItem의 정수·실수·글자 속성 전부(의복 아이템과 몸 번호의 대응을 찾는 용도)
+    //   rthumbs                                 의복 목록 빈 썸네일 채우기(DressThumbService)의 요청·적재·채움 수(74절)
     internal static class DevCommandsDress
     {
         public static string Execute(string[] p)
@@ -31,6 +32,8 @@ namespace MOD_sWP6UL
                     return Props(int.Parse(p[1]));
                 case "rsetbody":
                     return SetPlayerBody(int.Parse(p[1]));
+                case "rthumbs":
+                    return p.Length > 1 ? DressThumbService.Describe(p[1]) : DressThumbService.Stats();
                 case "ruigrid":
                     return UiGrid(p.Length > 1 ? p[1] : "srItems", p.Length > 2 && p[2] == "all");
                 case "rnpcinfo":
@@ -218,7 +221,7 @@ namespace MOD_sWP6UL
                 return kind + ":null";
             }
             Texture2D texture = sprite.texture;
-            string size = texture == null ? "notex" : texture.width + "x" + texture.height;
+            string size = texture == null ? "notex" : texture.width + "x" + texture.height + "#" + texture.GetInstanceID();
             return kind + ":" + sprite.name + "/" + size + "/" + (int)sprite.rect.width + "x" + (int)sprite.rect.height;
         }
 

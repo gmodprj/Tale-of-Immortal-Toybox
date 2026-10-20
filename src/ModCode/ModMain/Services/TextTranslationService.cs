@@ -9,21 +9,35 @@ namespace MOD_sWP6UL
 {
     // LocalText 밖에 남은 창작마당 모드의 중국어 글 한글화(스펙 docs/superpowers/specs/2026-10-17-zh-text-korean-design.md).
     // 번역표 <데이터 폴더>\translations\texts.txt(원문<TAB>한국어. 파일 규칙은 mods.txt와 같다: 없으면 내장본을 풀고, 있으면 내장본에만 있는 줄을 덧붙인다).
-    // Apply(): 사전으로 TextReplacer를 만들고(화면 글 치환 TextPatch가 쓴다), 다섯 표의 글 칸을 전체 일치로 바꿔 끼운다.
+    // 표 칸 전용 번역표 <데이터 폴더>\translations\tables.txt(같은 형식·규칙. 전체 일치에만 쓴다. 05 문서 74절).
+    // Apply(): 사전으로 TextReplacer를 만들고(화면 글 치환 TextPatch가 쓴다), Targets 표의 글 칸을 전체 일치로 바꿔 끼운다.
     internal static class TextTranslationService
     {
         private const string ResourceName = "Translations/texts.txt";
+        // 표 칸 전용 번역표(원문<TAB>한국어, 05 문서 74절: 만고신화 하위 폴더 표의 대사·이름처럼 LocalText 키 없이 원문이 든 칸).
+        // 글 전체가 같을 때만 쓰고 화면 글의 부분 치환에는 쓰지 않는다(긴 대사 수천 줄이라 TextPatch를 느리게 하지 않게). 파일 규칙은 texts.txt와 같다.
+        private const string TablesResourceName = "Translations/tables.txt";
 
-        // 표 이름(ConfMgr의 속성)과 바꿔 끼울 글자 속성. 53절의 조사에서 화면에 보이는 칸만.
-        // modNpcAddWorld.joinSchoolName은 종문을 이름으로 찾는 값일 수 있어(53절, 표시 여부 미확인) 건드리지 않는다.
+        // 표 이름(ConfMgr의 속성)과 바꿔 끼울 글자 속성. 53절의 조사에서 화면에 보이는 칸만. 74절에서 만고신화가 원문을 넣은 칸을 더했다.
+        // modNpcAddWorld.joinSchoolName은 종문을 이름으로 찾는 값일 수 있어(53절, 표시 여부 미확인) 건드리지 않는다. 그림·소리·함수 이름 칸(icon·avatar·backgroud·function 등)도 건드리지 않는다.
         private static readonly string[][] Targets =
         {
             new[] { "battleSkillAttack", "name", "desc" },
-            new[] { "battleEffect", "desc" },
-            new[] { "roleCreateFeature", "name", "tips" },
+            new[] { "battleEffect", "name", "desc" },
+            new[] { "roleCreateFeature", "name", "tips", "introduceText" },
             new[] { "modNpcAddWorld", "name1", "name2" },
-            new[] { "dramaOptions", "text" },
+            new[] { "dramaOptions", "text", "clickTip" },
             new[] { "dramaDialogue", "dialogue" },
+            new[] { "dramaNpc", "name" },
+            new[] { "battleStepBase", "name", "desc" },
+            new[] { "skillEffectDesc", "value" },
+            new[] { "battleUnitAttr", "name" },
+            new[] { "battleSkillCondition", "desc" },
+            new[] { "itemProps", "name", "desc" },
+            new[] { "artifactSprite", "name" },
+            new[] { "artifactSpriteArt", "name", "desc" },
+            new[] { "artifactSpriteStroy", "story", "memory" },
+            new[] { "fishingBase", "name", "desc" },
         };
 
         public static string LastSummary = "not applied";
@@ -34,21 +48,31 @@ namespace MOD_sWP6UL
             get { return Path.Combine(TranslationService.Dir, "texts.txt"); }
         }
 
+        public static string TablesPath
+        {
+            get { return Path.Combine(TranslationService.Dir, "tables.txt"); }
+        }
+
         public static string EnsureFile()
         {
-            string text = Embedded();
-            if (File.Exists(FilePath))
+            return EnsureFile(ResourceName, FilePath);
+        }
+
+        private static string EnsureFile(string resourceName, string filePath)
+        {
+            string text = Embedded(resourceName);
+            if (File.Exists(filePath))
             {
                 if (text == null)
                 {
                     return "있음";
                 }
-                List<string> missing = TranslationTable.MissingLines(File.ReadAllLines(FilePath, Encoding.UTF8), text);
+                List<string> missing = TranslationTable.MissingLines(File.ReadAllLines(filePath, Encoding.UTF8), text);
                 if (missing.Count == 0)
                 {
                     return "있음";
                 }
-                string current = File.ReadAllText(FilePath, Encoding.UTF8);
+                string current = File.ReadAllText(filePath, Encoding.UTF8);
                 var all = new StringBuilder(current);
                 if (current.Length > 0 && !current.EndsWith("\n"))
                 {
@@ -59,7 +83,7 @@ namespace MOD_sWP6UL
                 {
                     all.Append(line).Append('\n');
                 }
-                File.WriteAllText(FilePath, all.ToString(), new UTF8Encoding(false));
+                File.WriteAllText(filePath, all.ToString(), new UTF8Encoding(false));
                 return "덧붙임 " + missing.Count;
             }
             if (text == null)
@@ -67,14 +91,14 @@ namespace MOD_sWP6UL
                 return "없음";
             }
             Directory.CreateDirectory(TranslationService.Dir);
-            File.WriteAllText(FilePath, text, new UTF8Encoding(false));
+            File.WriteAllText(filePath, text, new UTF8Encoding(false));
             return "풀어 둠";
         }
 
-        private static string Embedded()
+        private static string Embedded(string resourceName)
         {
             Assembly assembly = typeof(TextTranslationService).Assembly;
-            using (Stream stream = assembly.GetManifestResourceStream(ResourceName))
+            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
             {
                 if (stream == null)
                 {
@@ -118,7 +142,43 @@ namespace MOD_sWP6UL
                 localText = null;
                 lt = "ERROR(" + e.GetType().Name + ")";
             }
-            Replacer = new TextReplacer(map, localText);
+            // 표 칸 전용 번역표는 전체 일치 사전에 넣는다. 같은 원문이면 이 표가 LocalText보다 앞선다.
+            string cellFile;
+            int cellBroken = 0;
+            var wholeOnly = new Dictionary<string, string>(StringComparer.Ordinal);
+            try
+            {
+                cellFile = EnsureFile(TablesResourceName, TablesPath);
+                if (cellFile != "없음")
+                {
+                    foreach (var pair in TranslationTable.Parse(File.ReadAllLines(TablesPath, Encoding.UTF8), out cellBroken))
+                    {
+                        wholeOnly[pair.Key] = pair.Value;
+                        if (pair.Key.IndexOf('\n') >= 0)
+                        {
+                            // 표 칸의 줄바꿈은 두 글자 "\n"(TMP가 줄을 바꾼다)이나 CRLF일 수도 있다. texts.txt(TextReplacer.Add)와 같게 그 꼴도 넣는다.
+                            wholeOnly[pair.Key.Replace("\n", "\\n")] = pair.Value.Replace("\n", "\\n");
+                            wholeOnly[pair.Key.Replace("\n", "\r\n")] = pair.Value.Replace("\n", "\r\n");
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                cellFile = "읽기 실패 " + e.GetType().Name + ": " + e.Message;
+            }
+            int cellRows = wholeOnly.Count;
+            if (localText != null)
+            {
+                foreach (var pair in localText)
+                {
+                    if (!wholeOnly.ContainsKey(pair.Key))
+                    {
+                        wholeOnly[pair.Key] = pair.Value;
+                    }
+                }
+            }
+            Replacer = new TextReplacer(map, wholeOnly);
             int tables = 0, cells = 0, errors = 0;
             var detail = new StringBuilder();
             // LocalText 사전만 있어도 표 칸을 바꾼다(ApplyTable의 Whole은 두 사전을 다 본다. 리뷰 10의 N1).
@@ -143,7 +203,7 @@ namespace MOD_sWP6UL
                     }
                 }
             }
-            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail;
+            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " cellFile=" + cellFile + " cellRows=" + cellRows + " cellBroken=" + cellBroken + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail;
             MelonLogger.Msg("[TlToybox] texts: " + LastSummary);
             return LastSummary;
         }
