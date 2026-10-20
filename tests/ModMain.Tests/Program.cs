@@ -245,6 +245,9 @@ namespace MOD_sWP6UL
             Check("alt missing keeps original", FateAlt.Pick(5, 700056, 1, 1, true, 700028, 2, 10, false) == 700056);
             Check("no alt keeps original", FateAlt.Pick(5, 700056, 1, 1, true, 0, 0, 0, false) == 700056);
             Check("alt used when original is missing", FateAlt.Pick(5, 700056, 0, 0, false, 700028, 2, 10, true) == 700028);
+            Check("original usable at its lowest grade", FateAlt.Pick(1, 700056, 1, 1, true, 700028, 2, 10, true) == 700056);
+            Check("original usable at its highest grade", FateAlt.Pick(10, 700056, 5, 10, true, 700028, 2, 10, true) == 700056);
+            Check("alt used at the edges of its range", FateAlt.Pick(11, 700056, 5, 10, true, 700028, 2, 11, true) == 700028 && FateAlt.Pick(2, 700056, 5, 10, true, 700028, 2, 11, true) == 700028);
         }
 
         private static void PresetDefaultsTests()

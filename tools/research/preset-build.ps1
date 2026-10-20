@@ -297,7 +297,7 @@ $slotName = @{ left = '무예/영술'; right = '절기'; step = '신법'; ultima
 $written = 0
 $tables = New-Object Text.StringBuilder
 foreach ($b in $builds) {
-  if ($Only.Count -gt 0 -and -not ($Only | Where-Object { $b.file.StartsWith($_) })) { continue }
+  if ($Only.Count -gt 0 -and -not ($Only | Where-Object { $b.file.StartsWith($_ + '-') })) { continue }
   $json = New-Object Text.StringBuilder
   [void]$json.AppendLine('{').AppendLine('  "format": 1,').AppendLine('  "kind": "preset",')
   [void]$json.AppendLine(('  "name": "{0}",' -f $b.name)).AppendLine(('  "summary": "{0}",' -f $b.summary)).AppendLine(('  "source": "{0}",' -f $b.source))

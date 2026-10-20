@@ -48,10 +48,13 @@ function PresetIndex([string]$fileName) {
 $repoPresets = Join-Path (Split-Path (Split-Path $PSScriptRoot)) 'src\ModCode\ModMain\Presets'
 function MissingModPresets {
   $mods = Cmd 'wsmods' 400
+  # 빈 응답(시간 초과)을 "실리지 않음"으로 읽지 않는다. 판정은 mods=의 soleID:name:ver:publishedFileID; 끝 번호로 한다.
+  if ($mods -notmatch ' mods=') { throw "wsmods gave no mod list: $mods" }
+  $modList = ($mods -split ' mods=', 2)[1]
   foreach ($meta in Get-ChildItem -LiteralPath $repoPresets -Filter '*.meta.json') {
     $req = @((Get-Content -LiteralPath $meta.FullName -Raw -Encoding UTF8 | ConvertFrom-Json).requires)
     foreach ($r in $req) {
-      if ($r.workshopId -and $mods -notmatch ('\\' + $r.workshopId + '(;| |$)')) { $meta.Name -replace '\.meta\.json$', '.json'; break }
+      if ($r.workshopId -and $modList -notmatch (':' + $r.workshopId + ';')) { $meta.Name -replace '\.meta\.json$', '.json'; break }
     }
   }
 }

@@ -158,6 +158,8 @@ if ($Begin) {
   if ((Test-Path -LiteralPath $keptTranslations) -or (Test-Path $noTranslations)) { throw "끝내지 않은 회차의 번역 보관본이 있습니다($keptTranslations 또는 $noTranslations). translations 폴더와 비교해 되돌린 뒤 지우고 다시 시작합니다." }
   # 옮겨 둔 모드 폴더가 남아 있으면 그 모드의 유일한 사본이다. 되돌린 뒤 다시 시작한다.
   if (Test-Path -LiteralPath $parked) { throw "끝내지 않은 회차가 옮겨 둔 모드 폴더가 있습니다($parked). ModExportData로 되돌린 뒤 지우고 다시 시작합니다." }
+  # 같은 번호를 두 번 주면 두 번째 이동이 표식 뒤에서 실패한다. 여기서 막는다.
+  if (@($Exclude | Select-Object -Unique).Count -ne $Exclude.Count) { throw "-Exclude에 같은 번호가 두 번 있습니다: $($Exclude -join ',')" }
   foreach ($id in $Exclude) {
     if ($id -eq "Mod_$ModId" -or $id -notmatch '^[0-9A-Za-z_]+$') { throw "뺄 수 없는 폴더입니다: $id" }
     if (-not (Test-Path -LiteralPath (Join-Path $modsDir $id) -PathType Container)) { throw "설치되지 않은 모드입니다: $id" }

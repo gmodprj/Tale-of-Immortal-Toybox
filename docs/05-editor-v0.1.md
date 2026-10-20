@@ -3266,7 +3266,7 @@
 
 ### 두 조건 검사와 `-Exclude`
 
-- `session.ps1 -Begin <이름> -Exclude <창작마당ID>`: 회차 동안 그 모드 폴더를 `.devremote\session-parked-mods`로 옮기고 `-End`가 WORKSHOP 정리 전에 되돌린다("MOD PARKED"·"MOD RESTORED"). 남은 parked 폴더, 편집기 폴더, 미설치 번호, 되돌릴 자리에 이미 폴더가 있으면 멈춘다. `session.tests.ps1`에 시험 5개(39개 통과).
+- `session.ps1 -Begin <이름> -Exclude <창작마당ID>`: 회차 동안 그 모드 폴더를 `.devremote\session-parked-mods`로 옮기고 `-End`가 WORKSHOP 정리 전에 되돌린다("MOD PARKED"·"MOD RESTORED"). 남은 parked 폴더, 편집기 폴더, 미설치 번호, 되돌릴 자리에 이미 폴더가 있으면 멈춘다. `session.tests.ps1`에 시험 5개(그때 39개 통과).
 - 만고 조건(그대로 설치): `pcheck` problems=0(17개), `preset-all` 1-9·10-21 FAIL 0, `translation` FAIL 0. `preset-all`은 `pstrict`가 실제로 고른 번호(`fate \d+:(\d+)`)로 역천개명을 비교한다.
 - 바닐라 조건(`-Exclude 2814696167`, 고정본): `preset` state·files·ui·preset-all FAIL 0(21은 건너뜀), `ui` base·tabs·modbooks FAIL 0. `Mod_LoadData`는 바뀌지 않았다.
 - `ui-check.ps1`: `rloc dump` 기대값을 `written=6`으로(72절의 원문 5행 + 영어 플래그 1). `modbooks`의 `can=5` 고정값은 경지 표에 따라 달라 낡았다. 바닐라 비급 고성검(14112)을 같은 칸에 놓고 `rbookstudy`의 `can=`이 같은지로 바꿨다.
@@ -3277,3 +3277,10 @@
 - 회차 `wg-1020j`~`n`. 마지막 `wg-1020n -End`: SAVE RESTORED AND IDENTICAL, MOD RESTORED: 2814696167, 모드 폴더 다시 있음.
 - 배포 빌드 경고 0, 내장 프리셋 17개·메타 0개(리소스 이름으로 셈), 단위 시험 FAILS=0, `session.tests.ps1` FAILS=0.
 - 게임에 설치된 편집기 DLL은 아직 이전 빌드다. 갱신 설치는 사용자 확인 뒤에 한다.
+
+### 최종 리뷰 뒤 고친 것
+
+- `MissingModPresets`는 `paths=`의 `\<번호>` 꼴에 기대 만고신화가 실려 있어도 21번을 건너뛸 수 있었다. 판정을 `mods=`의 `soleID:name:ver:publishedFileID;` 끝 번호(`:<번호>;`)로 바꾸고, `wsmods`에 `mods=`가 없으면(빈 응답) 멈춘다. 회차 `wg-1020o`(만고 조건, 고정본)에서 `preset-all -Range 21-21`이 INFO 없이 21번의 적용 검사를 모두 통과했다(FAILS=0).
+- `-Exclude`에 같은 번호를 두 번 주면 Begin이 표식 전에 멈춘다. 회차 중 같은 모드 폴더가 다시 생기면 `-End`가 덮어쓰지 않고 보관본을 남긴 채 멈춘다(시험 31, 2개. 41개 통과).
+- `preset-build -Only 1`이 10~16까지 고르던 접두어 일치를 `1-`로 바꿨다. `FateAlt` 경계 시험 3개(109개 통과). `ui-check`의 덤프 주석을 6으로.
+- 남긴 것: 다른 판의 `session.ps1`(이 브랜치를 병합하기 전 develop)로 `-End`하면 옮긴 모드가 되돌아가지 않는다. 다음 `-Begin`이 남은 보관본을 보고 멈추므로 사본은 잃지 않는다. `-Exclude` 회차는 같은 판으로 닫는다.

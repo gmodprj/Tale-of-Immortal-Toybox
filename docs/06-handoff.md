@@ -216,7 +216,7 @@
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. `-Do move -X -Y`·`-Do wheel -X -Y -Delta`(WM_MOUSEMOVE·WM_MOUSEWHEEL)도 있으나 Unity의 `Input`에는 닿지 않는다(51절 실측). 마우스는 개발 명령의 가상 입력(`uipointer`·`uiwheel`·`uikey`)으로 한다. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다.
 - 검증 스크립트 안에서는 `check-lib.ps1`의 `Cmd`, `Rc`, `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지), `Pos`, `Check`, `Shot`, `Traps`, `ModWarnings`를 쓴다. 편집기의 버튼은 좌표가 아니라 이름으로 찾는다.
 - `.devremote`(회차 표식·세이브 사본·캡처·명령 채널)는 어느 체크아웃에서 열어도 한 곳이다: 환경 변수 `TLTOYBOX_DEVREMOTE`(절대 경로)가 있으면 그 폴더, 없으면 `E:\TlToybox\.devremote`(49절, `tools/DevRemote/devremote-dir.ps1`). 워크트리에서 회차를 열어도 같은 곳을 쓰고, 두 체크아웃이 동시에 열면 표식이 막는다. 설치본의 `Init` 줄 `build=<커밋>`으로 어느 코드가 설치됐는지 안다.
-- 게임 없이 도는 시험: `pwsh tools/DevRemote/session.tests.ps1`(39), `pwsh tools/workshop.tests.ps1`(78), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(106). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
+- 게임 없이 도는 시험: `pwsh tools/DevRemote/session.tests.ps1`(41), `pwsh tools/workshop.tests.ps1`(78), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(109). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
 
 게임 화면의 자주 쓰는 좌표: HUD의 날짜 버튼(달 넘기기) `(400, 1000)`, 확인 창의 예 `(884, 531)`·아니오 `(1037, 531)`, 월말 기록 창의 다음 `(959, 629)`, 가방 버튼 `(120, 860)`, 인물 화면 닫기 `(1722, 160)`, 게임 메뉴의 돌아가기 `(959, 391)`, 전투 개시 `(956, 749)`, 전투 결과 창의 확인 `(959, 831)`. 편집기가 기본 위치(60,60)일 때 탭 줄은 x=151, `Tab0`이 y=144이고 탭마다 46씩 내려간다(`Tab15` y=742. 2는 비었다). 안전 단추 `Tab14`는 제목 줄 (1312,86). 편집기의 단추는 좌표가 아니라 이름으로 찾는다(47절).
 

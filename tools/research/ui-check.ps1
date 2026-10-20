@@ -206,7 +206,7 @@ switch ($Part) {
     Cmd 'rloc apply' 3000 | Out-Null
     # 미번역 내보내기
     $dumped = Cmd 'rloc dump' 3000
-    # 내보내기는 사전에 없는 행: 영어 플래그 1 + 원문으로 둔 3행 = 4(50절)
+    # 내보내기는 사전에 없는 행: 영어 플래그 1 + 원문으로 둔 5행 = 6(50·72절)
     Check 'dump writes only the untranslated rows' ($dumped -match 'written=6' -and (Get-Content -LiteralPath (Join-Path $tdir 'untranslated.txt') -Raw) -match "0lkK4v`t`texists") $dumped
     # 파일을 지우면 다시 풀린다
     [IO.File]::Delete($tfile)
