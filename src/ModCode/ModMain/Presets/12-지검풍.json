@@ -25,7 +25,7 @@
     { "grade": 3, "id": 700034, "name": "도수전정", "filled": true },
     { "grade": 4, "id": 700090, "name": "영능의 샘" },
     { "grade": 5, "id": 700014, "name": "중이비검" },
-    { "grade": 6, "id": 700056, "name": "혈염대법", "filled": true },
+    { "grade": 6, "id": 700056, "name": "혈염대법", "alt": 700028, "filled": true },
     { "grade": 7, "id": 700158, "name": "살심취기", "filled": true },
     { "grade": 8, "id": 700156, "name": "응원적멸", "filled": true },
     { "grade": 9, "id": 700137, "name": "천지동수", "filled": true },

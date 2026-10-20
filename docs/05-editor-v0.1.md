@@ -3181,3 +3181,106 @@
 - 13의 辟火掌 변형, 12의 两仪指·金蝉无影 같은 원문의 대안은 메타에만 적었다.
 - 게임에는 설치하지 않았다(사용자 확인 뒤 `tools/install.ps1`). 설치하면 기존 프리셋 폴더에 11~16이 풀리고 `.defaults`가 생긴다.
 - 회차 이름: `pd-1020a`~`e`.
+
+## 71. 만고신화(2814696167) 설치 전 검토 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "관련 모드의 설치 - 검토 - 토이박스 반영 - 한글화 - 창작마당 모드 공법 빌드 진행 (모드 다운로드는 전과 같은 cmd 방식으로)" → 시험 설치 뒤 "설치 전에 다른 극 모드와 겹치는 표·번호를 회차에서 먼저 조사해 줘." 브랜치 `feat/workshop-wangu`. 관련 모드는 본체 하나로 보았다(함께 쓸 수 있는 "万古神话境界修改"는 제작자도 권하지 않는다고 적었다).
+
+### 받기와 파일 검토
+
+- `workshop.ps1 -Download -Id 2814696167`(SteamCMD 캐시 로그인) OK. 1636MB(그림 1174MB, ModRes 449MB). 창작마당 갱신일 2026-10-04.
+- 목록 `mods.txt` 40줄을 보류 → 설치로 바꾸고 모드ID `dH6k0J`(회차 `wg-1020a`의 `wsmods`로 확인)를 적었다. 아직 게임에는 설치하지 않았다.
+- DLL `MOD_dH6k0J.dll`(72KB)을 `ilspycmd`로 읽었다. 네트워크·프로세스·파일 삭제·레지스트리 API는 없다. Harmony 패치 넷:
+  - `DramaFunction.OptionsFunction` 앞붙임: 함수 문자열 가운데 자기 것(`wuxie_taixujing`, `wuxie_playVideo`)만 처리하고 나머지는 남겨 원래 처리로 넘긴다. 빈 글과 `0`이면 원래 처리를 건너뛴다. 같은 메서드를 쓰는 설치 DLL은 11개(문자열 검색)지만 다른 모드의 함수는 지나가므로 막지 않는다.
+  - `SpriteAtlas.GetSprite`·`SpriteTool.GetSpriteBigTex` 앞붙임: 자기 그림이 있을 때만 바꾼다. 그림 92개는 모두 `dH6k0J_` 접두의 새 이름이고, 배경(`Texture`)·아틀라스 이름이 같은 다른 모드 그림은 0개.
+  - `SceneLogin.Init`(로그인 화면).
+  - 지도 화면이 열릴 때마다 지금 난이도 줄의 `gameDifficultyValue.unitAttr`를 太虚镜 값으로 덮는다. 太虚镜을 만지지 않으면 넷 모두 100이라 `atk_100|def_100|hp_100|skillDmg_100|power_190`이 된다(바닐라 예: id 2는 `atk_90|def_85|hp_60|power_120`, id 5는 `atk_95|def_85|hp_100|skillDmg_150|power_190`. `.devremote\wg-excel\dump-gameDifficultyValue.txt`). 표는 메모리 값이라 모드를 빼면 돌아간다. 太虚镜 설정은 세이브의 `MOD_m4Gpg2` 키에 남는다.
+
+### 회차 시험 설치(`wg-1020a`)
+
+- `-Install -Yes -NoHistory` → `-Restart`: `wsmods loaded=41`, 새 예외 없음(로그의 예외는 Fatury의 입화 미리 읽기 캐시와 `ResLateLoadPatch`뿐). `ui-check base`·`tabs` FAIL 0. `rmods` 204 → 563. 이름이 풀린 모드 기술: 草字剑诀(무예 1745041)·仙劫剑诀(절기 1745042)·荒芜剑诀(신통 1745043)·独断万古(8951210, 8951209). 平乱诀은 LocalText에 있으나 기술 이름으로 대조되지 않았다(미확인).
+- `rloc dump written=9672`. 덤프는 데이터 폴더의 `translations\untranslated.txt`에 쓰이는데 `-End`가 번역 폴더를 되돌려 지워졌다. 다음에는 `-End` 전에 `.devremote`로 복사한다.
+
+### 표·번호 겹침(`wg-1020b`~`e`)
+
+- `ModExcel`은 난독화돼 파일로 못 읽는다. 개발 명령 `wsexcel <출력 파일> <모드 폴더>`를 더했다(`DevCommandsWorkshop.cs`): 게임의 `ModImportTool.LoadModExportData(<폴더>\ModExportData.cache)`로 풀어 "표<TAB>id"를 쓴다. 설정에 합치지 않는다.
+  - 처음 쓴 `ModMgr.LoadMod`는 읽은 뒤 설정에 합치고(`LoadModExportDataToConf`), 이미 실린 모드에 부르면 `NullReferenceException`(39개 모두), 편집기 자신(`Mod_sWP6UL`)에 부르면 게임이 멈췄다(`wg-1020c`, 회차가 띄운 게임만 강제 종료하고 `-End`, 세이브는 같음). 폴더 인자는 공백을 담을 수 있게 마지막 인자로 했다(`Tale of Immortal`).
+- 결과(`.devremote\wg-excel\*.tsv`): 만고신화 표 38개·21,973행(LocalText 10,040, DramaDialogue 6,747, DramaOptions 848, GameItemReward 733, BattleAbilityBase·BattleEffect·BattleUnitBase·BattleUnitAttr 각 330 …). 설치 모드 39개 가운데 표가 있는 것은 15개(가장 큰 것: 3426669627 7,420행, 2824722053 5,657행).
+- **(표, id)가 만고신화와 겹치는 설치 모드는 0개.** 만고신화의 id는 거의 모두 ±21억 범위의 해시라 바닐라 행 번호를 덮지 않는다. 1,000만 미만의 작은 번호는 51행(LocalText 18, DramaDialogue 14, GameItemReward 4 등)뿐이고 이것도 다른 모드와 겹치지 않는다. LocalText의 `key` 칸 겹침은 보지 않았다(미확인).
+
+### 판단에 남는 것
+
+- 제작자의 "극 모드와 같이 쓰지 말 것"은 번호 충돌로는 드러나지 않았다. 극의 진행 조건(같은 NPC·사건을 두 모드가 건드리는 것)은 표 번호로 알 수 없어 실제 플레이에서만 드러난다(미확인).
+- 난이도 줄 덮어쓰기는 모드의 설계(太虚镜)이며, 설치하면 지금 난이도의 적 능력치가 바뀐다.
+- 회차 이름: `wg-1020a`~`e`.
+
+### 설치와 컬렉션 (2026-10-20)
+
+- 사용자 확인("게임은 꺼 둘게. 만고신화를 설치하고 …") 뒤 `workshop.ps1 -Install -Id 2814696167 -Yes`(INSTALLED, 이력 설치). PlayerPrefs `Mod_LoadData_h173884042`의 끝에 `{"modFolderName":"2814696167","isLoad":true}`를 더했다(41개 모두 켜짐, 끝의 0바이트 유지. 앞 값 `.devremote\playerprefs-Mod_LoadData-before-wangu-1020.bin`). `-Doc`으로 등록부와 `collection-desc.txt`(설치 40개 기준)를 다시 썼다.
+- Steam 컬렉션 3820620999(사용자 요청 "내 스팀 창작마당 토이박스 모음집에도 해당 모드들 추가 및 모음집 내용 갱신"): 내장 브라우저(Steam 로그인 상태)에서 같은 출처 POST `/sharedfiles/favorite`(200)로 즐겨찾기에 넣고, `managecollection`의 즐겨찾기 목록에서 `ToggleChildInCollection`으로 더했다(다시 불러와 40개). `editcollection`의 설명을 `collection-desc.txt`(55줄, 1,355자)로 바꿔 저장했다. 공개 페이지에서 아이템 40개, 만고신화 포함, 설명 첫 줄 "2026-10-20 기준, 설치 40개"를 확인했다. 즐겨찾기는 계정에 남는다.
+
+## 72. 만고신화 한글화와 설치 뒤 영향 조사 (2026-10-20 추가)
+
+71절의 이어짐. 브랜치 `feat/workshop-wangu`.
+
+### 한글화
+
+- 회차 `wg-1020f`(설치본)의 `rloc dump` 9,672행(고유 글 8,302, 한자 약 19만 3천 자)을 `.devremote\untranslated-20261020-wangu.txt`로 옮겨 두고, 묶음 `.devremote\tr-20261020-wangu`(uniq 8,244 + 중국어 없는 376)를 하위 에이전트 10개에 나눠 번역했다(조각마다 한자 약 1만 9천 자, 고유명사는 한자 음독, 게임 용어는 기존 번역표).
+- 표기 통일 31행(`fix-01.tsv`: 勾临渊 구림연, 小夔 꼬마 기, 露滴 이슬방울·붉은/푸른 이슬방울·이슬방울의 근원, 唐老鸭·唐佬鸦 도널드 덕, 帝子 "제자(帝子)"로 弟子와 구별)과 `fix-02.tsv`(결말 1).
+- 원문으로 둔 행 5개: 103·104·105(50절에서 원문으로 남긴 음양쌍수의 미성년 관련 3행. 번역표에 넣지 않아 다시 덤프에 잡혔다), 4200·4201(어린 여자아이를 노정으로 삼겠다는 악역 대사, 키 `tTuns2xB`·`XolgFbNM`).
+- 합치기: `merge-mods-translations.py --identity --apply`. 경고 23건은 모두 태그가 아니라 꺾쇠로 감싼 본문(번역됨). 번역표 16,184행(6,518 + 9,666). 회차 `wg-1020g`: Init `translations: file=덧붙임 9666 rows=16184 applied=16184 fallback=6`, `rloc dump written=6`(영어 플래그 1 + 원문 5).
+- 모드 기술 이름의 색 태그: `<COLOR=#FFAA00>草字剑诀</COLOR>`가 `COLORFFAA00草字剑诀COLOR`로 보였다. `Services/TextTags.cs`(순수, 단위 시험 5)로 태그를 지운 뒤 `Compact`한다(`SkillCatalog`의 이름과 검색 글). 회차에서 초자검결(1745041)·선겁검결(1745042)·황무검결(1745043)·독단만고(8951210, 8951209)로 보였다.
+- 검사 `translation`의 행 수를 16184로 바꿨다. 덤프 기대값(`written=4`)은 아직 6으로 바꾸지 않았다(아래 결정 뒤).
+
+### 설치 뒤 드러난 영향
+
+- **경지 표를 통째로 바꾼다.** 만고신화의 `ModExcel\XW\RoleGrade.json`(cache 밖 하위 폴더)은 45행 전부를 정의한다. 바닐라는 축기 초기가 품질별 3행(id 4·5·6, 5절 128줄)이고 결정 초기가 9였는데(고정본 기록, 법보 탭 설계), 만고신화는 축기 초기를 도기 6종(id 4~9)으로 늘려 그 뒤 번호가 3씩 밀린다. 세이브는 경지를 번호로 저장하므로:
+  - 고정본 인물(gradeID 9, 바닐라 결정 초기)이 축기 초기로 읽힌다(`pstate major=2`). 검사 `modbooks`가 이 때문에 7건 실패했다(경지 3 비급을 배울 수 없음 `can=2`, 아래 칸이 경지 2를 기본으로).
+  - **사용자 세이브의 인물(gradeID 10, 바닐라 결정 중기)이 축기 중기로 읽힌다**(회차 `wg-1020h`, 고정본 아님, `-End`로 되돌림). 세계의 NPC도 같은 방식으로 밀렸을 것이다(미확인).
+- **바닐라 행을 넓게 덮어쓴다**(하위 폴더 포함 100표 27,969행 가운데 1,000만 미만 번호): 기술 수치 223, 역할 효과 174, 전투 효과 136, 단약 131, 아이템 113, 능력치 상한 107, 약초 79, 종문 상점 60, NPC 초기 기술 60, 보스 AI 54, 역천개명 53, 경지 45, 난이도 5 등.
+- **기본 프리셋이 깨진다.** 역천개명 53행(혈염대법 700056, 무예정통 700116, 체력의 나무 700100, 미끄러운 발 700020, 영술정통 700113, 쌍령공생 700061, 영력의 나무 700097 포함)의 경지 범위가 바뀌어, 설치 상태에서 `pcheck`가 `problems=27`(01~16 모두 "이 경지의 역천개명이 아닙니다")이다. 프리셋 탭의 적용·검사 `preset-all`도 영향을 받는다.
+- **다른 설치 모드와의 (표, id) 겹침은 하위 폴더까지 넣어도 0개.** `wsexcel`이 cache 밖 `ModExcel\**\*.json`을 게임의 복호화(`ModTool.LoadTextInFile(file, true)`)로 `<출력>.excel\`에 풀게 했다(모드 26개, 787개. `ImportJson`은 받은 data가 아니라 설정에 넣어 쓰지 않는다). 풀린 JSON은 주석·끝 쉼표가 있어 객체의 첫 `"id"`를 정규식으로 뽑아 셌다. 71절의 "겹침 0"은 cache만 본 것이었다.
+
+### 남은 결정
+
+- 만고신화는 이 세이브(결정 중기 인물)와 맞지 않는다. 계속 쓰려면 새 게임이 필요하고, 기본 프리셋의 역천개명 경지를 만고신화 표에 맞춰 따로 다뤄야 한다. 빼면 폴더 삭제와 `Mod_LoadData`를 앞 값(`.devremote\playerprefs-Mod_LoadData-before-wangu-1020.bin`)으로 되돌린다. 사용자 결정 전이라 21번 모드 프리셋은 만들지 않았다.
+- 회차 이름: `wg-1020f`~`i`.
+
+## 73. 역천개명 대체 번호와 21번 만고검결 프리셋 (2026-10-20 추가)
+
+72절의 이어짐. 브랜치 `feat/workshop-wangu`. 사용자 결정: 만고신화는 새 게임에서 쓰므로 설치한 채 둔다.
+
+### 역천개명 `alt`
+
+- 프리셋 `fates` 항목에 `"alt"`(대체 역천개명 번호)를 더했다. `Services/FateAlt.cs`의 `Pick(grade, id, min, max, exists, alt, altMin, altMax, altExists)`(순수, 단위 시험 6)가 고른다. 원래 번호가 있고 그 경지 범위 안이면 원래 번호, 아니면 `alt`가 있고 범위 안일 때 `alt`, 둘 다 아니면 원래 번호(검사가 문제로 잡는다).
+- `PresetService.ReadFate`가 대체했으면 이름 뒤에 `(원래이름 대신)`을 붙여 미리보기에 드러낸다.
+- 만고신화에서 g1-1(경지 범위 1~1)로 막힌 번호와 대체: 700056→700028, 700116→700114, 700113→700111, 700061→700050, 700020→700152(`tools/research/preset-build.ps1`의 `$fateAlt`). 01~16 json의 해당 줄에 `alt`를 넣고, 메타에 "만고신화의 역천개명 대체" 메모를 남겼다. 바닐라에서는 원래 번호가 그대로 뽑힌다.
+- `preset-build.ps1`에 `-Only`를 더했다. `dump-fates.txt`가 지금 만고 설치본 덤프라 전체를 다시 만들면 역천개명 이름이 바뀐다. 다시 만들 때는 `-Only 21`처럼 고칠 번호만 쓴다.
+
+### 21번 만고검결
+
+- 무예 초자검결(1745041), 절기 선겁검결(1745042), 신통 황무검결(1745043). 옵션은 셋 다 `[1,1,1,1,1,1,1,2,3,4,5]`(빌드 스크립트가 11개를 받으면 그대로 쓴다). 신법은 공략에 없어 채움 규칙(510121). 심법·역천개명은 02와 같다(10단계 700056, alt 700028). 선천 2806, 영수 1001/3031101, 장로 1.
+- 平乱诀은 신법이 아니라 후천운명이라 프리셋 형식 밖이다. 메타에만 적었다.
+- 메타 `requires`: `[{mod:'万古神话', workshopId:2814696167, modId:'dH6k0J'}]`. 검사 `preset-check.ps1`의 `MissingModPresets`가 `wsmods`에 없는 창작마당 번호를 요구하는 파일을 모아 `ExpectedProblems`로 빼고, `preset-all`은 그 번호를 INFO로 건너뛴다.
+- 모드 기술 563개 가운데 522개는 모드가 이름을 넣지 않아 "이름 없음(번호)"로 남는다(번역으로 고칠 수 없음).
+
+### 두 조건 검사와 `-Exclude`
+
+- `session.ps1 -Begin <이름> -Exclude <창작마당ID>`: 회차 동안 그 모드 폴더를 `.devremote\session-parked-mods`로 옮기고 `-End`가 WORKSHOP 정리 전에 되돌린다("MOD PARKED"·"MOD RESTORED"). 남은 parked 폴더, 편집기 폴더, 미설치 번호, 되돌릴 자리에 이미 폴더가 있으면 멈춘다. `session.tests.ps1`에 시험 5개(그때 39개 통과).
+- 만고 조건(그대로 설치): `pcheck` problems=0(17개), `preset-all` 1-9·10-21 FAIL 0, `translation` FAIL 0. `preset-all`은 `pstrict`가 실제로 고른 번호(`fate \d+:(\d+)`)로 역천개명을 비교한다.
+- 바닐라 조건(`-Exclude 2814696167`, 고정본): `preset` state·files·ui·preset-all FAIL 0(21은 건너뜀), `ui` base·tabs·modbooks FAIL 0. `Mod_LoadData`는 바뀌지 않았다.
+- `ui-check.ps1`: `rloc dump` 기대값을 `written=6`으로(72절의 원문 5행 + 영어 플래그 1). `modbooks`의 `can=5` 고정값은 경지 표에 따라 달라 낡았다. 바닐라 비급 고성검(14112)을 같은 칸에 놓고 `rbookstudy`의 `can=`이 같은지로 바꿨다.
+- `preset-all` 뒤 선술 획득 창(GetImmortalSkill)이 떠 다음 검사의 화면을 가린다. 새 회차로 이어 돌렸다(06 문서 표).
+
+### 회차와 결과
+
+- 회차 `wg-1020j`~`n`. 마지막 `wg-1020n -End`: SAVE RESTORED AND IDENTICAL, MOD RESTORED: 2814696167, 모드 폴더 다시 있음.
+- 배포 빌드 경고 0, 내장 프리셋 17개·메타 0개(리소스 이름으로 셈), 단위 시험 FAILS=0, `session.tests.ps1` FAILS=0.
+- 게임에 설치된 편집기 DLL은 아직 이전 빌드다. 갱신 설치는 사용자 확인 뒤에 한다.
+
+### 최종 리뷰 뒤 고친 것
+
+- `MissingModPresets`는 `paths=`의 `\<번호>` 꼴에 기대 만고신화가 실려 있어도 21번을 건너뛸 수 있었다. 판정을 `mods=`의 `soleID:name:ver:publishedFileID;` 끝 번호(`:<번호>;`)로 바꾸고, `wsmods`에 `mods=`가 없으면(빈 응답) 멈춘다. 회차 `wg-1020o`(만고 조건, 고정본)에서 `preset-all -Range 21-21`이 INFO 없이 21번의 적용 검사를 모두 통과했다(FAILS=0).
+- `-Exclude`에 같은 번호를 두 번 주면 Begin이 표식 전에 멈춘다. 회차 중 같은 모드 폴더가 다시 생기면 `-End`가 덮어쓰지 않고 보관본을 남긴 채 멈춘다(시험 31, 2개. 41개 통과).
+- `preset-build -Only 1`이 10~16까지 고르던 접두어 일치를 `1-`로 바꿨다. `FateAlt` 경계 시험 3개(109개 통과). `ui-check`의 덤프 주석을 6으로.
+- 남긴 것: 다른 판의 `session.ps1`(이 브랜치를 병합하기 전 develop)로 `-End`하면 옮긴 모드가 되돌아가지 않는다. 다음 `-Begin`이 남은 보관본을 보고 멈추므로 사본은 잃지 않는다. `-Exclude` 회차는 같은 판으로 닫는다.

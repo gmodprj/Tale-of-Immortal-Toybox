@@ -252,6 +252,38 @@ $b = NewBox
 [IO.File]::WriteAllText("$($b.work)\session-translations\mods.txt", 'the only copy')
 $o = Run $b $none @{ Begin = 'x' }
 Check 'Begin refuses to overwrite a leftover translations copy' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session-translations\mods.txt") -and -not (Test-Path "$($b.work)\session.name")) $o
+
+# 29. -Exclude: 회차 동안 그 창작마당 모드 폴더를 작업 폴더로 옮겨 두고, -End가 되돌린다(05 문서 73절: 만고신화가 경지 표를 바꿔 고정본 검사의 전제가 깨진다)
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2814696167")
+[IO.File]::WriteAllText("$($b.game)\ModExportData\2814696167\ModExportData.cache", 'wangu')
+$o = Run $b $none @{ Begin = 'x'; Exclude = @('2814696167') }
+Check 'Begin with Exclude parks the mod folder' ($o -match 'MOD PARKED: 2814696167' -and -not (Test-Path "$($b.game)\ModExportData\2814696167") -and (Test-Path "$($b.work)\session-parked-mods\2814696167\ModExportData.cache")) $o
+$o = Run $b $none @{ End = 'x' }
+Check 'End puts a parked mod back and keeps it' ($o -match 'MOD RESTORED: 2814696167' -and $o -match 'WORKSHOP FOLDERS REMOVED: 0' -and [IO.File]::ReadAllText("$($b.game)\ModExportData\2814696167\ModExportData.cache") -eq 'wangu' -and -not (Test-Path "$($b.work)\session-parked-mods")) $o
+# 30. 없는 모드를 빼라고 하면 회차를 열지 않는다. 남은 보관 폴더가 있으면 -Begin이 멈춘다. 편집기 폴더는 뺄 수 없다
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; Exclude = @('2814696167') }
+Check 'Begin refuses to exclude a mod that is not installed' ($o -match '^THROWN' -and -not (Test-Path "$($b.work)\session.name") -and -not (Test-Path "$($b.work)\save-backup-x")) $o
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.work)\session-parked-mods\2814696167")
+$o = Run $b $none @{ Begin = 'x' }
+Check 'Begin refuses while a parked mod is left over' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session-parked-mods\2814696167") -and -not (Test-Path "$($b.work)\session.name")) $o
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; Exclude = @('Mod_sWP6UL') }
+Check 'Begin refuses to exclude the editor folder' ($o -match '^THROWN' -and (Test-Path "$($b.game)\ModExportData\Mod_sWP6UL\ModExportData.cache") -and -not (Test-Path "$($b.work)\session.name")) $o
+# 31. 같은 번호를 두 번 주면 회차를 열지 않는다. 회차 중 같은 모드 폴더가 다시 생기면 -End는 덮어쓰지 않고 보관본을 남긴다
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2814696167")
+$o = Run $b $none @{ Begin = 'x'; Exclude = @('2814696167', '2814696167') }
+Check 'Begin refuses the same excluded mod twice' ($o -match '^THROWN' -and (Test-Path "$($b.game)\ModExportData\2814696167") -and -not (Test-Path "$($b.work)\session.name")) $o
+$b = NewBox
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2814696167")
+[IO.File]::WriteAllText("$($b.game)\ModExportData\2814696167\ModExportData.cache", 'wangu')
+[void](Run $b $none @{ Begin = 'x'; Exclude = @('2814696167') })
+[void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2814696167")
+$o = Run $b $none @{ End = 'x' }
+Check 'End stops when the folder came back and keeps the parked copy' ($o -match '^THROWN' -and [IO.File]::ReadAllText("$($b.work)\session-parked-mods\2814696167\ModExportData.cache") -eq 'wangu' -and (Test-Path "$($b.work)\session.name")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }

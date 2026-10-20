@@ -123,6 +123,7 @@
     pwsh tools/DevRemote/session.ps1 -Restart                      # 게임만 껐다 켠다(저장 후 재시작 확인)
     pwsh tools/DevRemote/session.ps1 -End <이름>                   # 종료 → 사용자의 세이브 복원·일치 확인 → 그 밖의 것 되돌리기와 정리
 
+- **만고신화(2814696167)가 설치된 뒤로(2026-10-20) 기존 검사는 `-Exclude 2814696167`을 붙여 돌린다.** 만고신화는 경지 표를 바꿔 고정본 인물(경지 9)이 축기로 읽히고, 바닐라 경지 번호를 전제한 검사(preset `state`·`files`·`ui`, `grade`, `modbooks` 등)가 어긋난다. `-Exclude`는 회차 동안 그 모드 폴더를 `.devremote\session-parked-mods`로 옮겼다가 `-End`가 되돌린다(`Mod_LoadData`는 바이트까지 그대로). 만고신화가 있어야 맞는 검사(`translation`, 프리셋 `preset-all`의 21번과 대체 역천개명)는 `-Exclude` 없이 돌린다. 73절.
 - **`-Fixture base`를 붙여 고정본에서 검증한다.** 고정본은 `.devremote\fixtures\base`(git 제외)다. 인물 신환, 결정 초기(경지 9), 2년 2월 24일, 가방 89/154(추가 칸 +90), 공법 28, 역천개명 기록 `2:700016, 3:700040`, 떠 있는 게임 창 없음. 없어졌으면 다시 만든다:
 
       pwsh tools/DevRemote/session.ps1 -MakeFixture base -From "$env:USERPROFILE\AppData\LocalLow\guigugame\guigubahuang\TlToybox\backups\20261013-125814\CacheData"
@@ -187,7 +188,7 @@
 | `fate-dupe`, `import-swap` | 같은 역천개명 두 줄, 선천운명의 계열, 캐릭터 가져오기의 역천개명 맞바꿈 | `fate-dupe`는 깨끗한 회차의 첫 검사로. `import-swap`은 기록을 바꾸므로 그 회차의 마지막에 |
 | `apply` → `apply-full` → `apply-battle` → `-Restart` → `apply-restart` | 단계 적용, 최종 단계까지, 전투에서 세트와 명우, 저장 후 유지 | 깨끗한 회차에서 이 순서로 |
 | `ui` | 프리셋 탭의 화면(목록, 상세보기, 확인 문구, 쓸 수 없는 줄) | 깨끗한 회차에서 |
-| `preset-all` | 기본 프리셋(2026-10-20부터 16개)을 차례로 최종 단계까지 적용(못 넣음 0, 마지막 단계가 적용됨) | 깨끗한 회차에서. 하나에 8~17초라 `-Range 1-9`·`-Range 10-16`으로 나눠 돌린다(각 4분쯤, 70절) |
+| `preset-all` | 기본 프리셋(2026-10-20부터 17개: 01~16과 21)을 차례로 최종 단계까지 적용(못 넣음 0, 마지막 단계가 적용됨). 메타 `requires`의 모드가 실리지 않았으면 그 프리셋은 건너뛴다(INFO) | 깨끗한 회차에서. 하나에 8~17초라 `-Range 1-9`·`-Range 10-21`로 나눠 돌린다(각 4분쯤, 70·73절). 끝에 인물이 등선이라 선술 얻기 창이 뜰 수 있어 그 회차에서 다른 화면 검사를 잇지 않는다 |
 
 한 번에 다 돌리면 10분을 넘는다. 회차를 나눈다(예: 보관함 계열 / 그 밖의 화면 / 날짜·전투 / 프리셋은 위 표의 줄마다 한 회차).
 
@@ -215,7 +216,7 @@
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. `-Do move -X -Y`·`-Do wheel -X -Y -Delta`(WM_MOUSEMOVE·WM_MOUSEWHEEL)도 있으나 Unity의 `Input`에는 닿지 않는다(51절 실측). 마우스는 개발 명령의 가상 입력(`uipointer`·`uiwheel`·`uikey`)으로 한다. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다.
 - 검증 스크립트 안에서는 `check-lib.ps1`의 `Cmd`, `Rc`, `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지), `Pos`, `Check`, `Shot`, `Traps`, `ModWarnings`를 쓴다. 편집기의 버튼은 좌표가 아니라 이름으로 찾는다.
 - `.devremote`(회차 표식·세이브 사본·캡처·명령 채널)는 어느 체크아웃에서 열어도 한 곳이다: 환경 변수 `TLTOYBOX_DEVREMOTE`(절대 경로)가 있으면 그 폴더, 없으면 `E:\TlToybox\.devremote`(49절, `tools/DevRemote/devremote-dir.ps1`). 워크트리에서 회차를 열어도 같은 곳을 쓰고, 두 체크아웃이 동시에 열면 표식이 막는다. 설치본의 `Init` 줄 `build=<커밋>`으로 어느 코드가 설치됐는지 안다.
-- 게임 없이 도는 시험: `pwsh tools/DevRemote/session.tests.ps1`(34), `pwsh tools/workshop.tests.ps1`(78), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(49). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
+- 게임 없이 도는 시험: `pwsh tools/DevRemote/session.tests.ps1`(41), `pwsh tools/workshop.tests.ps1`(78), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(109). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
 
 게임 화면의 자주 쓰는 좌표: HUD의 날짜 버튼(달 넘기기) `(400, 1000)`, 확인 창의 예 `(884, 531)`·아니오 `(1037, 531)`, 월말 기록 창의 다음 `(959, 629)`, 가방 버튼 `(120, 860)`, 인물 화면 닫기 `(1722, 160)`, 게임 메뉴의 돌아가기 `(959, 391)`, 전투 개시 `(956, 749)`, 전투 결과 창의 확인 `(959, 831)`. 편집기가 기본 위치(60,60)일 때 탭 줄은 x=151, `Tab0`이 y=144이고 탭마다 46씩 내려간다(`Tab15` y=742. 2는 비었다). 안전 단추 `Tab14`는 제목 줄 (1312,86). 편집기의 단추는 좌표가 아니라 이름으로 찾는다(47절).
 

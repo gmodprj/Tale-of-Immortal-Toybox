@@ -4,7 +4,8 @@
 # 옵션은 "특수 옵션"의 번호만 적고, 자리는 기술 종류의 규칙으로 채운다(05 문서 34절):
 #   무예/영술·심법: 1 1 S 1 S 1 S 1 S 1 S      절기·신통: 1 E S E S E S E S E S (E의 기본은 7 1 1 1 1, 7은 재사용 대기시간)
 #   신법: 1 S 1 S 2 S 2 S 1 S S
-param([string]$TablesTo = '')
+# -Only '21': 그 번호로 시작하는 빌드만 쓴다(덤프가 바닐라가 아닐 때 다른 파일의 이름이 바뀌지 않게).
+param([string]$TablesTo = '', [string[]]$Only = @())
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot)
 $dump = & (Join-Path $PSScriptRoot '..\DevRemote\devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
@@ -23,6 +24,14 @@ foreach ($line in [IO.File]::ReadAllLines((Join-Path $dump 'dump-fates.txt'))) {
 # pdump fates의 이름은 띄어쓰기가 없다. 화면의 이름(GameTool.LS)과 다른 것은 화면 이름으로 쓴다(05 문서 69·70절).
 $fateFix = @{ '700020' = '미끄러운 발'; '700089' = '영능의 비'; '700090' = '영능의 샘'; '700091' = '영능의 바다'; '700097' = '영력의 나무'; '700100' = '체력의 나무' }
 foreach ($k in $fateFix.Keys) { $fateName[$k] = $fateFix[$k] }
+# 바닐라 덤프에 없는 창작마당 모드 기술의 이름(만고신화 2814696167, 회차 wg-1020g의 pfind. 05 문서 73절)
+$skillFix = @{ '1745041' = '초자검결'; '1745042' = '선겁검결'; '1745043' = '황무검결' }
+foreach ($k in $skillFix.Keys) { $skillName[$k] = $skillFix[$k] }
+# dump-fates.txt는 바닐라 게임에서 뽑아야 한다. 만고신화(2814696167)가 실린 게임에서 뽑으면 역천개명 53행의 이름·경지가 바뀌어 있다(05 문서 72절).
+# 역천개명 줄의 대체 번호("alt"): 만고신화가 경지 1~1로 막은 것 → 같은 계열에서 연 것. 원래 번호를 쓸 수 없을 때만 로더가 고른다(05 문서 73절).
+#   혈염대법 700056 → 탄천마공 700028, 무예정통 700116 → 무법어도 700114, 영술정통 700113 → 영법어도 700111, 사령(쌍령)공생 700061 → 공생지령 700050,
+#   미끄러운 발 700020(같은 계열의 대체 없음) → 천운전섬 700152(05 도에 없는 범용 줄)
+$fateAlt = @{ 700056 = 700028; 700116 = 700114; 700113 = 700111; 700061 = 700050; 700020 = 700152 }
 $kindOf = @{ '81' = '경'; '82' = '공'; '83' = '식'; '84' = '결'; '85' = '록'; '86' = '비권'; '87' = '신공'; '88' = '대법' }
 $lineOf = @{ '01' = '도'; '02' = '창'; '03' = '검'; '04' = '권'; '05' = '장'; '06' = '지'; '07' = '화'; '08' = '수'; '09' = '뇌'; '10' = '풍'; '11' = '토'; '12' = '목' }
 $suitName = @{ 10006 = '도강운'; 10012 = '옥룡음'; 10013 = '단관하'; 10016 = '과룡문'; 10022 = '경중인'; 10024 = '난방화'; 10026 = '망해조'; 10027 = '연화령'; 10030 = '풍릉소'; 10032 = '황령연' }
@@ -36,6 +45,8 @@ function AbilityName([int]$id) {
   if ($id -ge 86000) { "$kind($($lineOf[$text.Substring(3, 2)]))" } else { $kind }
 }
 function Options([string]$slot, [int[]]$special, [int[]]$even) {
+  # 11개를 다 주면 자리 규칙 없이 그대로 쓴다(모드 기술: 공통 옵션 #1~#5뿐이고 재사용 대기 #7이 없다).
+  if ($special.Count -eq 11) { return $special }
   if ($slot -eq 'step') {
     if ($special.Count -ne 6) { throw "신법의 특수 옵션은 여섯이어야 합니다" }
     return @(1, $special[0], 1, $special[1], 2, $special[2], 2, $special[3], 1, $special[4], $special[5])
@@ -262,15 +273,31 @@ $builds = @(
        (Ability 87003 @(4, 2, 7, 3, 6) 10012 '剑系 功法抗性 心法'), (Ability 88001 @(12, 9, 17, 19, 20) 0 '刀 会心 心法'))
      fates = @((Fate 2 700017 '水力四射'), (Fate 3 700035 '兵刃专精'), (Fate 4 700116 '武法入门-进阶-精通'), (Fate 5 700056 ''), (Fate 6 700091 '灵能之雨-之泉-之潮'),
        (Fate 7 700156 ''), (Fate 8 700137 ''), (Fate 9 700198 ''), (Fate 10 700158 ''))
-     elder = @{ id = 1; said = '' } }
+     elder = @{ id = 1; said = '' } },
+
+  # 21: 창작마당 모드 만고신화(2814696167)의 검결. 모드가 실려 있어야 쓸 수 있다(메타 requires). 05 문서 73절.
+  @{ file = '21-만고검결'; name = '수검 — 만고신화 검결'
+     summary = '만고신화의 초자검결·선겁검결로 초자검의를 쌓고, 적 셋을 처치할 때마다 평란 1중첩, 10중첩이면 황무검결을 펼친다. 02 수검의 수신법·검 심법·연화검의로 받친다(만고신화 필요)'
+     source = '귀곡팔황 빌드 정리(리뷰 번들) — 창작마당 2814696167 변경 내역'
+     born = @(@{ id = 2806; said = '연화검의(리뷰 번들: 만고신화 × 02-수검)' })
+     skills = @((Skill 'left' 1745041 @(1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5) '草字剑诀'), (Skill 'right' 1745042 @(1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5) '仙劫剑诀'),
+       (Skill 'step' 510121 @(4, 6, 7, 8, 10, 11) ''), (Skill 'ultimate' 1745043 @(1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5) '荒芜剑诀'))
+     abilities = @((Ability 81001 @(11, 12, 2, 4, 23) 10006 ''), (Ability 82001 @(5, 3, 25, 19, 2) 10006 ''), (Ability 83001 @(6, 3, 4, 16, 17) 0 ''),
+       (Ability 84001 @(7, 3, 2, 13, 14) 10012 ''), (& $generic.rok), (Ability 86003 @(8, 2, 6, 4, 3) 10012 ''),
+       (Ability 87003 @(4, 2, 7, 3, 6) 10012 ''), (Ability 88003 @(19, 17, 9, 12, 15) 10012 ''))
+     fates = @((Fate 2 700152 ''), (Fate 3 700158 ''), (Fate 4 700100 ''), (Fate 5 700132 ''), (Fate 6 700160 ''),
+       (Fate 7 700156 ''), (Fate 8 700137 ''), (Fate 9 700198 ''), (Fate 10 700056 ''))
+     sprite = @{ id = 1001; artifact = 3031101; said = '' }; elder = @{ id = 1; said = '' } }
 )
 
 # said가 '대체:'로 시작하면 원문의 이름이 PC판에 없어 바꾼 줄이다(스펙 2026-10-20-preset-drafts-design.md 6.1절). 채운 줄처럼 filled를 단다.
 function Flag($said) { if ($said -and -not $said.StartsWith('대체:')) { '' } else { ', "filled": true' } }
 function Mark($said) { if (-not $said) { '채움 | ' } elseif ($said.StartsWith('대체:')) { "대체 | $($said.Substring(3).Trim())" } else { "있음 | $said" } }
 $slotName = @{ left = '무예/영술'; right = '절기'; step = '신법'; ultimate = '신통' }
+$written = 0
 $tables = New-Object Text.StringBuilder
 foreach ($b in $builds) {
+  if ($Only.Count -gt 0 -and -not ($Only | Where-Object { $b.file.StartsWith($_ + '-') })) { continue }
   $json = New-Object Text.StringBuilder
   [void]$json.AppendLine('{').AppendLine('  "format": 1,').AppendLine('  "kind": "preset",')
   [void]$json.AppendLine(('  "name": "{0}",' -f $b.name)).AppendLine(('  "summary": "{0}",' -f $b.summary)).AppendLine(('  "source": "{0}",' -f $b.source))
@@ -297,8 +324,11 @@ foreach ($b in $builds) {
   [void]$json.AppendLine('  "abilities": [').AppendLine(($rows -join ",`n")).AppendLine('  ],')
   $rows = foreach ($l in $b.fates) {
     $n = $fateName["$($l.id)"]; if (-not $n) { throw "역천개명 $($l.id)의 이름을 찾지 못했습니다" }
-    [void]$tables.AppendLine("| 역천개명 $($l.grade) | $($l.id) $n | $(Mark $l.said) | |")
-    '    {{ "grade": {0}, "id": {1}, "name": "{2}"{3} }}' -f $l.grade, $l.id, $n, (Flag $l.said)
+    $alt = $fateAlt[$l.id]
+    $altText = if ($alt) { " (만고신화에서 $alt)" } else { '' }
+    [void]$tables.AppendLine("| 역천개명 $($l.grade) | $($l.id) $n$altText | $(Mark $l.said) | |")
+    $altJson = if ($alt) { ', "alt": {0}' -f $alt } else { '' }
+    '    {{ "grade": {0}, "id": {1}, "name": "{2}"{3}{4} }}' -f $l.grade, $l.id, $n, $altJson, (Flag $l.said)
   }
   [void]$json.Append('  "fates": [').AppendLine().Append(($rows -join ",`n")).AppendLine().Append('  ]')
   if ($b.sprite) {
@@ -315,7 +345,7 @@ foreach ($b in $builds) {
   }
   [void]$json.AppendLine().AppendLine('}')
   [void]$tables.AppendLine()
-  [IO.File]::WriteAllText((Join-Path $out "$($b.file).json"), ($json.ToString() -replace "`r", ''), (New-Object Text.UTF8Encoding $false))
+  $written++; [IO.File]::WriteAllText((Join-Path $out "$($b.file).json"), ($json.ToString() -replace "`r", ''), (New-Object Text.UTF8Encoding $false))
 }
 if ($TablesTo) { [IO.File]::WriteAllText($TablesTo, ($tables.ToString() -replace "`r", ''), (New-Object Text.UTF8Encoding $false)) }
-"written=$($builds.Count)"
+"written=$written"

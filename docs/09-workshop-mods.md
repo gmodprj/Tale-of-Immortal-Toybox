@@ -1,14 +1,14 @@
-# 09. 창작마당 모드 등록부 (생성 2026-10-18 10:10)
+# 09. 창작마당 모드 등록부 (생성 2026-10-20 15:50)
 
 이 문서는 pwsh tools/workshop.ps1 -Doc 이 만든다. 손으로 고치지 않는다. 고치려면 tools/workshop/mods.txt 와 history.txt 를 고친 뒤 다시 돌린다. 설계: docs/superpowers/specs/2026-10-16-workshop-expand-design.md 3.4절.
 게임 폴더 E:\Games\Tale of Immortal, SteamCMD E:\SteamCmd\steamcmd.exe, 받은 자리 E:\SteamCmd\steamapps\workshop\content\1468810.
 
 ## 1. 요약
 
-- 상태: 설치 39, 보류 5, 제외 1 (줄 45)
-- 설치 줄 39: 받음 39/39, 설치 39/39
-- 설치본 크기: 982.3MB (설치된 설치 줄의 폴더 합)
-- DLL이 든 설치 모드: 15개
+- 상태: 설치 40, 보류 4, 제외 1 (줄 45)
+- 설치 줄 40: 받음 40/40, 설치 40/40
+- 설치본 크기: 2618.3MB (설치된 설치 줄의 폴더 합)
+- DLL이 든 설치 모드: 16개
 
 ## 2. 모드 표
 
@@ -49,7 +49,7 @@
 | 2819617569 | 설치 | 세계관 | 【欢喜缘】我欲成仙，道侣三千加强版 | [欢喜缘] 아욕성선·도려삼천 강화판 | RoDPXQ | 53.2MB 2022-06-22 | 예 | 같음 | Assembly-CSharp.dll,ModMain.dll,ModMain.dll | 극·운명·아이템. 꾸러미의 debug 안에 Mod_RoDPXQ(강화판)와 Mod_qOfHjU(옛 원판 사본)가 있어 모드ID로 강화판을 고른다. 원판 2817651727은 보류(사용자 선택 2026-10-16). 53.2MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2819617569) |
 | 3426669627 | 설치 | 세계관 | 【蛋】阴阳双修 | [蛋] 음양쌍수 | ttGCG8 | 28.6MB 2025-02-15 | 예 | 같음 | - | 남성 세이브 극 모드(사부·종문 셋·운명·극 도구). 새 세이브 권장(제작자). 32.1MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3426669627) |
 | 2817651727 | 보류 | 세계관 | 欢喜缘（我欲成仙，道侣三千） | 환희연(아욕성선·도려삼천) | - | 68.2MB 2026-10-08 | - | - | Assembly-CSharp.dll,ModMain.dll,ModMain.dll | 2819617569(강화판)와 같은 내용의 원판. 하나만 쓰려고 보류. 68.2MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2817651727) |
-| 2814696167 | 보류 | 세계관 | [无邪]万古神话 | [无邪] 만고신화 | - | 1636MB 2026-10-04 | - | - | MOD_dH6k0J.dll | 대형 통합(전투·돌파·극·NPC 조정, 극 20만 자). 제작자: 어떤 극 모드와도 같이 쓰지 말 것 → 사용자 판단 전 보류. 1636MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814696167) |
+| 2814696167 | 설치 | 세계관 | [无邪]万古神话 | [无邪] 만고신화 | dH6k0J | 1636MB 2026-10-04 | 예 | 같음 | MOD_dH6k0J.dll | 대형 통합(전투·돌파·극·NPC 조정, 극 20만 자). 제작자: 어떤 극 모드와도 같이 쓰지 말 것. 2026-10-20 사용자 요청으로 설치(05 문서 71절). DLL MOD_dH6k0J.dll(패치: DramaFunction.OptionsFunction, SpriteTool.GetSpriteBigTex, SpriteAtlas.GetSprite, SceneLogin.Init). 1636MB. 2026-10-16 추가(3차) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2814696167) |
 | 2945768219 | 제외 | 외형 | 【执余】女NPC颜值评定优化 | [执余] 여성 NPC 외모 평가 개선 | - | 49.2MB 2024-08-05 | - | - | MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,MOD_ZUQmIr.dll,MySql.Data.dll,System.Buffers.dll,System.Memory.dll,System.Threading.Tasks.Extensions.dll,Assembly-CSharp.dll,ModMain.dll,MOD_ZUQmIr.dll,ModMain.dll,Properties.Resources.Designer.cs.dll | DLL 5에 MySql.Data.dll이 들어 있어 제외(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2945768219) |
 | 3681025074 | 보류 | - | - | - | - | 15.2MB 2026-03-13 | - | - | - | 사용자 시험용. 목록에 넣지 않기로 함(2026-10-15) | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=3681025074) |
 | 2822252336 | 설치 | 기능 | 指点 | 지점(가르치기) | LE2lAt | 0.6MB 2023-10-02 | 예 | 같음 | MOD_LE2lAt.dll | 제작자 轻抚含羞草(2832167498과 같음). 2832167498 설명의 "指点功法捏脸资质境界v1.2.0"은 아니다(얼굴 만들기 호출 없음. 05 문서 57절). 0.6MB. 2026-10-18 검토 | [창작마당](https://steamcommunity.com/sharedfiles/filedetails/?id=2822252336) |
@@ -64,6 +64,8 @@
 
 | 때 | 동작 | ID | 한국어 이름 |
 |---|---|---|---|
+| 2026-10-20 15:50 | 설치 | 2814696167 | [无邪] 만고신화 |
+| 2026-10-20 14:47 | 받음 | 2814696167 | [无邪] 만고신화 |
 | 2026-10-18 10:08 | 설치 | 2814717778 | [大鬼] 동천복지 |
 | 2026-10-18 10:08 | 설치 | 2814686803 | [大鬼] UI 틀 |
 | 2026-10-18 10:08 | 설치 | 2814673099 | 동료(파티) |

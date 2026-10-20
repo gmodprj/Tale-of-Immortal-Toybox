@@ -43,6 +43,26 @@ function PresetIndex([string]$fileName) {
   foreach ($entry in $names) { if ($entry -match "^(\d+):$([regex]::Escape($fileName))\s*$") { return [int]$Matches[1] } }
   -1
 }
+# 실리지 않은 창작마당 모드가 필요한 기본 프리셋(메타 requires의 workshopId, 05 문서 73절: 21번은 만고신화). 그 파일 이름들.
+# 회차를 -Exclude로 열면 모드 기술 줄을 쓸 수 없으므로, 기대 문제 수에서 빼고 preset-all에서 건너뛴다.
+$repoPresets = Join-Path (Split-Path (Split-Path $PSScriptRoot)) 'src\ModCode\ModMain\Presets'
+function MissingModPresets {
+  $mods = Cmd 'wsmods' 400
+  # 빈 응답(시간 초과)을 "실리지 않음"으로 읽지 않는다. 판정은 mods=의 soleID:name:ver:publishedFileID; 끝 번호로 한다.
+  if ($mods -notmatch ' mods=') { throw "wsmods gave no mod list: $mods" }
+  $modList = ($mods -split ' mods=', 2)[1]
+  foreach ($meta in Get-ChildItem -LiteralPath $repoPresets -Filter '*.meta.json') {
+    $req = @((Get-Content -LiteralPath $meta.FullName -Raw -Encoding UTF8 | ConvertFrom-Json).requires)
+    foreach ($r in $req) {
+      if ($r.workshopId -and $modList -notmatch (':' + $r.workshopId + ';')) { $meta.Name -replace '\.meta\.json$', '.json'; break }
+    }
+  }
+}
+function ExpectedProblems {
+  $sum = 0
+  foreach ($f in @(MissingModPresets)) { $sum += [int](Fields (Cmd "pcheck $f" 600)).problems }
+  $sum
+}
 # 프리셋 목록(ListView)은 화면에 걸친 줄만 만든다. 기본 프리셋이 열 개를 넘어 한 화면을 넘으므로(05 문서 70절),
 # 이동 줄의 "전체 N개 중 a~b번째"를 읽어 i번째 줄(0부터)이 보일 때까지 "처음"·"다음"으로 옮긴다. 줄이 보이면 $true.
 function ShowRow([int]$i) {
@@ -232,7 +252,7 @@ switch ($Part) {
     $onDisk = @(Get-ChildItem -LiteralPath $presetDir -Filter *.json -ErrorAction SilentlyContinue)
     Check 'the folder is made with the defaults in it' ($onDisk.Count -eq $n) "files=$($onDisk.Count)"
     Check 'the list has one readable line per default' ([int]$l.count -eq $n -and $l.unreadable -eq '0') "count=$($l.count) unreadable=$($l.unreadable)"
-    Check 'the defaults have no unusable line' ((Fields (Cmd 'pcheck' 600)).problems -eq '0') (Cmd 'pcheck' 600)
+    Check 'the defaults have no unusable line' ([int](Fields (Cmd 'pcheck' 600)).problems -eq (ExpectedProblems)) "$(Cmd 'pcheck' 600) | missing-mod presets: $(@(MissingModPresets) -join ',')"
     Check 'the name search finds a skill by its shown name' ((Cmd 'pfind 13111' 300) -match '\[0 13111 \S+ g1-10\]') (Cmd 'pfind 13111' 300)
     Check 'the option list of a skill is printed' ((Cmd 'popts 13111' 300) -match '#1 multi=\d+ require=\S* slots=[\d,]+ ') (Cmd 'popts 13111' 300)
     Check 'an ability is shown with its number' ((Cmd "pstage $(($onDisk | Sort-Object Name | Select-Object -First 1).Name) 3" 400) -match '\(81001\)') (Cmd "pstage $(($onDisk | Sort-Object Name | Select-Object -First 1).Name) 3" 400)
@@ -585,14 +605,17 @@ switch ($Part) {
     $c = Fields (Cmd 'pcheck' 900)
     $embedded = (Fields (Cmd 'pdefaults' 200)).embedded
     Check 'every default preset is listed and readable' ([int]$embedded -ge 10 -and $c.presets -eq $embedded -and $c.unreadable -eq '0') "embedded=$embedded presets=$($c.presets)"
-    Check 'no default preset has an unusable line' ($c.problems -eq '0') (Cmd 'pcheck' 900)
+    $skip = @(MissingModPresets)
+    if ($skip.Count -gt 0) { "INFO skipped (mod not loaded): $($skip -join ', ')" }
+    Check 'no default preset has an unusable line' ([int]$c.problems -eq (ExpectedProblems)) (Cmd 'pcheck' 900)
     $lo = 0; $hi = 99
     if ($Range -match '^(\d+)-(\d+)$') { $lo = [int]$Matches[1]; $hi = [int]$Matches[2] }
-    foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike '*.meta.json' -and [int]$_.Name.Substring(0, 2) -ge $lo -and [int]$_.Name.Substring(0, 2) -le $hi } | Sort-Object Name) {
+    foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike '*.meta.json' -and $skip -notcontains $_.Name -and [int]$_.Name.Substring(0, 2) -ge $lo -and [int]$_.Name.Substring(0, 2) -le $hi } | Sort-Object Name) {
       $r = Cmd "papply $($file.Name) full" 1000 30000   # 적용은 8~17초 걸린다(05 문서 70절)
       $run = Fields $r
       Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
-      $ids = ((Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).fates | ForEach-Object { $_.id }) -join ','
+      # 로더가 고른 번호(줄의 "alt"를 쓴 경우 대체 번호, 05 문서 73절)를 pstrict의 "fate 단계:번호" 줄에서 읽는다.
+      $ids = (([regex]::Matches((Cmd "pstrict $($file.Name)" 600), 'fate \d+:(\d+)') | ForEach-Object { $_.Groups[1].Value }) -join ',')
       Check "$($file.BaseName.Substring(0, 2)): every fate luck of the preset is actually held" ((Cmd "phas $ids" 300) -match 'held=9 of=9') (Cmd "phas $ids" 300)
       $st = Fields (Cmd "pstage $($file.Name) 10" 500)
       Check "$($file.BaseName.Substring(0, 2)): the last stage reads as applied" ($st.state -eq 'Applied') (Cmd "pstage $($file.Name) 10" 500)

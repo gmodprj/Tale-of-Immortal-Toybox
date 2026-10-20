@@ -119,7 +119,8 @@ namespace MOD_sWP6UL
         private static void Add(List<Entry> list, int kindIndex, bool isMod, int id, string nameKey, string descKey, int gradeMin, int gradeMax, string basType, string className)
         {
             bool nameFromCh, descFromCh;
-            string name = EditService.Compact(ResolveText(nameKey, out nameFromCh));
+            // 모드 이름의 색 태그(<COLOR=#FFAA00>…</COLOR>)는 글자만 남기기 전에 지운다(05 문서 72절).
+            string name = EditService.Compact(TextTags.Strip(ResolveText(nameKey, out nameFromCh)));
             if (!isMod && className == "0" && OwnCombine(Kinds[kindIndex], id) == 0)
             {
                 return;
@@ -142,7 +143,7 @@ namespace MOD_sWP6UL
                 Desc = MartialService.CleanDesc(ResolveText(descKey, out descFromCh)).Replace("\r", "").Replace('\n', ' '),
                 GradeMin = isMod ? 1 : gradeMin,
                 GradeMax = isMod ? 10 : gradeMax,
-                Search = name + EditService.Compact(ChOf(nameKey)),
+                Search = name + EditService.Compact(TextTags.Strip(ChOf(nameKey))),
                 KindIndex = kindIndex,
                 IsMod = isMod,
                 NameFromCh = nameFromCh,
