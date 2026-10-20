@@ -521,6 +521,9 @@ namespace MOD_sWP6UL
                 lines.AddRange(preset.Abilities);
                 foreach (PresetService.SkillLine line in lines)
                 {
+                    MartialType gameType;
+                    SkillCatalog.Entry entry = EntryOf(line.BaseId, out gameType);
+                    sb.Append(file).Append(" skill ").Append(line.BaseId).Append(" file=").Append(line.Name).Append(" game=").Append(entry == null ? "(none)" : entry.Name).Append('\n');
                     string strict = MartialService.OptionProblem(line.Type, line.BaseId, line.Options, false);
                     if (strict != null)
                     {

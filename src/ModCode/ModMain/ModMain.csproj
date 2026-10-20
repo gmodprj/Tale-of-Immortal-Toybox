@@ -72,8 +72,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 메타 파일(*.meta.json: 검증 등급·출처·모드 의존성)은 저장소 기록용이라 DLL에 넣지 않는다(05 문서 69절). -->
     <!-- 기본 프리셋. DLL 안에 넣어 두고 presets 폴더가 없을 때 풀어 놓는다(산출물은 DLL 하나여야 한다). 이름은 "Presets/<파일 이름>"이다. -->
-    <EmbeddedResource Include="Presets\*.json" LogicalName="Presets/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Presets\*.json" Exclude="Presets\*.meta.json" LogicalName="Presets/%(Filename)%(Extension)" />
     <!-- 창작마당 모드 글의 번역. DLL 안에 넣어 두고 translations 폴더에 파일이 없을 때 풀어 놓는다. 이름은 "Translations/mods.txt"다. -->
     <EmbeddedResource Include="Translations\*.txt" LogicalName="Translations/%(Filename)%(Extension)" />
   </ItemGroup>

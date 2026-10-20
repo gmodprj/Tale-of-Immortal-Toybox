@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "kind": "preset-meta",
+  "preset": "03-화검.json",
+  "sources": [
+    {
+      "site": "팬덤 위키",
+      "ref": "Build, Fire Sword"
+    }
+  ],
+  "requires": [],
+  "verified": {
+    "date": "2026-10-20",
+    "sessions": [
+      "pr-1020a",
+      "pr-1020b"
+    ],
+    "method": "고정본 회차에서 개발 명령 pcheck·pstrict·popts·pfate로 게임 설정 표와 대조(05 문서 69절)"
+  },
+  "notes": [
+    {
+      "item": "옵션 규칙",
+      "status": "확인",
+      "detail": "모든 공법·심법 줄의 옵션이 자리 판정·중복 한도·선행·배타 조건을 지킨다(개발 명령 pstrict, 프리셋 적용의 자리 완화와 별개로 엄격 판정)."
+    },
+    {
+      "item": "공법 이름",
+      "status": "확인",
+      "detail": "파일의 이름이 게임 기술 이름과 같다(심법은 괄호 앞까지)."
+    },
+    {
+      "item": "역천개명 경지",
+      "status": "확인",
+      "detail": "모든 줄이 그 운명의 경지 범위(fateFeature.gradeMin~gradeMax) 안이다."
+    }
+  ]
+}

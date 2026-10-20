@@ -97,6 +97,8 @@ namespace MOD_sWP6UL
             get { return g.world.playerUnit; }
         }
 
+        public const string MetaSuffix = ".meta.json";
+
         public static string Dir
         {
             get { return Path.Combine(ChangeLog.DataDir, "presets"); }
@@ -207,6 +209,11 @@ namespace MOD_sWP6UL
                 Array.Sort(files, StringComparer.OrdinalIgnoreCase);
                 foreach (string file in files)
                 {
+                    // 프리셋 옆의 메타 파일(검증 등급·출처, 05 문서 69절)은 프리셋이 아니다
+                    if (file.EndsWith(MetaSuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
                     result.Add(Read(file));
                 }
             }
