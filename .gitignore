@@ -12,3 +12,6 @@ tools/research/types.txt
 
 # 창작마당 후보표의 설명 전문(크기와 저작권. tools/workshop.ps1 -Search가 다시 만든다)
 tools/workshop/candidates-*-desc.txt
+
+# rc.ps1 화면 캡처
+tools/DevRemote/shot.png
