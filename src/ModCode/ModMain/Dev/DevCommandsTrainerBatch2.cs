@@ -268,6 +268,8 @@ namespace MOD_sWP6UL
             }
             Patch(typeof(ConfNpcFeedback104Base), "get_schoolRequireScoreMaster", Type.EmptyTypes, null, "Fb104Require");
             Patch(typeof(ConfNpcFeedback104Base), "get_schoolRequireScoreStudent", Type.EmptyTypes, null, "Fb104Require");
+            Patch(typeof(ConfNpcFeedback104Base), "get_closeRequire", Type.EmptyTypes, null, "Fb104Close");
+            Patch(typeof(ConfNpcFeedback104Base), "get_schoolCloseRequire", Type.EmptyTypes, null, "Fb104Close");
             for (int r = 1; r <= 10; r++)
             {
                 Patch(typeof(ConfNpcFeedback104Base), "get_requireReputationGrade" + r, Type.EmptyTypes, null, "Fb104Rep");
@@ -557,6 +559,16 @@ namespace MOD_sWP6UL
             double v;
             Add("Fb104Require", "player=" + fb104Player + " -> " + __result);
             if (fb104Player && Over("RelRequire", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void Fb104Close(ref int __result)
+        {
+            double v;
+            Add("Fb104Close", "player=" + fb104Player + " -> " + __result);
+            if (fb104Player && Over("RelClose", out v))
             {
                 __result = (int)v;
             }
