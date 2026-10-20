@@ -13,6 +13,9 @@ namespace MOD_sWP6UL
     //   tb2npc [n]                      가까운 NPC n명: 번호·unitID·이름·가방 첫 아이템 sole
     //   tb2escape <npc 번호> / tb2steal <npc 번호> / tb2rel <npc 번호> <관계 표 id>   행동을 만들어 IsCreateAction·CreateAction, 결과 칸
     //   tb2relitems                     관계 표(roleRelation): id·type·group·이름
+    //   tb2escape <npc 번호> sure       행동의 isSureComplete를 켜고 만든다
+    //   tb2drop [값]                     지금 난이도의 드롭률(g.conf.gameDifficultyValue.curItem.dropRate)을 읽거나 쓴다
+    //   관계 점수 추적: FormulaTool.Relation.Score(관계 종류|어울림 줄, unit, toUnit), ScoreForceMin, UnitAllRelationScore
     internal static class DevCommandsTrainerBatch2
     {
         private static HarmonyLib.Harmony harmony;
@@ -48,7 +51,17 @@ namespace MOD_sWP6UL
                 case "tb2npc":
                     return Npcs(p.Length > 1 ? int.Parse(p[1]) : 5);
                 case "tb2escape":
-                    return Escape(int.Parse(p[1]));
+                    return Escape(int.Parse(p[1]), p.Length > 2 && p[2] == "sure");
+                case "tb2drop":
+                    {
+                        ConfGameDifficultyValueItem cur = g.conf.gameDifficultyValue.curItem;
+                        int before = cur.dropRate;
+                        if (p.Length > 1)
+                        {
+                            cur.dropRate = int.Parse(p[1]);
+                        }
+                        return "difficulty=" + cur.id + " dropRate " + before + " -> " + cur.dropRate;
+                    }
                 case "tb2steal":
                     return Steal(int.Parse(p[1]));
                 case "tb2rel":
@@ -223,7 +236,10 @@ namespace MOD_sWP6UL
             Patch(typeof(FormulaTool.Relation), "UnitSchooldScore", new[] { unit, unit, typeof(int) }, null, "SchoolScore");
             Patch(typeof(UnitActionFeedback115), "OnCreate", Type.EmptyTypes, "ActBegin", "ActEnd");
             Patch(typeof(UnitActionRoleRelation), "OnCreate", Type.EmptyTypes, "ActBegin", "RelEnd");
-            Patch(typeof(UnitActionRoleRelation), "get_addIntim", Type.EmptyTypes, null, "RelAddIntim");
+            Patch(typeof(FormulaTool.Relation), "Score", new[] { typeof(UnitBothRelationType), unit, unit }, null, "RelScoreType");
+            Patch(typeof(FormulaTool.Relation), "Score", new[] { typeof(ConfNpcPartFittingItem), unit, unit }, null, "RelScoreFit");
+            Patch(typeof(FormulaTool.Relation), "ScoreForceMin", new[] { typeof(ConfNpcPartFittingItem), unit, unit }, null, "RelScoreMin");
+            Patch(typeof(FormulaTool.Relation), "UnitAllRelationScore", new[] { unit, unit }, null, "RelAllScore");
         }
 
         private static string Who(WorldUnitBase u)
@@ -351,11 +367,41 @@ namespace MOD_sWP6UL
             Add("Act", "UnitActionRoleRelation end complete=" + __instance.isComplete + " setComplete=" + __instance.isSetComplete + " addIntim=" + __instance.addIntim);
         }
 
-        private static void RelAddIntim(UnitActionRoleRelation __instance, ref int __result)
+        private static void RelScoreType(UnitBothRelationType __0, WorldUnitBase __1, WorldUnitBase __2, ref int __result)
         {
             double v;
-            Add("RelAddIntim", Who(__instance.unit) + " -> " + __result);
-            if (Over("RelAddIntim", out v))
+            Add("RelScoreType", __0 + " " + Who(__1) + " to " + Who(__2) + " -> " + __result);
+            if (Over("RelScoreType", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void RelScoreFit(ConfNpcPartFittingItem __0, WorldUnitBase __1, WorldUnitBase __2, ref int __result)
+        {
+            double v;
+            Add("RelScoreFit", (__0 == null ? "-" : __0.id.ToString()) + " " + Who(__1) + " to " + Who(__2) + " -> " + __result);
+            if (Over("RelScoreFit", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void RelScoreMin(ConfNpcPartFittingItem __0, WorldUnitBase __1, WorldUnitBase __2, ref int __result)
+        {
+            double v;
+            Add("RelScoreMin", (__0 == null ? "-" : __0.id.ToString()) + " " + Who(__1) + " to " + Who(__2) + " -> " + __result);
+            if (Over("RelScoreMin", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void RelAllScore(WorldUnitBase __0, WorldUnitBase __1, ref int __result)
+        {
+            double v;
+            Add("RelAllScore", Who(__0) + " to " + Who(__1) + " -> " + __result);
+            if (Over("RelAllScore", out v))
             {
                 __result = (int)v;
             }
@@ -410,10 +456,14 @@ namespace MOD_sWP6UL
             return "IsCreateAction=" + can + " CreateAction=" + code + " " + tail;
         }
 
-        private static string Escape(int index)
+        private static string Escape(int index, bool sure)
         {
             WorldUnitBase to = Near(index + 1)[index];
-            var action = new UnitActionRoleEscape(to, FirstSole(Me()));
+            var action = new UnitActionRoleEscape(to, null);
+            if (sure)
+            {
+                action.isSureComplete = true;
+            }
             return Run(action, "") + " sure=" + action.isSureComplete;
         }
 
