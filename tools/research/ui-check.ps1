@@ -6,7 +6,7 @@ param([Parameter(Mandatory)][string]$Part)
 # 탭 번호마다 그 탭에만 있는 버튼 하나(05 문서 47절: 번호는 고정이고 2는 비었다. 14는 제목 줄의 안전 단추). 탭이 제대로 그려졌는지 보는 데 쓴다.
 $tabProbe = @(
   @(0, 'Restore'), @(1, 'BagApply'), @(3, 'VaultModeBag'), @(4, 'FillExp'), @(5, 'SkillAddOpen'), @(6, 'ImmortalAddOpen'), @(7, 'ArtifactPoint'),
-  @(8, 'LuckAddOpen'), @(9, 'ArtLearnAll'), @(10, 'NpcRefresh'), @(11, 'Freeze'), @(12, 'God'), @(13, 'PresetRestore'), @(14, 'BackupNow'), @(15, 'AplClassAll'), @(16, 'TreasureGiveOpen'))
+  @(8, 'LuckAddOpen'), @(9, 'ArtLearnAll'), @(10, 'NpcRefresh'), @(11, 'Freeze'), @(12, 'God'), @(13, 'PresetRestore'), @(14, 'BackupNow'), @(15, 'AplClassAll'), @(16, 'TreasureGiveOpen'), @(17, 'SuccessReset'))
 # 게임의 인물 화면을 열거나 닫고, UI 층의 맨 위 정렬 값이 그에 맞게 바뀔 때까지 기다린다(닫히는 연출의 길이가 그때그때 다르다).
 function GameScreen([string]$do) {
   $want = if ($do -eq 'open') { 20 } else { 0 }
@@ -2927,6 +2927,81 @@ switch ($Part) {
     Check 'the change is in the history as forced' ((ForceLines) -ge $logged + 1) "$logged -> $(ForceLines)"
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Shot 'prefixforce'
+  }
+  'success' {
+    # 성공·드롭 탭(스펙 2026-10-20-trainer-batch2-design.md 7.2절, 05 문서 67·68절): 훔치기·관계 발전 성공, 전투 드롭 배수.
+    # 훔치기·관계는 실험 명령(tb2steal·tb2rel)으로 게임 행동을 만들고 결과 창을 넘긴다. 드롭은 개발 계수(sstate)로 적 하나당 보상 번호 수를 본다.
+    $traps = Traps
+    function Slots { if ((Cmd 'cmbag 0' 300) -match 'slots=(\d+)') { [int]$Matches[1] } else { -1 } }
+    function Tab { Cmd 'editor' | Out-Null; Press 'Tab17' | Out-Null }
+    function Close { Cmd 'uitoggle' | Out-Null }
+    function PassDrama { for ($i = 0; $i -lt 8 -and (Cmd 'uilist' 200) -match 'DramaDialogue'; $i++) { Rc 'click 960 540' 2000 | Out-Null } }
+    function WaitCourse { for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 200) -notmatch 'ActionCourseInfo'; $i++) { Start-Sleep -Milliseconds 500 }; Start-Sleep -Seconds 4 }
+    function Drops { if ((Cmd 'sstate' 300) -match 'dropCalls=(\d+) dropIds=(\d+) dropRaw=(\d+)') { @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3]) } else { @(-1, -1, -1) } }
+    Cmd 'uitarget player' | Out-Null
+    Tab
+    foreach ($b in 'SuccessSteal', 'SuccessRelation', 'SuccessDrop', 'SuccessReset') { Check "$b is drawn" (IsAt $b) }
+    Check 'the steal row starts off' ((Cmd 'uitext SuccessSteal') -match "text='꺼짐'") (Cmd 'uitext SuccessSteal')
+    Check 'the drop row starts at x1' ((Cmd 'uitext SuccessDrop') -match "text='x1'") (Cmd 'uitext SuccessDrop')
+    Check 'the note names what is left out' ((Cmd 'uitext SuccessLeftOut') -match '종문 초빙') (Cmd 'uitext SuccessLeftOut')
+
+    # 훔치기
+    Press 'SuccessSteal' | Out-Null
+    Check 'steal turns on' ((Cmd 'uitext SuccessSteal') -match "text='켜짐'") (Cmd 'uitext SuccessSteal')
+    Close
+    Start-Sleep -Milliseconds 1200
+    Check 'the status line shows it' ((Cmd 'uistate') -match 'status=\[[^\]]*훔치기') (Cmd 'uistate')
+    $s0 = Slots
+    Cmd 'tb2steal 1' 3000 | Out-Null; WaitCourse
+    Shot 'success-steal'
+    Rc 'click 958 802' 2500 | Out-Null
+    Check 'the steal succeeds and a reward opens' ((Cmd 'uilist' 300) -match 'GetReward') ((Cmd 'uilist' 300) -replace "`n", ' |')
+    Cmd 'uiclose GetReward' | Out-Null
+    Check 'the bag got the stolen item' ((Slots) -gt $s0) "$s0 -> $(Slots)"
+
+    # 관계 발전(의형제, 관계 표 3번)
+    Tab; Press 'SuccessRelation' | Out-Null; Close
+    Cmd 'tb2rel 2 3' 3000 | Out-Null; PassDrama; WaitCourse
+    Shot 'success-relation'
+    Rc 'click 958 714' 2500 | Out-Null
+    # 확인 뒤 대화와 "맺어지기 성공" 알림이 차례로 뜬다. 관계가 맺어질 때까지 넘긴다.
+    for ($i = 0; $i -lt 20 -and (Cmd 'tb2relof 2' 300) -cnotmatch 'relation=Brother|brother=True|brotherBack=True'; $i++) {
+      $ui = Cmd 'uilist' 200
+      # 결연 장면(DramaFortuitous)의 확인은 975,807, 대화(DramaDialogue)는 960,540, 알림(CheckPopup)의 예는 958,539
+      if ($ui -match 'CheckPopup') { Rc 'click 958 539' 1500 | Out-Null } elseif ($ui -match 'DramaFortuitous') { Rc 'click 975 807' 1500 | Out-Null } elseif ($ui -match 'Drama') { PassDrama } else { Start-Sleep -Milliseconds 600 }
+    }
+    for ($i = 0; $i -lt 5 -and (Cmd 'uilist' 200) -match 'CheckPopup|Drama'; $i++) { Rc 'click 958 539' 1500 | Out-Null; Rc 'click 975 807' 1500 | Out-Null; PassDrama }
+    Check 'the npc agreed and the relation is set' ((Cmd 'tb2relof 2' 300) -cmatch 'relation=Brother|brother=True|brotherBack=True') (Cmd 'tb2relof 2')
+
+    # 드롭 배수: x1에서 적 하나당 보상 번호 수 a, x3에서 3a
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    for ($i = 0; $i -lt 6 -and (Cmd 'uitext Multiplier') -notmatch "x100'"; $i++) { Press 'Multiplier' | Out-Null }
+    Close
+    Cmd 'fight 1011 1' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'tbmp' 300) -match 'not in battle'; $i++) { Start-Sleep -Milliseconds 500 }
+    Rc 'click 956 749' 3000 | Out-Null
+    Tab; Press 'SuccessDrop' | Out-Null; Press 'SuccessDrop' | Out-Null
+    Check 'drop goes to x3' ((Cmd 'uitext SuccessDrop') -match "text='x3'") (Cmd 'uitext SuccessDrop')
+    Close
+    $d1 = Drops
+    for ($k = 0; $k -lt 6; $k++) { Cmd 'bcast 1' 500 | Out-Null; Start-Sleep -Milliseconds 700; Cmd 'bcast 2' 500 | Out-Null; Start-Sleep -Milliseconds 700 }
+    $d2 = Drops
+    # 그 구간의 원래 보상 번호 수(raw)의 세 배가 돌려준 번호 수(ids)여야 한다
+    $raw = $d2[2] - $d1[2]; $ids = $d2[1] - $d1[1]
+    Check 'at x3 each kill rolls three times the rewards' ($d2[0] -gt $d1[0] -and $raw -gt 0 -and $ids -eq 3 * $raw) "kills=$($d2[0] - $d1[0]) raw=$raw ids=$ids"
+    Cmd 'bend' 800 | Out-Null
+    for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+    Start-Sleep -Seconds 2
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -match 'BattleEnd'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
+    Start-Sleep -Seconds 3
+
+    # 모두 끄기
+    Tab; Press 'SuccessReset' | Out-Null
+    Check 'reset turns all off' ((Cmd 'sstate' 300) -match 'steal=False relation=False drop=1 ') (Cmd 'sstate')
+    Close
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null; Press 'RateReset' | Out-Null; Close
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
   default { throw "알 수 없는 Part: $Part" }
 }

@@ -13,6 +13,9 @@ namespace MOD_sWP6UL
     //   tb2npc [n]                      가까운 NPC n명: 번호·unitID·이름·가방 첫 아이템 sole
     //   tb2escape <npc 번호> / tb2steal <npc 번호> / tb2rel <npc 번호> <관계 표 id>   행동을 만들어 IsCreateAction·CreateAction, 결과 칸
     //   tb2relitems                     관계 표(roleRelation): id·type·group·이름
+    //   tb2relof <npc 번호>             플레이어가 본 그 NPC와의 관계 종류(relationData.GetRelation)
+    //   sstate                          성공·드롭 탭의 상태와 드롭 개발 계수(GetDropID 호출 수·돌려준 보상 번호 수)
+    //   tb2pick <sole>                  공법 탭에서 그 공법을 고른다(검사용)
     //   tb2escape <npc 번호> sure       행동의 isSureComplete를 켜고 만든다
     //   tb2drop [값]                     지금 난이도의 드롭률(g.conf.gameDifficultyValue.curItem.dropRate)을 읽거나 쓴다
     //   관계 점수 추적: FormulaTool.Relation.Score(관계 종류|어울림 줄, unit, toUnit), ScoreForceMin, UnitAllRelationScore
@@ -37,6 +40,19 @@ namespace MOD_sWP6UL
         {
             switch (p[0])
             {
+                case "tb2relof":
+                    {
+                        WorldUnitBase to = Near(int.Parse(p[1]) + 1)[int.Parse(p[1])];
+                        var rel = Me().data.unitData.relationData;
+                        string id = to.data.unitData.unitID;
+                        return id + " relation=" + rel.GetRelation(to) + " brother=" + rel.brother.Contains(id) + " brotherBack=" + rel.brotherBack.Contains(id)
+                            + " | npc: relation=" + to.data.unitData.relationData.GetRelation(Me()) + " brother=" + to.data.unitData.relationData.brother.Contains(Me().data.unitData.unitID)
+                            + " brotherBack=" + to.data.unitData.relationData.brotherBack.Contains(Me().data.unitData.unitID)
+                            + " myBrothers=" + rel.brother.Count + "/" + rel.brotherBack.Count;
+                    }
+                case "sstate":
+                    return "steal=" + SuccessService.Steal + " relation=" + SuccessService.Relation + " drop=" + SuccessService.DropTimes
+                        + " dropCalls=" + SuccessService.DropCalls + " dropIds=" + SuccessService.DropIds + " dropRaw=" + SuccessService.DropIdsRaw;
                 case "tb2pick":
                     MartialTab.DevPick = p[1];
                     EditorWindow.Refresh();
