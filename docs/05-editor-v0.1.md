@@ -3213,3 +3213,8 @@
 - 제작자의 "극 모드와 같이 쓰지 말 것"은 번호 충돌로는 드러나지 않았다. 극의 진행 조건(같은 NPC·사건을 두 모드가 건드리는 것)은 표 번호로 알 수 없어 실제 플레이에서만 드러난다(미확인).
 - 난이도 줄 덮어쓰기는 모드의 설계(太虚镜)이며, 설치하면 지금 난이도의 적 능력치가 바뀐다.
 - 회차 이름: `wg-1020a`~`e`.
+
+### 설치와 컬렉션 (2026-10-20)
+
+- 사용자 확인("게임은 꺼 둘게. 만고신화를 설치하고 …") 뒤 `workshop.ps1 -Install -Id 2814696167 -Yes`(INSTALLED, 이력 설치). PlayerPrefs `Mod_LoadData_h173884042`의 끝에 `{"modFolderName":"2814696167","isLoad":true}`를 더했다(41개 모두 켜짐, 끝의 0바이트 유지. 앞 값 `.devremote\playerprefs-Mod_LoadData-before-wangu-1020.bin`). `-Doc`으로 등록부와 `collection-desc.txt`(설치 40개 기준)를 다시 썼다.
+- Steam 컬렉션 3820620999(사용자 요청 "내 스팀 창작마당 토이박스 모음집에도 해당 모드들 추가 및 모음집 내용 갱신"): 내장 브라우저(Steam 로그인 상태)에서 같은 출처 POST `/sharedfiles/favorite`(200)로 즐겨찾기에 넣고, `managecollection`의 즐겨찾기 목록에서 `ToggleChildInCollection`으로 더했다(다시 불러와 40개). `editcollection`의 설명을 `collection-desc.txt`(55줄, 1,355자)로 바꿔 저장했다. 공개 페이지에서 아이템 40개, 만고신화 포함, 설명 첫 줄 "2026-10-20 기준, 설치 40개"를 확인했다. 즐겨찾기는 계정에 남는다.
