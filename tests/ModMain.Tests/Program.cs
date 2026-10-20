@@ -181,6 +181,14 @@ namespace MOD_sWP6UL
             Check("zh: whole-only dictionary matches the whole text only", lt.Replace("修炼技能需要", out changed) == "기술 수련" && changed && lt.Replace("修炼技能需要幽莹", out changed) == "修炼技能需要幽莹" && !changed && lt.Count == 1 && lt.WholeOnlyCount == 1);
             // Whole: 표 칸 바꿔 끼우기(TextTranslationService.ApplyTable)가 쓴다. 글 전체가 원문과 같을 때만 한국어, 아니면 null(부분 치환 없음).
             Check("zh: Whole returns the value only for an exact key", zh.Whole("无") == "없음" && zh.Whole("幽莹") == "유영" && zh.Whole("变身技-幽莹（未解锁）") == null && zh.Whole("") == null && zh.Whole(null) == null);
+            // 앞뒤 서식 태그를 벗겨 안쪽 글로 찾는다(만고신화 선천 이름 <COLOR=#D6A300>万古不朽</COLOR>. 안쪽 万古不朽은 LocalText 사전에 있다).
+            var tag = new TextReplacer(new Dictionary<string, string> { { "幽莹", "유영" } }, new Dictionary<string, string> { { "万古不朽", "만고불후" } });
+            Check("zh: Whole finds the text inside outer tags", tag.Whole("<COLOR=#D6A300>万古不朽</COLOR>") == "<COLOR=#D6A300>만고불후</COLOR>" && tag.Whole("<B><size=20>幽莹</size></B>") == "<B><size=20>유영</size></B>");
+            Check("zh: Whole keeps an exact key with tags first and does not peel inner tags", new TextReplacer(new Dictionary<string, string> { { "<r>幽莹</r>", "<r>유영!</r>" }, { "幽莹", "유영" } }).Whole("<r>幽莹</r>") == "<r>유영!</r>" && tag.Whole("<r>万古</r>不朽") == null && tag.Whole("<COLOR=#D6A300></COLOR>") == null);
+            // 만고신화는 꺾쇠 <…>를 지문 표시로도 쓴다(<此人突然出现…>). 영문자로 시작하는 서식 태그만 벗긴다(리뷰 I1).
+            var aside = new TextReplacer(new Dictionary<string, string>(), new Dictionary<string, string> { { "你好", "안녕" } });
+            Check("zh: Whole peels only formatting tags, not angle-bracket narration", aside.Whole("你好<……必须小心应对>") == null && aside.Whole("<旁白>你好") == null && aside.Whole("<b>你好</b>") == "<b>안녕</b>");
+            Check("zh: Replace uses the peeled whole match too", tag.Replace("<COLOR=#D6A300>万古不朽</COLOR>", out changed) == "<COLOR=#D6A300>만고불후</COLOR>" && changed);
         }
 
         private static string Lines(List<CraftPlan.Line> lines)

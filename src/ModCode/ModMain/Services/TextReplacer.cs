@@ -86,13 +86,76 @@ namespace MOD_sWP6UL
         }
 
         // 글 전체가 원문과 같을 때만 한국어를, 아니면 null을 돌려준다(부분 치환 없음). 표 칸 바꿔 끼우기가 쓴다.
+        // 그대로 없으면 앞뒤의 서식 태그(<…>)를 벗긴 안쪽 글로 한 번 더 찾아 태그를 되붙인다(만고신화 선천 이름 <COLOR=#D6A300>万古不朽</COLOR>. 05 문서 74절).
+        // 안쪽에 태그가 남으면 찾지 않는다(태그 사이의 조각을 따로 바꾸지 않는다).
         public string Whole(string text)
         {
-            string found;
             if (string.IsNullOrEmpty(text))
             {
                 return null;
             }
+            string found = Exact(text);
+            if (found != null)
+            {
+                return found;
+            }
+            // 벗기는 것은 서식 태그(<b>·</COLOR>·<size=20>처럼 '<' 또는 "</" 뒤가 영문자)뿐이다. 만고신화는 <此人突然出现…>처럼 꺾쇠를 지문 표시로도 쓰므로 그런 조각은 남긴다(리뷰 I1).
+            int start = 0;
+            while (start < text.Length && text[start] == '<')
+            {
+                int close = text.IndexOf('>', start);
+                if (close < 0 || !IsTag(text, start, close))
+                {
+                    break;
+                }
+                start = close + 1;
+            }
+            int end = text.Length;
+            while (end > start && text[end - 1] == '>')
+            {
+                int open = text.LastIndexOf('<', end - 1);
+                if (open < start || !IsTag(text, open, end - 1))
+                {
+                    break;
+                }
+                end = open;
+            }
+            if (start == 0 && end == text.Length)
+            {
+                return null;
+            }
+            string inner = text.Substring(start, end - start);
+            if (inner.Length == 0 || inner.IndexOf('<') >= 0 || inner.IndexOf('>') >= 0)
+            {
+                return null;
+            }
+            found = Exact(inner);
+            return found == null ? null : text.Substring(0, start) + found + text.Substring(end);
+        }
+
+        // text[open]='<', text[close]='>'인 조각이 서식 태그인지: 사이에 꺾쇠가 없고 '<'(또는 "</") 다음이 영문자.
+        private static bool IsTag(string text, int open, int close)
+        {
+            int i = open + 1;
+            if (i < close && text[i] == '/')
+            {
+                i++;
+            }
+            if (i >= close)
+            {
+                return false;
+            }
+            char c = text[i];
+            if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')))
+            {
+                return false;
+            }
+            return text.IndexOf('<', open + 1, close - open - 1) < 0;
+        }
+
+        private string Exact(string text)
+        {
+            string found;
             return whole.TryGetValue(text, out found) || wholeOnly.TryGetValue(text, out found) ? found : null;
         }
 
