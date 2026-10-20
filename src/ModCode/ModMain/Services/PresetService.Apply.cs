@@ -171,7 +171,7 @@ namespace MOD_sWP6UL
             bool made = false;
             if (sole == null)
             {
-                string error = MartialService.Make(me, line.Type, line.BaseId, grade, line.Options, out sole);
+                string error = MartialService.Make(me, line.Type, line.BaseId, grade, line.Options, out sole, true);
                 if (error != null)
                 {
                     text = label + ": " + error;

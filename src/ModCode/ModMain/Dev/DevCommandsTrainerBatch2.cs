@@ -37,6 +37,10 @@ namespace MOD_sWP6UL
         {
             switch (p[0])
             {
+                case "tb2pick":
+                    MartialTab.DevPick = p[1];
+                    EditorWindow.Refresh();
+                    return "pick " + p[1];
                 case "tb2mlist":
                     return MList();
                 case "tb2slot":

@@ -2903,6 +2903,31 @@ switch ($Part) {
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'prefixforce' {
+    # 공법 옵션 자리 강제(스펙 2026-10-20-trainer-batch2-design.md 5.1·7.2절, 05 문서 67·68절).
+    # 고정본: 무예 14111(fY5GR9) 옵션 1,1,7,1,14,5,11. 자리 2(인덱스 1)에서 15번은 가중치 0·조건 없음, 14번은 중복 한도 1.
+    $traps = Traps
+    function Opts { if ((Cmd 'tb2mlist' 1000) -match '(?m)^(?:tb2mlist -> )?fY5GR9 14111 \w+ (.*)$') { $Matches[1].Trim() } else { '' } }
+    function ForceLines { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Encoding UTF8 | Where-Object { $_ -match '\(자리 강제\)' }).Count }
+    $logged = ForceLines
+    Check 'slot 2 has 15 outside its slot' ((Cmd 'tb2slot fY5GR9 1' 1000) -match '(^| )15:w0:m1:r0 ') (Cmd 'tb2slot fY5GR9 1')
+    Check 'the fixture starts with 1 in slot 2' ((Opts) -match '^0:1:\d+ 1:1:') (Opts)
+    Cmd 'uitarget player' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
+    Cmd 'tb2pick fY5GR9' 500 | Out-Null
+    Press 'Replace1' | Out-Null
+    if (IsAt 'PrefixListLast') { Press 'PrefixListLast' | Out-Null }
+    Check 'the force button is drawn for 15' ((Cmd 'uitext ReplaceForce15') -match "text='강제'") (Cmd 'uitext ReplaceForce15')
+    Check 'the row has no plain pick button' ((Cmd 'uitext ReplacePick15') -match 'no element') (Cmd 'uitext ReplacePick15')
+    Check 'a row over the duplicate limit has no force button' ((Cmd 'uitext ReplaceForce14') -match 'no element') (Cmd 'uitext ReplaceForce14')
+    Press 'ReplaceForce15' | Out-Null
+    Check 'the first press only asks' ((Cmd 'uistate') -match '효과가 나지 않을 수 있습니다' -and (Opts) -match ' 1:1:') "$(Cmd 'uistate') | $(Opts)"
+    Press 'ReplaceForce15' | Out-Null
+    Check 'the second press puts 15 in slot 2' ((Opts) -match ' 1:15:') (Opts)
+    Check 'the change is in the history as forced' ((ForceLines) -ge $logged + 1) "$logged -> $(ForceLines)"
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Shot 'prefixforce'
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
