@@ -50,8 +50,12 @@ namespace MOD_sWP6UL
                             + " brotherBack=" + to.data.unitData.relationData.brotherBack.Contains(Me().data.unitData.unitID)
                             + " myBrothers=" + rel.brother.Count + "/" + rel.brotherBack.Count;
                     }
+                case "sstick":
+                    SuccessService.DevStick();
+                    return "stuck";
                 case "sstate":
                     return "steal=" + SuccessService.Steal + " relation=" + SuccessService.Relation + " drop=" + SuccessService.DropTimes
+                        + " brotherRequire=" + g.conf.npcFeedback104.requireScoreBrother + " rep1=" + g.conf.npcFeedback104.requireReputationGrade1
                         + " dropCalls=" + SuccessService.DropCalls + " dropIds=" + SuccessService.DropIds + " dropRaw=" + SuccessService.DropIdsRaw;
                 case "tb2pick":
                     MartialTab.DevPick = p[1];

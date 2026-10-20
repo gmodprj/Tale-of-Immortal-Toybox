@@ -2998,6 +2998,9 @@ switch ($Part) {
     # 모두 끄기
     Tab; Press 'SuccessReset' | Out-Null
     Check 'reset turns all off' ((Cmd 'sstate' 300) -match 'steal=False relation=False drop=1 ') (Cmd 'sstate')
+    # 응답이 예외로 끝나 표시가 남아도, 꺼져 있으면 설정 값이 원래대로 읽혀야 한다(최종 리뷰 Important 1)
+    Cmd 'sstick' 300 | Out-Null
+    Check 'a stuck mark does not leak while off' ((Cmd 'sstate' 300) -match 'brotherRequire=(\d+) ' -and [int]$Matches[1] -gt 0) (Cmd 'sstate')
     Close
     Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null; Press 'RateReset' | Out-Null; Close
     Check 'no callback exception in the log' ((Traps) -eq $traps)

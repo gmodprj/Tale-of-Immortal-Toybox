@@ -24,6 +24,12 @@ namespace MOD_sWP6UL
         private static bool inPlayerRequest;   // 지금 도는 관계 응답이 플레이어의 요청인지
 
 #if DEVTOOLS
+        // 개발 전용: 응답이 예외로 끝나 표시가 남은 상태를 흉내 낸다(검사 success).
+        public static void DevStick()
+        {
+            inPlayerRequest = true;
+        }
+
         public static int DropCalls, DropIds, DropIdsRaw;   // 개발 전용: GetDropID 호출 수, 돌려준 보상 번호 수(바꾼 뒤), 원래 번호 수
 #endif
 
@@ -48,6 +54,7 @@ namespace MOD_sWP6UL
             }
             ChangeLog.Add("성공·드롭", "관계 발전", Relation ? "켜짐" : "꺼짐", on ? "켜짐" : "꺼짐", true);
             Relation = on;
+            inPlayerRequest = false;   // 응답이 예외로 끝나 남은 표시를 지운다(접미가 돌지 않았을 수 있다)
             return "관계 발전 성공: " + (on ? "켜짐" : "꺼짐");
         }
 
@@ -212,9 +219,10 @@ namespace MOD_sWP6UL
             inPlayerRequest = false;
         }
 
+        // 꺼져 있으면 남은 표시가 있어도 바꾸지 않는다(최종 리뷰 Important 1).
         public static void RequireScore(ref int __result)
         {
-            if (inPlayerRequest)
+            if (Relation && inPlayerRequest)
             {
                 __result = NoRequirement;
             }
@@ -222,7 +230,7 @@ namespace MOD_sWP6UL
 
         public static void RequireReputation(ref int __result)
         {
-            if (inPlayerRequest)
+            if (Relation && inPlayerRequest)
             {
                 __result = 0;
             }
