@@ -38,7 +38,30 @@ namespace MOD_sWP6UL
                 {
                     return "data=null";
                 }
+                // cache 밖의 ModExcel\**\*.json(하위 폴더 표)은 data에 들지 않는다. 게임의 복호화(ModTool.LoadTextInFile)로 풀어
+                // <출력 파일>.excel\<상대 경로>에 평문으로 쓴다(05 문서 72절: 만고신화의 XW\RoleGrade.json). ImportJson은 data가 아니라 설정에 바로 넣어 쓰지 않는다.
+                int jsons = 0, jsonErrors = 0;
+                string excelDir = Path.Combine(Path.GetDirectoryName(file), "ModExcel");
+                if (Directory.Exists(excelDir))
+                {
+                    foreach (string json in Directory.GetFiles(excelDir, "*.json", SearchOption.AllDirectories))
+                    {
+                        try
+                        {
+                            string text = ModTool.LoadTextInFile(json, true);
+                            string target = Path.Combine(outFile + ".excel", json.Substring(excelDir.Length + 1));
+                            Directory.CreateDirectory(Path.GetDirectoryName(target));
+                            File.WriteAllText(target, text ?? "", new UTF8Encoding(false));
+                            jsons++;
+                        }
+                        catch (Exception)
+                        {
+                            jsonErrors++;
+                        }
+                    }
+                }
                 var sb = new StringBuilder();
+                var full = new StringBuilder();
                 int tables = 0, rows = 0;
                 var e = data.items.GetEnumerator();
                 while (e.MoveNext())
@@ -51,10 +74,24 @@ namespace MOD_sWP6UL
                         string id = row != null && row.ContainsKey("id") ? row["id"] : "?";
                         sb.Append(e.Current.Key).Append('\t').Append(id).Append('\n');
                         rows++;
+                        // 경지 표는 칸까지 남긴다(바닐라 행을 바꾸는지 보려고).
+                        if (e.Current.Key == "RoleGrade" && row != null)
+                        {
+                            var f = row.GetEnumerator();
+                            while (f.MoveNext())
+                            {
+                                full.Append(f.Current.Key).Append('=').Append(f.Current.Value).Append('\t');
+                            }
+                            full.Append('\n');
+                        }
                     }
                 }
                 File.WriteAllText(outFile, sb.ToString(), new UTF8Encoding(false));
-                return "tables=" + tables + " rows=" + rows;
+                if (full.Length > 0)
+                {
+                    File.WriteAllText(outFile + ".RoleGrade.txt", full.ToString(), new UTF8Encoding(false));
+                }
+                return "tables=" + tables + " rows=" + rows + " jsons=" + jsons + " jsonErrors=" + jsonErrors;
             }
             catch (Exception ex)
             {
