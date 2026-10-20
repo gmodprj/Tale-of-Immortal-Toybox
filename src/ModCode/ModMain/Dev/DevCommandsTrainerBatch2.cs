@@ -22,6 +22,8 @@ namespace MOD_sWP6UL
     //               드롭(UIBattleInfoDrop.OnUnitDie, ConfBattleUnitAttr.GetDropID), 초빙(UnitActionRoleInvite.PlayerToNPCAction)
     //   덮어쓰기 이름 더함: DropTimes(GetDropID 결과를 n번 이어 붙임), CanCollect(ConfPotmonBase.IsMonstCanCollect를 참·호요 1001로),
     //               ForceConsent(WorldUnitEffectSpecialNpcRelationCommand.ForceConsent 결과). 추적: RewardTool.GetReward
+    //               RelRequire·RelRep(플레이어가 요청한 관계 응답 UnitActionFeedback104 안에서만 필요 점수·필요 명성),
+    //               InviteRequire(플레이어의 종문 초빙 응답 UnitActionFeedback115 안에서만 requireScore·eliteRequireScore 배열 전부)
     internal static class DevCommandsTrainerBatch2
     {
         private static HarmonyLib.Harmony harmony;
@@ -259,6 +261,20 @@ namespace MOD_sWP6UL
             Patch(typeof(ConfBattleUnitAttr), "GetDropID", new[] { typeof(int), typeof(bool) }, null, "DropId");
             Patch(typeof(ConfPotmonBase), "IsMonstCanCollect", new[] { typeof(int), typeof(int), typeof(int).MakeByRefType() }, null, "CanCollect");
             Patch(typeof(WorldUnitEffectSpecialNpcRelationCommand), "ForceConsent", new[] { unit }, null, "ForceConsent");
+            Patch(typeof(UnitActionFeedback104), "OnCreate", Type.EmptyTypes, "Fb104Begin", "Fb104End");
+            foreach (string g104 in new[] { "Parents", "Children", "Brother", "Master", "Student", "Marry", "Lover" })
+            {
+                Patch(typeof(ConfNpcFeedback104Base), "get_requireScore" + g104, Type.EmptyTypes, null, "Fb104Require");
+            }
+            Patch(typeof(ConfNpcFeedback104Base), "get_schoolRequireScoreMaster", Type.EmptyTypes, null, "Fb104Require");
+            Patch(typeof(ConfNpcFeedback104Base), "get_schoolRequireScoreStudent", Type.EmptyTypes, null, "Fb104Require");
+            for (int r = 1; r <= 10; r++)
+            {
+                Patch(typeof(ConfNpcFeedback104Base), "get_requireReputationGrade" + r, Type.EmptyTypes, null, "Fb104Rep");
+            }
+            Patch(typeof(UnitActionFeedback115), "OnCreate", Type.EmptyTypes, "Fb115Begin", "Fb115End");
+            Patch(typeof(ConfNpcFeedback115Base), "get_requireScore", Type.EmptyTypes, null, "Fb115Require");
+            Patch(typeof(ConfNpcFeedback115Base), "get_eliteRequireScore", Type.EmptyTypes, null, "Fb115Require");
             Patch(typeof(RewardTool), "GetReward", new[] { unit, typeof(int), typeof(int), typeof(UnhollowerBaseLib.Il2CppReferenceArray<RewardMartialGradeBase>), typeof(RewardCustomData), typeof(RandomSeedData) }, null, "GetReward");
             Patch(typeof(UnitActionRoleInvite), "PlayerToNPCAction", Type.EmptyTypes, "InviteBegin", null);
         }
@@ -520,6 +536,66 @@ namespace MOD_sWP6UL
         private static void GetReward(WorldUnitBase __0, int __1, int __2)
         {
             Add("GetReward", Who(__0) + " reward=" + __1 + " weight=" + __2);
+        }
+
+        private static bool fb104Player, fb115Player;
+
+        private static void Fb104Begin(UnitActionFeedback104 __instance)
+        {
+            fb104Player = __instance.requestUnit != null && __instance.requestUnit.Pointer == Me().Pointer;
+            Add("Fb104", "begin request=" + Who(__instance.requestUnit) + " npc=" + Who(__instance.unit) + " type=" + __instance.relationType);
+        }
+
+        private static void Fb104End()
+        {
+            fb104Player = false;
+            Add("Fb104", "end");
+        }
+
+        private static void Fb104Require(ref int __result)
+        {
+            double v;
+            Add("Fb104Require", "player=" + fb104Player + " -> " + __result);
+            if (fb104Player && Over("RelRequire", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void Fb104Rep(ref int __result)
+        {
+            double v;
+            Add("Fb104Rep", "player=" + fb104Player + " -> " + __result);
+            if (fb104Player && Over("RelRep", out v))
+            {
+                __result = (int)v;
+            }
+        }
+
+        private static void Fb115Begin(UnitActionFeedback115 __instance)
+        {
+            fb115Player = __instance.inviteUnit != null && __instance.inviteUnit.Pointer == Me().Pointer;
+            Add("Fb115", "begin invite=" + Who(__instance.inviteUnit) + " npc=" + Who(__instance.unit));
+        }
+
+        private static void Fb115End()
+        {
+            fb115Player = false;
+        }
+
+        private static void Fb115Require(ref UnhollowerBaseLib.Il2CppStructArray<int> __result)
+        {
+            double v;
+            Add("Fb115Require", "player=" + fb115Player + " n=" + (__result == null ? -1 : __result.Length));
+            if (fb115Player && __result != null && Over("InviteRequire", out v))
+            {
+                var copy = new UnhollowerBaseLib.Il2CppStructArray<int>(__result.Length);
+                for (int i = 0; i < copy.Length; i++)
+                {
+                    copy[i] = (int)v;
+                }
+                __result = copy;
+            }
         }
 
         private static void InviteBegin(UnitActionRoleInvite __instance)
