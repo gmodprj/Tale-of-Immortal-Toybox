@@ -48,6 +48,18 @@ namespace MOD_sWP6UL
                     parts.Add(rate.Short + " " + rate.Text);
                 }
             }
+            if (SuccessService.Steal)
+            {
+                parts.Add("훔치기");
+            }
+            if (SuccessService.Relation)
+            {
+                parts.Add("관계 발전");
+            }
+            if (SuccessService.DropTimes > 1)
+            {
+                parts.Add("드롭 x" + SuccessService.DropTimes);
+            }
             return string.Join(" · ", parts.ToArray());
         }
 

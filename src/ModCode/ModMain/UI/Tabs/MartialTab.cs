@@ -61,9 +61,21 @@ namespace MOD_sWP6UL
             optionDetail.Clear();
         }
 
+#if DEVTOOLS
+        // 개발 전용: 검사가 고유 번호로 공법을 고른다(목록 순번은 실행마다 다를 수 있다).
+        internal static string DevPick;
+#endif
+
         protected override void Draw()
         {
             WorldUnitBase target = Target;
+#if DEVTOOLS
+            if (DevPick != null)
+            {
+                martialId = DevPick;
+                DevPick = null;
+            }
+#endif
             var all = new List<Learned>();
             foreach (var pair in target.data.unitData.allActionMartial)
             {
@@ -358,12 +370,27 @@ namespace MOD_sWP6UL
             string text = PrefixText(item);
             float textH = (float)Math.Ceiling(Ui.TextHeight(text, 1060, 17));
             Ui.Wrapped(row, text, 8, 3, 1060, textH, 17, TextAnchor.UpperLeft).gameObject.name = "PrefixDesc" + item.number;
+            int slot = replaceIndex;
+            float bx = ContentW - Ui.ScrollBarWidth - 118;
+            // 자리만 막힌 옵션은 두 번 누르기로 강제로 넣는다(스펙 2026-10-20-trainer-batch2-design.md 5.1절). 중복·조건 위반은 그대로 막는다.
+            if (MartialService.SlotBlocked(item, slot) && MartialService.RuleBlockReason(pickerMartial, slot, item) == null)
+            {
+                Ui.Label(row, "자리 밖: 이 자리에는 나오지 않는 옵션(강제로 넣을 수 있음)", 38, textH + 3, 1050, 22, 15).color = Ui.Warn;
+                Confirm.Button("ReplaceForce" + item.number, row, "강제", "정말 강제", bx, 7, 110, 36, "prefix-force-" + item.number,
+                    "옵션 " + item.number + "번은 이 자리에 나오지 않는 옵션입니다. 게임이 원래 만들지 않는 조합이라 효과가 나지 않을 수 있습니다. 한 번 더 누르면 넣습니다.",
+                    new Action(() =>
+                    {
+                        string forced = MartialService.ReplacePrefix(Target, martialId, slot, item, true);
+                        CloseViews();
+                        Say(forced);
+                    }));
+                return;
+            }
             if (blocked != null)
             {
                 Ui.Label(row, "불가: " + blocked, 38, textH + 3, 1050, 22, 15).color = Ui.Warn;
             }
-            int slot = replaceIndex;
-            Ui.Button("ReplacePick" + item.number, row, "이걸로", ContentW - Ui.ScrollBarWidth - 118, 7, 110, 36, new Action(() =>
+            Ui.Button("ReplacePick" + item.number, row, "이걸로", bx, 7, 110, 36, new Action(() =>
             {
                 string result = MartialService.ReplacePrefix(Target, martialId, slot, item);
                 CloseViews();

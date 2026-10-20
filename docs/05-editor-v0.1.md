@@ -3006,3 +3006,77 @@
 - 장비(반지·좌기)의 강함은 0으로 본다(가방 순서로 지운다). 강화·옵션 칸을 읽지 않았다.
 - 게임 화면에서 직접 아이템을 쓴 경우는 보지 않았다(개발 명령이 같은 행동을 만든다).
 - 회차 이름: `tb1-1020d`~`p`(`e2`, `i2` 포함).
+
+## 67. 트레이너 비교 2묶음 — 설계 전 실험 (2026-10-20 추가)
+
+사용자 요청(2026-10-20): "모드창의 공법 참오 속성의 변경에서 불가: 이자리에 나올수 없는 옵션도 강제 추가 가능하게 수정하는 기능도 다음 작업에 포함하여 진행". 설계 `docs/superpowers/specs/2026-10-20-trainer-batch2-design.md` 4절의 E1~E6. 브랜치 `feat/trainer-batch2`, 개발 명령 `Dev/DevCommandsTrainerBatch2.cs`(`tb2*`), 회차 `tb2-1020a`~`c`.
+
+### E1 옵션 자리 강제 — 된다
+
+- 고정본 무예 14111(`fY5GR9`, 왼쪽 장착)의 자리 2(인덱스 1)는 15번의 가중치가 0이다(`tb2slot`: 1~5번 30, 6~16번 0). `SetPrefixID(1, 15)`가 예외 없이 들어가고 품질이 6/6으로 다시 뽑혔다. 비급 값(`cmartial`)에도 15가 들어간다.
+- 저장 후 재시작해도 15번이 그대로 남았다(게임이 다시 뽑거나 지우지 않음).
+- 그 공법을 전투에서 네 번 썼다(`bcast 1`). 모드 예외 없음.
+- 옵션 효과가 실제로 붙는지는 재지 않았다. 게임 화면의 공법 설명(마우스를 올리면 뜨는 창)은 가상 포인터로 띄우지 못해 보지 못했다.
+
+### E2~E6 성공률
+
+| 줄 | 결과 |
+|---|---|
+| 훔치기 | **된다.** `UnitActionRoleStealItem.CompleteRate(unit, toUnit)`은 0~1(0.10~0.66), `DiscoverRate(unit)`은 0.854. 둘 다 정적·인자에 유닛이 있어 플레이어를 가릴 수 있다. 접미로 1과 0을 돌려주자 결과 창에 "절도 성공! / 은폐 성공!"이 나오고 확인 뒤 보상 창이 떠 가방이 한 칸 늘었다. 결과 창(`ActionCourseInfo`)을 바로 닫으면 결과가 적용되지 않는다. |
+| 도주 | 확인 못 함. `UnitActionRoleEscape.CompleteRate(int,int,int)`는 불리지 않았다. 고정본 인물은 각력이 높아(각력 저장값 1로 해도 보정 포함 1101 대 상대 500·600) 실패하는 조건을 만들지 못했다. 행동에 `isSureComplete` 칸과 계산 메서드 `get_isComplete()`가 있다. 생성자의 sole은 null을 받지 않는다(빈 글은 된다). |
+| 포획 | 시험 못 함. 고정본에 연요호가 없다. `ConfPotmonSkillStudyItem.studyRate`·`battleStudyRate`는 칸이라 패치할 수 없다. |
+| 드롭 | 판정을 찾지 못함. `ConfGameDifficultyValueItem.dropRate`는 칸이라 패치할 수 없고, 값을 직접 0으로 해도(`g.conf.gameDifficultyValue.curItem.dropRate`, 기본 100) 적을 다 처치하자 아이템이 떨어졌다. `PlayerInfoExtendPropsEx.CanDrop`은 처치와 결과 창에서 불리지 않았다. |
+| 종문 초빙 | 시험 못 함. 고정본 인물은 종문이 없다. `FormulaTool.Relation.UnitSchooldScore`는 지도에서 불리지 않았다. |
+| 관계 발전 | 판정을 찾지 못함. 의형제 요청(`UnitActionRoleRelation`, 관계 표 3번)은 "외모·성격·친분을 살펴본다 → 거절". `get_isComplete()`를 true로 덮어써도 거절이었다. `FormulaTool.Relation.Score`(관계 종류·어울림 줄)·`ScoreForceMin`·`UnitAllRelationScore`는 불리지 않았다. `addIntim`·`isNPCReduceIntim`은 칸이다. |
+
+### 함정
+
+- 언홀로어가 칸(필드)을 감싼 속성(`get_dropRate`, `get_studyRate`, `get_addIntim`, `get_isSureComplete`)에는 Harmony 패치를 걸 수 없다(NullReferenceException. 65절의 `set_mp`와 같다). 패치할 수 있는 것은 실제 메서드뿐이다.
+- `AccessTools.Method(형식, "OnCreate")`는 그 형식에 없으면 부모의 것을 찾아 건다. `UnitActionRoleRelation`에는 `OnCreate`가 없어 부모(`UnitActionRoleToUnitBase`)에 걸렸고, 훔치기·도주 때도 불렸다.
+- 회차 이름: `tb2-1020a`(E1·훔치기·도주·관계), `tb2-1020b`(관계 점수 추적), `tb2-1020c`(관계 isComplete, 도주 실패 조건, 드롭률).
+
+### 추가 조사 (2026-10-20, 회차 `tb2-1020d`~`g`)
+
+사용자 요청: "구현 전에 도주·드롭·관계 발전·초빙·포획의 판정을 더 조사해 줘". 해독 도구(`xrefmap`·`xrefl`)로 호출 관계를 보고, 실험 명령으로 덮어써 결과를 봤다.
+
+| 줄 | 판정이 있는 곳 | 결과 |
+|---|---|---|
+| 관계 발전 | NPC의 응답 행동 `UnitActionFeedback104.OnCreate`(요청자 `requestUnit`). 먼저 친밀도 조건 `ConfNpcFeedback104Base.closeRequire`(120)·`schoolCloseRequire`, 그다음 관계 종류별 필요 점수 `requireScoreParents·Children·Brother·Master·Student·Marry·Lover`(4000~6000)·`schoolRequireScoreMaster·Student`, 명성 조건 `requireReputationGrade1~10`과 점수 `FormulaTool.Relation.Score`(이번 요청 -82886)를 비교한다. 게임 자체의 강제 동의 `WorldUnitEffectSpecialNpcRelationCommand.ForceConsent`는 그 효과를 가진 NPC에게서만 불린다. | **된다.** 위 게터들은 계산 속성이라 패치할 수 있다. `Feedback104.OnCreate`의 앞뒤 표시로 요청자가 플레이어일 때만 친밀도 조건·필요 점수를 -100000, 명성 조건을 0으로 덮어쓰자 "요청을 받아들이기로 결정했다 → 서문 훼 의형제로 맺어지기 성공!"(`tb2-1020g`). 덮어쓰지 않으면 친밀도 조건에서 바로 거절된다(`tb2-1020f`: 필요 점수 게터가 불리지 않음). |
+| 종문 초빙 | NPC의 응답 `UnitActionFeedback115.OnCreate`(초빙한 쪽 `inviteUnit`). 필요 점수 `ConfNpcFeedback115Base.requireScore`·`eliteRequireScore`(직위별 배열)와 같은 점수 계산, 끝에 `ForceConsent`. | 관계와 같은 꼴이라 같은 방식(플레이어가 초빙했을 때만 배열을 낮춤)으로 될 것으로 본다. 고정본 인물은 종문이 없어 시험하지 못했다. `UnitActionRoleInvite`(`forceAgree` 칸이 있다)는 다른 "초대" 행동이다. |
+| 드롭 | 적이 죽으면 `UIBattleInfoDrop.OnUnitDie`가 `ConfBattleUnitAttr.GetDropID(attr, isDieDrop)`의 보상 번호 문자열("101101\|500101\|550101")을 받아 번호마다 `RewardTool.GetReward(unit, rewardID, weightOffset, …)`로 굴린다. `AddDrop`은 Vector3 인자라 패치하지 않는다. 난이도 `dropRate`는 드롭을 막지 않는다. | **된다(배수).** `GetDropID`의 결과를 n번 이어 붙이면 굴리기가 n배가 된다: 덮어쓰기 없이 적 21마리에 `GetReward` 71번(약 3.4번), x3에서 23마리에 213번(약 9.3번). 화면의 드롭도 크게 늘었다. 확률을 100%로 만드는 것이 아니라 굴리는 횟수를 늘리는 방식이다. |
+| 포획(호요) | 연요호 흡수 `DevilDemonAbsorb`. 적마다 `AbsorbCheck` → `ConfPotmonBase.IsMonstCanCollect(attr, base, out potmon)`(요수 `collectBaseID`만 참) → `CheckMonstCanAbsorb` → 흡수율 `GetAbsorbRate(monst)`(표 `DevilDemonAbsorb`: 경지 차이별 `rate`·`hpPervent`, 매 프레임 읽힘) → 플레이어가 E 키로 흡수 → `AbsorbComplete`. `collectMonstRate`(표 `DevilDemonParamer`, 50)는 별도. | 판정 위치는 찾았지만 완료는 재현하지 못했다. 고정본 전투(1011)의 적은 거둘 수 없는 종류라 `IsMonstCanCollect`를 참으로 덮어써 흡수율 판정까지 갔고(`GetAbsorbRate` 원래 0, 100으로 덮어씀), 화면에 "E키를 눌러 요수 흡수"가 떴다. 가상 입력 `uikey`의 E로는 흡수가 시작되지 않았다(게임이 다른 입력 경로로 읽는 것으로 보인다). |
+| 도주 | 지도의 도주와 전투의 "도망치기"(`BattleExit` → `btnFlee` → 확인) 모두 `UnitActionRoleEscape`. 결과 창에 "자신의 각력·상대의 각력(또는 괴물의 숫자)·자신의 행운 → 도주 판정". | 판정 함수를 찾지 못했다. `CompleteRate(int,int,int)`·`get_isComplete()`는 어느 경우에도 불리지 않았다. 고정본 인물(각력 1600)은 상대 각력을 9999로 올려도, 전투 괴물 8마리에서도 늘 성공해 실패를 만들 수 없었다. 행동의 `isSureComplete` 칸(쓸 수 있음)을 미리 켜는 방법이 후보다. |
+
+- 함정: 화면 밖 게임에서 결과 창(`ActionCourseInfo`)의 확인 단추 자리는 창마다 다르다(관계 958,714 / 도주 958,742). 대화(`DramaDialogue`)는 `click 960 540`으로 넘긴다.
+- 고정본 전투 1011의 마지막 방에는 대요수(attr 101151·101152)가 나온다. "E키를 눌러 요수 흡수" 안내는 살아 있는 동안만 뜬다.
+- 회차 이름 더함: `tb2-1020d`(해독, 도주 상대 각력 9999, 흡수·드롭 추적), `tb2-1020e`(드롭 x3·기준선, 흡수율 덮어쓰기와 E 키), `tb2-1020f`(관계 친밀도 조건에서 거절), `tb2-1020g`(관계 성공, 전투 도망치기).
+
+## 68. 트레이너 비교 2묶음 — 공법 옵션 자리 강제와 성공·드롭 탭 (2026-10-20 추가)
+
+사용자 결정(2026-10-20): "옵션 자리 강제, 훔치기 성공, 관계 발전 성공, 드롭 배수까지 구현해 줘. 초빙·포획·도주는 문서에만 남겨 둬." 스펙 `docs/superpowers/specs/2026-10-20-trainer-batch2-design.md`(7.2절), 계획 `docs/superpowers/plans/2026-10-20-trainer-batch2.md`. 조사는 67절. 브랜치 `feat/trainer-batch2`.
+
+### 규칙
+
+- **공법 옵션 자리 강제**(공법 탭 → 옵션 `교체`): 그 자리의 가중치가 0이고 중복 한도·선행·배타 조건은 지키는 옵션 줄은 "자리 밖: 이 자리에는 나오지 않는 옵션(강제로 넣을 수 있음)"과 `강제`(`ReplaceForce<번호>`, 두 번 누르기) 단추를 보인다. 첫 누름 문구 "… 효과가 나지 않을 수 있습니다. 한 번 더 누르면 넣습니다." `MartialService`는 자리 판정 `SlotBlocked`과 나머지 `RuleBlockReason`으로 나뉘고, `ReplacePrefix(…, force)`는 자리 판정만 건너뛴다. 이력 항목 끝 ` (자리 강제)`. 중복·조건 위반 줄은 지금처럼 막는다. 프리셋 적용(`OptionProblem`·`Make`의 `anySlot`)도 자리 판정을 건너뛴다. 자리 밖 옵션을 담은 프리셋의 적용은 미확인(그런 프리셋으로 돌린 검사가 없다. `Make`는 게임이 옵션을 다르게 읽으면 지우고 오류를 돌려준다). 개발용 프리셋 생성기는 자리 판정을 지킨다.
+- **성공·드롭 탭**(`Tab17`, 탭 줄 열여섯째): 줄 셋과 `모두 끄기`(`SuccessReset`). 저장하지 않는다. 켠 줄은 화면 위쪽 표시에 `훔치기`·`관계 발전`·`드롭 x3`.
+  - `훔치기`(`SuccessSteal`): `UnitActionRoleStealItem.CompleteRate(unit, toUnit)` → 1, `DiscoverRate(unit)` → 0. 첫 인자가 플레이어일 때만.
+  - `관계 발전`(`SuccessRelation`): NPC 응답 `UnitActionFeedback104.OnCreate` 앞뒤 표시(요청자가 플레이어). 표시 안에서 친밀도 조건·필요 점수 -100000, 필요 명성 0. NPC끼리의 응답은 그대로.
+  - `드롭 배수`(`SuccessDrop`, x1·2·3·5): `ConfBattleUnitAttr.GetDropID`의 보상 번호 문자열을 n번 잇는다.
+  - 탭 아래 안내 "종문 초빙·호요 포획·도주는 판정 위치만 찾았고 아직 넣지 않았습니다(05 문서 67절)."
+  - 패치는 줄을 처음 켤 때 한 번(`SuccessService`). 그 형식에 선언된 메서드인지(`DeclaringType`) 보고 건다(67절의 함정).
+- 개발 명령: `tb2pick <sole>`(공법 탭에서 고르기, `MartialTab.DevPick`), `tb2relof <npc>`(관계 양쪽), `sstate`(상태와 드롭 계수 `dropCalls`·`dropIds`·`dropRaw`).
+
+### 실측·검증
+
+- 검사 `prefixforce`(무예 14111 자리 2의 15번: 강제 단추, 일반 단추 없음, 중복 한도 줄 14번은 강제 없음, 첫 누름 문구, 둘째 누름 뒤 `1:15:`, 이력) `tb2-1020i` FAIL 0, `actions` FAIL 0. 프리셋 검사 `state`·`martial`(`tb2-1020j2`)·`ui`(`j3`) FAIL 0(`tb2-1020j`는 순서를 어기고 사건 창이 가려 실패).
+- 검사 `success`(탭과 줄, 훔치기 "절도 성공" 뒤 보상 창과 가방 +1, 관계 "받아들이기로 결정" → 결연 장면 확인 → 관계 `BrotherBack` 양쪽, 드롭 x3에서 돌려준 번호 수 = 원래 번호 수 × 3, 모두 끄기) `tb2-1020l6` FAIL 0. 탭 줄 `tabs`·`base`(`tb2-1020l`) FAIL 0. 마무리 `rates`·`items`·`numbers`·`history`(`tb2-1020m`) FAIL 0. 배포·개발 구성 경고 0.
+- 관계 결연은 결과 창 확인(958,714) 뒤 결연 장면 `DramaFortuitous`의 확인(975,807)을 눌러야 저장된다. 그 전에 물으면 관계가 없다.
+- 검사의 `-match`가 대소문자를 무시해 `brother=False`가 `Brother`에 맞아 처음에는 거짓 통과였다(`tb2-1020l3`). `-cmatch`로 고쳤다.
+
+### 확인하지 못한 것, 한계
+
+- 강제 옵션의 실제 효과(전투 수치)는 재지 않았다. 문구로 알린다.
+- 드롭 배수는 보상 굴리기 횟수를 늘린다. 바닥에 떨어진 아이템 수는 67절의 한 번(약 3배)만 봤다.
+- 관계 발전은 의형제(관계 표 3번)만 시험했다. 도려·부부·사제는 같은 응답 행동과 필요 점수를 쓴다고 본다(필요 점수 게터 일곱을 모두 덮어쓴다).
+- 마무리 리뷰 뒤 고침: 응답이 예외로 끝나 표시가 남으면 관계 발전을 꺼도 필요 점수가 낮게 읽히던 것을 막았다(`Relation && 표시`, 끌 때 표시 지움). 개발 명령 `sstick`으로 표시를 남겨 검사 `success`의 "a stuck mark does not leak while off"가 고치기 전 실패(`tb2-1020n`, brotherRequire -100000), 고친 뒤 통과(`tb2-1020o`).
+- 회차 이름: `tb2-1020h`~`o`(`j2`·`j3`·`l2`~`l6` 포함).

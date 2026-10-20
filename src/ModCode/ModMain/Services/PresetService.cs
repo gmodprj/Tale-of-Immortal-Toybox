@@ -277,7 +277,7 @@ namespace MOD_sWP6UL
             line.Name = line.Type == MartialType.Ability ? entry.Name + "(" + line.BaseId + ")" : entry.Name;
             line.GradeMin = entry.GradeMin;
             line.GradeMax = entry.GradeMax;
-            line.Problem = duplicate ? "같은 칸의 줄이 이미 있습니다" : MartialService.OptionProblem(line.Type, line.BaseId, line.Options);
+            line.Problem = duplicate ? "같은 칸의 줄이 이미 있습니다" : MartialService.OptionProblem(line.Type, line.BaseId, line.Options, true);
         }
 
         private static SkillLine ReadSkill(Dictionary<string, object> o, List<MartialType> seen)

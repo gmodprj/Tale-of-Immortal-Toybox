@@ -55,8 +55,8 @@
 | 트레이너 기능 | 우리 | 구현 방법 | 설계 제안 | 우선 |
 |---|---|---|---|---|
 | 호감 변화 조작(즉시 ±300, 하트 ±1, 변화 ×2·×5·×10) | **없음**(NPC 탭은 값을 바로 쓴다) | `DataUnit+RelationData.AddIntim`·`AddHate` 접두에서 전 값 저장, 접미에서 목표값으로 다시 씀 | 배율 탭 줄 `호감 변화` x1·x2·x5·x10. `AddIntim`의 변화량 인자를 접두에서 곱하는 쪽이 단순(트레이너처럼 사후에 덮어쓰지 않는다) | 중간 |
-| 관계 발전 성공 | **없음** | `UnitActionRoleRelation.get_addIntim`(최소 60)·`get_isNPCReduceIntim`→false | 성공률 묶음(아래)과 함께 | 낮음 |
-| 전투 도주·훔치기·포획·드롭·종문 초빙 성공 | **없음** | 도주 `UnitActionRoleEscape.CompleteRate`→100·`isSureComplete`; 훔치기 `UnitActionRoleStealItem.CompleteRate`→100·`DiscoverRate`→0; 드롭 `ConfGameDifficultyValueItem.get_dropRate`→10000·`PlayerInfoExtendPropsEx.CanDrop`→true; 포획 `ConfDevilDemonParamerBase.get_collectMonstRate`, `ConfPotmonSkillStudyItem.get_studyRate`; 초빙 `FormulaTool+Relation.UnitSchooldScore`≥99999 | 새 탭 `성공률`(켬/끔 여섯 줄) 또는 배율 탭 아래 묶음. 모두 접미로 반환값만 바꾸는 단순 패치라 한 묶음으로 만들 수 있다. 설정표 getter(`get_dropRate`)는 NPC·다른 곳에도 걸리므로 범위를 줄에 적는다 | 중간 |
+| 관계 발전 성공 | 있음(05 문서 68절: 성공·드롭 탭. 판정은 NPC 응답 `UnitActionFeedback104`의 필요 점수, 67절) | `UnitActionRoleRelation.get_addIntim`(최소 60)·`get_isNPCReduceIntim`→false | 성공률 묶음(아래)과 함께 | 낮음 |
+| 전투 도주·훔치기·포획·드롭·종문 초빙 성공 | 일부(훔치기 성공·드롭 배수는 있음, 68절. 초빙·포획·도주는 판정 위치만, 67절) | 도주 `UnitActionRoleEscape.CompleteRate`→100·`isSureComplete`; 훔치기 `UnitActionRoleStealItem.CompleteRate`→100·`DiscoverRate`→0; 드롭 `ConfGameDifficultyValueItem.get_dropRate`→10000·`PlayerInfoExtendPropsEx.CanDrop`→true; 포획 `ConfDevilDemonParamerBase.get_collectMonstRate`, `ConfPotmonSkillStudyItem.get_studyRate`; 초빙 `FormulaTool+Relation.UnitSchooldScore`≥99999 | 새 탭 `성공률`(켬/끔 여섯 줄) 또는 배율 탭 아래 묶음. 모두 접미로 반환값만 바꾸는 단순 패치라 한 묶음으로 만들 수 있다. 설정표 getter(`get_dropRate`)는 NPC·다른 곳에도 걸리므로 범위를 줄에 적는다 | 중간 |
 | 호천안 무소모 | **없음**(손상 해제만) | `ConfGodEyeBaseCost.GetCost`·`ConfGodEyeExtraCost.GetExtraCost`→0 | 신기 탭 호천안 화면에 `사용 비용 없음` 켬/끔 | 낮음 |
 | 호계약 무한 | **없음** | `PotMonMgr.GetContractNum`≥999 | 신기 탭 연요호 화면에 `계약 수 무제한` | 낮음 |
 

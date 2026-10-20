@@ -213,15 +213,25 @@ namespace MOD_sWP6UL
         // 옵션 index 자리를 item으로 바꿀 수 없는 이유. 바꿀 수 있으면 null.
         public static string ReplaceBlockReason(DataProps.MartialData martial, int index, ConfBattleSkillPrefixValueItem item)
         {
+            return SlotBlocked(item, index) ? SlotReason : RuleBlockReason(martial, index, item);
+        }
+
+        public const string SlotReason = "이 자리에는 나올 수 없는 옵션";
+
+        // 그 자리의 가중치가 0이라 게임이 그 자리에 만들지 않는 옵션인지(스펙 2026-10-20-trainer-batch2-design.md 5.1절: 강제로 넣을 수 있다).
+        public static bool SlotBlocked(ConfBattleSkillPrefixValueItem item, int index)
+        {
+            return Weight(item, index) <= 0;
+        }
+
+        // 자리 판정을 뺀 규칙: 중복 한도와 선행·배타 조건. 지킬 수 없으면 이유, 지키면 null.
+        public static string RuleBlockReason(DataProps.MartialData martial, int index, ConfBattleSkillPrefixValueItem item)
+        {
             List<PrefixView> current = Prefixes(martial);
             var numbers = new List<int>();
             foreach (PrefixView view in current)
             {
                 numbers.Add(view.Index == index ? item.number : view.Number);
-            }
-            if (Weight(item, index) <= 0)
-            {
-                return "이 자리에는 나올 수 없는 옵션";
             }
             int same = 0;
             foreach (int number in numbers)
@@ -259,7 +269,8 @@ namespace MOD_sWP6UL
             return null;
         }
 
-        public static string ReplacePrefix(WorldUnitBase unit, string soleId, int index, ConfBattleSkillPrefixValueItem item)
+        // force: 자리 판정만 건너뛴다(05 문서 67절 E1: 넣은 옵션은 저장 후에도 남고 전투에서 예외가 없다. 효과는 재지 않았다).
+        public static string ReplacePrefix(WorldUnitBase unit, string soleId, int index, ConfBattleSkillPrefixValueItem item, bool force = false)
         {
             DataProps.MartialData martial = Martial(unit, soleId);
             PrefixView before = martial == null ? null : Find(martial, index);
@@ -267,7 +278,7 @@ namespace MOD_sWP6UL
             {
                 return "옵션을 찾지 못했습니다.";
             }
-            string blocked = ReplaceBlockReason(martial, index, item);
+            string blocked = force ? RuleBlockReason(martial, index, item) : ReplaceBlockReason(martial, index, item);
             if (blocked != null)
             {
                 return "옵션 교체: " + blocked + " — 적용하지 않았습니다.";
@@ -285,7 +296,8 @@ namespace MOD_sWP6UL
             martial.SetPrefixLevel(index, raw < 0 ? replaced.Raw : raw);
             PrefixView after = Find(martial, index);
             bool verified = after.Number == item.number;
-            ChangeLog.Add(EditService.NameOf(unit), Name(martial) + " 옵션" + (index + 1),
+            bool forced = force && SlotBlocked(item, index);
+            ChangeLog.Add(EditService.NameOf(unit), Name(martial) + " 옵션" + (index + 1) + (forced ? " (자리 강제)" : ""),
                 before.Number + "번(품질 " + before.Level + ")", after.Number + "번(품질 " + after.Level + ")", verified);
             return "옵션" + (index + 1) + " 교체: " + before.Number + "번 -> " + after.Number + "번, 품질 " + after.Level;
         }
@@ -449,7 +461,8 @@ namespace MOD_sWP6UL
         // 옵션 번호 목록(자리 순서)을 그 기술에 쓸 수 없는 이유. 쓸 수 있으면 null.
         // 규칙은 옵션 교체(ReplaceBlockReason)와 같다: 그 기술의 번호, 자리의 가중치, 중복 한도, 선행(양수)·배타(음수) 조건.
         // 실측: 규칙 없이도 게임은 12개까지 만들어 준다. 설정 표에 자리의 가중치가 11번째까지만 있어 11개로 막는다.
-        public static string OptionProblem(MartialType type, int baseId, int[] options)
+        // anySlot: 자리 판정만 건너뛴다(프리셋 적용. 편집기가 자리 밖에 넣은 옵션을 내보낸 파일이 다시 적용되게. 스펙 7.1절).
+        public static string OptionProblem(MartialType type, int baseId, int[] options, bool anySlot = false)
         {
             if (options.Length > 11)
             {
@@ -470,9 +483,9 @@ namespace MOD_sWP6UL
                 {
                     return "이 기술에 없는 옵션입니다(" + number + ")";
                 }
-                if (Weight(item, i) <= 0)
+                if (!anySlot && Weight(item, i) <= 0)
                 {
-                    return "옵션 " + (i + 1) + ": 이 자리에는 나올 수 없는 옵션";
+                    return "옵션 " + (i + 1) + ": " + SlotReason;
                 }
                 if (numbers.FindAll(n => n == number).Count > item.multi)
                 {
@@ -495,10 +508,10 @@ namespace MOD_sWP6UL
 
         // 옵션을 지정해 공법을 만들어 배운 상태로 넣고, 옵션마다 게임이 허용하는 최고 품질로 맞춘다.
         // 넣었으면 null과 고유 번호를, 아니면 이유를 돌려준다. 규칙을 어긴 옵션으로는 만들지 않는다.
-        public static string Make(WorldUnitBase unit, MartialType type, int baseId, int grade, int[] options, out string soleId)
+        public static string Make(WorldUnitBase unit, MartialType type, int baseId, int grade, int[] options, out string soleId, bool anySlot = false)
         {
             soleId = null;
-            string problem = OptionProblem(type, baseId, options);
+            string problem = OptionProblem(type, baseId, options, anySlot);
             if (problem != null)
             {
                 return problem;
