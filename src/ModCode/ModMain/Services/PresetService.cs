@@ -440,6 +440,18 @@ namespace MOD_sWP6UL
             }
             line.Name = ExportFiles.Text(o, "name");
             line.Filled = Flag(o, "filled");
+            // 선택 칸 "alt": 원래 번호를 이 경지에서 쓸 수 없을 때 쓸 같은 계열의 대체 번호(만고신화처럼 역천개명을 막는 모드, 05 문서 73절).
+            int alt;
+            int original = line.Id;
+            if (ExportFiles.Whole(o, "alt", out alt) && alt != 0)
+            {
+                ConfFateFeatureItem first = g.conf.fateFeature.GetItem(line.Id);
+                ConfFateFeatureItem second = g.conf.fateFeature.GetItem(alt);
+                bool firstOk = first != null && g.conf.roleCreateFeature.GetItem(line.Id) != null;
+                bool secondOk = second != null && g.conf.roleCreateFeature.GetItem(alt) != null;
+                line.Id = FateAlt.Pick(line.Grade, line.Id, firstOk ? first.gradeMin : 0, firstOk ? first.gradeMax : 0, firstOk,
+                    alt, secondOk ? second.gradeMin : 0, secondOk ? second.gradeMax : 0, secondOk);
+            }
             ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(line.Id);
             ConfFateFeatureItem fate = g.conf.fateFeature.GetItem(line.Id);
             if (conf == null || fate == null)
@@ -448,6 +460,11 @@ namespace MOD_sWP6UL
                 return line;
             }
             line.Name = GameTool.LS(conf.name);
+            if (line.Id != original)
+            {
+                ConfRoleCreateFeatureItem was = g.conf.roleCreateFeature.GetItem(original);
+                line.Name += "(" + (was != null ? GameTool.LS(was.name) : original.ToString()) + " 대신)";
+            }
             if (line.Grade < FateService.FirstGrade || line.Grade > StageCount || fate.gradeMin > line.Grade || fate.gradeMax < line.Grade)
             {
                 line.Problem = "이 경지의 역천개명이 아닙니다";

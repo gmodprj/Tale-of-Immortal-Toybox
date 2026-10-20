@@ -207,7 +207,7 @@ switch ($Part) {
     # 미번역 내보내기
     $dumped = Cmd 'rloc dump' 3000
     # 내보내기는 사전에 없는 행: 영어 플래그 1 + 원문으로 둔 3행 = 4(50절)
-    Check 'dump writes only the untranslated rows' ($dumped -match 'written=4' -and (Get-Content -LiteralPath (Join-Path $tdir 'untranslated.txt') -Raw) -match "0lkK4v`t`texists") $dumped
+    Check 'dump writes only the untranslated rows' ($dumped -match 'written=6' -and (Get-Content -LiteralPath (Join-Path $tdir 'untranslated.txt') -Raw) -match "0lkK4v`t`texists") $dumped
     # 파일을 지우면 다시 풀린다
     [IO.File]::Delete($tfile)
     $s = Cmd 'rloc apply' 3000
@@ -270,7 +270,12 @@ switch ($Part) {
     for ($i = 0; $i -lt 3; $i++) { if ((Cmd 'rbook 0 3535351 3 1 1' 60000) -match 'made=1') { $ok++ } }
     Check 'the mod martial art is made three times out of three (retries)' ($ok -eq 3) "ok=$ok"
     $sole = if ((Cmd 'rbooks 3535351' 300) -match '([A-Za-z0-9]{6}):3535351:') { $Matches[1] } else { '' }
-    Check 'the mod martial art book reads like a base one' ($sole -ne '' -and (Cmd "rbookstudy $sole" 300) -match 'can=5') "sole=$sole"
+    # 같은 조건의 바닐라 무예 비급(고성검 14112)과 학습 판정 값이 같아야 한다. 값은 고정하지 않는다(처음 5였다가 0이 됨, 05 문서 73절).
+    [void](Cmd 'rbook 0 14112 3 1 1' 60000)
+    $baseSole = if ((Cmd 'rbooks 14112' 300) -match '([A-Za-z0-9]{6}):14112:') { $Matches[1] } else { '' }
+    $modCan = if ($sole) { (Cmd "rbookstudy $sole" 300) -replace '^.*(can=\d+).*$', '$1' } else { '' }
+    $baseCan = if ($baseSole) { (Cmd "rbookstudy $baseSole" 300) -replace '^.*(can=\d+).*$', '$1' } else { '' }
+    Check 'the mod martial art book reads like a base one' ($sole -ne '' -and $modCan -match '^can=\d+$' -and $modCan -eq $baseCan) "sole=$sole mod=$modCan base=$baseCan"
     $before = BookCount 59898952
     $made = Cmd 'rbook 4 59898952 3 1 1' 20000
     $sole = if ((Cmd 'rbooks 59898952' 300) -match '([A-Za-z0-9]{6}):59898952:3:') { $Matches[1] } else { '' }

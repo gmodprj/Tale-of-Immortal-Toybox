@@ -10,6 +10,8 @@
 #                   바꿔 띄운다. 검사가 사용자의 지금 세이브 상태(떠 있는 창, 진행 중인 사건)에 흔들리지 않게 한다. -End는 똑같이 사용자의 세이브를 되돌린다
 #   -MakeFixture <이름> -From <폴더>   세이브 폴더의 복사본(예: .devremote\save-backup-<회차>)으로 고정본을 만든다
 #   -ReleaseBuild   -Begin과 함께 쓴다. 개발 도구를 뺀 배포 구성으로 빌드해 설치한다. 준비 로그가 없으므로 30초를 기다린다
+#   -Exclude <ID,…> -Begin과 함께 쓴다. 회차 동안 그 창작마당 모드 폴더를 작업 폴더(session-parked-mods)로 옮겨 두어 게임이 싣지 않게 한다. -End가 되돌린다
+#                   (만고신화 2814696167은 경지 표를 바꿔 고정본 검사의 전제가 깨진다. 05 문서 73절)
 #   -Login          -Begin·-Restart와 함께 쓴다. 세이브에 들어가지 않고 메인(로그인) 화면에서 멈춘다(캐릭터 만들기 화면 확인용). 결과 줄은 LOGIN READY
 # 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않은 회차도 -End로 되돌린다.
 #
@@ -20,7 +22,7 @@
 #   - 세이브를 되돌리기 직전의 상태를 save-before-restore-<이름>으로 한 벌 남긴다.
 #   - 고정본을 썼어도 -End 뒤의 세이브는 회차 전의 사용자 것이다. 고정본 자체는 바뀌지 않는다.
 #   - -End는 최근 다섯 회차의 복사본만 남기고 오래된 것을 지운다. 회차 동안 모드가 만든 세이브 자동 백업도 지운다(회차 전부터 있던 것은 남긴다).
-param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [switch]$Login, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '',
+param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [switch]$Login, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '', [string[]]$Exclude = @(),
   [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$ModId = 'sWP6UL',
   # 아래는 session.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다.
   [string]$SaveDir = '', [string]$WorkDir = '', [string]$DataDir = '', [string]$ProcessName = 'guigubahuang', [switch]$DryRun)
@@ -48,6 +50,7 @@ $backups = Join-Path $data 'backups'                 # 모드가 값을 바꾸�
 $keptBackups = Join-Path $dir 'session-backups.txt'  # 회차 전부터 있던 자동 백업의 이름들
 $modsDir = Join-Path $GameDir 'ModExportData'            # 게임의 로컬 모드 폴더(편집기와 창작마당 모드)
 $keptModFolders = Join-Path $dir 'session-modfolders.txt'  # 회차 전부터 ModExportData에 있던 폴더 이름들
+$parked = Join-Path $dir 'session-parked-mods'              # -Exclude로 회차 동안 옮겨 둔 모드 폴더들
 $configFile = Join-Path $data 'config.txt'
 $keptConfig = Join-Path $dir 'session-config.txt'      # 회차 전의 config.txt(창 위치 등)
 $gridFile = Join-Path $data 'martial-grid.txt'
@@ -153,6 +156,12 @@ if ($Begin) {
   # 남아 있는 프리셋 보관본은 사용자의 프리셋의 유일한 사본일 수 있다(-End가 끝까지 가지 못했거나 다른 판의 스크립트로 끝낸 경우). 덮어쓰지 않는다.
   if ((Test-Path -LiteralPath $keptPresets) -or (Test-Path $noPresets)) { throw "끝내지 않은 회차의 프리셋 보관본이 있습니다($keptPresets 또는 $noPresets). presets 폴더와 비교해 되돌린 뒤 지우고 다시 시작합니다." }
   if ((Test-Path -LiteralPath $keptTranslations) -or (Test-Path $noTranslations)) { throw "끝내지 않은 회차의 번역 보관본이 있습니다($keptTranslations 또는 $noTranslations). translations 폴더와 비교해 되돌린 뒤 지우고 다시 시작합니다." }
+  # 옮겨 둔 모드 폴더가 남아 있으면 그 모드의 유일한 사본이다. 되돌린 뒤 다시 시작한다.
+  if (Test-Path -LiteralPath $parked) { throw "끝내지 않은 회차가 옮겨 둔 모드 폴더가 있습니다($parked). ModExportData로 되돌린 뒤 지우고 다시 시작합니다." }
+  foreach ($id in $Exclude) {
+    if ($id -eq "Mod_$ModId" -or $id -notmatch '^[0-9A-Za-z_]+$') { throw "뺄 수 없는 폴더입니다: $id" }
+    if (-not (Test-Path -LiteralPath (Join-Path $modsDir $id) -PathType Container)) { throw "설치되지 않은 모드입니다: $id" }
+  }
   $proj = Join-Path $repo 'src\ModCode\ModMain\ModMain.csproj'
   if ($DryRun) {
     $dll = $null
@@ -193,6 +202,12 @@ if ($Begin) {
   $modNames = @(if (Test-Path -LiteralPath $modsDir) { Get-ChildItem -LiteralPath $modsDir -Directory | ForEach-Object Name })
   [IO.File]::WriteAllText($keptModFolders, ($modNames -join "`n"))
   [IO.File]::WriteAllText($marker, $Begin)
+  # 표식을 남긴 뒤에 옮긴다. 여기서 멈춰도 -End가 되돌린다.
+  foreach ($id in $Exclude) {
+    [void][IO.Directory]::CreateDirectory($parked)
+    [IO.Directory]::Move((Join-Path $modsDir $id), (Join-Path $parked $id))
+    "MOD PARKED: $id"
+  }
   if ($Fixture) {
     # 표식을 남긴 뒤에 바꾼다. 여기서 멈춰도 -End가 사용자의 세이브를 복사본으로 되돌린다.
     robocopy $fixtureDir $save /MIR /NJH /NJS /NP /NDL /NFL | Out-Null
@@ -285,6 +300,16 @@ if ($End) {
     'TRANSLATIONS RESTORED (there was no folder)'
   }
   DeleteFiles $noTranslations
+  # -Exclude로 옮겨 둔 모드 폴더를 되돌린다. 같은 이름의 폴더가 생겨 있으면 덮어쓰지 않고 멈춘다.
+  if (Test-Path -LiteralPath $parked) {
+    foreach ($entry in Get-ChildItem -LiteralPath $parked -Directory) {
+      $target = Join-Path $modsDir $entry.Name
+      if (Test-Path -LiteralPath $target) { throw "옮겨 둔 모드와 같은 이름의 폴더가 생겼습니다: $target. 확인한 뒤 다시 -End 합니다." }
+      [IO.Directory]::Move($entry.FullName, $target)
+      "MOD RESTORED: $($entry.Name)"
+    }
+    [IO.Directory]::Delete($parked, $true)
+  }
   # 회차 동안 ModExportData에 생긴 폴더(회차 안에서 설치한 창작마당 모드)를 지운다. 회차 전부터 있던 것과 편집기(Mod_<ModId>)는 남긴다.
   if (Test-Path $keptModFolders) {
     $keepMods = @([IO.File]::ReadAllText($keptModFolders) -split "`n" | Where-Object { $_ })

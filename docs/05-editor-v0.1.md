@@ -3245,3 +3245,35 @@
 
 - 만고신화는 이 세이브(결정 중기 인물)와 맞지 않는다. 계속 쓰려면 새 게임이 필요하고, 기본 프리셋의 역천개명 경지를 만고신화 표에 맞춰 따로 다뤄야 한다. 빼면 폴더 삭제와 `Mod_LoadData`를 앞 값(`.devremote\playerprefs-Mod_LoadData-before-wangu-1020.bin`)으로 되돌린다. 사용자 결정 전이라 21번 모드 프리셋은 만들지 않았다.
 - 회차 이름: `wg-1020f`~`i`.
+
+## 73. 역천개명 대체 번호와 21번 만고검결 프리셋 (2026-10-20 추가)
+
+72절의 이어짐. 브랜치 `feat/workshop-wangu`. 사용자 결정: 만고신화는 새 게임에서 쓰므로 설치한 채 둔다.
+
+### 역천개명 `alt`
+
+- 프리셋 `fates` 항목에 `"alt"`(대체 역천개명 번호)를 더했다. `Services/FateAlt.cs`의 `Pick(grade, id, min, max, exists, alt, altMin, altMax, altExists)`(순수, 단위 시험 6)가 고른다. 원래 번호가 있고 그 경지 범위 안이면 원래 번호, 아니면 `alt`가 있고 범위 안일 때 `alt`, 둘 다 아니면 원래 번호(검사가 문제로 잡는다).
+- `PresetService.ReadFate`가 대체했으면 이름 뒤에 `(원래이름 대신)`을 붙여 미리보기에 드러낸다.
+- 만고신화에서 g1-1(경지 범위 1~1)로 막힌 번호와 대체: 700056→700028, 700116→700114, 700113→700111, 700061→700050, 700020→700152(`tools/research/preset-build.ps1`의 `$fateAlt`). 01~16 json의 해당 줄에 `alt`를 넣고, 메타에 "만고신화의 역천개명 대체" 메모를 남겼다. 바닐라에서는 원래 번호가 그대로 뽑힌다.
+- `preset-build.ps1`에 `-Only`를 더했다. `dump-fates.txt`가 지금 만고 설치본 덤프라 전체를 다시 만들면 역천개명 이름이 바뀐다. 다시 만들 때는 `-Only 21`처럼 고칠 번호만 쓴다.
+
+### 21번 만고검결
+
+- 무예 초자검결(1745041), 절기 선겁검결(1745042), 신통 황무검결(1745043). 옵션은 셋 다 `[1,1,1,1,1,1,1,2,3,4,5]`(빌드 스크립트가 11개를 받으면 그대로 쓴다). 신법은 공략에 없어 채움 규칙(510121). 심법·역천개명은 02와 같다(10단계 700056, alt 700028). 선천 2806, 영수 1001/3031101, 장로 1.
+- 平乱诀은 신법이 아니라 후천운명이라 프리셋 형식 밖이다. 메타에만 적었다.
+- 메타 `requires`: `[{mod:'万古神话', workshopId:2814696167, modId:'dH6k0J'}]`. 검사 `preset-check.ps1`의 `MissingModPresets`가 `wsmods`에 없는 창작마당 번호를 요구하는 파일을 모아 `ExpectedProblems`로 빼고, `preset-all`은 그 번호를 INFO로 건너뛴다.
+- 모드 기술 563개 가운데 522개는 모드가 이름을 넣지 않아 "이름 없음(번호)"로 남는다(번역으로 고칠 수 없음).
+
+### 두 조건 검사와 `-Exclude`
+
+- `session.ps1 -Begin <이름> -Exclude <창작마당ID>`: 회차 동안 그 모드 폴더를 `.devremote\session-parked-mods`로 옮기고 `-End`가 WORKSHOP 정리 전에 되돌린다("MOD PARKED"·"MOD RESTORED"). 남은 parked 폴더, 편집기 폴더, 미설치 번호, 되돌릴 자리에 이미 폴더가 있으면 멈춘다. `session.tests.ps1`에 시험 5개(39개 통과).
+- 만고 조건(그대로 설치): `pcheck` problems=0(17개), `preset-all` 1-9·10-21 FAIL 0, `translation` FAIL 0. `preset-all`은 `pstrict`가 실제로 고른 번호(`fate \d+:(\d+)`)로 역천개명을 비교한다.
+- 바닐라 조건(`-Exclude 2814696167`, 고정본): `preset` state·files·ui·preset-all FAIL 0(21은 건너뜀), `ui` base·tabs·modbooks FAIL 0. `Mod_LoadData`는 바뀌지 않았다.
+- `ui-check.ps1`: `rloc dump` 기대값을 `written=6`으로(72절의 원문 5행 + 영어 플래그 1). `modbooks`의 `can=5` 고정값은 경지 표에 따라 달라 낡았다. 바닐라 비급 고성검(14112)을 같은 칸에 놓고 `rbookstudy`의 `can=`이 같은지로 바꿨다.
+- `preset-all` 뒤 선술 획득 창(GetImmortalSkill)이 떠 다음 검사의 화면을 가린다. 새 회차로 이어 돌렸다(06 문서 표).
+
+### 회차와 결과
+
+- 회차 `wg-1020j`~`n`. 마지막 `wg-1020n -End`: SAVE RESTORED AND IDENTICAL, MOD RESTORED: 2814696167, 모드 폴더 다시 있음.
+- 배포 빌드 경고 0, 내장 프리셋 17개·메타 0개(리소스 이름으로 셈), 단위 시험 FAILS=0, `session.tests.ps1` FAILS=0.
+- 게임에 설치된 편집기 DLL은 아직 이전 빌드다. 갱신 설치는 사용자 확인 뒤에 한다.

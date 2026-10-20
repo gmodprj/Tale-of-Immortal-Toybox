@@ -52,6 +52,7 @@ namespace MOD_sWP6UL
             TraitRulesTests();
             PresetDefaultsTests();
             TextTagsTests();
+            FateAltTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -232,6 +233,18 @@ namespace MOD_sWP6UL
             Check("tags null is empty", TextTags.Strip(null) == "");
             string d = TextTags.Strip("윤회지");
             Check("tags plain kept", d == "윤회지", d);
+        }
+
+        // 프리셋 역천개명 줄의 대체 번호(05 문서 73절: 만고신화는 혈염대법 등을 경지 1~1로 막고 탄천마공 등을 연다).
+        // Pick(경지, 원래 번호·범위·있음, 대체 번호·범위·있음) → 쓸 번호. 원래 것을 쓸 수 있으면 원래 것, 아니면 쓸 수 있는 대체, 둘 다 안 되면 원래 것.
+        private static void FateAltTests()
+        {
+            Check("alt original usable", FateAlt.Pick(5, 700056, 5, 10, true, 700028, 2, 10, true) == 700056);
+            Check("alt used when original is blocked", FateAlt.Pick(5, 700056, 1, 1, true, 700028, 2, 10, true) == 700028);
+            Check("alt not in range keeps original", FateAlt.Pick(2, 700061, 1, 1, true, 700050, 3, 10, true) == 700061);
+            Check("alt missing keeps original", FateAlt.Pick(5, 700056, 1, 1, true, 700028, 2, 10, false) == 700056);
+            Check("no alt keeps original", FateAlt.Pick(5, 700056, 1, 1, true, 0, 0, 0, false) == 700056);
+            Check("alt used when original is missing", FateAlt.Pick(5, 700056, 0, 0, false, 700028, 2, 10, true) == 700028);
         }
 
         private static void PresetDefaultsTests()

@@ -24,7 +24,7 @@
     { "grade": 2, "id": 700152, "name": "천운전섬", "filled": true },
     { "grade": 3, "id": 700037, "name": "지화명이", "filled": true },
     { "grade": 4, "id": 700100, "name": "체력의 나무", "filled": true },
-    { "grade": 5, "id": 700056, "name": "혈염대법", "filled": true },
+    { "grade": 5, "id": 700056, "name": "혈염대법", "alt": 700028, "filled": true },
     { "grade": 6, "id": 700158, "name": "살심취기", "filled": true },
     { "grade": 7, "id": 700156, "name": "응원적멸", "filled": true },
     { "grade": 8, "id": 700137, "name": "천지동수", "filled": true },
