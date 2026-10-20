@@ -247,6 +247,11 @@ switch ($Part) {
     WritePreset 'uicheck-format.json' '{ "format": 2, "kind": "preset", "name": "x" }'
     $l = Fields (Cmd 'plist' 400)
     Check 'three unreadable files are listed as unreadable' ([int]$l.count -eq $n + 4 -and $l.unreadable -eq '3') "count=$($l.count) unreadable=$($l.unreadable)"
+    # 프리셋 옆의 메타 파일(*.meta.json, 검증 등급·출처)은 프리셋 목록에 넣지 않는다(05 문서 69절)
+    WritePreset 'uicheck-lines.meta.json' '{ "format": 1, "kind": "preset-meta", "preset": "uicheck-lines.json" }'
+    $l = Fields (Cmd 'plist' 400)
+    Check 'a meta file is not listed as a preset' ([int]$l.count -eq $n + 4 -and $l.unreadable -eq '3') "count=$($l.count) unreadable=$($l.unreadable)"
+    [IO.File]::Delete((Join-Path $presetDir 'uicheck-lines.meta.json'))
 
     # 틀린 줄: 그 줄만 쓸 수 없고 나머지는 쓸 수 있다. 줄마다의 뜻은 아래 JSON의 순서대로:
     # 없는 기술 / 칸이 다른 기술 / 없는 옵션 / (쓸 수 있음) / 같은 칸 둘째 / 글자가 든 번호,

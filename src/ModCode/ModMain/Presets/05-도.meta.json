@@ -1,0 +1,47 @@
+{
+  "format": 1,
+  "kind": "preset-meta",
+  "preset": "05-도.json",
+  "sources": [
+    {
+      "site": "무협게임 마이너 갤러리",
+      "ref": "10097"
+    }
+  ],
+  "requires": [],
+  "verified": {
+    "date": "2026-10-20",
+    "sessions": [
+      "pr-1020a",
+      "pr-1020b"
+    ],
+    "method": "고정본 회차에서 개발 명령 pcheck·pstrict·popts·pfate로 게임 설정 표와 대조(05 문서 69절)"
+  },
+  "notes": [
+    {
+      "item": "옵션 규칙",
+      "status": "확인",
+      "detail": "모든 공법·심법 줄의 옵션이 자리 판정·중복 한도·선행·배타 조건을 지킨다(개발 명령 pstrict, 프리셋 적용의 자리 완화와 별개로 엄격 판정)."
+    },
+    {
+      "item": "공법 이름",
+      "status": "확인",
+      "detail": "파일의 이름이 게임 기술 이름과 같다(심법은 괄호 앞까지)."
+    },
+    {
+      "item": "역천개명 경지",
+      "status": "확인",
+      "detail": "모든 줄이 그 운명의 경지 범위(fateFeature.gradeMin~gradeMax) 안이다."
+    },
+    {
+      "item": "역천개명 이름 700100",
+      "status": "고침",
+      "detail": "게임 이름과 띄어쓰기를 맞췄다: 700100 체력의나무 → 체력의 나무"
+    },
+    {
+      "item": "역천개명 이름 700020",
+      "status": "고침",
+      "detail": "게임 이름과 띄어쓰기를 맞췄다: 700020 미끄러운발 → 미끄러운 발"
+    }
+  ]
+}

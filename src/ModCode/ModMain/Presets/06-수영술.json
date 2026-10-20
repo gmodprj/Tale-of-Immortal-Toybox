@@ -23,7 +23,7 @@
   "fates": [
     { "grade": 2, "id": 700017, "name": "수력발산" },
     { "grade": 3, "id": 700038, "name": "수목장생", "filled": true },
-    { "grade": 4, "id": 700100, "name": "체력의나무" },
+    { "grade": 4, "id": 700100, "name": "체력의 나무" },
     { "grade": 5, "id": 700056, "name": "혈염대법" },
     { "grade": 6, "id": 700158, "name": "살심취기" },
     { "grade": 7, "id": 700113, "name": "영술정통", "filled": true },

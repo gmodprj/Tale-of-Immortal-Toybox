@@ -39,6 +39,7 @@ namespace MOD_sWP6UL
                         + " dir=" + System.IO.Directory.Exists(PresetService.Dir);
                 case "plist": return ListPresets();
                 case "pcheck": return CheckPresets(p.Length > 1 ? p[1] : null);
+                case "pstrict": return StrictCheck(p.Length > 1 ? p[1] : null);
                 case "prestore": return PresetService.RestoreDefaults();
                 case "pstage": return StageInfo(p[1], int.Parse(p[2]));
                 case "papply": return ApplyPreset(p[1], p[2]);
@@ -503,6 +504,41 @@ namespace MOD_sWP6UL
             }
             return "presets=" + count + " unreadable=" + unreadable + " problems=" + problems.Count + " usable=" + usable
                 + " | " + string.Join(" / ", problems.ToArray());
+        }
+
+        // 프리셋의 옵션을 자리 판정까지 엄격하게 본다(프리셋 적용은 자리 판정을 건너뛴다, 05 문서 68절). 운명은 파일의 이름과 게임 이름, 경지 범위.
+        private static string StrictCheck(string fileName)
+        {
+            var sb = new StringBuilder();
+            foreach (PresetService.Preset preset in PresetService.List())
+            {
+                string file = System.IO.Path.GetFileName(preset.File);
+                if ((fileName != null && file != fileName) || preset.Error != null)
+                {
+                    continue;
+                }
+                var lines = new List<PresetService.SkillLine>(preset.Skills);
+                lines.AddRange(preset.Abilities);
+                foreach (PresetService.SkillLine line in lines)
+                {
+                    MartialType gameType;
+                    SkillCatalog.Entry entry = EntryOf(line.BaseId, out gameType);
+                    sb.Append(file).Append(" skill ").Append(line.BaseId).Append(" file=").Append(line.Name).Append(" game=").Append(entry == null ? "(none)" : entry.Name).Append('\n');
+                    string strict = MartialService.OptionProblem(line.Type, line.BaseId, line.Options, false);
+                    if (strict != null)
+                    {
+                        sb.Append(file).Append(' ').Append(line.BaseId).Append(' ').Append(strict).Append('\n');
+                    }
+                }
+                foreach (PresetService.FateLine line in preset.Fates)
+                {
+                    ConfFateFeatureItem fate = g.conf.fateFeature.GetItem(line.Id);
+                    sb.Append(file).Append(" fate ").Append(line.Grade).Append(':').Append(line.Id).Append(' ').Append(line.Name)
+                      .Append(fate == null ? " (none)" : " g" + fate.gradeMin + "-" + fate.gradeMax + " group" + fate.group)
+                      .Append(line.Problem == null ? "" : " PROBLEM " + line.Problem).Append('\n');
+                }
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString();
         }
 
         private static string StageInfo(string fileName, int grade)
