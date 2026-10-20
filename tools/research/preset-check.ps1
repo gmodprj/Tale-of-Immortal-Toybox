@@ -43,6 +43,18 @@ function PresetIndex([string]$fileName) {
   foreach ($entry in $names) { if ($entry -match "^(\d+):$([regex]::Escape($fileName))\s*$") { return [int]$Matches[1] } }
   -1
 }
+# 프리셋 목록(ListView)은 화면에 걸친 줄만 만든다. 기본 프리셋이 18개가 되어 한 화면을 넘으므로(05 문서 70절),
+# 이동 줄의 "전체 N개 중 a~b번째"를 읽어 i번째 줄(0부터)이 보일 때까지 "처음"·"다음"으로 옮긴다. 줄이 보이면 $true.
+function ShowRow([int]$i) {
+  for ($k = 0; $k -lt 12; $k++) {
+    $o = Cmd 'uitext PresetListRange' 150
+    if ($o -notmatch '(\d+)~(\d+)') { return $false }
+    $from = [int]$Matches[1] - 1; $to = [int]$Matches[2] - 1
+    if ($i -ge $from -and $i -le $to) { return $true }
+    if ($i -lt $from) { Press 'PresetListFirst' | Out-Null } else { Press 'PresetListNext' | Out-Null }
+  }
+  $false
+}
 $pickedFile = Join-Path $work 'check-preset-picked.json'
 $stateFile = Join-Path $work 'check-preset-state.txt'
 function SavePicked($picked) { [IO.File]::WriteAllText($pickedFile, ($picked | ConvertTo-Json -Depth 4)) }
@@ -443,7 +455,7 @@ switch ($Part) {
     Press 'Tab13' | Out-Null
     Check 'the preset tab is drawn' (IsAt 'PresetRestore')
     $shown = $true
-    foreach ($i in 0..$n) { $shown = $shown -and (IsAt "PresetDetail$i") -and (IsAt "PresetApply$i") -and (IsAt "PresetFull$i") }
+    foreach ($i in 0..$n) { $shown = $shown -and (ShowRow $i) -and (IsAt "PresetDetail$i") -and (IsAt "PresetApply$i") -and (IsAt "PresetFull$i") }
     Check 'every preset has its three buttons' $shown
     Check 'the note is empty while the defaults are untouched' ((Cmd 'uitext PresetNote' 150) -match "text=''")
 
@@ -451,7 +463,8 @@ switch ($Part) {
     WritePreset 'uicheck-zz-broken.json' '{ "format": 1, '
     Press 'Tab14' | Out-Null; Press 'Tab13' | Out-Null
     $bad = PresetIndex 'uicheck-zz-broken.json'
-    Check 'an unreadable file has no buttons' ($bad -ge 0 -and -not (IsAt "PresetApply$bad") -and -not (IsAt "PresetDetail$bad") -and (IsAt "PresetApply$(PresetIndex 'uicheck-preset.json')"))
+    $good = PresetIndex 'uicheck-preset.json'
+    Check 'an unreadable file has no buttons' ($bad -ge 0 -and (ShowRow $bad) -and (ShowRow $good) -and -not (IsAt "PresetApply$bad") -and -not (IsAt "PresetDetail$bad") -and (IsAt "PresetApply$good"))
     [IO.File]::Delete((Join-Path $presetDir 'uicheck-zz-broken.json'))
 
     # 기본 파일을 고치면 알림이 뜨고, 되돌리기는 두 번 눌러야 한다.
@@ -466,6 +479,7 @@ switch ($Part) {
 
     # 상세보기: 결정 초기(대경지 3)에서 단계 1~3은 적용, 4는 경지 올리기.
     $idx = PresetIndex 'uicheck-preset.json'
+    ShowRow $idx | Out-Null
     Press "PresetDetail$idx" | Out-Null
     # 머리글: 제목은 프리셋 이름만, 설명과 출처는 표 위의 줄바꿈되는 글(사용자 보고: 긴 제목이 돌아가기 밑으로 넘어갔다).
     Check 'the sub-page title is the preset name only' ((Cmd 'uitext SubTitle' 150) -match "SubTitle text='uicheck preset'") (Cmd 'uitext SubTitle' 150)
@@ -500,6 +514,7 @@ switch ($Part) {
     # 목록의 적용: 대경지 2의 역천개명(700016)을 바꾸므로 먼저 묻는다. 지금 대경지(4)까지의 역천개명이 모두 정해진다.
     Press 'Back' | Out-Null
     Check 'back on the list' (IsAt 'PresetRestore')
+    ShowRow $idx | Out-Null
     Press "PresetApply$idx" | Out-Null
     Check 'apply asks first' ((State).fates -match '^2:700016,')
     Press "PresetApply$idx" 5000 | Out-Null
@@ -574,7 +589,7 @@ switch ($Part) {
     $lo = 0; $hi = 99
     if ($Range -match '^(\d+)-(\d+)$') { $lo = [int]$Matches[1]; $hi = [int]$Matches[2] }
     foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike '*.meta.json' -and [int]$_.Name.Substring(0, 2) -ge $lo -and [int]$_.Name.Substring(0, 2) -le $hi } | Sort-Object Name) {
-      $r = Cmd "papply $($file.Name) full" 9000
+      $r = Cmd "papply $($file.Name) full" 1000 30000   # 적용은 8~17초 걸린다(05 문서 70절)
       $run = Fields $r
       Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
       $ids = ((Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).fates | ForEach-Object { $_.id }) -join ','
