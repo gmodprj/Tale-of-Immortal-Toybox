@@ -51,6 +51,7 @@ namespace MOD_sWP6UL
             BagPlanTests();
             TraitRulesTests();
             PresetDefaultsTests();
+            TextTagsTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -219,6 +220,20 @@ namespace MOD_sWP6UL
         }
 
         // 새 기본 프리셋 풀기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 6.1절).
+        // 모드 글의 서식 태그 지우기(05 문서 72절: 만고신화 기술 이름 <COLOR=#FFAA00>草字剑诀</COLOR>가 COLORFFAA00草字剑诀COLOR로 보였다).
+        private static void TextTagsTests()
+        {
+            string a = TextTags.Strip("<COLOR=#FFAA00>草字剑诀</COLOR>");
+            Check("tags color removed", a == "草字剑诀", a);
+            string b = TextTags.Strip("<size=25>[无邪</size>]<b><color=#800000>万古神话</color></b>");
+            Check("tags nested removed", b == "[无邪]万古神话", b);
+            string c = TextTags.Strip("a < b > c");
+            Check("tags spaced angle kept", c == "a < b > c", c);
+            Check("tags null is empty", TextTags.Strip(null) == "");
+            string d = TextTags.Strip("윤회지");
+            Check("tags plain kept", d == "윤회지", d);
+        }
+
         private static void PresetDefaultsTests()
         {
             var legacy = new List<string>(PresetDefaults.Legacy);
