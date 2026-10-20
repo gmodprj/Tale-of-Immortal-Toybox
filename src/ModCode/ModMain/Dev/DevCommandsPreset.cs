@@ -47,6 +47,7 @@ namespace MOD_sWP6UL
                 case "pfatepick": return FatePick(me, int.Parse(p[1]), p.Length > 2 ? p[2] : "");
                 case "pbornpick": return BornPick(me);
                 case "pfind": return Each(p, FindSkill);
+                case "pfindch": return FindByChinese(p[1], p.Length > 2 ? int.Parse(p[2]) : 12);
                 case "pfate": return Each(p, FindFate);
                 case "pluck": return Each(p, FindLuck);
                 case "psuits": return p.Length > 1 ? Each(p, FindSuit) : FindSuit("");
@@ -645,6 +646,33 @@ namespace MOD_sWP6UL
                     sb.Append('[').Append(kind).Append(' ').Append(entry.BaseId).Append(' ').Append(entry.Name)
                         .Append(" g").Append(entry.GradeMin).Append('-').Append(entry.GradeMax).Append("] ");
                 }
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString();
+        }
+
+        // 중국어 원문 이름으로 찾기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 4절): LocalText의 ch에 조각이 든 줄의
+        // 한국어 이름(LS)으로 기술·역천개명·세트를 찾는다. 공략 원문의 이름을 게임 번호로 옮길 때 쓴다.
+        private static string FindByChinese(string fragment, int max)
+        {
+            var sb = new StringBuilder();
+            var seen = new HashSet<string>();
+            var all = g.conf.localText.allConfList;
+            int shown = 0;
+            for (int i = 0; i < all.Count && shown < max; i++)
+            {
+                ConfLocalTextItem item = all[i];
+                if (item == null || string.IsNullOrEmpty(item.ch) || !item.ch.Contains(fragment) || item.ch.Length > 24)
+                {
+                    continue;
+                }
+                string ko = GameTool.LS(item.key);
+                if (string.IsNullOrEmpty(ko) || !seen.Add(ko))
+                {
+                    continue;
+                }
+                shown++;
+                sb.Append("ch=").Append(item.ch).Append(" ko=").Append(ko).Append(" | skill ").Append(FindSkill(ko))
+                  .Append(" | fate ").Append(FindFate(ko)).Append(" | suit ").Append(FindSuit(ko)).Append("\n");
             }
             return sb.Length == 0 ? "(none)" : sb.ToString();
         }
