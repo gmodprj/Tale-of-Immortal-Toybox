@@ -84,7 +84,8 @@ namespace MOD_sWP6UL
                     continue;
                 }
                 sb.Append(row.id).Append(':').Append(row.dressID).Append(':').Append(row.name).Append(":a").Append(row.active)
-                    .Append(":w").Append(row.weight).Append(":g").Append(row.npcGrade).Append(';');
+                    .Append(":w").Append(row.weight).Append(":g").Append(row.npcGrade)
+                    .Append(":f").Append(row.flag).Append(":gf").Append(row.gamerFlag).Append(":c").Append(row.className).Append(":cg").Append(row.colorGroup).Append(';');
                 shown++;
             }
             return "total=" + rows.Count + " shown=" + shown + " " + sb;
