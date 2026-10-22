@@ -131,15 +131,20 @@ namespace MOD_sWP6UL
                     continue;
                 }
                 string text;
-                if (map.TryGetValue(item.key, out text))
+                bool found = map.TryGetValue(item.key, out text);
+                string kr = LocalTextRules.ModKr(found ? null : item.kr, found ? null : item.ch, found ? text : null);
+                if (kr == null)
                 {
-                    item.kr = text;
+                    continue;
+                }
+                item.kr = kr;
+                if (found)
+                {
                     seen.Add(item.key);
                     applied++;
                 }
-                else if ((string.IsNullOrEmpty(item.kr) || item.kr == "0") && !string.IsNullOrEmpty(item.ch))
+                else
                 {
-                    item.kr = item.ch;
                     fallback++;
                 }
             }

@@ -228,7 +228,7 @@ namespace MOD_sWP6UL
                 }
                 string ch = item.ch;
                 string kr = item.kr;
-                if (string.IsNullOrEmpty(ch) || string.IsNullOrEmpty(kr) || kr == ch || kr == "0" || !TextReplacer.HasChinese(ch) || TextReplacer.HasChinese(kr) || result.ContainsKey(ch))
+                if (!LocalTextRules.KeepsWhole(ch, kr) || result.ContainsKey(ch))
                 {
                     continue;
                 }
