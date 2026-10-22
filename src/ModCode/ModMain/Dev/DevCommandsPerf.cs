@@ -43,6 +43,7 @@ namespace MOD_sWP6UL
                 case "lt":
                 case "confid":
                 case "main":
+                case "ltfail":
                     return DevCommandsPerfProbes.Execute(p);
                 default:
                     return "usage: rperf tabs | parts | modroll [grade] | modrows | skillbuild | dump <tag> | lt | confid";

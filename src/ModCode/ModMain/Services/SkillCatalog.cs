@@ -41,8 +41,6 @@ namespace MOD_sWP6UL
         private const int RollMax = 3000;
         private static readonly Dictionary<int, List<Entry>> cache = new Dictionary<int, List<Entry>>();
 
-        private static Dictionary<string, string> chByKey;   // LocalText 키 → ch(중국어). 처음 한 번 만든다
-
         // 한국어 글이 없으면("0"·빈 글·키 그대로) LocalText 행의 ch(중국어)를, 그것도 없으면 키를 돌려준다.
         // 모드의 LocalText는 ch만 있고 kr이 "0"이다(실측, 인계 8.3e절). G2c가 kr을 덮으면 LS가 한글을 돌려주므로 그대로 따라온다.
         internal static string ResolveText(string key, out bool fromCh)
@@ -62,31 +60,16 @@ namespace MOD_sWP6UL
             return key;
         }
 
-        // LocalText 행의 ch. 없으면 "". (allText.TryGetValue는 Il2Cpp 제네릭 호출에서 MissingMethodException이 났다. 목록을 한 번 훑어 사전을 만든다.)
+        // LocalText 행의 ch. 없으면 "". 게임의 키 사전으로 바로 찾는다(LocalTextIndex.ChOf, 성능 1).
         internal static string ChOf(string key)
         {
-            if (chByKey == null)
-            {
-                chByKey = new Dictionary<string, string>();
-                var all = g.conf.localText.allConfList;
-                for (int i = 0; i < all.Count; i++)
-                {
-                    ConfLocalTextItem item = all[i];
-                    if (item != null && item.key != null && !chByKey.ContainsKey(item.key))
-                    {
-                        chByKey[item.key] = item.ch ?? "";
-                    }
-                }
-            }
-            string found;
-            return key != null && chByKey.TryGetValue(key, out found) ? found : "";
+            return LocalTextIndex.ChOf(key);
         }
 
-        // 목록과 LocalText 사전을 비운다. LocalText를 덮어쓴 뒤(G2c) 부른다.
+        // 목록을 비운다. LocalText를 덮어쓴 뒤(G2c) 부른다. LocalTextIndex는 건드리지 않는다(TextTranslationService가 그 사전을 바로 뒤에 쓴다).
         public static void Reset()
         {
             cache.Clear();
-            chByKey = null;
         }
 
         // 모드 항목의 비급을 뽑을 원본: 같은 분류의 기본 항목 가운데 고른 경지를 범위에 포함하는 것.

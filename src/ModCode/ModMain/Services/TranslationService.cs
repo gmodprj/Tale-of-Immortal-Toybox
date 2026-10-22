@@ -120,34 +120,10 @@ namespace MOD_sWP6UL
                 map = new Dictionary<string, string>();
             }
             long ensureMs = total.ElapsedMilliseconds;
-            int applied = 0, fallback = 0;
-            var seen = new HashSet<string>();
-            var all = g.conf.localText.allConfList;
-            for (int i = 0; i < all.Count; i++)
-            {
-                ConfLocalTextItem item = all[i];
-                if (item == null || !item.isModExtend || item.key == null)
-                {
-                    continue;
-                }
-                string text;
-                bool found = map.TryGetValue(item.key, out text);
-                string kr = LocalTextRules.ModKr(found ? null : item.kr, found ? null : item.ch, found ? text : null);
-                if (kr == null)
-                {
-                    continue;
-                }
-                item.kr = kr;
-                if (found)
-                {
-                    seen.Add(item.key);
-                    applied++;
-                }
-                else
-                {
-                    fallback++;
-                }
-            }
+            // 모드 행 kr 덮기와 ch→kr 사전을 한 번의 훑기로(성능 1, LocalTextIndex). 번역 파일이 없거나 못 읽어도 사전을 위해 훑는다.
+            int applied, fallback;
+            HashSet<string> seen;
+            LocalTextIndex.Scan(map, out applied, out fallback, out seen);
             long scanMs = total.ElapsedMilliseconds - ensureMs;
             int unused = 0;
             foreach (string key in map.Keys)

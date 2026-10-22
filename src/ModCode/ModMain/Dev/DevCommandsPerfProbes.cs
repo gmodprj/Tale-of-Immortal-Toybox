@@ -22,6 +22,15 @@ namespace MOD_sWP6UL
                 case "dump": return Dump(p.Length > 2 ? p[2] : "x");
                 case "lt": return Lt();
                 case "confid": return ConfId();
+                case "ltfail":
+                    {
+                        // Init의 번역 두 단계를 같은 순서로 다시 부르되 Scan이 첫 행에서 실패하게 한다. texts의 lt=가 그대로면 되돌아가기 길이 산다.
+                        LocalTextIndex.DevFailNext = true;
+                        string first;
+                        try { first = TranslationService.Apply(); } catch (Exception e) { first = "translations failed: " + e.GetType().Name + ": " + e.Message; }
+                        string second = TextTranslationService.Apply();
+                        return first + " || " + second.Substring(0, Math.Min(200, second.Length));
+                    }
                 case "main":
                     // 주 화면으로 돌아간다: 게임 이야기 함수 "주 화면으로"(DramaFunction.ReturnMain)를 부른다. 다시 들어가기는 rc.ps1의 이름 클릭으로.
                     new DramaFunction().ReturnMain(new UnhollowerBaseLib.Il2CppStringArray(new[] { "returnMain" }));

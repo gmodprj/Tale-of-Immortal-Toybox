@@ -136,7 +136,8 @@ namespace MOD_sWP6UL
             string lt;
             try
             {
-                localText = LocalTextMap();
+                // TranslationService.Apply가 같은 훑기에서 만든 사전. 그 훑기가 끝나지 못했으면 여기서 훑는다.
+                localText = LocalTextIndex.ChToKr ?? LocalTextMap();
                 lt = localText.Count.ToString();
             }
             catch (Exception e)
