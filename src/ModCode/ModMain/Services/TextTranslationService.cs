@@ -241,14 +241,6 @@ namespace MOD_sWP6UL
         // 표 하나의 대상 칸을 바꿔 끼운다. 표가 없으면 -1, 있으면 바꾼 칸 수. 글에 한자가 있고 사전에 원문 전체와 같은 줄이 있을 때만(부분 치환 없음).
         private static int ApplyTable(string[] target)
         {
-            // 오래 걸리는 셋(기준선 perf1-1023b: dramaDialogue 931 ms, dramaOptions 284 ms, battleEffect 199 ms, 합의 81%)은
-            // 반사(PropertyInfo.GetValue) 대신 형식을 아는 코드로 읽고 쓴다(성능 1 스펙 4.5의 3). 거르기 규칙은 아래 반사 길과 같다.
-            switch (target[0])
-            {
-                case "dramaDialogue": return ApplyDramaDialogue();
-                case "dramaOptions": return ApplyDramaOptions();
-                case "battleEffect": return ApplyBattleEffect();
-            }
             PropertyInfo table = typeof(ConfMgr).GetProperty(target[0]);
             object conf = table == null ? null : table.GetValue(g.conf, null);
             if (conf == null)
@@ -299,87 +291,6 @@ namespace MOD_sWP6UL
                         changed++;
                     }
                 }
-            }
-            return changed;
-        }
-
-        // 한자가 있고 사전에 원문 전체와 같은 줄이 있으면 그 한국어, 아니면 null.
-        private static string Korean(string value)
-        {
-            if (string.IsNullOrEmpty(value) || !TextReplacer.HasChinese(value))
-            {
-                return null;
-            }
-            string korean = Replacer.Whole(value);
-            return korean != null && korean != value ? korean : null;
-        }
-
-        private static int ApplyDramaDialogue()
-        {
-            var conf = g.conf.dramaDialogue;
-            if (conf == null)
-            {
-                return -1;
-            }
-            var list = conf._allConfList;
-            int changed = 0;
-            for (int i = 0; i < list.Count; i++)
-            {
-                ConfDramaDialogueItem row = list[i];
-                if (row == null)
-                {
-                    continue;
-                }
-                string k = Korean(row.dialogue);
-                if (k != null) { row.dialogue = k; changed++; }
-            }
-            return changed;
-        }
-
-        private static int ApplyDramaOptions()
-        {
-            var conf = g.conf.dramaOptions;
-            if (conf == null)
-            {
-                return -1;
-            }
-            var list = conf._allConfList;
-            int changed = 0;
-            for (int i = 0; i < list.Count; i++)
-            {
-                ConfDramaOptionsItem row = list[i];
-                if (row == null)
-                {
-                    continue;
-                }
-                string k = Korean(row.text);
-                if (k != null) { row.text = k; changed++; }
-                k = Korean(row.clickTip);
-                if (k != null) { row.clickTip = k; changed++; }
-            }
-            return changed;
-        }
-
-        private static int ApplyBattleEffect()
-        {
-            var conf = g.conf.battleEffect;
-            if (conf == null)
-            {
-                return -1;
-            }
-            var list = conf._allConfList;
-            int changed = 0;
-            for (int i = 0; i < list.Count; i++)
-            {
-                ConfBattleEffectItem row = list[i];
-                if (row == null)
-                {
-                    continue;
-                }
-                string k = Korean(row.name);
-                if (k != null) { row.name = k; changed++; }
-                k = Korean(row.desc);
-                if (k != null) { row.desc = k; changed++; }
             }
             return changed;
         }
