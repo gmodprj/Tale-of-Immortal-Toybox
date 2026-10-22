@@ -42,6 +42,7 @@ namespace MOD_sWP6UL
                 case "dump":
                 case "lt":
                 case "confid":
+                case "main":
                     return DevCommandsPerfProbes.Execute(p);
                 default:
                     return "usage: rperf tabs | parts | modroll [grade] | modrows | skillbuild | dump <tag> | lt | confid";

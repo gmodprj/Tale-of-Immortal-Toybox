@@ -22,6 +22,10 @@ namespace MOD_sWP6UL
                 case "dump": return Dump(p.Length > 2 ? p[2] : "x");
                 case "lt": return Lt();
                 case "confid": return ConfId();
+                case "main":
+                    // 주 화면으로 돌아간다: 게임 이야기 함수 "주 화면으로"(DramaFunction.ReturnMain)를 부른다. 다시 들어가기는 rc.ps1의 이름 클릭으로.
+                    new DramaFunction().ReturnMain(new UnhollowerBaseLib.Il2CppStringArray(new[] { "returnMain" }));
+                    return "returnMain called";
                 default: return null;
             }
         }
