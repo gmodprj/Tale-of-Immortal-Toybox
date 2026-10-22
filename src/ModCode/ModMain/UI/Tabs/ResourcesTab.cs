@@ -46,8 +46,14 @@ namespace MOD_sWP6UL
             public int Index;       // 종류 칩의 순번(0이 전체)
             public void Set(int count)
             {
-                Text.text = Key != null ? Name + " " + count : Name + " (" + count + ")";
+                Text.text = Key != null ? Name + " " + CountText(count) : Name + " (" + CountText(count) + ")";
             }
+        }
+
+        // 수가 음수(-1)면 아직 세지 않음: "…"(기술 서적 그룹을 열기 전, 성능 1 S3).
+        private static string CountText(int count)
+        {
+            return count < 0 ? "…" : count.ToString();
         }
 
         private readonly ListView<Row> list = new ListView<Row>("ItemTable", RowH);
@@ -340,7 +346,7 @@ namespace MOD_sWP6UL
 
         private void GroupButton(string key, string name, int count, float y)
         {
-            Button button = Ui.Button("ResGroup" + key, content, name + " " + count, 0, y, LeftW, GroupStep - 4, new Action(() => SetGroup(key)), true, groupKey == key);
+            Button button = Ui.Button("ResGroup" + key, content, name + " " + CountText(count), 0, y, LeftW, GroupStep - 4, new Action(() => SetGroup(key)), true, groupKey == key);
             labels.Add(new CountLabel { Text = button.GetComponentInChildren<Text>(), Name = name, Key = key });
         }
 

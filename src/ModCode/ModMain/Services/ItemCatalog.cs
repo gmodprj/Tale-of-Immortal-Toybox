@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace MOD_sWP6UL
@@ -75,6 +76,18 @@ namespace MOD_sWP6UL
             all = new List<Entry>();
             currencies = new List<Entry>();
             byId = new Dictionary<int, Entry>();
+            // 분류 이름은 분류 번호마다 한 번만 구한다(성능 1 S4. 3,401행마다 두 번 부르던 것).
+            var categoryNames = new Dictionary<int, string>();
+            Func<int, string> category = id =>
+            {
+                string cached;
+                if (!categoryNames.TryGetValue(id, out cached))
+                {
+                    cached = CategoryName(id);
+                    categoryNames[id] = cached;
+                }
+                return cached;
+            };
             var items = g.conf.itemProps._allConfList;
             for (int i = 0; i < items.Count; i++)
             {
@@ -114,8 +127,8 @@ namespace MOD_sWP6UL
                     Level = item.level,
                     Type = item.type,
                     SubType = item.className,
-                    TypeName = CategoryName(item.type),
-                    SubTypeName = CategoryName(item.className),
+                    TypeName = category(item.type),
+                    SubTypeName = category(item.className),
                     Search = EditService.Compact(name),
                     TableIndex = all.Count,
                 };

@@ -99,8 +99,14 @@ namespace MOD_sWP6UL
             return counts;
         }
 
+        // 기술 카탈로그가 아직 없고 기술 서적 그룹을 보고 있지 않으면 -1("…"). 첫 열기에 카탈로그를 만들지 않는다(성능 1 S3).
+        // 그 그룹을 열거나 다른 곳(공법 탭, 즐겨찾기의 비급 줄)이 카탈로그를 만들면 수를 보인다.
         private int BookCount()
         {
+            if (!SkillCatalog.IsBuilt && groupKey != ManualKey)
+            {
+                return -1;
+            }
             int total = 0;
             int[] counts = BookKindCounts();
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
