@@ -113,6 +113,7 @@ namespace MOD_sWP6UL
 
         public static string Apply()
         {
+            var total = System.Diagnostics.Stopwatch.StartNew();
             string file;
             var map = new Dictionary<string, string>();
             int broken = 0;
@@ -130,6 +131,7 @@ namespace MOD_sWP6UL
                 map = new Dictionary<string, string>();
             }
             // LocalText의 원문(ch)→한국어(kr). 모드가 kr 대신 ch를 그대로 화면에 낼 때(회차 zh-1017c: 불러오기 화면의 팁·"下一条提示") 글 전체가 같으면 게임의 한국어를 쓴다.
+            long ensureMs = total.ElapsedMilliseconds;
             Dictionary<string, string> localText;
             string lt;
             try
@@ -142,6 +144,7 @@ namespace MOD_sWP6UL
                 localText = null;
                 lt = "ERROR(" + e.GetType().Name + ")";
             }
+            long ltmapMs = total.ElapsedMilliseconds - ensureMs;
             // 표 칸 전용 번역표는 전체 일치 사전에 넣는다. 같은 원문이면 이 표가 LocalText보다 앞선다.
             string cellFile;
             int cellBroken = 0;
@@ -186,6 +189,7 @@ namespace MOD_sWP6UL
             {
                 foreach (string[] target in Targets)
                 {
+                    long tableStart = total.ElapsedMilliseconds;
                     try
                     {
                         int n = ApplyTable(target);
@@ -193,7 +197,7 @@ namespace MOD_sWP6UL
                         {
                             tables++;
                             cells += n;
-                            detail.Append(' ').Append(target[0]).Append('=').Append(n);
+                            detail.Append(' ').Append(target[0]).Append('=').Append(n).Append('@').Append(total.ElapsedMilliseconds - tableStart);
                         }
                     }
                     catch (Exception e)
@@ -203,7 +207,8 @@ namespace MOD_sWP6UL
                     }
                 }
             }
-            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " cellFile=" + cellFile + " cellRows=" + cellRows + " cellBroken=" + cellBroken + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail;
+            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " cellFile=" + cellFile + " cellRows=" + cellRows + " cellBroken=" + cellBroken + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail
+                + " ms=" + total.ElapsedMilliseconds + " ensure=" + ensureMs + " ltmap=" + ltmapMs;
             MelonLogger.Msg("[TlToybox] texts: " + LastSummary);
             return LastSummary;
         }

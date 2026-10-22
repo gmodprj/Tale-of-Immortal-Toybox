@@ -12,6 +12,8 @@ namespace MOD_sWP6UL
         {
             // 어느 코드가 설치됐는지 Latest.log만으로 알 수 있게 빌드 표지를 찍는다(개발 빌드는 .devremote 경로도). 05 문서 49절.
             MelonLogger.Msg("[TlToybox] Init build=" + BuildInfo.Commit + DevRemoteNote());
+            var total = System.Diagnostics.Stopwatch.StartNew();
+            long patchMs = -1;
             EditorHost.Ensure();
             try
             {
@@ -25,13 +27,16 @@ namespace MOD_sWP6UL
             {
                 // LocalText 밖 중국어 글(05 문서 53·54절): 표 칸 바꿔 끼우기 뒤 화면 글 치환을 건다.
                 TextTranslationService.Apply();
+                long patchStart = total.ElapsedMilliseconds;
                 TextPatch.Ensure();
+                patchMs = total.ElapsedMilliseconds - patchStart;
             }
             catch (Exception e)
             {
                 MelonLogger.Msg("[TlToybox] texts failed: " + e.GetType().Name + ": " + e.Message);
             }
             BattleService.OnInit();
+            long dressStart = total.ElapsedMilliseconds;
             try
             {
                 // 캐릭터 만들기 의복 목록의 빈 썸네일 채우기(05 문서 74절).
@@ -41,6 +46,8 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] dress thumbs failed: " + e.GetType().Name + ": " + e.Message);
             }
+            long dressMs = total.ElapsedMilliseconds - dressStart;
+            long gridStart = total.ElapsedMilliseconds;
             try
             {
                 // 기술 학습 상한(05 문서 60절): 설정 파일의 값이 0이 아니면 패치를 건다.
@@ -50,6 +57,9 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] martial grid failed: " + e.GetType().Name + ": " + e.Message);
             }
+            long gridMs = total.ElapsedMilliseconds - gridStart;
+            // 단계별 시간(성능 1 스펙 4.5의 1). 번역 두 단계의 시간은 translations:·texts: 줄에 있다.
+            MelonLogger.Msg("[TlToybox] init ms=" + total.ElapsedMilliseconds + " dress=" + dressMs + " grid=" + gridMs + " patch=" + patchMs);
 #if DEVTOOLS
             StartDevPoll();
 #endif

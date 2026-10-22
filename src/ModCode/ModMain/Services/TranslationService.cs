@@ -102,6 +102,7 @@ namespace MOD_sWP6UL
 
         public static string Apply()
         {
+            var total = System.Diagnostics.Stopwatch.StartNew();
             string file;
             var map = new Dictionary<string, string>();
             int broken = 0;
@@ -118,6 +119,7 @@ namespace MOD_sWP6UL
                 file = "읽기 실패 " + e.GetType().Name + ": " + e.Message;
                 map = new Dictionary<string, string>();
             }
+            long ensureMs = total.ElapsedMilliseconds;
             int applied = 0, fallback = 0;
             var seen = new HashSet<string>();
             var all = g.conf.localText.allConfList;
@@ -141,6 +143,7 @@ namespace MOD_sWP6UL
                     fallback++;
                 }
             }
+            long scanMs = total.ElapsedMilliseconds - ensureMs;
             int unused = 0;
             foreach (string key in map.Keys)
             {
@@ -151,7 +154,8 @@ namespace MOD_sWP6UL
             }
             lastKeys = new HashSet<string>(map.Keys);
             SkillCatalog.Reset();
-            LastSummary = "file=" + file + " rows=" + map.Count + " applied=" + applied + " fallback=" + fallback + " unused=" + unused + " broken=" + broken;
+            LastSummary = "file=" + file + " rows=" + map.Count + " applied=" + applied + " fallback=" + fallback + " unused=" + unused + " broken=" + broken
+                + " ms=" + total.ElapsedMilliseconds + " ensure=" + ensureMs + " scan=" + scanMs;
             MelonLogger.Msg("[TlToybox] translations: " + LastSummary);
             return LastSummary;
         }
