@@ -16,7 +16,7 @@
 | `docs/05-editor-v0.1.md` | 편집기 v0.1의 범위, 사용법, 검증 결과(절 단위 기록) |
 | `docs/06-handoff.md` | 작업 인계: 현재 상태, 검증 방법, 남은 일 |
 | `docs/07-divine-artifacts.md` | 시작 신기 셋(쌍어패·호천안·연요호) 조사 |
-| `docs/08-review-2026-10-16.md`, `docs/10-review-2026-10-18.md` | 편집기 전체 리뷰, 코드 리뷰와 리팩토링 검토 |
+| `docs/08-review-2026-10-16.md`, `docs/10-review-2026-10-18.md`, `docs/12-review-2026-10-22.md` | 편집기 전체 리뷰, 코드 리뷰와 리팩토링 검토, 코드 리뷰·성능 측정과 개선 계획 |
 | `docs/09-workshop-mods.md` | 창작마당 모드 등록부(`tools/workshop.ps1 -Doc`이 만든다) |
 | `docs/11-trainer-comparison.md` | 외부 트레이너(ggbh-trainer 0.8.30)와의 기능 비교 |
 | `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획 |

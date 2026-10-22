@@ -9,7 +9,7 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다(2026-10-21 아침, 이 문서 정리의 병합까지). `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열넷(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다(2026-10-21 아침, 이 문서 정리의 병합까지). `main`은 초기 커밋 그대로다(릴리스한 적 없음). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열다섯(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리, 2026-10-22에 `feat/perf-research` 추가. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
 - **지금 게임에 설치된 것**(2026-10-21 07:00 기준. 앞 설치본의 기록은 8.8절):
   - **2026-10-21 07:00 갱신(75절)**: 편집기 DLL을 `develop` e6902ea로 바꿨다 — 사용자 지시("설치까지 진행 - 문서정리 - 핸드오프 - 커밋")·게임 꺼짐 뒤 `tools/install.ps1`, `installed build: e6902ea`(2,981,888바이트). 바로 앞 설치본 134197d(2026-10-20 20:07)와 배포 구성의 기능은 같다(그 뒤의 변경은 문서와 개발 명령 `rdress list`의 출력뿐이고, 개발 명령은 배포 빌드에서 빠진다). 134197d의 내용: 캐릭터 만들기 의복 빈 썸네일 채우기, 만고신화 하위 폴더 표 원문 3,271개 한글화(`tables.txt`, 첫 실행에 데이터 폴더에 풀림), 서식 태그를 벗겨 찾는 전체 일치(74절).
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
@@ -82,6 +82,7 @@
 | `docs/07-divine-artifacts.md` | 시작 신기 셋(쌍어패·호천안·연요호)과 특수 선천운명 셋(식혼검·음양안·연화검의)의 조사. 게임 확인(7절), 편집기 후보(8절), 미확인(9절) |
 | `docs/08-review-2026-10-16.md`, `docs/10-review-2026-10-18.md` | 편집기 전체 리뷰(2026-10-16), 코드 리뷰와 리팩토링 검토(2026-10-18). 남은 항목은 1절 끝 "2026-10-18까지의 목록"과 8.6절 |
 | `docs/11-trainer-comparison.md` | 외부 트레이너(ggbh-trainer 0.8.30)와의 기능 비교(2026-10-19). 4절의 제안 순서로 65~68절을 만들었다 |
+| `docs/12-review-2026-10-22.md` | 코드 리뷰·성능 측정과 개선 계획(2026-10-22): 탭 여는 시간, 자원 탭 첫 열기 4초의 원인, 모드 공법 비급 실패 522개의 분류, 트레이너 미반영 24개, 묶음 순서(7절) |
 | `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`), 선법 탭(`2026-10-14-immortal-tab*`), 신기 탭(`2026-10-14-artifact-tab*`), 도호(`2026-10-15-appellation*`), 비급(`2026-10-15-martial-books*`), 자원 탭(`2026-10-15-resources-tab*`), 창작마당 설치(`2026-10-15-workshop-install*`), 한글화(`2026-10-16-mod-korean*`), 모드 공법의 비급(`2026-10-16-mod-skill-books*`), 창작마당 확장(`2026-10-16-workshop-expand*`), 새 모드 한글화(`2026-10-16-mod-korean-2*`), 리뷰 수정(`2026-10-16-review-fixes*`), 리뷰 도구 묶음(`2026-10-16-review-tools*`), LocalText 밖 글 한글화(`2026-10-17-zh-text-korean*`), 법보 탭(`2026-10-17-treasure-tab*`), 기예 제작 재료(`2026-10-18-craft-materials*`), 트레이너 비교 1·2묶음(`2026-10-20-trainer-batch1*`, `2026-10-20-trainer-batch2*`), 기본 프리셋 11~16(`2026-10-20-preset-drafts*`, 작업 기록 `specs/2026-10-20-preset-drafts-builds.md`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
 | `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리), 한글화의 `TranslationService.cs`·`TranslationTable.cs`(LocalText 키 번역표)·`TextTranslationService.cs`·`TextReplacer.cs`(원문 기반 번역표, 54절), 법보·기령의 `SpriteService.cs`(프리셋)·`TreasureService.cs`(법보 탭)도 여기 있다. 2026-10-18 뒤에 생긴 것: `CraftMaterialService.cs`·`CraftPlan.cs`(기예 제작 재료, 62절), `MartialGridService.cs`(기술 학습 상한, 60절), `BagPlan.cs`·`BagService.Count.cs`(가방 수량 지정, 65·66절), `TraitRules.cs`(성격, 66절), `SuccessService.cs`(성공·드롭 탭, 67·68절), `PresetDefaults.cs`(새 기본 프리셋만 풀기, 70절), `TextTags.cs`(모드 글의 서식 태그 지우기, 72절), `FateAlt.cs`(역천개명 대체 번호, 73절), `DressThumbService.cs`(캐릭터 만들기 의복 빈 썸네일, 74절). 게임 형식을 쓰지 않는 `CraftPlan`·`BagPlan`·`TraitRules`·`PresetDefaults`·`TextTags`·`FateAlt`는 `tests/ModMain.Tests`가 시험한다 |
@@ -356,6 +357,7 @@ PowerShell과 도구:
 
 ### 8.0 2026-10-21 아침에 남은 일
 
+0. (2026-10-22 추가) 코드 리뷰·성능 계획 `docs/12-review-2026-10-22.md` 7절: 묶음 순서와 정할 것 넷(사용자 결정). 측정 명령 `rperf`는 실험 브랜치 `feat/perf-research`에만 있다.
 1. 사용자 확인: 설치본 134197d로 캐릭터 만들기 의복 목록의 썸네일(빈 칸이 채워지는지), 만고신화 선천 이름·대사가 한국어인지, 프리셋 탭에 21번이 풀리는지(73·74절).
 2. 의복 목록(75절): 299번 뒤에 고를 새 의상은 없다(빈 자리 57줄). 남은 것은 [剑来] 235~237번이 화집 해금 줄(`flag=xianlingbiyu`) 때문에 숨는지 확인하는 일(사용자가 원하면)과, 남성 목록 대조(회차에서 성별 토글을 바꾸지 못해 미확인).
 3. 사용자 결정: 같은 dressID 두 칸(217, 221~234, 238~243)과 [剑来]의 같은 그림 14장(267·310~322)을 그대로 둘지. 토이박스로 고칠 수 있는 것은 목록에서 겹치는 칸을 숨기는 정도다(74절).
@@ -662,7 +664,7 @@ PowerShell과 도구:
 
 ### 8.7 남겨 둔 것
 
-- 실험 브랜치 열넷(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`, `feat/workshop-research`, `feat/modskill-research`, `feat/korean-research`, `feat/ultimate-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다.
+- 실험 브랜치 열넷(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`, `feat/workshop-research`, `feat/modskill-research`, `feat/korean-research`, `feat/ultimate-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다. 2026-10-22에 열다섯째 `feat/perf-research`(측정 명령 `rperf`, 12 문서)를 더했다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다. 조사 산출물도 여기 있다: `zh-all.txt`·`zh-display-20261017.txt`·`zh-left.txt`(53·54절), `playerprefs-Mod_LoadData-*.txt`(52절), 캡처 `zh-1017*.png`·`check-treasure.png`·`fu-1017b-*.png`.
 - 2026-10-17 저녁에 사용자 지시로 지운 브랜치·워크트리: `feat/zh-korean`·`docs/install-1017b`(워크트리 `zh-korean`), `fix/editor-followups`·`feat/treasure-tab`·`docs/install-1017c`(워크트리 `editor-followups`). 모두 develop에 병합된 뒤였다.
@@ -677,6 +679,7 @@ PowerShell과 도구:
 - 2026-10-20 저녁 사용자 지시("브랜치 정리")로 지운 브랜치(모두 develop에 병합된 뒤): `docs/install-1018b`, `docs/install-1020`, `docs/review-1018`, `feat/action-day-rate`, `feat/craft-cap-repair`, `feat/preset-drafts`, `feat/study-gain`, `feat/study-time`, `feat/workshop-wangu`, `fix/channel-wheel`, `fix/review-1018-small`, `fix/wangu-table-texts`, 이 정리의 `docs/handoff-1020`.
 - 2026-10-20에 쓴 회차 이름: `wg-1020a`~`w`(만고신화 71~74절. `p`~`w`는 `-Login`). 그 앞 65~70절의 회차 이름은 각 절에 있다.
 
+- 2026-10-22에 쓴 회차 이름: `perf-1022a`~`c`(12 문서. 실험 브랜치 `feat/perf-research`의 개발 빌드).
 - 2026-10-21에 쓴 회차 이름: `wg-1021a`(75절, `-Login`). 병합을 마친 `fix/dress-list-missing`은 사용자 지시("병합을 끝낸 fix/dress-list-missing 브랜치를 지워 줘")로 지웠다. 이 정리의 `docs/handoff-1021`은 병합 뒤 지웠다. README와 이 문서 2·3·5절을 지금 구조에 맞춘 `docs/structure-1021`·`docs/tests-1021`도 병합 뒤 사용자 지시로 지웠다.
 
 ### 8.8 설치 이력(2026-10-17~21, 최신이 위)
