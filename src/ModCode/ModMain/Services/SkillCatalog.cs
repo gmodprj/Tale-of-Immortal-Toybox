@@ -135,53 +135,60 @@ namespace MOD_sWP6UL
             });
         }
 
+        // 다섯 분류가 만들어져 있는지(자원 탭이 기술 서적 수를 늦게 셀 때 본다. 성능 1 S3).
+        public static bool IsBuilt
+        {
+            get { return cache.Count == Kinds.Length; }
+        }
+
         private static List<Entry> All(int kindIndex)
         {
-            List<Entry> list;
-            if (cache.TryGetValue(kindIndex, out list))
+            if (!IsBuilt)
             {
-                return list;
+                BuildAll();
             }
-            list = new List<Entry>();
-            Kind kind = Kinds[kindIndex];
-            if (kind.Type == MartialType.Step)
+            return cache[kindIndex];
+        }
+
+        // 다섯 분류를 한 번에 만든다(성능 1 S2): 기술 표 1,690행을 분류마다 다시 훑지 않고 한 번 훑어 type으로 나눈다.
+        // 설정의 type: 1·2는 무예·영술(Kinds 0), 3은 절기(1), 4는 신통(4). 신법(2)·심법(3)은 자기 표.
+        private static void BuildAll()
+        {
+            var lists = new List<Entry>[Kinds.Length];
+            for (int k = 0; k < Kinds.Length; k++)
             {
-                var all = g.conf.battleStepBase._allConfList;
-                for (int i = 0; i < all.Count; i++)
+                lists[k] = new List<Entry>();
+            }
+            var attack = g.conf.battleSkillAttack._allConfList;
+            for (int i = 0; i < attack.Count; i++)
+            {
+                ConfBattleSkillAttackItem row = attack[i];
+                int type = row.type;
+                int k = type == 1 || type == 2 ? 0 : type == 3 ? 1 : type == 4 ? 4 : -1;
+                if (k >= 0)
                 {
-                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "", "");
+                    Add(lists[k], k, row.isModExtend, row.id, row.name, row.desc, row.gradeMin, row.gradeMax, row.basType, row.className);
                 }
             }
-            else if (kind.Type == MartialType.Ability)
+            var step = g.conf.battleStepBase._allConfList;
+            for (int i = 0; i < step.Count; i++)
             {
-                var all = g.conf.battleAbilityBase._allConfList;
-                for (int i = 0; i < all.Count; i++)
-                {
-                    Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, "", "");
-                }
+                Add(lists[2], 2, step[i].isModExtend, step[i].id, step[i].name, step[i].desc, step[i].gradeMin, step[i].gradeMax, "", "");
             }
-            else
+            var ability = g.conf.battleAbilityBase._allConfList;
+            for (int i = 0; i < ability.Count; i++)
             {
-                // 설정의 type: 1·2는 무예·영술, 3은 절기, 4는 신통.
-                var all = g.conf.battleSkillAttack._allConfList;
-                for (int i = 0; i < all.Count; i++)
-                {
-                    int type = all[i].type;
-                    bool match = kind.Type == MartialType.SkillLeft ? (type == 1 || type == 2)
-                        : kind.Type == MartialType.SkillRight ? type == 3 : type == 4;
-                    if (match)
-                    {
-                        Add(list, kindIndex, all[i].isModExtend, all[i].id, all[i].name, all[i].desc, all[i].gradeMin, all[i].gradeMax, all[i].basType, all[i].className);
-                    }
-                }
+                Add(lists[3], 3, ability[i].isModExtend, ability[i].id, ability[i].name, ability[i].desc, ability[i].gradeMin, ability[i].gradeMax, "", "");
             }
-            // 이름 없는 행을 끝으로(그 밖의 순서는 표 순서 그대로).
-            var ordered = new List<Entry>(list.Count);
-            foreach (Entry entry in list) { if (!entry.Nameless) { ordered.Add(entry); } }
-            foreach (Entry entry in list) { if (entry.Nameless) { ordered.Add(entry); } }
-            list = ordered;
-            cache[kindIndex] = list;
-            return list;
+            cache.Clear();
+            for (int k = 0; k < Kinds.Length; k++)
+            {
+                // 이름 없는 행을 끝으로(그 밖의 순서는 표 순서 그대로).
+                var ordered = new List<Entry>(lists[k].Count);
+                foreach (Entry entry in lists[k]) { if (!entry.Nameless) { ordered.Add(entry); } }
+                foreach (Entry entry in lists[k]) { if (entry.Nameless) { ordered.Add(entry); } }
+                cache[k] = ordered;
+            }
         }
 
         public static List<Entry> Find(int kindIndex, string query)
