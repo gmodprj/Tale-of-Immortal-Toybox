@@ -86,6 +86,11 @@ namespace MOD_sWP6UL
             {
                 return input;
             }
+            string perf = DevCommandsPerf.Execute(p);
+            if (perf != null)
+            {
+                return perf;
+            }
             string scan = DevCodeScan.Execute(p);
             if (scan != null)
             {

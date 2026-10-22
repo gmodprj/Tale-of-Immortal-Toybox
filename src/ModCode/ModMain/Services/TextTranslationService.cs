@@ -20,7 +20,7 @@ namespace MOD_sWP6UL
 
         // 표 이름(ConfMgr의 속성)과 바꿔 끼울 글자 속성. 53절의 조사에서 화면에 보이는 칸만. 74절에서 만고신화가 원문을 넣은 칸을 더했다.
         // modNpcAddWorld.joinSchoolName은 종문을 이름으로 찾는 값일 수 있어(53절, 표시 여부 미확인) 건드리지 않는다. 그림·소리·함수 이름 칸(icon·avatar·backgroud·function 등)도 건드리지 않는다.
-        private static readonly string[][] Targets =
+        internal static readonly string[][] Targets =
         {
             new[] { "battleSkillAttack", "name", "desc" },
             new[] { "battleEffect", "name", "desc" },
