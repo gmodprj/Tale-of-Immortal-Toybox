@@ -292,6 +292,32 @@ namespace MOD_sWP6UL
             return counts;
         }
 
+        // CountByGroup과 CountByKind(group)를 한 번 훑어 함께 센다(묶음 3, 자원 탭 검색 칸). group이 null이면 byKind도 null.
+        public static void Counts(Filter filter, HashSet<int> owned, ItemGroups.Group group, out Dictionary<string, int> byGroup, out int[] byKind)
+        {
+            List<Entry> entries = All;
+            byGroup = new Dictionary<string, int>();
+            byGroup[ItemGroups.AllKey] = 0;
+            foreach (ItemGroups.Group each in ItemGroups.Groups)
+            {
+                byGroup[each.Key] = 0;
+            }
+            byKind = group == null ? null : new int[group.Kinds.Count];
+            foreach (Entry entry in entries)
+            {
+                if (!Passes(entry, filter, owned))
+                {
+                    continue;
+                }
+                byGroup[ItemGroups.AllKey]++;
+                byGroup[entry.Group.Key]++;
+                if (byKind != null && entry.Group == group)
+                {
+                    byKind[entry.Kind.Order]++;
+                }
+            }
+        }
+
         // 그 그룹의 종류마다 거르기를 통과한 수(그룹의 Kinds 순서).
         public static int[] CountByKind(ItemGroups.Group group, Filter filter, HashSet<int> owned)
         {
