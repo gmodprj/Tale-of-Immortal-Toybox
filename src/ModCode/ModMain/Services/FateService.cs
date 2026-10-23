@@ -92,7 +92,7 @@ namespace MOD_sWP6UL
                     if (conf != null)
                     {
                         slot.LuckName = GameTool.LS(conf.name);
-                        slot.Tips = MartialService.CleanDesc(GameTool.LS(conf.tips)).Replace('\n', ' ');
+                        slot.Tips = MartialService.CleanLine(conf.tips);
                     }
                 }
                 result.Add(slot);
@@ -121,7 +121,7 @@ namespace MOD_sWP6UL
                 {
                     Id = conf.id,
                     Name = GameTool.LS(conf.name),
-                    Tips = MartialService.CleanDesc(GameTool.LS(conf.tips)).Replace('\n', ' '),
+                    Tips = MartialService.CleanLine(conf.tips),
                     Type = conf.type,
                     Level = conf.level,
                 };

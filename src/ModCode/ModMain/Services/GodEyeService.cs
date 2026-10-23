@@ -25,11 +25,6 @@ namespace MOD_sWP6UL
 
         private static List<Boss> bosses;
 
-        private static string Normalize(string text)
-        {
-            return (text ?? "").Replace(" ", "").ToLowerInvariant();
-        }
-
         public static List<Boss> Bosses()
         {
             if (bosses != null)
@@ -61,7 +56,7 @@ namespace MOD_sWP6UL
             }
             foreach (Boss b in result)
             {
-                b.Search = Normalize(b.Name + string.Join("", b.Skills.ConvertAll(s => s.Name).ToArray()));
+                b.Search = TextTags.SearchKey(b.Name + string.Join("", b.Skills.ConvertAll(s => s.Name).ToArray()));
             }
             bosses = result;
             return bosses;
@@ -69,7 +64,7 @@ namespace MOD_sWP6UL
 
         public static List<Boss> Find(string query)
         {
-            string q = Normalize(query);
+            string q = TextTags.SearchKey(query);
             return q.Length == 0 ? new List<Boss>(Bosses()) : Bosses().FindAll(b => b.Search.Contains(q));
         }
 

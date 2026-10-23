@@ -240,6 +240,8 @@ namespace MOD_sWP6UL
         // 모드 글의 서식 태그 지우기(05 문서 72절: 만고신화 기술 이름 <COLOR=#FFAA00>草字剑诀</COLOR>가 COLORFFAA00草字剑诀COLOR로 보였다).
         private static void TextTagsTests()
         {
+            Check("search key drops spaces and lowers", TextTags.SearchKey(" Fire Ball 화 염 ") == "fireball화염");
+            Check("search key of null", TextTags.SearchKey(null) == "");
             string a = TextTags.Strip("<COLOR=#FFAA00>草字剑诀</COLOR>");
             Check("tags color removed", a == "草字剑诀", a);
             string b = TextTags.Strip("<size=25>[无邪</size>]<b><color=#800000>万古神话</color></b>");

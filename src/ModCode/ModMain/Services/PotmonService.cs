@@ -36,11 +36,6 @@ namespace MOD_sWP6UL
             get { return g.world == null || g.world.devilDemonMgr == null ? null : g.world.devilDemonMgr.potMonMgr; }
         }
 
-        private static string Normalize(string text)
-        {
-            return (text ?? "").Replace(" ", "").ToLowerInvariant();
-        }
-
         public static List<Kind> Kinds()
         {
             if (kinds != null)
@@ -53,7 +48,7 @@ namespace MOD_sWP6UL
             {
                 string name = ArtifactService.Text(rows[i].name);
                 var k = new Kind { Id = rows[i].id, Name = name.Length > 0 ? name : "호요 " + rows[i].id, Race = ArtifactService.Text(rows[i].race) };
-                k.Search = Normalize(k.Name + k.Race);
+                k.Search = TextTags.SearchKey(k.Name + k.Race);
                 result.Add(k);
             }
             kinds = result;
@@ -62,7 +57,7 @@ namespace MOD_sWP6UL
 
         public static List<Kind> Find(string query)
         {
-            string q = Normalize(query);
+            string q = TextTags.SearchKey(query);
             return q.Length == 0 ? new List<Kind>(Kinds()) : Kinds().FindAll(k => k.Search.Contains(q));
         }
 
