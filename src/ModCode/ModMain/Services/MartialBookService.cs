@@ -93,8 +93,15 @@ namespace MOD_sWP6UL
             DataProps bag = unit.data.unitData.propData;
             var made = new List<string>();
             string stop = null;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             for (int i = 0; i < wanted && stop == null; i++)
             {
+                // 시간 상한(묶음 4): 한 번 지급에 2초를 넘기면 다음 권을 만들지 않는다.
+                if (GiveBudget.ShouldStop(watch.ElapsedMilliseconds, made.Count, wanted))
+                {
+                    stop = GiveBudget.StopText(made.Count, wanted);
+                    break;
+                }
                 try
                 {
                     Il2CppStructArray<int> values;

@@ -86,6 +86,7 @@ namespace MOD_sWP6UL
             ArtifactKeyService.OnDestroy();
             InputGuard.Release();
             PointerGuard.Release();
+            TextPatch.ResetStats();
 #if DEVTOOLS
             StopDevPoll();
 #endif

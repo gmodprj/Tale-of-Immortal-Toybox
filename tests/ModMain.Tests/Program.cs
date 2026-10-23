@@ -57,6 +57,7 @@ namespace MOD_sWP6UL
             ModSkillRulesTests();
             FileStampTests();
             StampCacheTests();
+            GiveBudgetTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -373,6 +374,15 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void GiveBudgetTests()
+        {
+            Check("budget: under 2s keeps going", !GiveBudget.ShouldStop(1999, 3, 20));
+            Check("budget: at 2s stops", GiveBudget.ShouldStop(2000, 3, 20));
+            Check("budget: all made never stops", !GiveBudget.ShouldStop(5000, 20, 20));
+            Check("budget: first book always tried", !GiveBudget.ShouldStop(5000, 0, 20));
+            Check("budget: stop text", GiveBudget.StopText(3, 20) == "시간 상한(2초)에 걸려 3권만 만들었습니다(요청 20권). 다시 누르세요");
+        }
+
         private static void StampCacheTests()
         {
             string stamp = "s1";

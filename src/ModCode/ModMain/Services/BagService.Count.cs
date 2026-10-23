@@ -109,10 +109,18 @@ namespace MOD_sWP6UL
                 DataProps.PropsArtifact a = pd.To<DataProps.PropsArtifact>();
                 return a.level + a.grade + a.GetPrefixCount();
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                // 첫 예외 하나만 로그에 남긴다(12 문서 A4).
+                if (!strengthWarned)
+                {
+                    strengthWarned = true;
+                    MelonLoader.MelonLogger.Msg("[TlToybox] 법보 강도를 읽지 못함: " + e.GetType().Name + ": " + e.Message);
+                }
                 return 0;
             }
         }
+
+        private static bool strengthWarned;
     }
 }

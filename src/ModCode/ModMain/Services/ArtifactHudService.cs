@@ -133,6 +133,10 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 매 프레임 새 배열을 만들지 않고 다시 쓴다(12 문서 F1). Row.Update는 배열을 붙잡아 두지 않는다.
+        private static readonly GameObject[] mapItems = new GameObject[3];
+        private static readonly GameObject[] battleItems = new GameObject[3];
+
         private static readonly Row MapRow = new Row("지도 화면", 46f, false);
         private static readonly Row BattleRow = new Row("전투 화면", 60f, true);
 
@@ -156,12 +160,18 @@ namespace MOD_sWP6UL
             if (map != null && map.playerInfo != null)
             {
                 var pi = map.playerInfo;
-                MapRow.Update(map.Pointer, new[] { Go(pi.btnPiscesPendant), Go(pi.btnGodEye), Go(pi.btnDevilDemon) });
+                mapItems[0] = Go(pi.btnPiscesPendant);
+                mapItems[1] = Go(pi.btnGodEye);
+                mapItems[2] = Go(pi.btnDevilDemon);
+                MapRow.Update(map.Pointer, mapItems);
             }
             if (battle != null && battle.info != null)
             {
                 var inf = battle.info;
-                BattleRow.Update(battle.Pointer, new[] { inf.goPiscesPendant, inf.goGodEye, inf.goDevilDemon });
+                battleItems[0] = inf.goPiscesPendant;
+                battleItems[1] = inf.goGodEye;
+                battleItems[2] = inf.goDevilDemon;
+                BattleRow.Update(battle.Pointer, battleItems);
             }
         }
 

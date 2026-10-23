@@ -160,7 +160,11 @@ namespace MOD_sWP6UL
             {
                 return false;
             }
-            var props = SceneType.battle.battleMap.playerUnitCtrl.props;
+            // 전투 장면이 바뀌는 중이면 일부가 비어 있다. 예외로 막기 전체가 풀리지 않게 하나씩 본다(12 문서 A1).
+            var battle = SceneType.battle;
+            var map = battle == null ? null : battle.battleMap;
+            var ctrl = map == null ? null : map.playerUnitCtrl;
+            var props = ctrl == null ? null : ctrl.props;
             for (int i = 0; props != null && i < props.Count; i++)
             {
                 PropItemBase item = props[i];
