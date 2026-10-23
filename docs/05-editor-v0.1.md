@@ -3344,3 +3344,38 @@
 - 어떤 옵션을 더할지: 시험은 첫 번호를 중복 한도(7)까지 되풀이했다(1,1,1,1,1,1,1,2,3,4,5). 기능은 자리 가중치로 뽑거나 사용자가 고르게 해야 한다(옵션 교체 화면, 47·68절의 규칙).
 - 다시 만들면 새 고유 번호가 된다. 장착 칸·세트 번호(심법)·참오 기록을 옮겨야 한다. 기술 이름 앞머리도 옵션에 따라 바뀐다(역 궁 청풍검 → 작 랑 청풍검). `Make`는 옵션 품질을 최고로 맞춘다. 값 배열에 번호를 끼워 넣어 제자리에서 늘리는 길은 시험하지 않았다.
 - NPC 대상은 시험하지 않았다.
+
+## 77. 성능 1 — 자원 탭 첫 열기와 `Init` 줄이기 (2026-10-23 추가)
+
+스펙 `docs/superpowers/specs/2026-10-22-perf-first-open-design.md`, 계획 `docs/superpowers/plans/2026-10-23-perf-first-open.md`, 브랜치 `feat/perf-first-open`. 12 문서 7절의 묶음 1. 회차 `perf1-1023a`~`i`(모두 고정본, 창작마당 모드 40개를 실은 상태, `SAVE RESTORED AND IDENTICAL`).
+
+전후(같은 조건):
+
+| 무엇 | 기준선(`perf1-1023b`) | 뒤(`perf1-1023e`·`h`) |
+|---|---|---|
+| 자원 탭 첫 열기(`rperf tabs`) | 3,500 ms | 435 ms · 591 ms |
+| 기술 카탈로그의 원문 사전(`skillbuild`의 `chdict`) | 1,290 ms | 0 ms |
+| 기술 카탈로그 다섯 분류(`kind0`~`kind4` 합) | 377 ms | 146~295 ms |
+| `Init` 첫 실행(`init ms=`) | 5,454 ms | 3,721~3,869 ms |
+| 주 화면 복귀 뒤 `Init` | 3,634~3,719 ms | 2,542 ms |
+| 비급 즐겨찾기 줄이 있을 때 자원 탭 첫 열기 | — | 929 ms(즐겨찾기 수가 카탈로그를 만든다. 기록만) |
+
+바뀐 것:
+- **LocalText를 한 번만 훑는다**(`Services/LocalTextIndex.cs`). `LocalTextIndex.Scan`이 모드 행 `kr` 덮기와 ch→kr 전체 일치 사전을 한 번의 훑기로 만들고, `TextTranslationService`는 그 사전을 쓴다(`Scan`이 끝나지 못하면 자기 `LocalTextMap()`으로 되돌아간다. `rperf ltfail`로 확인, `lt=48847` 그대로). 판정 규칙은 `Services/LocalTextRules.cs`(`ModKr`·`KeepsWhole`, 단위 시험 13개).
+- **기술 카탈로그의 원문 찾기는 게임의 키 사전**: `g.conf.localText.allText`를 `ContainsKey`와 인덱서로 찾는다(`TryGetValue`는 `MissingMethodException`). `rperf lt`: 카탈로그 이름 키 761개 모두 지금까지의 훑기와 같고(그 가운데 522개는 사전에 없어 둘 다 빈 글), 4 ms.
+- **기술 카탈로그를 한 번에**: `SkillCatalog.BuildAll`이 기술 표 1,690행을 한 번 훑어 다섯 분류로 나눈다. `SkillCatalog.IsBuilt`.
+- **기술 서적 단추의 수는 늦게 센다**: 카탈로그가 아직 없고 기술 서적 그룹을 보고 있지 않으면 "기술 서적 …". 그 그룹을 열거나 다른 곳(공법 탭, `rskill` 같은 카탈로그 사용, 즐겨찾기의 비급 줄)이 카탈로그를 만든 뒤에는 수(701)가 나온다(`perf1-1023f`, 캡처 `.devremote\perf1-f-first.png`).
+- **아이템 분류 이름은 분류 번호마다 한 번만**(`ItemCatalog.Build`).
+- **`Init` 로그에 시간**: `translations: … ms= ensure= scan=`, `texts: … <표>=<칸 수>@<ms> … ms= ensure= ltmap=`, `init ms= dress= grid= patch=`. 배포 빌드에도 찍힌다(`perf1-1023a -ReleaseBuild`).
+
+결과 같음: 고치기 전·뒤의 `rperf dump`(기술 761줄, 아이템 3,410줄)가 같다. 아이템 설명의 링크 표지 `@w_XXXXXX|`(6글자)는 게임이 글을 만들 때마다 무작위로 바꾸므로 지우고 비교한다. `rloc`(`applied=16184 fallback=6`)·`rzhstat`(`lt=48847 tables=16 cells=3815`, 표마다 칸 수)도 같다.
+
+실험으로 정한 것:
+- **주 화면 복귀 때 게임은 설정 표를 새로 읽는다.** `rperf confid` 두 번(복귀 전·뒤)에서 `g.conf.localText`와 번역 대상 표 16개의 객체 주소가 모두 바뀌었고, 두 번째 `Init`도 표 칸 3,815개를 다시 바꿔 끼웠다. 그래서 복귀 뒤 번역 적용을 건너뛰는 것은 하지 않았다(스펙 4.5의 2).
+- **표 칸 바꿔 끼우기의 반사 비용은 작다.** 오래 걸리는 셋(`dramaDialogue` 931 ms, `dramaOptions` 284 ms, `battleEffect` 199 ms)을 형식을 아는 코드로 바꿔도 합이 1,785 → 1,694 ms였다(`perf1-1023g`). 되돌렸다(커밋 27f26e0과 그 되돌림). 비용은 Il2Cpp 문자열 읽기·쓰기 자체다. `Init`에 남은 큰 몫은 모드 행 덮기의 훑기(약 1.9초)와 표 칸 바꿔 끼우기(약 1.7초)다.
+
+개발 명령(`Dev/DevCommandsPerf.cs`·`DevCommandsPerfProbes.cs`, 이제 `develop`에 있다): `rperf tabs|parts|skillbuild|modroll|modrows`(12 문서), `rperf dump <꼬리>`(카탈로그 덤프), `rperf lt`, `rperf confid`, `rperf ltfail`(번역 적용을 `Scan` 실패로 다시 돌림), `rperf main`(**주의**: 게임 이야기 함수 `DramaFunction.ReturnMain`을 부른다. 바로 주 화면으로 가지 않고 "생애 기록" 끝 화면(`CareerSum`)을 거친다. 고정본 회차에서만 쓴다). `skillbuild`의 `chdict`는 이제 `LocalTextIndex.ChOf("")`의 시간이다.
+
+검사: `ui-check.ps1`의 `items`·`numbers`·`tabs`·`groups`·`translation` FAIL 0(`perf1-1023i`, 만고신화 포함), `modbooks`·`books-ui` FAIL 0(`perf1-1023j`, `-Exclude 2814696167`. 만고신화를 실은 채로는 경지 표 때문에 6·2개가 실패한다. 73절의 규칙). 단위 시험 126개 FAIL 0.
+
+함정: 회차 안에서 `-Restart`로 다시 띄우면 만고신화의 첫 안내 이야기 화면(`DramaBigTexture`)이 편집기를 가리고, 그 아래 선택 단추는 생애 기록으로 넘어간다. 화면을 누르는 검사는 재시작이 없는 회차에서 한다.

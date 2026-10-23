@@ -102,6 +102,7 @@ namespace MOD_sWP6UL
 
         public static string Apply()
         {
+            var total = System.Diagnostics.Stopwatch.StartNew();
             string file;
             var map = new Dictionary<string, string>();
             int broken = 0;
@@ -118,29 +119,12 @@ namespace MOD_sWP6UL
                 file = "읽기 실패 " + e.GetType().Name + ": " + e.Message;
                 map = new Dictionary<string, string>();
             }
-            int applied = 0, fallback = 0;
-            var seen = new HashSet<string>();
-            var all = g.conf.localText.allConfList;
-            for (int i = 0; i < all.Count; i++)
-            {
-                ConfLocalTextItem item = all[i];
-                if (item == null || !item.isModExtend || item.key == null)
-                {
-                    continue;
-                }
-                string text;
-                if (map.TryGetValue(item.key, out text))
-                {
-                    item.kr = text;
-                    seen.Add(item.key);
-                    applied++;
-                }
-                else if ((string.IsNullOrEmpty(item.kr) || item.kr == "0") && !string.IsNullOrEmpty(item.ch))
-                {
-                    item.kr = item.ch;
-                    fallback++;
-                }
-            }
+            long ensureMs = total.ElapsedMilliseconds;
+            // 모드 행 kr 덮기와 ch→kr 사전을 한 번의 훑기로(성능 1, LocalTextIndex). 번역 파일이 없거나 못 읽어도 사전을 위해 훑는다.
+            int applied, fallback;
+            HashSet<string> seen;
+            LocalTextIndex.Scan(map, out applied, out fallback, out seen);
+            long scanMs = total.ElapsedMilliseconds - ensureMs;
             int unused = 0;
             foreach (string key in map.Keys)
             {
@@ -151,7 +135,8 @@ namespace MOD_sWP6UL
             }
             lastKeys = new HashSet<string>(map.Keys);
             SkillCatalog.Reset();
-            LastSummary = "file=" + file + " rows=" + map.Count + " applied=" + applied + " fallback=" + fallback + " unused=" + unused + " broken=" + broken;
+            LastSummary = "file=" + file + " rows=" + map.Count + " applied=" + applied + " fallback=" + fallback + " unused=" + unused + " broken=" + broken
+                + " ms=" + total.ElapsedMilliseconds + " ensure=" + ensureMs + " scan=" + scanMs;
             MelonLogger.Msg("[TlToybox] translations: " + LastSummary);
             return LastSummary;
         }

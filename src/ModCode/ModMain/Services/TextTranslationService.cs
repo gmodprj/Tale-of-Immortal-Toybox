@@ -20,7 +20,7 @@ namespace MOD_sWP6UL
 
         // 표 이름(ConfMgr의 속성)과 바꿔 끼울 글자 속성. 53절의 조사에서 화면에 보이는 칸만. 74절에서 만고신화가 원문을 넣은 칸을 더했다.
         // modNpcAddWorld.joinSchoolName은 종문을 이름으로 찾는 값일 수 있어(53절, 표시 여부 미확인) 건드리지 않는다. 그림·소리·함수 이름 칸(icon·avatar·backgroud·function 등)도 건드리지 않는다.
-        private static readonly string[][] Targets =
+        internal static readonly string[][] Targets =
         {
             new[] { "battleSkillAttack", "name", "desc" },
             new[] { "battleEffect", "name", "desc" },
@@ -113,6 +113,7 @@ namespace MOD_sWP6UL
 
         public static string Apply()
         {
+            var total = System.Diagnostics.Stopwatch.StartNew();
             string file;
             var map = new Dictionary<string, string>();
             int broken = 0;
@@ -130,11 +131,13 @@ namespace MOD_sWP6UL
                 map = new Dictionary<string, string>();
             }
             // LocalText의 원문(ch)→한국어(kr). 모드가 kr 대신 ch를 그대로 화면에 낼 때(회차 zh-1017c: 불러오기 화면의 팁·"下一条提示") 글 전체가 같으면 게임의 한국어를 쓴다.
+            long ensureMs = total.ElapsedMilliseconds;
             Dictionary<string, string> localText;
             string lt;
             try
             {
-                localText = LocalTextMap();
+                // TranslationService.Apply가 같은 훑기에서 만든 사전. 그 훑기가 끝나지 못했으면 여기서 훑는다.
+                localText = LocalTextIndex.ChToKr ?? LocalTextMap();
                 lt = localText.Count.ToString();
             }
             catch (Exception e)
@@ -142,6 +145,7 @@ namespace MOD_sWP6UL
                 localText = null;
                 lt = "ERROR(" + e.GetType().Name + ")";
             }
+            long ltmapMs = total.ElapsedMilliseconds - ensureMs;
             // 표 칸 전용 번역표는 전체 일치 사전에 넣는다. 같은 원문이면 이 표가 LocalText보다 앞선다.
             string cellFile;
             int cellBroken = 0;
@@ -186,6 +190,7 @@ namespace MOD_sWP6UL
             {
                 foreach (string[] target in Targets)
                 {
+                    long tableStart = total.ElapsedMilliseconds;
                     try
                     {
                         int n = ApplyTable(target);
@@ -193,7 +198,7 @@ namespace MOD_sWP6UL
                         {
                             tables++;
                             cells += n;
-                            detail.Append(' ').Append(target[0]).Append('=').Append(n);
+                            detail.Append(' ').Append(target[0]).Append('=').Append(n).Append('@').Append(total.ElapsedMilliseconds - tableStart);
                         }
                     }
                     catch (Exception e)
@@ -203,7 +208,8 @@ namespace MOD_sWP6UL
                     }
                 }
             }
-            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " cellFile=" + cellFile + " cellRows=" + cellRows + " cellBroken=" + cellBroken + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail;
+            LastSummary = "file=" + file + " rows=" + map.Count + " broken=" + broken + " lt=" + lt + " cellFile=" + cellFile + " cellRows=" + cellRows + " cellBroken=" + cellBroken + " tables=" + tables + " cells=" + cells + (errors > 0 ? " errors=" + errors : "") + detail
+                + " ms=" + total.ElapsedMilliseconds + " ensure=" + ensureMs + " ltmap=" + ltmapMs;
             MelonLogger.Msg("[TlToybox] texts: " + LastSummary);
             return LastSummary;
         }
@@ -223,7 +229,7 @@ namespace MOD_sWP6UL
                 }
                 string ch = item.ch;
                 string kr = item.kr;
-                if (string.IsNullOrEmpty(ch) || string.IsNullOrEmpty(kr) || kr == ch || kr == "0" || !TextReplacer.HasChinese(ch) || TextReplacer.HasChinese(kr) || result.ContainsKey(ch))
+                if (!LocalTextRules.KeepsWhole(ch, kr) || result.ContainsKey(ch))
                 {
                     continue;
                 }

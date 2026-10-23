@@ -53,6 +53,7 @@ namespace MOD_sWP6UL
             PresetDefaultsTests();
             TextTagsTests();
             FateAltTests();
+            LocalTextRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -368,6 +369,22 @@ namespace MOD_sWP6UL
             var forge10 = new List<CraftPlan.Line> { new CraftPlan.Line { Id = 5121111, Count = 10 }, new CraftPlan.Line { Id = 5251001, Count = 200 } };
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
+        }
+        private static void LocalTextRulesTests()
+        {
+            Check("modkr: \"0\" falls back to ch", LocalTextRules.ModKr("0", "中文", null) == "中文");
+            Check("modkr: empty falls back to ch", LocalTextRules.ModKr("", "中文", null) == "中文");
+            Check("modkr: korean kr stays", LocalTextRules.ModKr("한글", "中文", null) == null);
+            Check("modkr: no ch, no change", LocalTextRules.ModKr("0", "", null) == null);
+            Check("modkr: translation wins over \"0\"", LocalTextRules.ModKr("0", "中文", "번역") == "번역");
+            Check("modkr: translation wins over korean", LocalTextRules.ModKr("한글", "中文", "번역") == "번역");
+            Check("whole: chinese ch with korean kr", LocalTextRules.KeepsWhole("中文", "한국어"));
+            Check("whole: kr \"0\"", !LocalTextRules.KeepsWhole("中文", "0"));
+            Check("whole: kr same as ch", !LocalTextRules.KeepsWhole("中文", "中文"));
+            Check("whole: ch without chinese", !LocalTextRules.KeepsWhole("abc", "한국어"));
+            Check("whole: kr with chinese", !LocalTextRules.KeepsWhole("中文", "한中"));
+            Check("whole: null ch", !LocalTextRules.KeepsWhole(null, "한"));
+            Check("whole: empty kr", !LocalTextRules.KeepsWhole("中文", ""));
         }
     }
 }

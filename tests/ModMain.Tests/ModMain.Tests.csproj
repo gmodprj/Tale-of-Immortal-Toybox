@@ -23,5 +23,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\PresetDefaults.cs" Link="Linked\PresetDefaults.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\TextTags.cs" Link="Linked\TextTags.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\FateAlt.cs" Link="Linked\FateAlt.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\LocalTextRules.cs" Link="Linked\LocalTextRules.cs" />
   </ItemGroup>
 </Project>
