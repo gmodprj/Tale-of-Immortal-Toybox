@@ -60,6 +60,7 @@ namespace MOD_sWP6UL
             GiveBudgetTests();
             ApplyTallyTests();
             ConfigFileTests();
+            FavoriteLinesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -376,6 +377,29 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void FavoriteLinesTests()
+        {
+            var limits = new FavoriteStore.Limits { Kinds = 5, MaxAmount = 9999, MaxBook = 20 };
+            var lines = new[] { "# 주석", "", "1011011 10", "book 0 14111 3 1 2", "1011011 5", "bad line", "book 9 1 1 1 1", "book 1 22111 11 1 1", "2000 0", "3000 99999", "book 4 32111 2 6 50", "\t4000\t7 " };
+            int skipped;
+            List<FavoriteStore.Favorite> read = FavoriteStore.ReadLines(lines, limits, out skipped);
+            Check("fav lines: kept rows", read.Count == 6, "count=" + read.Count);
+            Check("fav lines: skipped broken and duplicate", skipped == 4, "skipped=" + skipped);
+            Check("fav lines: item row", read[0].Id == 1011011 && read[0].Amount == 10 && !read[0].Book);
+            Check("fav lines: book row", read[1].Book && read[1].BookKind == 0 && read[1].Id == 14111 && read[1].Grade == 3 && read[1].MinLevel == 1 && read[1].Amount == 2);
+            Check("fav lines: amount clamped up to 1", read[2].Id == 2000 && read[2].Amount == 1);
+            Check("fav lines: amount clamped down", read[3].Amount == 9999);
+            Check("fav lines: book amount clamped", read[4].Amount == 20);
+            Check("fav lines: tabs separate", read[5].Id == 4000 && read[5].Amount == 7);
+            string text = FavoriteStore.WriteLines(read);
+            int skipped2;
+            List<FavoriteStore.Favorite> again = FavoriteStore.ReadLines(text.Split('\n'), limits, out skipped2);
+            bool same = again.Count == read.Count && skipped2 == 0;
+            for (int i = 0; same && i < read.Count; i++) { same = again[i].Same(read[i]) && again[i].Amount == read[i].Amount && again[i].BookKind == read[i].BookKind; }
+            Check("fav lines: written text reads back the same", same, text);
+            Check("fav lines: header comment first", text.StartsWith("# TlToybox 자원 탭 즐겨찾기"));
+        }
+
         private static void ConfigFileTests()
         {
             var lines = new[] { "# 편집기를 여닫는 키", "hotkey=F2", "  Window = 10, 20 ", "artifactkey1=Alpha1", "broken line", "window=30,40", "" };

@@ -10,28 +10,8 @@ namespace MOD_sWP6UL
     // 쓰기는 임시 파일에 쓴 뒤 바꿔치기한다. 깨진 줄이 있던 파일은 처음 덮어쓰기 전에 .bak으로 남긴다.
     // 읽지 못한 파일은 덮어쓰지 않는다. 근거: docs/superpowers/specs/2026-10-15-resources-tab-design.md 3.2·3.3절, 6절,
     // 비급 줄은 2026-10-15-martial-books-design.md 3.3절.
-    internal static class FavoriteStore
+    internal static partial class FavoriteStore
     {
-        public sealed class Favorite
-        {
-            public int Id;          // 아이템 번호, 비급이면 기술 번호
-            public int Amount;
-            public bool Book;       // 기술 서적(비급) 줄
-            public int BookKind;    // SkillCatalog.Kinds의 순번(0~4)
-            public int Grade;       // 비급의 경지(1~10)
-            public int MinLevel;    // 비급의 최소 품질(1~6)
-
-            public bool Same(Favorite other)
-            {
-                return Book == other.Book && Id == other.Id && (!Book || (Grade == other.Grade && MinLevel == other.MinLevel));
-            }
-
-            public Favorite Copy()
-            {
-                return new Favorite { Id = Id, Amount = Amount, Book = Book, BookKind = BookKind, Grade = Grade, MinLevel = MinLevel };
-            }
-        }
-
         public const int MaxAmount = AmountBar.Max;
         private const string FileName = "favorites.txt";
         private static readonly string AmountRule = "즐겨찾기: 수량은 1~" + MaxAmount + " 사이의 숫자로 입력하세요.";
@@ -44,32 +24,15 @@ namespace MOD_sWP6UL
 
         public static int SkippedLines { get; private set; }
 
+        // 게임 쪽 한도(기술 분류 수, 수량 상한, 비급 권수 상한). 줄 해석은 FavoriteStore.Lines.cs.
+        private static Limits CurrentLimits
+        {
+            get { return new Limits { Kinds = SkillCatalog.Kinds.Length, MaxAmount = MaxAmount, MaxBook = MartialBookService.MaxPerGive }; }
+        }
+
         private static string FilePath
         {
             get { return Path.Combine(ChangeLog.DataDir, FileName); }
-        }
-
-        private static int Clamp(int value, int max)
-        {
-            return Math.Max(1, Math.Min(max, value));
-        }
-
-        // 한 줄을 읽는다: "<번호> <수량>" 또는 "book <분류> <기술 번호> <경지> <최소 품질> <수량>". 읽지 못하면 null.
-        private static Favorite Parse(string[] parts)
-        {
-            int id, amount;
-            if (parts.Length == 2 && int.TryParse(parts[0], out id) && int.TryParse(parts[1], out amount))
-            {
-                return new Favorite { Id = id, Amount = Clamp(amount, MaxAmount) };
-            }
-            int kind, grade, minLevel;
-            if (parts.Length == 6 && parts[0] == "book" && int.TryParse(parts[1], out kind) && int.TryParse(parts[2], out id)
-                && int.TryParse(parts[3], out grade) && int.TryParse(parts[4], out minLevel) && int.TryParse(parts[5], out amount)
-                && kind >= 0 && kind < SkillCatalog.Kinds.Length && grade >= 1 && grade <= 10 && minLevel >= 1 && minLevel <= 6)
-            {
-                return new Favorite { Book = true, BookKind = kind, Id = id, Grade = grade, MinLevel = minLevel, Amount = Clamp(amount, MartialBookService.MaxPerGive) };
-            }
-            return null;
         }
 
         private static void Load()
@@ -86,21 +49,9 @@ namespace MOD_sWP6UL
             {
                 if (File.Exists(FilePath))
                 {
-                    foreach (string line in File.ReadAllLines(FilePath, Encoding.UTF8))
-                    {
-                        string trimmed = line.Trim();
-                        if (trimmed.Length == 0 || trimmed[0] == '#')
-                        {
-                            continue;
-                        }
-                        Favorite favorite = Parse(trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
-                        if (favorite == null || list.Exists(f => f.Same(favorite)))
-                        {
-                            SkippedLines++;
-                            continue;
-                        }
-                        list.Add(favorite);
-                    }
+                    int skipped;
+                    list = ReadLines(File.ReadAllLines(FilePath, Encoding.UTF8), CurrentLimits, out skipped);
+                    SkippedLines = skipped;
                 }
                 keepOriginal = SkippedLines > 0;
                 if (SkippedLines > 0)
@@ -388,20 +339,8 @@ namespace MOD_sWP6UL
                 {
                     File.Copy(FilePath, FilePath + ".bak", true);
                 }
-                var sb = new StringBuilder("# TlToybox 자원 탭 즐겨찾기: 한 줄에 <아이템 번호> <수량>, 또는 book <분류> <기술 번호> <경지> <최소 품질> <수량>\n");
-                foreach (Favorite f in next)
-                {
-                    if (f.Book)
-                    {
-                        sb.Append("book ").Append(f.BookKind).Append(' ').Append(f.Id).Append(' ').Append(f.Grade).Append(' ').Append(f.MinLevel).Append(' ').Append(f.Amount).Append('\n');
-                    }
-                    else
-                    {
-                        sb.Append(f.Id).Append(' ').Append(f.Amount).Append('\n');
-                    }
-                }
                 string tmp = FilePath + ".tmp";
-                File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
+                File.WriteAllText(tmp, WriteLines(next), new UTF8Encoding(false));
                 if (File.Exists(FilePath))
                 {
                     File.Replace(tmp, FilePath, null);

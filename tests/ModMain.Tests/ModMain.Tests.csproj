@@ -30,5 +30,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\GiveBudget.cs" Link="Linked\GiveBudget.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\ApplyTally.cs" Link="Linked\ApplyTally.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\ConfigFile.cs" Link="Linked\ConfigFile.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\FavoriteStore.Lines.cs" Link="Linked\FavoriteStore.Lines.cs" />
   </ItemGroup>
 </Project>
