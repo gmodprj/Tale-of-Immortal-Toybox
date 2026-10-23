@@ -3500,7 +3500,12 @@
 12 문서 7절의 묶음 5. 동작을 바꾸지 않는 정리라 대화에서 내용을 정해 사용자 승인을 받았다(2026-10-23). 브랜치 `chore/refactor-1023`, 회차 `rf-1023a`~`f`(고정본, `-Exclude 2814696167`, `SAVE RESTORED AND IDENTICAL`).
 
 - **R1 — 결과 집계 하나로**: 프리셋 적용(`PresetService.Apply.cs`)과 캐릭터 가져오기(`CharacterExportService.Import.cs`)가 각자 갖던 `Outcome`·`Put`·`Tally`를 `Services/ApplyTally.cs`(`ApplyOutcome`·`ApplyPut`·`ApplyTally`, 단위 시험 4개)로 모았다. 두 파일은 `using` 별칭으로 예전 이름을 그대로 쓴다. 문장 모양은 같다.
-- **R2 — `config.txt` 하나로**: 단축키(`EditorHost`), 창 위치(`EditorWindow`), 신기 단축키(`ArtifactKeyService`)가 `Services/ConfigFile.cs`(줄 → 사전, 바꿀 키의 줄만 지우고 끝에 덧붙이기. 단위 시험 7개)와 `ConfigFile.Io.cs`(읽기·쓰기·처음 만들기, 실패는 로그만)를 쓴다. 달라진 점: 같은 키가 두 줄 이상이면 뒤의 줄을 쓴다(전에는 단축키만 앞의 줄). 신기 키를 쓸 때 지우는 줄은 `artifactkey1~3`·`artifactgamekey`뿐이다(전에는 `artifactkey`로 시작하는 모든 줄).
+- **R2 — `config.txt` 하나로**: 단축키(`EditorHost`), 창 위치(`EditorWindow`), 신기 단축키(`ArtifactKeyService`)가 `Services/ConfigFile.cs`(줄 → 사전, 바꿀 키의 줄만 지우고 끝에 덧붙이기. 단위 시험 7개)와 `ConfigFile.Io.cs`(읽기·쓰기·처음 만들기, 실패는 로그만)를 쓴다. 달라진 점(모두 손으로 고친 `config.txt`에서만 생기고, 한 번 저장하면 정리된다. 최종 리뷰에서 바로잡음):
+  - 같은 키가 두 줄 이상이면 마지막 줄을 쓴다. 전에는 단축키가 처음 나온 `f2`·`f3` 줄을 썼다(Insert 같은 다른 값은 지나침).
+  - 창 위치는 전에 올바른 `window=` 줄 가운데 마지막을 썼다. 지금은 마지막 `window` 줄이 깨져 있으면 기본 위치가 된다.
+  - `hotkey = F2`처럼 `=` 앞에 공백이 있는 줄도 이제 읽고, 쓸 때 지운다(전에는 읽지도 지우지도 않음).
+  - 신기 키를 쓸 때 지우는 줄은 `artifactkey1~3`·`artifactgamekey`뿐이다(전에는 `artifactkey`로 시작하는 모든 줄).
+  - 읽기·쓰기 실패 로그 문구가 "<이름>을(를) 읽지 못했습니다" 꼴로 바뀌었다(조사가 어색하다. 화면 글은 아님).
 - **R7 — 즐겨찾기 줄 시험**: `FavoriteStore`의 줄 해석·쓰기를 `FavoriteStore.Lines.cs`(`ReadLines`·`WriteLines`, 한도는 `Limits`로 받음)로 떼어 단위 시험 10개(아이템·비급 줄, 깨진 줄·중복 건너뛰기, 수량 자르기, 탭 구분, 쓴 글을 다시 읽으면 같음)를 붙였다.
 - **R3 — 글 정리 도우미**: 호천안·연요호의 같은 검색 정규화를 `TextTags.SearchKey`(단위 시험 2개)로, "번역 키 → 다듬은 설명 한 줄" 다섯 곳을 `MartialService.CleanLine(key)`로. `\r`도 지우는 아이템 목록 두 곳은 결과가 달라질 수 있어 그대로 두었다. 탭마다 모양이 다른 `Unreadable`·`CountLabel`은 이번에 두었다.
 - **N11 — 탭과 번호를 짝으로**: `EditorWindow`가 탭과 고정 번호를 한 목록에 짝으로 적고, 기존 두 배열(`tabs`·`tabNumbers`. 개발 명령이 반사로 읽는다)을 거기서 만든다.
