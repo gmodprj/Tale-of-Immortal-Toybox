@@ -219,7 +219,13 @@ namespace MOD_sWP6UL
                 text = backupError + " 변경을 중단했습니다.";
                 return false;
             }
+            // 법보는 게임의 지급이 비율 다섯을 0으로 둬 체력·공격력 1이 된다(스펙 2026-10-23-trainer3-design.md E2). 새로 생긴 것만 단계 5로.
+            System.Collections.Generic.List<string> artifactsBefore = SpriteService.IsArtifact(propsId) ? TreasureService.ArtifactSoles(unit) : null;
             unit.data.RewardPropItem(propsId, count, false);
+            if (artifactsBefore != null)
+            {
+                TreasureService.FixZeroRates(unit, artifactsBefore);
+            }
             int after = props.GetPropsNum(propsId);
             bool ok = after == before + count;
             ChangeLog.Add(NameOf(unit), "아이템 " + name + "(" + propsId + ")", before.ToString(), after.ToString(), ok);

@@ -21,6 +21,10 @@ namespace MOD_sWP6UL
             public bool Equipped;
             public int SpiritSole;      // 든 기령의 고유 번호. 0이면 없음
             public string SpiritText;   // "이름 Lv n" 또는 "없음"
+            public int Level;           // 단계 1~6(PropsArtifact.level)
+            public int[] Rates;         // 비율 다섯: 체력·공격·방어·혼력·집중력
+            public int Prefixes;        // 붙은 옵션 수
+            public int PrefixMax;       // 모양 표의 최대 옵션 수
         }
 
         public sealed class Spirit
@@ -37,6 +41,8 @@ namespace MOD_sWP6UL
             public int Shown;           // 보이는 재능의 수
             public string InName;       // 든 법보의 이름. 없으면 null
             public string InSole;       // 든 법보의 soleID. 없으면 null
+            public int Intimacy;
+            public int IntimacyMax;
         }
 
         public sealed class Kind
@@ -103,7 +109,18 @@ namespace MOD_sWP6UL
                     DurableMax = shape == null ? 0 : shape.durable,
                     Equipped = data.IsEquipProps(props.soleID),
                     SpiritSole = art == null ? 0 : art.spriteSoleID,
+                    Level = art == null ? 0 : art.level,
+                    Rates = art == null ? new int[5] : new[] { art.hpRate, art.atkRate, art.defRate, art.soulCapcityRate, art.equipSpRate },
+                    PrefixMax = shape == null ? 0 : shape.perfixMax,
                 };
+                try
+                {
+                    var prefixes = art == null ? null : art.GetPrefixs();
+                    t.Prefixes = prefixes == null ? 0 : prefixes.Count;
+                }
+                catch (Exception)
+                {
+                }
                 DataUnit.ArtifactSpriteData.Sprite inside = t.SpiritSole == 0 ? null : data.artifactSpriteData.GetSpriteInSoleID(t.SpiritSole);
                 t.SpiritText = inside == null ? (t.SpiritSole == 0 ? "없음" : "? (" + t.SpiritSole + ")") : SpriteService.SpriteName(inside.spriteID) + " Lv" + inside.level;
                 result.Add(t);
@@ -142,6 +159,8 @@ namespace MOD_sWP6UL
                     Name = SpriteService.SpriteName(sp.spriteID),
                     Level = sp.level,
                     Exp = sp.exp,
+                    Intimacy = sp.intimacy,
+                    IntimacyMax = CloseMaxValue(),
                 };
                 s.MaxLevel = MaxLevel(sp.spriteID, sp.level);
                 s.NextExp = NextExp(sp.spriteID, sp.level);
@@ -269,7 +288,7 @@ namespace MOD_sWP6UL
             return -1;
         }
 
-        private static Treasure Find(WorldUnitBase unit, string soleId)
+        public static Treasure Find(WorldUnitBase unit, string soleId)
         {
             foreach (Treasure t in Treasures(unit))
             {
@@ -281,7 +300,7 @@ namespace MOD_sWP6UL
             return null;
         }
 
-        private static Spirit FindSpirit(WorldUnitBase unit, int soleId)
+        public static Spirit FindSpirit(WorldUnitBase unit, int soleId)
         {
             foreach (Spirit s in Spirits(unit))
             {
@@ -618,13 +637,258 @@ namespace MOD_sWP6UL
                 : "기령 " + name + ": 게임이 만들지 않았습니다(같은 기령은 하나만 가질 수 있습니다).";
         }
 
+        // ---- 트레이너 3차: 경지·단계·친밀도(스펙 2026-10-23-trainer3-design.md 6절) ----
+
+        // 친밀도 상한(표 artifactSpriteClose.closeMax, 실측 900). 읽지 못하면 0.
+        public static int CloseMaxValue()
+        {
+            try
+            {
+                return g.conf.artifactSpriteClose.closeMax;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        public static string GradeLabel(int grade)
+        {
+            return grade >= 1 && grade <= 10 ? ArtifactService.MajorName(grade) : grade.ToString();
+        }
+
+        public static string RatesText(int[] rates)
+        {
+            return string.Join("/", Array.ConvertAll(rates, r => r.ToString()));
+        }
+
+        // 경지 한 칸. 게임 행동(UnitActionPropArtifactShapeUpgrade)을 쓰고, 게임이 깎는 비율은 되돌린다. 10에서는 부르지 않는다(E3: 숫자가 오른 뒤 예외).
+        public static string GradeUp(WorldUnitBase unit, string soleId)
+        {
+            Treasure t = Find(unit, soleId);
+            if (t == null || t.Data == null)
+            {
+                return "법보: 그 법보가 없습니다.";
+            }
+            if (t.Grade >= TreasureRules.MaxGrade)
+            {
+                return "법보 " + t.Name + ": 이미 경지 " + TreasureRules.MaxGrade + "입니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            return GradeUpOne(unit, t);
+        }
+
+        private static string GradeUpOne(WorldUnitBase unit, Treasure t)
+        {
+            int[] rates = (int[])t.Rates.Clone();
+            string error = null;
+            try
+            {
+                unit.CreateAction(new UnitActionPropArtifactShapeUpgrade(t.Data), false);
+            }
+            catch (Exception e)
+            {
+                error = e.Message;
+            }
+            Treasure after = Find(unit, t.SoleId);
+            if (after != null && after.Data != null && after.Grade > t.Grade)
+            {
+                after.Data.SetAttrrRate(rates[0], rates[1], rates[2], rates[3], rates[4], false);
+            }
+            Update(unit);
+            after = Find(unit, t.SoleId);
+            bool ok = error == null && after != null && after.Grade == t.Grade + 1;
+            ChangeLog.Add(Name(unit), Field, t.Name + " 경지 " + t.Grade + " 옵션 " + t.Prefixes,
+                "경지 " + (after == null ? "?" : after.Grade.ToString()) + " 옵션 " + (after == null ? "?" : after.Prefixes.ToString()), ok);
+            return ok ? "법보: " + t.Name + " 경지 " + GradeLabel(t.Grade) + " → " + GradeLabel(after.Grade) + ", 옵션 " + t.Prefixes + " → " + after.Prefixes + "칸."
+                : "법보 " + t.Name + ": 경지를 올리지 못했습니다(" + (error ?? ("경지 " + (after == null ? "?" : after.Grade.ToString()))) + ").";
+        }
+
+        // target(10을 넘으면 10)까지 되풀이한다. 한 번이라도 실패하면 멈춘다.
+        public static string GradeUpTo(WorldUnitBase unit, string soleId, int target)
+        {
+            Treasure t = Find(unit, soleId);
+            if (t == null || t.Data == null)
+            {
+                return "법보: 그 법보가 없습니다.";
+            }
+            int steps = TreasureRules.GradeSteps(t.Grade, target);
+            if (steps == 0)
+            {
+                return t.Grade >= TreasureRules.MaxGrade ? "법보 " + t.Name + ": 이미 경지 " + TreasureRules.MaxGrade + "입니다."
+                    : "법보 " + t.Name + ": 이미 경지 " + GradeLabel(t.Grade) + "입니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            int start = t.Grade;
+            for (int i = 0; i < steps; i++)
+            {
+                Treasure now = Find(unit, soleId);
+                string r = GradeUpOne(unit, now);
+                if (!r.StartsWith("법보: "))
+                {
+                    Treasure stop = Find(unit, soleId);
+                    return r + " " + GradeLabel(start) + "에서 " + GradeLabel(stop == null ? start : stop.Grade) + "까지 올리고 멈췄습니다.";
+                }
+            }
+            Treasure end = Find(unit, soleId);
+            return "법보: " + t.Name + " 경지 " + GradeLabel(start) + " → " + GradeLabel(end.Grade) + ", 옵션 " + t.Prefixes + " → " + end.Prefixes + "칸.";
+        }
+
+        // 비율 다섯을 그 단계의 대표 값으로 맞춘다(6 = 한계돌파 120).
+        public static string SetStage(WorldUnitBase unit, string soleId, int stage)
+        {
+            Treasure t = Find(unit, soleId);
+            if (t == null || t.Data == null)
+            {
+                return "법보: 그 법보가 없습니다.";
+            }
+            if (stage < TreasureRules.MinStage || stage > TreasureRules.MaxStage)
+            {
+                return "법보: 단계는 1~6입니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            return SetStageNoBackup(unit, t, stage);
+        }
+
+        private static string SetStageNoBackup(WorldUnitBase unit, Treasure t, int stage)
+        {
+            int r = TreasureRules.StageRate(stage);
+            t.Data.SetAttrrRate(r, r, r, r, TreasureRules.SpRate(stage), true);
+            Update(unit);
+            Treasure after = Find(unit, t.SoleId);
+            bool ok = after != null && after.Level == stage;
+            ChangeLog.Add(Name(unit), Field, t.Name + " 단계 " + t.Level + " 비율 " + RatesText(t.Rates),
+                "단계 " + (after == null ? "?" : after.Level.ToString()) + " 비율 " + (after == null ? "?" : RatesText(after.Rates)), ok);
+            return ok ? "법보: " + t.Name + " 단계 " + t.Level + " → " + stage + "(비율 " + r + ")."
+                : "법보 " + t.Name + ": 단계를 " + stage + "(으)로 맞추지 못했습니다(지금 " + (after == null ? "?" : after.Level.ToString()) + ").";
+        }
+
+        public static string CloseMax(WorldUnitBase unit, int spiritSole)
+        {
+            Spirit s = FindSpirit(unit, spiritSole);
+            if (s == null)
+            {
+                return "기령: 그 기령이 없습니다.";
+            }
+            int max = CloseMaxValue();
+            if (max <= 0)
+            {
+                return "기령 " + s.Name + ": 친밀도 상한을 읽지 못했습니다.";
+            }
+            if (s.Intimacy >= max)
+            {
+                return "기령 " + s.Name + ": 이미 친밀도 최대(" + max + ")입니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            s.Data.intimacy = max;
+            Update(unit);
+            Spirit after = FindSpirit(unit, spiritSole);
+            bool ok = after != null && after.Intimacy == max;
+            ChangeLog.Add(Name(unit), "기령 친밀도", s.Name + " " + s.Intimacy, after == null ? "?" : after.Intimacy.ToString(), ok);
+            return ok ? "기령: " + s.Name + " 친밀도 " + s.Intimacy + " → " + max + "."
+                : "기령 " + s.Name + ": 친밀도를 쓰지 못했습니다.";
+        }
+
+        // 가방의 법보 sole(지급 전후 비교용).
+        public static List<string> ArtifactSoles(WorldUnitBase unit)
+        {
+            var result = new List<string>();
+            if (!Ready(unit))
+            {
+                return result;
+            }
+            var all = unit.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i] != null && SpriteService.IsArtifact(all[i].propsID))
+                {
+                    result.Add(all[i].soleID);
+                }
+            }
+            return result;
+        }
+
+        // before에 없던 법보 가운데 비율 다섯이 모두 0인 것을 단계 5(비율 100)로 쓴다. 쓴 수를 돌려준다. 이력은 지급 줄이 대신한다.
+        public static int FixZeroRates(WorldUnitBase unit, List<string> before)
+        {
+            int fixedCount = 0;
+            try
+            {
+                var seen = new HashSet<string>(before);
+                int r = TreasureRules.StageRate(5);
+                foreach (Treasure t in Treasures(unit))
+                {
+                    if (seen.Contains(t.SoleId) || t.Data == null || Array.Exists(t.Rates, v => v != 0))
+                    {
+                        continue;
+                    }
+                    t.Data.SetAttrrRate(r, r, r, r, r, true);
+                    fixedCount++;
+                }
+                if (fixedCount > 0)
+                {
+                    Update(unit);
+                }
+            }
+            catch (Exception e)
+            {
+                MelonLoader.MelonLogger.Msg("[TlToybox] treasure: zero-rate fix failed: " + e.Message);
+            }
+            return fixedCount;
+        }
+
         public static string Give(WorldUnitBase unit, int itemId)
+        {
+            ConfArtifactShapeItem shape = g.conf.artifactShape.GetItem(itemId);
+            return Give(unit, itemId, shape == null ? 0 : shape.initGrade, 5);
+        }
+
+        // 공용 지급 뒤 새로 생긴 법보 하나를 grade(시작 경지보다 낮으면 그대로)까지 올리고 단계를 쓴다.
+        public static string Give(WorldUnitBase unit, int itemId, int grade, int stage)
         {
             if (!SpriteService.IsArtifact(itemId))
             {
                 return "법보 " + itemId + ": 게임의 법보가 아닙니다.";
             }
-            return EditService.GiveItem(unit, itemId, 1);
+            List<string> before = ArtifactSoles(unit);
+            string text;
+            if (!EditService.TryGiveItem(unit, itemId, 1, out text))
+            {
+                return text;
+            }
+            string sole = ArtifactSoles(unit).Find(s => !before.Contains(s));
+            if (sole == null)
+            {
+                return text + " 새 법보를 찾지 못해 경지·단계는 쓰지 않았습니다.";
+            }
+            var parts = new List<string> { text };
+            Treasure t = Find(unit, sole);
+            if (t != null && grade > t.Grade)
+            {
+                parts.Add(GradeUpTo(unit, sole, grade));
+            }
+            t = Find(unit, sole);
+            if (t != null && t.Level != stage)
+            {
+                parts.Add(SetStage(unit, sole, stage));
+            }
+            return string.Join(" ", parts);
         }
     }
 }

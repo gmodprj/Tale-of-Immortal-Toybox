@@ -31,5 +31,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\ApplyTally.cs" Link="Linked\ApplyTally.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\ConfigFile.cs" Link="Linked\ConfigFile.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\FavoriteStore.Lines.cs" Link="Linked\FavoriteStore.Lines.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TreasureRules.cs" Link="Linked\TreasureRules.cs" />
   </ItemGroup>
 </Project>

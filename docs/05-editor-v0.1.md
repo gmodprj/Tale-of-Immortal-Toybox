@@ -3518,3 +3518,47 @@
 함정 둘:
 - **`base`의 Init 줄 찾기**: 묶음 1(77절)에서 더한 `[TlToybox] init ms=` 줄을 대소문자를 가리지 않는 `-match`가 `Init ` 줄로 잡아, `base`가 2개 실패하고 있었다. 묶음 1~4의 검사 목록에 `base`가 없어 놓쳤다. `-cmatch`로 고쳤다.
 - **`keys-restart`는 `keys` 바로 뒤에**: `keys`가 정한 연요호 키 K를 재시작 뒤 확인한다. `keys-ui` 뒤에 돌리면 사용자의 원래 설정이 읽혀 실패한다(`rf-1023c`).
+
+## 82. 묶음 6 — 트레이너 3차 (가): 법보 경지·단계, 기령 친밀도, 전승, 참오 결과 최대 (2026-10-23 추가)
+
+12 문서 7절의 묶음 6. 사용자가 (가) 기존 탭에 붙는 넷을 고르고 질문 없이 진행하라고 했다(2026-10-23). 스펙 `docs/superpowers/specs/2026-10-23-trainer3-design.md`, 계획 `docs/superpowers/plans/2026-10-23-trainer3.md`, 브랜치 `feat/trainer3`. 설계 전 실험은 실험 브랜치 `feat/trainer3-research`(개발 명령 `t3*`, `xrefl`이 생성자도 읽게 고침), 회차 `t3-1023a`~`h`. 구현 검증 회차 `tr3-1023a`~`u`(`r`~`u`는 리뷰 뒤). 모두 고정본, `-Exclude 2814696167`(`t3-1023a`만 만고신화를 실은 채 열었다), 끝은 `SAVE RESTORED AND IDENTICAL`.
+
+### 82.1 실험에서 확인한 것(스펙 4절 E1~E6)
+
+- **법보의 칸**: `DataProps.PropsArtifact`의 `grade`가 경지(2 = 축기), `level`이 단계 1~6. 단계는 `SetAttrrRate(hp, atk, def, soul, sp, true)`가 다섯 비율의 **평균**으로 정한다: 60 이하 1, 61~80 2, 81~89 3, 90~99 4, 100~109 5, 110 이상 6(200도 6. 게임이 자르지 않는다). 이름 색이 단계를 따른다(5 주황, 6 빨강). 비율 120이면 정보 화면의 체력·공격·방어가 100일 때의 1.2배.
+- **편집기 지급의 결함**: `EditService.GiveItem`(게임의 `RewardPropItem`)으로 받은 법보는 비율 다섯이 0이라 게임 정보 화면에서 체력 1·공격력 1·방어력 0이었다(56절 법보 지급부터. 지금까지 몰랐다).
+- **경지 올리기**: `UnitActionPropArtifactShapeUpgrade(PropsArtifact)`는 재료 없이 `IsCreateAction` 0이고, 한 번에 `grade` +1과 옵션 한 칸(무작위, 모양 표 `perfixMax`까지)을 준다. 체력·공격·방어 비율은 5씩 준다(100 → 95 → 90). 도시의 강화 화면(`UIArtifactShapeUpgrade`)은 재료를 받는 `UnitActionPropArtifactShapeCityUpgrade`를 쓴다. **경지 10에서 부르면 `grade`가 오른 뒤 null 예외가 난다**(10 → 14까지 올라감). 결정기 인물이 경지 10 법보를 장착할 수 있다.
+- **기령 친밀도**: `DataUnit.ArtifactSpriteData.Sprite.intimacy`(만들면 30). 상한은 표 `artifactSpriteClose.closeMax` 900(낯섦 300·익숙 600·친밀 900). 900으로 쓰면 게임 기령 화면(`UIArtifact.InitData(2, 기령 sole)`)의 하트 15개가 차고 `본명계약` 단추가 보인다. 게임 법보 화면은 `uiopen Artifact`로는 빈 틀만 나오고 `InitData(탭, sole)`로 열어야 한다(탭 1 법보 sole, 탭 2 기령 sole).
+- **전승**: 프리셋 묶음의 실측대로 비급의 `valuesStr` `{"suitID":n}`. 빈 글과 `{"suitID":0}` 모두 `g.world.suitAbility.IsSuitAbility`가 거짓.
+- **참오**: 옵션은 수련 단계마다 잠겨 있어 숙련이 낮으면 `UnitActionMartialRealize`의 `IsCreateAction`이 3(22절의 "불가"의 까닭), 숙련을 올리면 2(재료 5021462 ×60·영석 360 부족), 재료가 있으면 0. 게임 참오 창(`UIMartialRealize`)은 풀린 옵션을 한꺼번에 다시 굴리고 줄마다 `되돌리기`와 `다시 참오`·`확정하고 종료`를 준다. 값은 참오 단추가 행동을 새로 만들 때 `ConfBattleSkillPrefixValue.RandomPrefixLevel`이 굴리고, `OnCreate`는 확정 때 `SetPrefixLevel`로 쓰기만 한다. 생성자 접미 패치는 게임 화면을 깨뜨렸다(null 예외). 최대 품질 5인 기술은 500(501부터 6 빨강), 6은 600, 3은 300(301부터 4)이 그 품질의 맨 위다. `GetPerfect`는 500·600에서 1("완벽"), 450~499에서 2("거의 완벽"), 최대 3 기술의 300에서는 0. 옵션 6번(단약)은 500에서도 "거의 완벽"이다(효과 값이 정수로 끊기는 것으로 추정, 미확인). `GetLevelJudgeValue(1~7)`는 이 옵션들에서 1~7을 그대로 돌려줘 경계를 알 수 없다.
+
+### 82.2 기능
+
+- **법보 탭**(5.1~5.3): 가진 법보 줄에 `단계 n`과 `강화…`. 강화 화면 `법보 강화 — <이름>`: 경지·단계·비율 다섯·옵션 수, `경지 +1`·`경지 10까지`(10이면 꺼짐), 단계 칩 1~6(6은 `6 한계돌파`). 경지 올리기는 게임 행동을 쓰고 게임이 깎은 비율을 되돌린다. 단계는 비율 다섯을 대표 값(1: 60 · 2: 80 · 3: 85 · 4: 95 · 5: 100 · 6: 120)으로 맞추되, 집중력 비율(`equipSpRate`)은 100에서 멈춘다(`TreasureRules.SpRate`). 단계 6은 120·120·120·120·100(평균 116, 단계 6). `법보 지급` 화면에 경지 칩(`시작 경지`·2~10. 시작 경지보다 낮으면 시작 경지)과 단계 칩(기본 5). 기령 줄에 `친밀 n/900`과 `친밀 최대`.
+- **편집기 지급의 비율 0 고침**: `EditService.TryGiveItem`이 법보 번호면 지급 전후의 법보 sole을 비교해, 새로 생긴 것 가운데 비율이 모두 0인 것을 단계 5(비율 100)로 쓴다(`TreasureService.FixZeroRates`). 자원 탭·즐겨찾기·기예 재료·보관함·프리셋 등 편집기의 모든 지급 길이 같이 고쳐진다. 이미 있던 법보와 비율이 0이 아닌 법보는 건드리지 않는다.
+- **공법 탭**(5.4): 심법을 고르면 아래 줄에 `전승: <세트|없음>`과 `전승…`. 하위 화면 `<심법> — 전승`: 지금 세트와 `전승 떼기`, 그 심법이 구성원인 세트마다 이름·구성원(게임 표의 짧은 이름)·가진 것·2개/4개 효과·조건 표시와 `이 세트로`. 붙이거나 뗀 뒤 `UpdateSuitAbilityFeature`. 다른 글이 적힌 비급은 붙이지도 떼지도 않는다. 아래 안내 글은 "수련은 위의 숙련 경험치로 대신합니다. 게임 참오 창의 결과를 최대로 하려면 성공·드롭 탭의 "참오 결과 최대"."로 바꿨다.
+- **성공·드롭 탭**(5.5): 넷째 줄 `참오 결과 최대`. 켜면 게임 참오 창의 `OnRealizeClick`·`OnRealizeAgain`이 도는 동안만 `RandomPrefixLevel`의 결과를 `최대 품질 × 100`으로 바꾼다. 비용은 그대로, 공법 탭의 품질 단추·비급 만들기·NPC 공법은 영향 없음. 저장하지 않고 켜 두면 화면 위 가운데에 `참오 최대`. `모두 끄기`가 끈다.
+- 코드: `Services/TreasureRules.cs`(단계 ↔ 비율, 경지 반복 수. 단위 시험 35줄), `TreasureService`(`GradeUp`·`GradeUpTo`·`SetStage`·`CloseMax`·`ArtifactSoles`·`FixZeroRates`·`Give(unit, id, grade, stage)`), `MartialService`(`SuitView`·`SuitsFor`·`ApplySuit`·`RemoveSuit`), `SuccessService`(`Realize`·`SetRealize`). 개발 명령: `DevCommandsTreasure`에 `trnpc`·`trart`·`trgrade`·`trstage`·`trsp`·`trclose`·`trview`, `trgive <번호> [경지 단계]`. 새 `DevCommandsTrainer3`에 `msole`·`msuits`·`msuit`·`msuitstate`·`mvalues`·`realui`·`realclick`·`realok`·`realagain`·`realstate`·`realstick`·`realroll`·`mopts`.
+
+### 82.3 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+- **참오 표시가 남는 길**: 참오 단추(`OnRealizeClick`·`OnRealizeAgain`)가 예외로 끝나면 접미가 돌지 않아 "참오 중" 창이 남고, 그 뒤 창 밖의 모든 `RandomPrefixLevel`(비급·NPC 공법 등)이 최대가 될 수 있었다. 단추가 눌린 프레임을 함께 기억하고 같은 프레임의 굴림에만 건다(굴림은 클릭 안에서 동기, 실측). 검사 `realize`의 `a stuck realize window does not max rolls outside the click`(개발 명령 `realstick`·`realroll`. 고치기 전 6번 모두 500 → FAIL, 고친 뒤 PASS).
+- **프리셋의 법보와 기령 줄**: `SpriteService.Apply`가 `RewardPropItem`을 직접 불러 비율 0 법보를 만들고 있었다. `FixZeroRates`를 더했다. 검사 `give`의 `the preset sprite line gives a treasure with rates 100`(개발 명령 `psprite`. 고치기 전 0/0/0/0/0 → FAIL).
+- **다시 참오**: 검사에 `realagain`(btnAgain) 뒤 모든 줄이 최대인지 더했다(고치기 전부터 PASS. `OnRealizeAgain` 접두·접미가 제대로 감쌈).
+- **집중력 점유**(스펙 8절이 빌더에게 남긴 확인): 같은 법보를 단계 5와 6으로 두고 게임 법보 화면(개발 명령 `trview <sole>` = `UIArtifact.InitData(1, sole)`, 캡처 `tr3-1023t-stage5/6.png`)을 보니 집중력 점유 340 → 408, 수용 혼력 528 → 634, 체력 1083 → 1303. 점유가 느는 것은 손해라 집중력 비율만 100에 묶었다. 수용 혼력은 느는 쪽이 이득이라 120 그대로(스펙은 "두 칸을 100"이었으나 내 판단으로 한 칸만).
+- 미룬 사소한 것: `GradeUpTo` 안에서 법보가 사라지면 null(현실적으로 생기지 않음), 경지가 오르기 전에 게임이 비율만 깎고 던지면 깎인 비율이 남음, `SetStage`·`CloseMax`에 try 없음, `{"suitID":0}` 떼기의 문구, `SetSuit` 뒤 확인 실패 때 값이 남음, 10을 넘은 법보(E3의 14)에도 "이미 경지 10" 문구, 기령 줄 글이 스펙의 `친밀도`가 아니라 폭 때문에 `친밀`.
+
+### 82.4 검사
+
+- 새 부분: `treasure-check.ps1`의 `forge`·`give`·`forge-ui`, 새 스크립트 `trainer3-check.ps1`의 `suit`·`suit-ui`·`realize`·`persist`→`-Restart`→`persist-restart`. 단위 시험 `TreasureRulesTests`.
+- 모두 FAIL 0: 위 새 부분, `treasure-check` `service`·`ui`·`repair`→`-Restart`→`repair-restart`, `ui-check` `base`·`tabs`·`items`·`bagcount`·`rates`·`status`·`success`·`prefixforce`, `preset-check` `state`·`martial`·`extras`, 단위 시험.
+- 캡처: `.devremote\check-treasure-forge.png`(강화 화면), `check-treasure-rows.png`(법보 탭 줄), `check-suit.png`(전승 화면), `check-realize.png`(켬: 모든 새 값이 "완벽!!!", 위쪽 `참오 최대`), `check-realize-off.png`.
+
+### 82.5 함정과 검사 순서
+
+- `treasure-check service`는 고정본의 빈 상태(법보·기령 0)를 전제한다. 같은 회차에서 `forge` 뒤에 돌리면 실패한다. 깨끗한 회차의 첫 검사로.
+- `ui-check bagcount`도 깨끗한 회차에서. 그리고 "약한 것부터"는 이제 지급 법보가 단계 5로 시작하므로 하나를 6으로 올린다(검사 고침).
+- 참오 창을 연출 도중 `uiclose`로 닫으면 게임의 `Mask` 화면이 남아 그 뒤 클릭을 막는다. `realok`(확정) 뒤에 닫는다.
+- `forge-ui`는 법보가 다섯 개를 넘지 않는 회차에서. 앞 검사(`service`·`forge`·`give`)가 법보를 많이 남기면 새 법보 줄이 목록 첫 쪽 밖으로 밀려 `the row has a forge button`이 실패한다(`tr3-1023u`, 깨끗한 `tr3-1023v`에서 통과).
+- 전승 화면은 한 쪽에 일곱 세트. 85001의 10025는 둘째 쪽이다.
+- 공법 탭에서 `tb2pick` 바로 뒤에 글을 읽으면 아직 다시 그리기 전일 수 있다(1.5초 기다림).

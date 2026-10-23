@@ -2725,7 +2725,8 @@ switch ($Part) {
     $all = @([regex]::Matches((Cmd 'tbbag 3031101' 500), 'sole=(\w+)') | ForEach-Object { $_.Groups[1].Value })
     $new = @($all | Where-Object { $_ -ne $soles[0] })
     Check 'two more artifacts were given' ($all.Count -eq 3 -and $new.Count -eq 2) ($all -join ',')
-    Check 'one of them is raised' ((Cmd "tbartlevel $($new[0]) 5" 500) -match 'level 1 -> 5') (Cmd 'tbbag 3031101' 500)
+    # 편집기 지급은 단계 5로 시작한다(트레이너 3차, 05 문서 82절). 하나만 6으로 올린다.
+    Check 'one of them is raised' ((Cmd "tbartlevel $($new[0]) 6" 500) -match 'level 5 -> 6') (Cmd 'tbbag 3031101' 500)
     Show '3031101'
     Press 'ResDrop3031101' | Out-Null
     Check 'the drop question counts the raised one' ((Said) -match '강화·옵션이 붙은 것 1개 포함') (Said)

@@ -729,5 +729,186 @@ namespace MOD_sWP6UL
             ChangeLog.Add(EditService.NameOf(unit), name + " 숙련 경험치", before.ToString(), after.ToString(), true);
             return name + " 숙련 경험치: " + before + " -> " + after;
         }
+
+        // ---- 전승(심법 세트). 트레이너 3차, 스펙 2026-10-23-trainer3-design.md 5.4·6절 ----
+
+        public sealed class SuitView
+        {
+            public int Id;
+            public string Name;
+            public List<string> Members = new List<string>();      // 구성원 심법 이름(표 순서)
+            public List<string> MembersHeld = new List<string>();  // 대상 인물의 심법 가운데 이 세트 번호를 가진 것
+            public int Claim1, Claim2;
+            public string Desc1, Desc2;
+            public bool HasCondition;
+            public bool Current;                                   // 고른 심법의 지금 세트
+        }
+
+        private static string AbilityName(int baseId)
+        {
+            ConfBattleAbilityBaseItem conf = g.conf.battleAbilityBase.GetItem(baseId);
+            return conf == null ? baseId.ToString() : EditService.Compact(GameTool.LS(conf.name));
+        }
+
+        private static string SuitText(string key)
+        {
+            return string.IsNullOrEmpty(key) || key == "0" ? "" : CleanLine(key);
+        }
+
+        // 그 심법의 기본 번호가 구성원(suitMember)에 든 세트. 심법이 아니면 빈 목록.
+        public static List<SuitView> SuitsFor(WorldUnitBase unit, string soleId)
+        {
+            var result = new List<SuitView>();
+            DataUnit.ActionMartialData action = unit.data.unitData.GetActionMartial(soleId);
+            if (action == null)
+            {
+                return result;
+            }
+            DataProps.MartialData martial = action.data.To<DataProps.MartialData>();
+            if (martial.martialType != MartialType.Ability)
+            {
+                return result;
+            }
+            int current = SuitOf(action.data);
+            string baseId = martial.baseID.ToString();
+            var held = new Dictionary<int, List<string>>();
+            foreach (var pair in unit.data.unitData.allActionMartial)
+            {
+                DataProps.MartialData m = pair.Value.data.To<DataProps.MartialData>();
+                if (m.martialType != MartialType.Ability)
+                {
+                    continue;
+                }
+                int suit = SuitOf(pair.Value.data);
+                if (suit == 0)
+                {
+                    continue;
+                }
+                List<string> list;
+                if (!held.TryGetValue(suit, out list))
+                {
+                    list = new List<string>();
+                    held[suit] = list;
+                }
+                list.Add(Name(m));
+            }
+            var all = g.conf.battleAbilitySuitBase._allConfList;
+            for (int i = 0; i < all.Count; i++)
+            {
+                ConfBattleAbilitySuitBaseItem conf = all[i];
+                string[] members = (conf.suitMember ?? "").Split('|');
+                if (Array.IndexOf(members, baseId) < 0)
+                {
+                    continue;
+                }
+                var view = new SuitView
+                {
+                    Id = conf.id,
+                    Name = PresetService.SuitName(conf.id),
+                    Claim1 = conf.activationClaim1,
+                    Claim2 = conf.activationClaim2,
+                    Desc1 = SuitText(conf.suitDesc1),
+                    Desc2 = SuitText(conf.suitDesc2),
+                    HasCondition = !string.IsNullOrEmpty(conf.suitCondition) && conf.suitCondition != "0",
+                    Current = conf.id == current,
+                };
+                foreach (string member in members)
+                {
+                    int id;
+                    if (int.TryParse(member, out id))
+                    {
+                        view.Members.Add(AbilityName(id));
+                    }
+                }
+                List<string> mine;
+                if (held.TryGetValue(conf.id, out mine))
+                {
+                    view.MembersHeld.AddRange(mine);
+                }
+                result.Add(view);
+            }
+            return result;
+        }
+
+        public static string ApplySuit(WorldUnitBase unit, string soleId, int suitId)
+        {
+            DataUnit.ActionMartialData action = unit.data.unitData.GetActionMartial(soleId);
+            if (action == null)
+            {
+                return "공법을 찾지 못했습니다.";
+            }
+            DataProps.MartialData martial = action.data.To<DataProps.MartialData>();
+            string name = Name(martial);
+            if (martial.martialType != MartialType.Ability)
+            {
+                return name + ": 심법에만 전승을 붙입니다.";
+            }
+            ConfBattleAbilitySuitBaseItem conf = g.conf.battleAbilitySuitBase.GetItem(suitId);
+            if (conf == null || Array.IndexOf((conf.suitMember ?? "").Split('|'), martial.baseID.ToString()) < 0)
+            {
+                return name + ": 이 심법은 그 세트(" + PresetService.SuitName(suitId) + ")의 구성원이 아닙니다.";
+            }
+            int before = SuitOf(action.data);
+            if (before == suitId)
+            {
+                return name + ": 이미 " + PresetService.SuitName(suitId) + " 전승입니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            if (!SetSuit(action.data, suitId))
+            {
+                return name + ": 다른 정보가 적힌 비급이라 전승을 쓰지 않았습니다.";
+            }
+            RefreshSuits(unit);
+            bool ok = SuitOf(action.data) == suitId;
+            ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), PresetService.SuitName(suitId), ok);
+            return ok ? name + ": 전승 " + (before == 0 ? "없음" : PresetService.SuitName(before)) + " → " + PresetService.SuitName(suitId) + "."
+                : name + ": 전승을 쓰지 못했습니다.";
+        }
+
+        public static string RemoveSuit(WorldUnitBase unit, string soleId)
+        {
+            DataUnit.ActionMartialData action = unit.data.unitData.GetActionMartial(soleId);
+            if (action == null)
+            {
+                return "공법을 찾지 못했습니다.";
+            }
+            string name = Name(action.data.To<DataProps.MartialData>());
+            string now = action.data.valuesStr ?? "";
+            int before = SuitOf(action.data);
+            if (before == 0 && now.Length == 0)
+            {
+                return name + ": 전승이 없습니다.";
+            }
+            if (!Regex.IsMatch(now, "^\\{\"suitID\":\\d+\\}$"))
+            {
+                return name + ": 다른 정보가 적힌 비급이라 전승을 떼지 않았습니다.";
+            }
+            string backupError = SaveBackup.EnsureOnce();
+            if (backupError != null)
+            {
+                return backupError + " 변경을 중단했습니다.";
+            }
+            action.data.valuesStr = "";
+            RefreshSuits(unit);
+            bool ok = SuitOf(action.data) == 0;
+            ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), "없음", ok);
+            return ok ? name + ": 전승 " + PresetService.SuitName(before) + "을(를) 뗐습니다." : name + ": 전승을 떼지 못했습니다.";
+        }
+
+        private static void RefreshSuits(WorldUnitBase unit)
+        {
+            try
+            {
+                g.world.suitAbility.UpdateSuitAbilityFeature(unit);
+            }
+            catch (Exception e)
+            {
+                MelonLoader.MelonLogger.Msg("[TlToybox] suit: UpdateSuitAbilityFeature failed: " + e.Message);
+            }
+        }
     }
 }

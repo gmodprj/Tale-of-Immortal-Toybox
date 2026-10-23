@@ -19,6 +19,7 @@ namespace MOD_sWP6UL
         private readonly ListView<Learned> martialList = new ListView<Learned>("MartialList", 38);
         private readonly ListView<SkillCatalog.Entry> skillList = new ListView<SkillCatalog.Entry>("SkillList", 50);
         private readonly ListView<ConfBattleSkillPrefixValueItem> prefixList = new ListView<ConfBattleSkillPrefixValueItem>("PrefixList", 50);
+        private readonly ListView<MartialService.SuitView> suitList = new ListView<MartialService.SuitView>("SuitList", 92);
         private readonly DetailPane optionDetail = new DetailPane("OptionDetail", "옵션의 글을 누르면 여기에 전체가 나옵니다.");
         private readonly DetailPane skillDetail = new DetailPane("SkillDetail", "줄을 누르면 여기에 전체 설명이 나옵니다.");
         private readonly DetailPane prefixDetail = new DetailPane("PrefixDetail", "줄을 누르면 여기에 전체 설명이 나옵니다.");
@@ -194,7 +195,76 @@ namespace MOD_sWP6UL
             Ui.Button("MartialEquip", content, equipped ? "장착 해제" : "장착", 16, box + 286 + grown, 150, 34,
                 new Action(() => Say(equipped ? MartialService.Unequip(Target, martialId) : MartialService.Equip(Target, martialId))));
             ForgetButton(box + 286 + grown);
-            Ui.Label(content, "수련은 위의 숙련 경험치로, 참오는 위 옵션의 품질·교체로 대신합니다.", 340, box + 286 + grown, 570, 34, 15).color = Ui.Dim;
+            float hintX = 340;
+            DataProps.MartialData chosen = MartialService.Martial(Target, martialId);
+            if (chosen != null && chosen.martialType == MartialType.Ability)
+            {
+                // 전승(심법 세트). 트레이너 3차 5.4.
+                DataUnit.ActionMartialData action = Target.data.unitData.GetActionMartial(martialId);
+                int suit = action == null ? 0 : MartialService.SuitOf(action.data);
+                Ui.Label(content, "전승: " + (suit == 0 ? "없음" : PresetService.SuitName(suit)), 340, box + 286 + grown, 250, 34, 17).gameObject.name = "MartialSuitText";
+                Ui.Button("MartialSuitOpen", content, "전승…", 596, box + 286 + grown, 100, 34, new Action(OpenSuits));
+                hintX = 710;
+            }
+            Text hint = Ui.Wrapped(content, "수련은 위의 숙련 경험치로 대신합니다. 게임 참오 창의 결과를 최대로 하려면 성공·드롭 탭의 \"참오 결과 최대\".",
+                hintX, box + 280 + grown, ContentW - hintX, 44, 14);
+            hint.color = Ui.Dim;
+            hint.gameObject.name = "MartialHint";
+        }
+
+        private void OpenSuits()
+        {
+            suitList.Reset();
+            Push(() =>
+            {
+                DataProps.MartialData martial = MartialService.Martial(Target, martialId);
+                return (martial == null ? "심법" : MartialService.Name(martial)) + " — 전승";
+            }, DrawSuits);
+        }
+
+        // 하위 화면: 이 심법이 구성원인 세트. 붙이기·떼기(MartialService.ApplySuit·RemoveSuit).
+        private void DrawSuits()
+        {
+            float y = SubTop;
+            DataUnit.ActionMartialData action = Target.data.unitData.GetActionMartial(martialId);
+            if (action == null)
+            {
+                Ui.Label(content, "공법을 찾지 못했습니다. 돌아가서 다시 선택하세요.", 0, y, 800, 36).color = Ui.Warn;
+                return;
+            }
+            int suit = MartialService.SuitOf(action.data);
+            string sole = martialId;
+            Ui.Label(content, "지금 전승: " + (suit == 0 ? "없음" : PresetService.SuitName(suit)), 0, y, 420, 36, 18);
+            Ui.Button("SuitRemove", content, "전승 떼기", 430, y, 140, 36, new Action(() => Say(MartialService.RemoveSuit(Target, sole))), suit != 0);
+            Ui.Wrapped(content, "세트 효과는 같은 세트 번호를 가진 심법을 정해진 수만큼 장착하면 켜집니다. 조건이 붙은 세트는 게임이 따로 판정합니다(미확인).",
+                590, y, ContentW - 590, 40, 14).color = Ui.Dim;
+            float top = y + 46;
+            suitList.Build(content, 0, top, ContentW, ContentH - top, MartialService.SuitsFor(Target, sole), DrawSuitRow);
+        }
+
+        private void DrawSuitRow(RectTransform row, MartialService.SuitView v, int index)
+        {
+            float h = row.sizeDelta.y;
+            float bx = ContentW - Ui.ScrollBarWidth - 6 - 120;
+            var text = new System.Text.StringBuilder();
+            text.Append(v.Name).Append("  [").Append(v.Id).Append("]").Append(v.Current ? "  (지금)" : "").Append(v.HasCondition ? "  조건 있음(게임 판정, 미확인)" : "")
+                .Append("\n구성원: ").Append(string.Join(", ", v.Members.ToArray()));
+            if (v.MembersHeld.Count > 0)
+            {
+                text.Append("   가진 것: ").Append(string.Join(", ", v.MembersHeld.ToArray()));
+            }
+            string effects = (v.Desc1.Length > 0 ? (v.Claim1 > 0 ? v.Claim1 + "개: " : "") + v.Desc1 : "")
+                + (v.Desc2.Length > 0 ? "   " + (v.Claim2 > 0 ? v.Claim2 + "개: " : "") + v.Desc2 : "");
+            if (effects.Length > 0)
+            {
+                text.Append('\n').Append(effects);
+            }
+            Text label = Ui.Wrapped(row, text.ToString(), 8, 2, bx - 16, h - 4, 14);
+            label.gameObject.name = "SuitRow" + v.Id;
+            label.color = v.Current ? Ui.Warn : Color.white;
+            int id = v.Id;
+            string sole = martialId;
+            Ui.Button("SuitPick" + id, row, "이 세트로", bx, (h - 36) / 2, 120, 36, new Action(() => Say(MartialService.ApplySuit(Target, sole, id))), !v.Current);
         }
 
         // 망각은 한 번 더 확인한다. 깨진 공법도 고유 번호만으로 지운다.

@@ -176,7 +176,10 @@ namespace MOD_sWP6UL
                 }
                 if (target == null)
                 {
+                    // 게임의 지급은 비율 다섯을 0으로 둔다. 편집기의 다른 지급과 같이 새 법보를 단계 5로(05 문서 82절).
+                    List<string> before = TreasureService.ArtifactSoles(unit);
                     unit.data.RewardPropItem(artifactId, 1, false);
+                    TreasureService.FixZeroRates(unit, before);
                     foreach (DataProps.PropsData each in Artifacts(unit, artifactId))
                     {
                         if (!had.Contains(each.soleID))
