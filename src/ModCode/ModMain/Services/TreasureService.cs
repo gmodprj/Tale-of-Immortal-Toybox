@@ -805,13 +805,90 @@ namespace MOD_sWP6UL
                 : "기령 " + s.Name + ": 친밀도를 쓰지 못했습니다.";
         }
 
+        // 가방의 법보 sole(지급 전후 비교용).
+        public static List<string> ArtifactSoles(WorldUnitBase unit)
+        {
+            var result = new List<string>();
+            if (!Ready(unit))
+            {
+                return result;
+            }
+            var all = unit.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i] != null && SpriteService.IsArtifact(all[i].propsID))
+                {
+                    result.Add(all[i].soleID);
+                }
+            }
+            return result;
+        }
+
+        // before에 없던 법보 가운데 비율 다섯이 모두 0인 것을 단계 5(비율 100)로 쓴다. 쓴 수를 돌려준다. 이력은 지급 줄이 대신한다.
+        public static int FixZeroRates(WorldUnitBase unit, List<string> before)
+        {
+            int fixedCount = 0;
+            try
+            {
+                var seen = new HashSet<string>(before);
+                int r = TreasureRules.StageRate(5);
+                foreach (Treasure t in Treasures(unit))
+                {
+                    if (seen.Contains(t.SoleId) || t.Data == null || Array.Exists(t.Rates, v => v != 0))
+                    {
+                        continue;
+                    }
+                    t.Data.SetAttrrRate(r, r, r, r, r, true);
+                    fixedCount++;
+                }
+                if (fixedCount > 0)
+                {
+                    Update(unit);
+                }
+            }
+            catch (Exception e)
+            {
+                MelonLoader.MelonLogger.Msg("[TlToybox] treasure: zero-rate fix failed: " + e.Message);
+            }
+            return fixedCount;
+        }
+
         public static string Give(WorldUnitBase unit, int itemId)
+        {
+            ConfArtifactShapeItem shape = g.conf.artifactShape.GetItem(itemId);
+            return Give(unit, itemId, shape == null ? 0 : shape.initGrade, 5);
+        }
+
+        // 공용 지급 뒤 새로 생긴 법보 하나를 grade(시작 경지보다 낮으면 그대로)까지 올리고 단계를 쓴다.
+        public static string Give(WorldUnitBase unit, int itemId, int grade, int stage)
         {
             if (!SpriteService.IsArtifact(itemId))
             {
                 return "법보 " + itemId + ": 게임의 법보가 아닙니다.";
             }
-            return EditService.GiveItem(unit, itemId, 1);
+            List<string> before = ArtifactSoles(unit);
+            string text;
+            if (!EditService.TryGiveItem(unit, itemId, 1, out text))
+            {
+                return text;
+            }
+            string sole = ArtifactSoles(unit).Find(s => !before.Contains(s));
+            if (sole == null)
+            {
+                return text + " 새 법보를 찾지 못해 경지·단계는 쓰지 않았습니다.";
+            }
+            var parts = new List<string> { text };
+            Treasure t = Find(unit, sole);
+            if (t != null && grade > t.Grade)
+            {
+                parts.Add(GradeUpTo(unit, sole, grade));
+            }
+            t = Find(unit, sole);
+            if (t != null && t.Level != stage)
+            {
+                parts.Add(SetStage(unit, sole, stage));
+            }
+            return string.Join(" ", parts);
         }
     }
 }

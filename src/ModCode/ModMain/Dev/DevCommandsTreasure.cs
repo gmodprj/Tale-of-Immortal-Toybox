@@ -4,7 +4,7 @@ namespace MOD_sWP6UL
 {
     // 개발 전용. 법보·기령 탭(05 문서 56절)의 서비스를 플레이어에게 명령으로 부른다. 검사 treasure-check.ps1이 쓴다.
     //   tr                          법보·기령 상태 한 줄: treasures=n [sole:번호:이름:품질:경지:내구/최대:장착:든 기령] spirits=m [sole:번호:이름:LvL/최대:경험치/다음:재능 켬/보임:든 법보]
-    //   trgive <아이템 번호>         법보 하나 지급
+    //   trgive <아이템 번호> [경지 단계]   법보 하나 지급(기본: 시작 경지, 단계 5)
     //   trequip <sole> / trunequip [sole]   장착 / 해제(sole이 없으면 장착 중인 것)
     //   trmake <기령 번호>           기령 만들기
     //   trput <법보 sole> <기령 sole> / trpull <법보 sole>   넣기 / 빼기
@@ -22,7 +22,7 @@ namespace MOD_sWP6UL
                 case "tr":
                     return State(Me());
                 case "trgive":
-                    return TreasureService.Give(Me(), int.Parse(p[1]));
+                    return p.Length > 3 ? TreasureService.Give(Me(), int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3])) : TreasureService.Give(Me(), int.Parse(p[1]));
                 case "trequip":
                     return TreasureService.Equip(Me(), p[1]);
                 case "trunequip":

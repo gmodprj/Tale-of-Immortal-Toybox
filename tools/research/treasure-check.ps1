@@ -193,6 +193,35 @@ switch ($Part) {
     Check 'the change log has forge lines' (LogHas '경지' -and (LogHas '친밀도'))
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'give' {
+    # 트레이너 3차 6절: 편집기 지급의 비율 0 고침(공용 길)과 법보 지급의 경지·단계. 다른 부분 뒤에 돌려도 된다(번호로 새 sole을 찾는다).
+    function Art([string]$s) { Cmd "trart $s" 300 }
+    function Soles([int]$id) { $all = @([regex]::Matches((Tr), "\[(\w+):${id}:") | ForEach-Object { $_.Groups[1].Value }); ,$all }
+    function NewSole([int]$id, $before) { @((Soles $id) | Where-Object { $before -notcontains $_ })[0] }
+    Cmd 'trnpc me' 200 | Out-Null
+    $b = Soles 3031103
+    $r = Cmd 'trgive 3031103' 800
+    $s = NewSole 3031103 $b
+    $a = Art $s
+    Check 'a plain give has rates 100 and stage 5' ($a -match 'level=5 ' -and $a -match 'rate=100/100/100/100/100 ') "$r | $a"
+    $b = Soles 3031102
+    $r = Cmd 'trgive 3031102 6 6' 3000
+    $s2 = NewSole 3031102 $b
+    $a = Art $s2
+    Check 'give with grade 6 and stage 6' ($a -match 'grade=6 ' -and $a -match 'level=6 ' -and $a -match 'rate=120/120/120/120/120 ') "$r | $a"
+    $b = Soles 3031104
+    $r = Cmd 'trgive 3031104 12 3' 5000
+    $s3 = NewSole 3031104 $b
+    $a = Art $s3
+    Check 'give with grade 12 stops at 10, stage 3' ($a -match 'grade=10 ' -and $a -match 'level=3 ' -and $a -match 'rate=85/85/85/85/85 ') "$r | $a"
+    Cmd "trstage $s 2" 500 | Out-Null
+    $b = Soles 3031103
+    $r = Cmd 'cmgive 3031103 2' 1000
+    $news = @((Soles 3031103) | Where-Object { $b -notcontains $_ })
+    Check 'the common give path fixes every new treasure' ($news.Count -eq 2 -and @($news | Where-Object { (Art $_) -match 'rate=100/100/100/100/100 ' }).Count -eq 2) "$r | $($news -join ',')"
+    Check 'existing treasure keeps its rates' ((Art $s) -match 'level=2 ' -and (Art $s) -match 'rate=80/80/80/80/80 ') (Art $s)
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
