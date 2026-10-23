@@ -81,6 +81,61 @@ switch ($Part) {
     Check 'the change log has mastery lines' (LogHas '수련 단계')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'ui' {
+    # 공법 탭 5절: 단계 글·대도까지… 단추, 하위 화면(무작위·직접 고르기·끼워 넣기·다시 만들기), 옵션 행 없는 기술.
+    Cmd 'mfstate tIjlr1' 300 | Out-Null
+    $traps = Traps
+    function Pick([string]$sole) { Cmd "tb2pick $sole" 1500 | Out-Null }
+    function Text([string]$name) { Cmd "uitext $name" 300 }
+    function Has([string]$name) { (Text $name) -notmatch 'no element' }
+    function IsOffBtn([string]$name) { $p = Pos $name; (Rc "click $($p.x) $($p.y)" 300) -match 'not interactable' }
+    Cmd 'uitarget player' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
+    Pick 'tIjlr1'
+    Check 'the stage text shows 1/12' ((Text 'MasteryText') -match '1/12') (Text 'MasteryText')
+    Press 'MasteryOpen' | Out-Null
+    Check 'the screen shows its info' ((Text 'MasteryInfo') -match '옵션 0/11') (Text 'MasteryInfo')
+    Check 'random mode rolls eleven rows' ((Has 'MasteryRow0') -and (Has 'MasteryRow10')) (Text 'MasteryRow10')
+    Press 'MasteryReroll' | Out-Null
+    Check 'reroll keeps eleven rows' (Has 'MasteryRow10')
+    Press 'MasteryInsert' | Out-Null
+    Check 'the first insert press only asks' ((St 'tIjlr1') -match 'opts=0 ') (St 'tIjlr1')
+    Press 'MasteryInsert' | Out-Null
+    Check 'insert from the screen' ((St 'tIjlr1') -match 'opts=11 stages=12 ') (St 'tIjlr1')
+    Check 'the old list is gone after insert' (-not (Has 'MasteryRow11') -and -not (Has 'MasteryRow0')) (Text 'MasteryRow11')
+    Shot 'mastery'
+    Press 'Back' | Out-Null
+    Pick 'tIjlr1'
+    Check 'the stage text shows 12/12 and the button is off' ((Text 'MasteryText') -match '12/12' -and (IsOffBtn 'MasteryOpen')) (Text 'MasteryText')
+    # 직접 고르기 + 다시 만들기(건강약, 신법 3개)
+    Pick 'cR6Nyn'
+    Press 'MasteryOpen' | Out-Null
+    Press 'MasteryPickMode' | Out-Null
+    $c = Cmd 'mfcand cR6Nyn -' 500
+    $n1 = if ($c -match 'slot=3 (\d+):') { $Matches[1] } else { '' }
+    Press "MasteryPick$n1" | Out-Null
+    $c2 = Cmd "mfcand cR6Nyn $n1" 500
+    $n2 = if ($c2 -match 'slot=4 (\d+):') { $Matches[1] } else { '' }
+    Press "MasteryPick$n2" | Out-Null
+    Check 'two picked rows' ((Has 'MasteryRow3') -and (Has 'MasteryRow4') -and -not (Has 'MasteryRow5')) "$n1 $n2"
+    Press 'MasteryUndo' | Out-Null
+    Check 'undo removes the last row' ((Has 'MasteryRow3') -and -not (Has 'MasteryRow4'))
+    $n0 = if ((Cmd 'pstate' 300) -match 'martials=(\d+)') { $Matches[1] } else { '' }
+    Press 'MasteryRemake' | Out-Null; Press 'MasteryRemake' | Out-Null
+    Check 'remake from the screen' ((St 'cR6Nyn') -match 'block=공법을 찾지' -and (Cmd 'pstate' 300) -match "martials=$n0 ") (Cmd 'msole 510011' 300)
+    $new = (Cmd 'msole 510011' 300) -replace '^msole .*? -> ',''
+    Check 'the remade skill has four options' ((St $new) -match 'opts=4 ') (St $new)
+    Press 'Back' | Out-Null
+    # 옵션 행 없는 기술: 신법 어술 700117을 배우게 한다
+    $r = Cmd 'rlearn 2 700117 1' 1500
+    $fish = (Cmd 'msole 700117' 300) -replace '^msole .*? -> ',''
+    if ($fish -match '^\w{6}$') {
+      Pick $fish
+      Check 'no option rows: the button is off with a reason' ((IsOffBtn 'MasteryOpen') -and (Text 'MasteryText') -match '옵션이 없') (Text 'MasteryText')
+    } else { "INFO could not learn 700117: $r" }
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
+    Cmd 'uitoggle' | Out-Null
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
