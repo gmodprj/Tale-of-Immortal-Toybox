@@ -53,6 +53,16 @@ switch ($Part) {
     Cmd 'mffailnext' 200 | Out-Null
     $r = Cmd 'mfremake cR6Nyn roll' 2000
     Check 'remake keeps the old one when make fails' ($r -match '그대로' -and (St 'cR6Nyn') -match 'opts=3 ' -and (Count) -eq $n0) "$r | $(St 'cR6Nyn')"
+    # 5b) 만든 뒤 장착 단계 실패 흉내(장착 무예 청풍검 fY5GR9는 이미 11개라 장착 절기 광혈참 bUvsGP로): 새 것 없음, 옛 것이 같은 칸에
+    $n0 = Count
+    Cmd 'mffailequip' 200 | Out-Null
+    $r = Cmd 'mfremake bUvsGP roll' 3000
+    Check 'remake rolls back when equip fails' ($r -match '그대로' -and (Vals 'bUvsGP') -match 'equip=1 exp=1138 ' -and (Count) -eq $n0 -and (Cmd 'pstate' 300) -match 'right=22111 ') "$r | $(Vals 'bUvsGP') | n0=$n0 now=$(Count)"
+    # 5c) 장착 심법에 끼워 넣기: 수도 점수가 모자라지 않게
+    $r = Cmd 'mfinsert 6oIJ5D roll' 1500
+    $ps = Cmd 'pstate' 300
+    $ap = if ($ps -match ' ap=(\d+) used=(\d+)') { @([int]$Matches[1], [int]$Matches[2]) } else { @(0, 1) }
+    Check 'insert into an equipped ability keeps it equipped within the points' ((Vals '6oIJ5D') -match 'equip=1 ' -and $ap[1] -le $ap[0]) "$r | ap=$($ap[0]) used=$($ap[1])"
     # 6) 자리 밖 옛 옵션(옵션 교체 강제)도 인정
     $slots = Cmd 'tb2slot 4Dc8Cu 0' 500
     $have = if ((Cmd 'tb2mlist' 1000) -match '(?m)4Dc8Cu \d+ \w+ (.*)$') { @([regex]::Matches($Matches[1], '\d+:(\d+):\d+') | ForEach-Object { $_.Groups[1].Value }) } else { @() }
@@ -75,7 +85,7 @@ switch ($Part) {
     foreach ($m in [regex]::Matches((Cmd "msole 0 $npc" 300), '(\w{6}):\d+')) { if ((St $m.Groups[1].Value $npc) -match 'block=-') { $nsole = $m.Groups[1].Value; break } }
     if ($nsole) {
       $r = Cmd "mfinsert $nsole roll $npc" 1500
-      Check 'npc target: the npc ability is filled' ((St $nsole $npc) -match 'stages=12 ' -or (St $nsole $npc) -match 'block=') "$r | $(St $nsole $npc)"
+      Check 'npc target: the npc ability is filled' ((St $nsole $npc) -match 'stages=12 ') "$r | $(St $nsole $npc)"
       Check 'npc target: the player is unchanged' ((Cmd 'pstate' 500) -eq $mine)
     } else { "INFO npc $npc has no fillable ability" }
     Check 'the change log has mastery lines' (LogHas '수련 단계')

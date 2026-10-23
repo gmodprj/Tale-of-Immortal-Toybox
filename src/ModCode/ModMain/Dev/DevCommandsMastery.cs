@@ -12,6 +12,7 @@ namespace MOD_sWP6UL
     //   mfremake <sole> <n,…|roll> [unit]   다시 만들기. 끝에 new=<sole>
     //   mfvals <sole> [unit]                값 배열·장착·숙련·전승·옵션 수치(index:raw:lv/max)
     //   mffailnext                          다음 다시 만들기의 만들기를 실패로 흉내
+    //   mffailequip                         다음 다시 만들기의 새 공법 장착을 실패로 흉내(만든 뒤 되돌리기)
     //   mfui <sole>|off                     게임 기술 정보 창(UIMartialInfo)을 플레이어의 그 공법으로
     internal static class DevCommandsMastery
     {
@@ -59,6 +60,9 @@ namespace MOD_sWP6UL
                 case "mffailnext":
                     MasteryService.FailNextMake = true;
                     return "fail next";
+                case "mffailequip":
+                    MasteryService.FailNextEquip = true;
+                    return "fail next equip";
                 case "mfui":
                     if (p[1] == "off")
                     {

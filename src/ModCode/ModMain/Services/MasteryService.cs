@@ -21,6 +21,7 @@ namespace MOD_sWP6UL
 
 #if DEVTOOLS
         public static bool FailNextMake;   // 개발 전용: 다음 다시 만들기의 Make를 실패로 흉내(검사 service)
+        public static bool FailNextEquip;  // 개발 전용: 다음 다시 만들기의 새 공법 장착을 실패로 흉내(만든 뒤 되돌리기 검사)
 #endif
 
         private static DataUnit.ActionMartialData Action(WorldUnitBase unit, string sole)
@@ -285,6 +286,7 @@ namespace MOD_sWP6UL
             var all = new List<int>(oldOptions);
             all.AddRange(add);
             string made = null;
+            string tried = null;   // 만들었다가 되돌린 새 공법(되돌리기 확인용)
             string points = "";
             string error;
 #if DEVTOOLS
@@ -325,6 +327,13 @@ namespace MOD_sWP6UL
                         {
                             error = "새 공법을 장착하지 못했습니다";
                         }
+#if DEVTOOLS
+                        if (FailNextEquip)
+                        {
+                            FailNextEquip = false;
+                            error = "개발 흉내: 장착 실패";
+                        }
+#endif
                     }
                     if (error == null && fresh.exp != exp)
                     {
@@ -353,13 +362,18 @@ namespace MOD_sWP6UL
                     catch (Exception)
                     {
                     }
-                    made = null;
+                    tried = made;
                 }
             }
             if (error != null)
             {
+                // 되돌리기가 실제로 됐는지 본다: 새 것이 없고, 옛 것이 원래 칸에 있어야 "그대로"다.
+                bool newGone = tried == null || data.GetActionMartial(tried) == null;
+                bool slotBack = slot < 0 || EquipSlot(unit, sole) == slot;
                 ChangeLog.Add(EditService.NameOf(unit), name + " 수련 단계", before, "다시 만들기 실패", false);
-                return name + ": 다시 만들지 못했습니다(" + error + "). 옛 공법은 그대로입니다.";
+                string tail = newGone && slotBack ? " 옛 공법은 그대로입니다."
+                    : (newGone ? "" : " 새 공법(" + tried + ")이 남았을 수 있습니다.") + (slotBack ? "" : " 옛 공법이 원래 칸에 다시 장착되지 않았습니다.") + " 공법 탭에서 확인하세요.";
+                return name + ": 다시 만들지 못했습니다(" + error + ")." + tail + points;
             }
             try
             {

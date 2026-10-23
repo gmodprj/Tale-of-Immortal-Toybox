@@ -244,6 +244,16 @@ namespace MOD_sWP6UL
             }, DrawMastery);
         }
 
+        // 넣은 뒤 아직 덜 찼으면 무작위 모드는 남은 자리를 다시 뽑아 보여 준다(빈 목록 안내가 틀리지 않게).
+        private void RefillAfterApply()
+        {
+            if (!masteryPick && MasteryService.Read(Target, martialId).Block == null)
+            {
+                masteryAdd.AddRange(MasteryService.Roll(Target, martialId, masteryRng));
+            }
+            Redraw();
+        }
+
         private static string StageName(int stage)
         {
             ConfBattleSkillMasteryItem item = g.conf.battleSkillMastery.GetItem(stage);
@@ -351,6 +361,7 @@ namespace MOD_sWP6UL
                 {
                     masteryAdd.Clear();
                     Say(MasteryService.Insert(Target, sole, add));
+                    RefillAfterApply();
                 }), can);
             Confirm.Button("MasteryRemake", content, "다시 만들기", "정말 다시 만들기", 160, bottom, 150, 36, "mastery-remake-" + sole,
                 "같은 기술을 옵션 " + add.Count + "개를 더해 새로 만들고 장착·숙련·전승을 옮긴 뒤 옛 것을 지웁니다. 한 번 더 누르세요.", new Action(() =>
@@ -363,6 +374,7 @@ namespace MOD_sWP6UL
                         martialId = made;
                     }
                     Say(text);
+                    RefillAfterApply();
                 }), can);
             Ui.Wrapped(content, "새 옵션은 최고 품질로 넣습니다. 끼워 넣기는 같은 공법에, 다시 만들기는 새 공법으로(고유 번호가 바뀜). 기술 이름 앞머리가 바뀔 수 있습니다.",
                 320, bottom - 4, ContentW - 320, 44, 13).color = Ui.Dim;
