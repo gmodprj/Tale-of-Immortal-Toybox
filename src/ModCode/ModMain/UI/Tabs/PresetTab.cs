@@ -40,12 +40,9 @@ namespace MOD_sWP6UL
 
         private void LoadPresets()
         {
-            List<PresetService.Preset> now = PresetService.ListCached();
-            if (!ReferenceEquals(now, presets))
-            {
-                presets = now;
-                list.Reset();
-            }
+            // 목록이 같아도 탭에 들어올 때는 예전처럼 맨 위에서 시작한다(보이는 동작은 그대로. 다시 읽기만 건너뛴다).
+            presets = PresetService.ListCached();
+            list.Reset();
         }
 
         private static string Unreadable(PresetService.Preset preset)
