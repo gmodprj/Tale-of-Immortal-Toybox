@@ -45,6 +45,25 @@ namespace MOD_sWP6UL
                         object count = list.GetType().GetProperty("Count") != null ? list.GetType().GetProperty("Count").GetValue(list, null) : "?";
                         return "query='" + q + "' ms=" + ms + " rows=" + count;
                     }
+                case "preset":
+                    {
+                        // rperf preset: 프리셋 탭 그리기의 조각별 ms(묶음 3)
+                        var sb = new StringBuilder();
+                        var w = Stopwatch.StartNew();
+                        var list = PresetService.ListCached();
+                        sb.Append("list=").Append(w.ElapsedMilliseconds); w.Restart();
+                        int changed = PresetService.DefaultsChangedCached();
+                        sb.Append(" defaults=").Append(w.ElapsedMilliseconds); w.Restart();
+                        var learned = PresetService.Snapshot();
+                        sb.Append(" snapshot=").Append(w.ElapsedMilliseconds).Append('(').Append(learned.Count).Append(')'); w.Restart();
+                        foreach (var pr in list) { if (pr.Error == null) { PresetService.AppliedCount(pr, learned); } }
+                        sb.Append(" applied=").Append(w.ElapsedMilliseconds); w.Restart();
+                        foreach (var pr in list) { if (pr.Error == null) { PresetService.ReplacesAll(pr); } }
+                        sb.Append(" replacesAll=").Append(w.ElapsedMilliseconds); w.Restart();
+                        foreach (var pr in list) { if (pr.Error == null) { PresetService.ReplacesFull(pr); } }
+                        sb.Append(" replacesFull=").Append(w.ElapsedMilliseconds).Append(" presets=").Append(list.Count);
+                        return sb.ToString();
+                    }
                 case "ltfail":
                     {
                         // Init의 번역 두 단계를 같은 순서로 다시 부르되 Scan이 첫 행에서 실패하게 한다. texts의 lt=가 그대로면 되돌아가기 길이 산다.
