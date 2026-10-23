@@ -243,8 +243,22 @@ namespace MOD_sWP6UL
             {
                 return "-";
             }
-            string name = ArtifactService.MajorName(e.DropGrade);
+            string name = MajorName(e.DropGrade);
             return DropsSoon(e, grade) ? name + " · 다음 돌파" : name;
+        }
+
+        // 대경지 이름은 설정 표의 값이라 경지 번호마다 한 번만 구한다(묶음 3. 도호 탭이 줄마다 부른다).
+        private static readonly Dictionary<int, string> majorNames = new Dictionary<int, string>();
+
+        private static string MajorName(int grade)
+        {
+            string name;
+            if (!majorNames.TryGetValue(grade, out name))
+            {
+                name = ArtifactService.MajorName(grade);
+                majorNames[grade] = name;
+            }
+            return name;
         }
 
         public static string DropNotice(Entry e)
