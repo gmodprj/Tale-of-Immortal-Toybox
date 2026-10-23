@@ -58,6 +58,9 @@ namespace MOD_sWP6UL
                         sb.Append(" snapshot=").Append(w.ElapsedMilliseconds).Append('(').Append(learned.Count).Append(')'); w.Restart();
                         foreach (var pr in list) { if (pr.Error == null) { PresetService.AppliedCount(pr, learned); } }
                         sb.Append(" applied=").Append(w.ElapsedMilliseconds); w.Restart();
+                        var facts = new PresetService.Facts();
+                        foreach (var pr in list) { if (pr.Error == null) { PresetService.AppliedCount(pr, learned, facts); } }
+                        sb.Append(" appliedFacts=").Append(w.ElapsedMilliseconds); w.Restart();
                         foreach (var pr in list) { if (pr.Error == null) { PresetService.ReplacesAll(pr); } }
                         sb.Append(" replacesAll=").Append(w.ElapsedMilliseconds); w.Restart();
                         foreach (var pr in list) { if (pr.Error == null) { PresetService.ReplacesFull(pr); } }

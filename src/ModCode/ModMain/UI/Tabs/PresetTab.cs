@@ -18,6 +18,7 @@ namespace MOD_sWP6UL
         private readonly ListView<PresetService.Stage> stages = new ListView<PresetService.Stage>("PresetStages", 44);
         private List<PresetService.Preset> presets;         // null이면 폴더를 다시 읽는다
         private List<PresetService.Learned> learned;        // 한 번 그리는 동안 쓰는 익힌 공법의 사본
+        private PresetService.Facts facts;                  // 한 번 그리는 동안 쓰는 게임 상태의 답(묶음 3)
         private PresetService.Preset opened;
 
         public override string Title
@@ -59,6 +60,7 @@ namespace MOD_sWP6UL
                 LoadPresets();
             }
             learned = PresetService.Snapshot();
+            facts = new PresetService.Facts();
             Confirm.Button("PresetRestore", content, "기본 프리셋 되돌리기", "정말 되돌리기", 0, 0, 230, 38, "preset-restore",
                 "기본 프리셋 " + PresetService.DefaultCount + "개를 다시 씁니다. 고친 기본 파일은 덮어쓰고, 직접 넣은 다른 파일은 그대로 둡니다. \"정말 되돌리기\"를 한 번 더 누르세요.",
                 new Action(() =>
@@ -99,7 +101,7 @@ namespace MOD_sWP6UL
             Ui.Wrapped(row, preset.Name, 8, 0, NameW, h, 19);
             Ui.Wrapped(row, preset.Summary, 245, 0, SummaryW, h, 16);
             Ui.Wrapped(row, preset.Source, 672, 0, SourceW, h, 14).color = Ui.Dim;
-            Text state = Ui.Label(row, PresetService.AppliedCount(preset, learned) + "/" + PresetService.StageCount + " 단계", 848, 0, 84, h, 16);
+            Text state = Ui.Label(row, PresetService.AppliedCount(preset, learned, facts) + "/" + PresetService.StageCount + " 단계", 848, 0, 84, h, 16);
             state.gameObject.name = "PresetState" + index;
             Ui.Button("PresetDetail" + index, row, "상세보기", right - 356, 3, 100, 34, new Action(() =>
             {
