@@ -48,12 +48,63 @@ namespace MOD_sWP6UL
             return world.allArtistrySkillID.Contains(id);
         }
 
+        // 그 분류의 배운 번호들. 세계 자료의 목록을 한 번 훑어 모은다(게임 상태라 부를 때마다 새로 만든다. 묶음 3).
+        public static HashSet<int> LearnedIds(Kind kind)
+        {
+            var world = g.data.world;
+            var ids = new HashSet<int>();
+            if (kind.ItemClass == PillFormulaClass)
+            {
+                for (int i = 0; i < world.pillFormulas.Count; i++)
+                {
+                    ids.Add(world.pillFormulas[i].id);
+                }
+            }
+            else
+            {
+                var all = world.allArtistrySkillID;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    ids.Add(all[i]);
+                }
+            }
+            return ids;
+        }
+
+        // 분류의 서적 번호들. 아이템 카탈로그는 한 실행 동안 바뀌지 않으므로 분류마다 한 번만 거른다(묶음 3).
+        private static readonly Dictionary<int, List<int>> bookIds = new Dictionary<int, List<int>>();
+
+        private static List<int> BookIds(Kind kind)
+        {
+            List<int> ids;
+            if (!bookIds.TryGetValue(kind.ItemClass, out ids))
+            {
+                ids = new List<int>();
+                foreach (ItemCatalog.Entry entry in Books(kind, ""))
+                {
+                    ids.Add(entry.Id);
+                }
+                bookIds[kind.ItemClass] = ids;
+            }
+            return ids;
+        }
+
+        public static int BookCount(Kind kind)
+        {
+            return BookIds(kind).Count;
+        }
+
         public static int LearnedCount(Kind kind)
         {
+            return LearnedCount(kind, LearnedIds(kind));
+        }
+
+        public static int LearnedCount(Kind kind, HashSet<int> learned)
+        {
             int count = 0;
-            foreach (ItemCatalog.Entry entry in Books(kind, ""))
+            foreach (int id in BookIds(kind))
             {
-                if (Learned(kind, entry.Id))
+                if (learned.Contains(id))
                 {
                     count++;
                 }
