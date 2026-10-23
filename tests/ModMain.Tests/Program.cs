@@ -62,6 +62,7 @@ namespace MOD_sWP6UL
             ConfigFileTests();
             FavoriteLinesTests();
             TreasureRulesTests();
+            MasteryRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -542,6 +543,34 @@ namespace MOD_sWP6UL
             Check("whole: null ch", !LocalTextRules.KeepsWhole(null, "한"));
             Check("whole: empty kr", !LocalTextRules.KeepsWhole("中文", ""));
         }
+        private static string Join(int[] a)
+        {
+            return string.Join(",", Array.ConvertAll(a, x => x.ToString()));
+        }
+
+        // 수련 단계 대도까지 채우기(05 문서 83절). 배열은 회차 ms2-1023a의 실측.
+        private static void MasteryRulesTests()
+        {
+            int[] seven = { 2, 0, 1, 1, 14111, 1, 1, 1, 7, 1, 14, 5, 11, -1, 83, 22, 85, 549, 92, 66, 63 };
+            int[] sevenAfter = { 2, 0, 1, 1, 14111, 1, 1, 1, 7, 1, 14, 5, 11, 1, 1, 1, 1, -1, 83, 22, 85, 549, 92, 66, 63, 1, 1, 1, 1 };
+            Check("mastery: insert into seven options", Join(MasteryRules.InsertOptions(seven, new[] { 1, 1, 1, 1 })) == Join(sevenAfter), Join(MasteryRules.InsertOptions(seven, new[] { 1, 1, 1, 1 })));
+            int[] none = { 2, 0, 1, 1, 11423, 1 };
+            int[] noneAfter = { 2, 0, 1, 1, 11423, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+            int[] add11 = { 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5 };
+            Check("mastery: insert into no options", Join(MasteryRules.InsertOptions(none, add11)) == Join(noneAfter), Join(MasteryRules.InsertOptions(none, add11)));
+            Check("mastery: empty add copies", Join(MasteryRules.InsertOptions(seven, new int[0])) == Join(seven) && !ReferenceEquals(MasteryRules.InsertOptions(seven, new int[0]), seven));
+            Check("mastery: options of seven", Join(MasteryRules.OptionsOf(seven)) == "1,1,7,1,14,5,11", Join(MasteryRules.OptionsOf(seven)));
+            Check("mastery: options of none", MasteryRules.OptionsOf(none).Length == 0);
+            Check("mastery: options after insert", Join(MasteryRules.OptionsOf(noneAfter)) == Join(add11));
+            Check("mastery: max options", MasteryRules.MaxOptions == 11);
+            int[] w = { 0, 3, 1 };
+            Check("mastery: pick 0.0", MasteryRules.PickWeighted(w, 0.0) == 1);
+            Check("mastery: pick 0.74", MasteryRules.PickWeighted(w, 0.74) == 1);
+            Check("mastery: pick 0.76", MasteryRules.PickWeighted(w, 0.76) == 2);
+            Check("mastery: pick all zero", MasteryRules.PickWeighted(new[] { 0, 0 }, 0.5) == -1);
+            Check("mastery: pick negative ignored", MasteryRules.PickWeighted(new[] { -5, 2 }, 0.1) == 1);
+        }
+
         private static void TreasureRulesTests()
         {
             int[] want = { 60, 80, 85, 95, 100, 120 };
