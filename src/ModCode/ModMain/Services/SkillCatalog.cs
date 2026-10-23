@@ -147,7 +147,9 @@ namespace MOD_sWP6UL
                 }
                 else
                 {
-                    ModSkillRules.BookGrades(kindIndex, OptionRowCount(id), out bookMin, out bookMax);
+                    int multiSum;
+                    int rows = OptionRowCount(id, out multiSum);
+                    ModSkillRules.BookGrades(kindIndex, rows, multiSum, out bookMin, out bookMax);
                     if (bookMax == 0)
                     {
                         hidden = true;
@@ -232,13 +234,19 @@ namespace MOD_sWP6UL
         }
 
         // 모드 공법의 옵션 행 수. GetItems는 skillType 1~12 어디서나 같은 행을 돌려주는 것으로 보여(회차 msl-1023c) 첫 일치를 쓴다.
-        private static int OptionRowCount(int baseId)
+        // multiSum: 행마다 min(multi, ModSkillRules.MaxSlots)의 합(중복 한도 안에서 채울 수 있는 칸 수).
+        private static int OptionRowCount(int baseId, out int multiSum)
         {
+            multiSum = 0;
             for (int t = 0; t <= 12; t++)
             {
                 var items = g.conf.battleSkillPrefixValue.GetItems(t, baseId);
                 if (items != null && items.Count > 0)
                 {
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        multiSum += Math.Min(items[i].multi, ModSkillRules.MaxSlots);
+                    }
                     return items.Count;
                 }
             }

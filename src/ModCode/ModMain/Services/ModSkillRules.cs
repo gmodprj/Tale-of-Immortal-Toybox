@@ -35,11 +35,15 @@ namespace MOD_sWP6UL
         // 실측(회차 msl-1023c, 경지 1·2·5·10, 10번 따로): 옵션 행이 있으면 절기·신통은 1~10, 무예/영술은 경지 1에서만 실패(2~10),
         // 신법은 어느 경지·어느 길로도 읽히지 않았다. 옵션 행이 0개면(이름 없는 심법 435 등) 만들 수 없다.
         // kindIndex는 SkillCatalog.Kinds의 순번(0 무예/영술, 1 절기, 2 신법, 3 심법, 4 신통).
-        public static void BookGrades(int kindIndex, int optionRows, out int min, out int max)
+        // multiSum은 옵션 행마다 min(multi, 11)의 합: 남는 칸을 같은 번호 되풀이로 채울 수 있는 칸 수. 비급의 옵션 칸은 많아야 11이므로
+        // 11보다 작으면 칸을 다 못 채울 수 있어 못 만듦으로 본다(실측된 성공 97행은 모두 11 이상, 최종 리뷰 Important 1).
+        public const int MaxSlots = 11;
+
+        public static void BookGrades(int kindIndex, int optionRows, int multiSum, out int min, out int max)
         {
             min = 0;
             max = 0;
-            if (optionRows <= 0 || kindIndex == 2)
+            if (optionRows <= 0 || kindIndex == 2 || multiSum < MaxSlots)
             {
                 return;
             }

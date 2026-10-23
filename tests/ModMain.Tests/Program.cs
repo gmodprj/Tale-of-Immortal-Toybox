@@ -387,20 +387,24 @@ namespace MOD_sWP6UL
             Check("blank: has desc", !ModSkillRules.IsBlankRow("0", "설명"));
             Check("blank: has name key", !ModSkillRules.IsBlankRow("skill_1", ""));
             int min, max;
-            ModSkillRules.BookGrades(0, 5, out min, out max);
+            ModSkillRules.BookGrades(0, 5, 35, out min, out max);
             Check("books: martial art rows 5 -> 2~10", min == 2 && max == 10, min + "~" + max);
-            ModSkillRules.BookGrades(0, 14, out min, out max);
+            ModSkillRules.BookGrades(0, 14, 98, out min, out max);
             Check("books: martial art rows 14 -> 2~10", min == 2 && max == 10, min + "~" + max);
-            ModSkillRules.BookGrades(1, 5, out min, out max);
+            ModSkillRules.BookGrades(1, 5, 35, out min, out max);
             Check("books: skill rows 5 -> 1~10", min == 1 && max == 10, min + "~" + max);
-            ModSkillRules.BookGrades(4, 5, out min, out max);
+            ModSkillRules.BookGrades(4, 5, 35, out min, out max);
             Check("books: ultimate rows 5 -> 1~10", min == 1 && max == 10, min + "~" + max);
-            ModSkillRules.BookGrades(2, 5, out min, out max);
+            ModSkillRules.BookGrades(2, 5, 35, out min, out max);
             Check("books: step never", min == 0 && max == 0, min + "~" + max);
-            ModSkillRules.BookGrades(3, 0, out min, out max);
+            ModSkillRules.BookGrades(3, 0, 0, out min, out max);
             Check("books: ability without rows never", min == 0 && max == 0, min + "~" + max);
-            ModSkillRules.BookGrades(1, 0, out min, out max);
+            ModSkillRules.BookGrades(1, 0, 0, out min, out max);
             Check("books: no option rows never", min == 0 && max == 0, min + "~" + max);
+            ModSkillRules.BookGrades(1, 2, 2, out min, out max);
+            Check("books: multi too small to fill 11 slots never", min == 0 && max == 0, min + "~" + max);
+            ModSkillRules.BookGrades(4, 1, 11, out min, out max);
+            Check("books: one row with multi 11 fills", min == 1 && max == 10, min + "~" + max);
         }
 
         private static void LocalTextRulesTests()
