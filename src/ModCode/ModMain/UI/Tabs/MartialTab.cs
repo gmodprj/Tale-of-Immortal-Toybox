@@ -130,10 +130,12 @@ namespace MOD_sWP6UL
             }));
             // 옵션의 글은 줄바꿈해 전부 보인다. 두 줄 넘는 옵션이 있으면 그만큼 아래 상자를 키우고 위의 목록을 줄인다.
             float grown = 0;
-            for (int i = 0; i < prefixes.Count && i < 6; i++)
+            // 대도까지 채우기(83절)로 옵션이 11개까지 늘 수 있다. 6줄을 넘는 만큼(줄마다 38) 상자를 키우고 위의 목록을 줄인다.
+            for (int i = 0; i < prefixes.Count; i++)
             {
                 grown += OptionHeight(prefixes[i]) - 32;
             }
+            grown += Math.Max(0, prefixes.Count - 6) * 38;
             float boxH = BoxH + grown;
             float listH = ContentH - 32 - boxH - 10;
             martialList.Build(content, 0, 32, ContentW, listH, all, DrawMartialRow);
@@ -163,7 +165,7 @@ namespace MOD_sWP6UL
             }
             float y = box + 50;
             float optionH = 0;
-            for (int i = 0; i < prefixes.Count && i < 6; i++)
+            for (int i = 0; i < prefixes.Count; i++)
             {
                 MartialService.PrefixView view = prefixes[i];
                 int slot = view.Index;
