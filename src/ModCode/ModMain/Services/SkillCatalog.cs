@@ -27,6 +27,10 @@ namespace MOD_sWP6UL
             public bool NameFromCh;      // 한국어 이름이 없어 LocalText의 ch(중국어)로 채웠다
             public string BasType;       // 무예·영술의 무기 종류(battleSkillAttack.basType). 그 밖은 ""
             public bool Nameless;        // 모드 행인데 이름이 비거나 "0"이거나 키 그대로라 "이름 없음(번호)"로 둔 것. 분류 목록의 끝에 온다(05 문서 48절)
+            public bool Hidden;          // 두 목록(자원 탭 기술 서적, 공법 탭 기술 추가)에서 숨김. Find·Get(프리셋·즐겨찾기·개발 명령)은 그대로 돌려준다(05 문서 78절)
+            public string HiddenReason;  // 숨긴 까닭(개발 명령 rmods와 지급 실패 문장이 쓴다)
+            public int BookGradeMin;     // 모드 행: 비급이 만들어지는 경지 범위(ModSkillRules.BookGrades). 못 만들면 0~0. 기본 행은 0
+            public int BookGradeMax;
         }
 
         public static readonly Kind[] Kinds =
@@ -110,6 +114,16 @@ namespace MOD_sWP6UL
             }
             // 모드가 이름 키를 LocalText에 넣지 않으면 이름이 비거나 "0"이다(46절). 번호로 찾을 수 있게 이름을 두고 목록 끝으로 보낸다.
             bool nameless = isMod && (name.Length == 0 || name == "0" || name == EditService.Compact(nameKey));
+            // M1(05 문서 78절): 이름 칸에 번역 키 대신 이름 글자를 그대로 넣은 모드 행은 그 글을 이름으로 쓴다.
+            if (nameless && ModSkillRules.IsLiteralName(nameKey))
+            {
+                string literal = EditService.Compact(TextTags.Strip(nameKey));
+                if (literal.Length > 0)
+                {
+                    name = literal;
+                    nameless = false;
+                }
+            }
             if (nameless)
             {
                 name = "이름 없음(" + id + ")";
@@ -119,11 +133,37 @@ namespace MOD_sWP6UL
             {
                 return;
             }
+            string desc = MartialService.CleanDesc(ResolveText(descKey, out descFromCh)).Replace("\r", "").Replace('\n', ' ');
+            bool hidden = false;
+            string hiddenReason = null;
+            int bookMin = 0, bookMax = 0;
+            if (isMod)
+            {
+                // M2·M4(사용자 결정 2026-10-23: 아예 숨김): 이름·설명 없는 행, 비급을 만들 수 없는 행.
+                if (ModSkillRules.IsBlankRow(nameKey, desc))
+                {
+                    hidden = true;
+                    hiddenReason = "이름·설명 없음";
+                }
+                else
+                {
+                    ModSkillRules.BookGrades(kindIndex, OptionRowCount(id), out bookMin, out bookMax);
+                    if (bookMax == 0)
+                    {
+                        hidden = true;
+                        hiddenReason = "비급을 만들 수 없음";
+                    }
+                }
+            }
             list.Add(new Entry
             {
                 BaseId = id,
                 Name = name,
-                Desc = MartialService.CleanDesc(ResolveText(descKey, out descFromCh)).Replace("\r", "").Replace('\n', ' '),
+                Desc = desc,
+                Hidden = hidden,
+                HiddenReason = hiddenReason,
+                BookGradeMin = bookMin,
+                BookGradeMax = bookMax,
                 GradeMin = isMod ? 1 : gradeMin,
                 GradeMax = isMod ? 10 : gradeMax,
                 Search = name + EditService.Compact(TextTags.Strip(ChOf(nameKey))),
@@ -191,6 +231,34 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 모드 공법의 옵션 행 수. GetItems는 skillType 1~12 어디서나 같은 행을 돌려주는 것으로 보여(회차 msl-1023c) 첫 일치를 쓴다.
+        private static int OptionRowCount(int baseId)
+        {
+            for (int t = 0; t <= 12; t++)
+            {
+                var items = g.conf.battleSkillPrefixValue.GetItems(t, baseId);
+                if (items != null && items.Count > 0)
+                {
+                    return items.Count;
+                }
+            }
+            return 0;
+        }
+
+        // 두 목록(자원 탭 기술 서적, 공법 탭 기술 추가)이 쓰는 것: Find에서 숨긴 행을 뺀다.
+        public static List<Entry> Listed(int kindIndex, string query)
+        {
+            List<Entry> found = Find(kindIndex, query);
+            found.RemoveAll(e => e.Hidden);
+            return found;
+        }
+
+        // 모드 행이고 그 경지에서 비급이 만들어지는지.
+        public static bool ModBookFits(Entry entry, int grade)
+        {
+            return entry.IsMod && entry.BookGradeMax > 0 && grade >= entry.BookGradeMin && grade <= entry.BookGradeMax;
+        }
+
         public static List<Entry> Find(int kindIndex, string query)
         {
             string needle = EditService.Compact(query ?? "");
@@ -234,6 +302,14 @@ namespace MOD_sWP6UL
                 if (grade < 1 || grade > 10)
                 {
                     return "경지는 1~10입니다";
+                }
+                if (entry.Hidden)
+                {
+                    return entry.HiddenReason;
+                }
+                if (!ModBookFits(entry, grade))
+                {
+                    return "경지 " + entry.BookGradeMin + "~" + entry.BookGradeMax + "에서만 비급을 만들 수 있습니다";
                 }
                 // 신통도 준다(옵션 번호를 모드 것으로 바꾸면 게임이 읽는다. 05 문서 44절). 그 경지에 원본으로 쓸 기본 공법이 없으면 미리 알린다(줄의 버튼과 결과가 어긋나지 않게).
                 return SourceFor(entry.KindIndex, entry, grade) == null ? "경지 " + grade + "에 원본으로 쓸 기본 공법이 없습니다" : null;

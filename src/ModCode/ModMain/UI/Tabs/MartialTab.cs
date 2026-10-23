@@ -268,7 +268,7 @@ namespace MOD_sWP6UL
             {
                 skillQuery = v;
                 skillDetail.Clear();
-                skillList.SetItems(SkillCatalog.Find(skillKind, skillQuery));
+                skillList.SetItems(SkillCatalog.Listed(skillKind, skillQuery));
             }));
 
             // 만들 기술의 경지. 처음에는 편집 대상의 현재 대경지.
@@ -291,7 +291,7 @@ namespace MOD_sWP6UL
             learnedCounts = SkillCatalog.LearnedCounts(target, skillKind);
             float top = y + 92;
             skillList.HeightOf = entry => RowWithSecondLine(50, Ui.TextHeight(entry.Desc, 1050, 15));
-            skillList.Build(content, 0, top, ContentW, ContentH - top - 78, SkillCatalog.Find(skillKind, skillQuery), DrawSkillRow);
+            skillList.Build(content, 0, top, ContentW, ContentH - top - 78, SkillCatalog.Listed(skillKind, skillQuery), DrawSkillRow);
             skillDetail.Build(content, 0, ContentH - 70, ContentW, 70);
         }
 
