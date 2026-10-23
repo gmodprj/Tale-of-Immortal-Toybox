@@ -4,6 +4,7 @@
 #   -Part ui        편집기 탭 16의 줄과 단추로 같은 흐름(service 뒤에 같은 회차에서 돌려도 된다. 다른 번호의 법보·기령을 쓴다).
 #   -Part repair    수리(05 문서 60절): 개발 명령 trdur로 내구를 낮추고 trrepair·탭의 수리·모두 수리 단추로 채운다. 끝에서 저장한다 → session.ps1 -Restart → -Part repair-restart.
 #   -Part repair-restart  저장한 뒤 다시 켜도 수리한 내구가 남는지.
+#   -Part forge     트레이너 3차: trart·trgrade·trstage·trsp·trclose·trnpc로 경지 올리기(10에서 멈춤, 비율 유지)·단계 1~6·기령 친밀도 최대·NPC 대상.
 param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
@@ -138,6 +139,59 @@ switch ($Part) {
     $s = Tr
     Check 'the repaired durability survives a restart' ($s -match "\[${a}:3031103:[^\]]*:${max}/${max}:") $s
     Check 'the lowered durability survives a restart too (the write is real save data)' ($s -match "\[${b}:3031104:[^\]]*:9/") $s
+  }
+  'forge' {
+    # 트레이너 3차(스펙 2026-10-23-trainer3-design.md 6절): 경지 올리기·10에서 멈춤·비율 유지, 단계 1~6, 기령 친밀도 최대, NPC 대상.
+    function Art([string]$s) { Cmd "trart $s" 300 }
+    Cmd 'trnpc me' 200 | Out-Null
+    $r = Cmd 'trgive 3031108' 800
+    if ((Tr) -match '\[(\w+):3031108:') { $sole = $Matches[1] } else { $sole = '' }
+    $a = Art $sole
+    Check 'a given treasure starts at grade 3' ($a -match 'grade=3 ') "$r | $a"
+    $null = $a -match 'rate=([\d/]+)'; $rate0 = $Matches[1]
+    $null = $a -match 'pre=(\d+)/'; $pre0 = [int]$Matches[1]
+    $r = Cmd "trgrade $sole" 800
+    $a = Art $sole
+    Check 'grade up adds one grade and one option' ($a -match 'grade=4 ' -and $a -match "pre=$($pre0 + 1)/") "$r | $a"
+    Check 'grade up keeps the rates' ($a -match "rate=$rate0 ") "$rate0 | $a"
+    $r = Cmd "trgrade $sole 10" 3000
+    $a = Art $sole
+    Check 'grade up to 10 stops at 10' ($a -match 'grade=10 ' -and $a -match "rate=$rate0 ") "$r | $a"
+    $r = Cmd "trgrade $sole" 800
+    $a = Art $sole
+    Check 'grade at 10 is refused' ($r -match '이미 경지 10' -and $a -match 'grade=10 ') "$r | $a"
+    $want = @{ 1 = 60; 2 = 80; 3 = 85; 4 = 95; 5 = 100; 6 = 120 }
+    foreach ($n in 1..6) {
+      $r = Cmd "trstage $sole $n" 500
+      $a = Art $sole
+      $v = $want[$n]
+      Check "stage $n sets level $n and rates $v" ($a -match "level=$n " -and $a -match "rate=$v/$v/$v/$v/$v ") "$r | $a"
+    }
+    $r = Cmd 'trmake 1001' 800
+    $s = Cmd 'trsp' 300
+    if ($s -match '(-?\d+):1001 intim=(\d+)/(\d+)') { $sp = $Matches[1]; $i0 = [int]$Matches[2]; $max = [int]$Matches[3] } else { $sp = ''; $i0 = -1; $max = -1 }
+    Check 'a new spirit starts below the maximum' ($i0 -ge 0 -and $i0 -lt $max -and $max -gt 0) $s
+    $r = Cmd "trclose $sp" 500
+    Check 'intimacy goes to the maximum' ((Cmd 'trsp' 300) -match "${sp}:1001 intim=$max/$max") "$r | $(Cmd 'trsp' 300)"
+    $r = Cmd "trclose $sp" 500
+    Check 'a second press says it is already full' ($r -match '이미') $r
+    # NPC 대상: 그 NPC의 법보·기령이 바뀌고 플레이어 쪽은 그대로
+    $mine = Art $sole
+    $r = Cmd 'trnpc any' 300
+    Check 'an npc is targeted' ($r -match 'target=') $r
+    $r = Cmd 'trgive 3031101' 800
+    if ((Tr) -match '\[(\w+):3031101:') { $ns = $Matches[1] } else { $ns = '' }
+    $r = Cmd "trgrade $ns" 800
+    Check 'npc target: grade up on the npc treasure' ((Art $ns) -match 'grade=3 ') "$r | $(Art $ns)"
+    $r = Cmd 'trmake 1002' 800
+    if ((Cmd 'trsp' 300) -match '(-?\d+):1002 intim=') { $nsp = $Matches[1] } else { $nsp = '' }
+    $r = Cmd "trclose $nsp" 500
+    Check 'npc target: intimacy on the npc spirit' ((Cmd 'trsp' 300) -match "${nsp}:1002 intim=$max/$max") "$r | $(Cmd 'trsp' 300)"
+    Cmd 'trnpc me' 200 | Out-Null
+    Check 'npc target: the player treasure is unchanged' ((Art $sole) -eq $mine) "$mine | $(Art $sole)"
+    Check 'npc target: the player has no 1002 spirit' ((Cmd 'trsp' 300) -notmatch ':1002 ') (Cmd 'trsp' 300)
+    Check 'the change log has forge lines' (LogHas '경지' -and (LogHas '친밀도'))
+    Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   default { throw "알 수 없는 Part: $Part" }
 }
