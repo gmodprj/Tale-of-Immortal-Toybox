@@ -86,6 +86,11 @@ namespace MOD_sWP6UL
             {
                 return input;
             }
+            string modBook = DevCommandsModBook.Execute(p);
+            if (modBook != null)
+            {
+                return modBook;
+            }
             string perf = DevCommandsPerf.Execute(p);
             if (perf != null)
             {
