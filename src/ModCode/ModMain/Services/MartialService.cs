@@ -129,7 +129,7 @@ namespace MOD_sWP6UL
         }
 
         // 품질 단계 level에 해당하는 수치 구간의 가장 높은 값. 탐색 중 바꾼 수치는 호출한 쪽이 최종값을 다시 쓴다.
-        private static int TopRawOfLevel(DataProps.MartialData martial, int index, int level)
+        internal static int TopRawOfLevel(DataProps.MartialData martial, int index, int level)
         {
             int first = FirstRawAtLeast(martial, index, level);
             if (first < 0)
@@ -468,7 +468,8 @@ namespace MOD_sWP6UL
         // 규칙은 옵션 교체(ReplaceBlockReason)와 같다: 그 기술의 번호, 자리의 가중치, 중복 한도, 선행(양수)·배타(음수) 조건.
         // 실측: 규칙 없이도 게임은 12개까지 만들어 준다. 설정 표에 자리의 가중치가 11번째까지만 있어 11개로 막는다.
         // anySlot: 자리 판정만 건너뛴다(프리셋 적용. 편집기가 자리 밖에 넣은 옵션을 내보낸 파일이 다시 적용되게. 스펙 7.1절).
-        public static string OptionProblem(MartialType type, int baseId, int[] options, bool anySlot = false)
+        // slotFrom: 자리 판정을 이 자리부터만 한다(대도까지 채우기: 옛 옵션은 자리 밖이어도 인정, 05 문서 83절).
+        public static string OptionProblem(MartialType type, int baseId, int[] options, bool anySlot = false, int slotFrom = 0)
         {
             if (options.Length > 11)
             {
@@ -489,7 +490,7 @@ namespace MOD_sWP6UL
                 {
                     return "이 기술에 없는 옵션입니다(" + number + ")";
                 }
-                if (!anySlot && Weight(item, i) <= 0)
+                if (!anySlot && i >= slotFrom && Weight(item, i) <= 0)
                 {
                     return "옵션 " + (i + 1) + ": " + SlotReason;
                 }
