@@ -117,6 +117,9 @@ switch ($Part) {
     Press 'Back' | Out-Null
     Pick 'tIjlr1'
     Check 'the stage text shows 12/12 and the button is off' ((Text 'MasteryText') -match '12/12' -and (IsOffBtn 'MasteryOpen')) (Text 'MasteryText')
+    # 옵션 11개가 모두 그려진다(사용자 보고 2026-10-23: 6개까지만 보임)
+    Check 'all eleven option rows are drawn' ((Has 'OptionText10') -and (Has 'QualityMax10') -and (IsAt 'MartialEquip')) (Text 'OptionText10')
+    Shot 'mastery-options'
     # 직접 고르기 + 다시 만들기(건강약, 신법 3개)
     Pick 'cR6Nyn'
     Press 'MasteryOpen' | Out-Null
