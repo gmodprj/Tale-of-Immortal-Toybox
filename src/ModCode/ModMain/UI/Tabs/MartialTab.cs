@@ -195,21 +195,189 @@ namespace MOD_sWP6UL
             Ui.Button("MartialEquip", content, equipped ? "장착 해제" : "장착", 16, box + 286 + grown, 150, 34,
                 new Action(() => Say(equipped ? MartialService.Unequip(Target, martialId) : MartialService.Equip(Target, martialId))));
             ForgetButton(box + 286 + grown);
-            float hintX = 340;
+            // 수련 단계 대도까지 채우기(05 문서 83절).
+            float rowY = box + 286 + grown;
+            MasteryService.State mastery = MasteryService.Read(Target, martialId);
+            bool blocked = mastery.Block != null && mastery.Options < MasteryRules.MaxOptions;
+            Text stageText = Ui.Wrapped(content, blocked ? "수련 " + mastery.Stages + "/12 · " + mastery.Block : "수련 단계 " + mastery.Stages + "/12",
+                340, box + 280 + grown, 160, 44, blocked ? 12 : 16);
+            stageText.gameObject.name = "MasteryText";
+            if (blocked)
+            {
+                stageText.color = Ui.Warn;
+            }
+            Ui.Button("MasteryOpen", content, "대도까지…", 504, rowY, 116, 34, new Action(OpenMastery), mastery.Block == null);
+            float hintX = 632;
             DataProps.MartialData chosen = MartialService.Martial(Target, martialId);
             if (chosen != null && chosen.martialType == MartialType.Ability)
             {
                 // 전승(심법 세트). 트레이너 3차 5.4.
                 DataUnit.ActionMartialData action = Target.data.unitData.GetActionMartial(martialId);
                 int suit = action == null ? 0 : MartialService.SuitOf(action.data);
-                Ui.Label(content, "전승: " + (suit == 0 ? "없음" : PresetService.SuitName(suit)), 340, box + 286 + grown, 250, 34, 17).gameObject.name = "MartialSuitText";
-                Ui.Button("MartialSuitOpen", content, "전승…", 596, box + 286 + grown, 100, 34, new Action(OpenSuits));
-                hintX = 710;
+                Ui.Label(content, "전승: " + (suit == 0 ? "없음" : PresetService.SuitName(suit)), 632, rowY, 190, 34, 16).gameObject.name = "MartialSuitText";
+                Ui.Button("MartialSuitOpen", content, "전승…", 826, rowY, 90, 34, new Action(OpenSuits));
+                hintX = 928;
             }
-            Text hint = Ui.Wrapped(content, "수련은 위의 숙련 경험치로 대신합니다. 게임 참오 창의 결과를 최대로 하려면 성공·드롭 탭의 \"참오 결과 최대\".",
+            Text hint = Ui.Wrapped(content, "참오 결과 최대는 성공·드롭 탭에 있습니다.",
                 hintX, box + 280 + grown, ContentW - hintX, 44, 14);
             hint.color = Ui.Dim;
             hint.gameObject.name = "MartialHint";
+        }
+
+        // ---- 수련 단계 대도까지 채우기(05 문서 83절, 스펙 2026-10-23-mastery-fill-design.md 5절) ----
+
+        private readonly List<int> masteryAdd = new List<int>();
+        private bool masteryPick;   // 직접 고르기
+        private readonly ListView<ConfBattleSkillPrefixValueItem> masteryCands = new ListView<ConfBattleSkillPrefixValueItem>("MasteryPickList", 40);
+        private readonly System.Random masteryRng = new System.Random();
+
+        private void OpenMastery()
+        {
+            masteryPick = false;
+            masteryAdd.Clear();
+            masteryAdd.AddRange(MasteryService.Roll(Target, martialId, masteryRng));
+            masteryCands.Reset();
+            Push(() =>
+            {
+                DataProps.MartialData martial = MartialService.Martial(Target, martialId);
+                return (martial == null ? "공법" : MartialService.Name(martial)) + " — 대도까지 채우기";
+            }, DrawMastery);
+        }
+
+        // 넣은 뒤 아직 덜 찼으면 무작위 모드는 남은 자리를 다시 뽑아 보여 준다(빈 목록 안내가 틀리지 않게).
+        private void RefillAfterApply()
+        {
+            if (!masteryPick && MasteryService.Read(Target, martialId).Block == null)
+            {
+                masteryAdd.AddRange(MasteryService.Roll(Target, martialId, masteryRng));
+            }
+            Redraw();
+        }
+
+        private static string StageName(int stage)
+        {
+            ConfBattleSkillMasteryItem item = g.conf.battleSkillMastery.GetItem(stage);
+            return item == null ? stage.ToString() : GameTool.LS(item.name);
+        }
+
+        private void DrawMastery()
+        {
+            float y = SubTop;
+            DataProps.MartialData martial = MartialService.Martial(Target, martialId);
+            if (martial == null)
+            {
+                Ui.Label(content, "공법을 찾지 못했습니다. 돌아가서 다시 선택하세요.", 0, y, 800, 36).color = Ui.Warn;
+                return;
+            }
+            MasteryService.State state = MasteryService.Read(Target, martialId);
+            if (state.Block != null)
+            {
+                masteryAdd.Clear();   // 다 찼거나 더할 수 없으면 남은 목록을 보이지 않는다
+            }
+            List<ConfBattleSkillPrefixValueItem> items = MartialService.ValidItems(martial);
+            Ui.Label(content, "옵션 " + state.Options + "/" + MasteryRules.MaxOptions + "   수련 단계 " + state.Stages + "/12 " + state.LastStage
+                + (MartialService.IsEquipped(Target, martialId) ? "   장착 중" : ""), 0, y, ContentW, 32, 18).gameObject.name = "MasteryInfo";
+            y += 38;
+            Ui.Button("MasteryRoll", content, "무작위 뽑기", 0, y, 130, 34, new Action(() =>
+            {
+                masteryPick = false;
+                masteryAdd.Clear();
+                masteryAdd.AddRange(MasteryService.Roll(Target, martialId, masteryRng));
+                Redraw();
+            }), true, !masteryPick);
+            Ui.Button("MasteryPickMode", content, "직접 고르기", 136, y, 130, 34, new Action(() =>
+            {
+                masteryPick = true;
+                masteryAdd.Clear();
+                masteryCands.Reset();
+                Redraw();
+            }), true, masteryPick);
+            if (masteryPick)
+            {
+                Ui.Button("MasteryUndo", content, "마지막 하나 빼기", 290, y, 160, 34, new Action(() =>
+                {
+                    if (masteryAdd.Count > 0)
+                    {
+                        masteryAdd.RemoveAt(masteryAdd.Count - 1);
+                    }
+                    masteryCands.Reset();
+                    Redraw();
+                }), masteryAdd.Count > 0);
+            }
+            else
+            {
+                Ui.Button("MasteryReroll", content, "다시 뽑기", 290, y, 130, 34, new Action(() =>
+                {
+                    masteryAdd.Clear();
+                    masteryAdd.AddRange(MasteryService.Roll(Target, martialId, masteryRng));
+                    Redraw();
+                }), state.Block == null);
+            }
+            if (state.Block != null)
+            {
+                Ui.Label(content, state.Block, 470, y, ContentW - 470, 34, 15).color = Ui.Warn;
+            }
+            y += 42;
+            // 더할 목록: 자리 k의 옵션 = 단계 k+2(1 초학, 2 입문 … 12 대도)
+            for (int i = 0; i < masteryAdd.Count; i++)
+            {
+                int slot = state.Options + i;
+                int number = masteryAdd[i];
+                ConfBattleSkillPrefixValueItem item = items.Find(it => it.number == number);
+                string desc = item == null ? "?" : MartialService.CleanLine(item.desc);
+                Text row = Ui.Label(content, "자리 " + (slot + 1) + " · " + StageName(slot + 2) + " · " + number + "번  " + desc, 0, y, ContentW, 26, 14);
+                row.gameObject.name = "MasteryRow" + slot;
+                y += 27;
+            }
+            if (masteryAdd.Count == 0)
+            {
+                Ui.Label(content, masteryPick ? "아래 목록에서 다음 자리의 옵션을 고르세요." : "더할 옵션이 없습니다.", 0, y, ContentW, 26, 14).color = Ui.Dim;
+                y += 27;
+            }
+            float bottom = ContentH - 44;
+            if (masteryPick && state.Options + masteryAdd.Count < MasteryRules.MaxOptions)
+            {
+                int slot = state.Options + masteryAdd.Count;
+                Ui.Label(content, "자리 " + (slot + 1) + "(" + StageName(slot + 2) + ")에 넣을 수 있는 옵션", 0, y + 4, 600, 26, 15).color = Ui.Dim;
+                float top = y + 32;
+                masteryCands.Build(content, 0, top, ContentW, Math.Max(90, bottom - top - 8), MasteryService.Candidates(Target, martialId, masteryAdd), (row, item, index) =>
+                {
+                    float h = row.sizeDelta.y;
+                    int number = item.number;
+                    Ui.Label(row, number + "번  " + MartialService.CleanLine(item.desc), 8, 0, ContentW - 170, h, 14);
+                    Ui.Button("MasteryPick" + number, row, "이걸로", ContentW - Ui.ScrollBarWidth - 6 - 110, (h - 32) / 2, 110, 32, new Action(() =>
+                    {
+                        masteryAdd.Add(number);
+                        masteryCands.Reset();
+                        Redraw();
+                    }));
+                });
+            }
+            bool can = state.Block == null && masteryAdd.Count > 0;
+            string sole = martialId;
+            var add = new List<int>(masteryAdd);
+            Confirm.Button("MasteryInsert", content, "끼워 넣기", "정말 끼워 넣기", 0, bottom, 150, 36, "mastery-insert-" + sole,
+                "옵션 " + add.Count + "개를 이 공법에 더합니다(장착·숙련·전승 그대로). 한 번 더 누르세요.", new Action(() =>
+                {
+                    masteryAdd.Clear();
+                    Say(MasteryService.Insert(Target, sole, add));
+                    RefillAfterApply();
+                }), can);
+            Confirm.Button("MasteryRemake", content, "다시 만들기", "정말 다시 만들기", 160, bottom, 150, 36, "mastery-remake-" + sole,
+                "같은 기술을 옵션 " + add.Count + "개를 더해 새로 만들고 장착·숙련·전승을 옮긴 뒤 옛 것을 지웁니다. 한 번 더 누르세요.", new Action(() =>
+                {
+                    masteryAdd.Clear();
+                    string made;
+                    string text = MasteryService.Remake(Target, sole, add, out made);
+                    if (made != null)
+                    {
+                        martialId = made;
+                    }
+                    Say(text);
+                    RefillAfterApply();
+                }), can);
+            Ui.Wrapped(content, "새 옵션은 최고 품질로 넣습니다. 끼워 넣기는 같은 공법에, 다시 만들기는 새 공법으로(고유 번호가 바뀜). 기술 이름 앞머리가 바뀔 수 있습니다.",
+                320, bottom - 4, ContentW - 320, 44, 13).color = Ui.Dim;
         }
 
         private void OpenSuits()

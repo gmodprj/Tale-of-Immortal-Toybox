@@ -106,6 +106,11 @@ namespace MOD_sWP6UL
             {
                 return zh;
             }
+            string mastery = DevCommandsMastery.Execute(p);
+            if (mastery != null)
+            {
+                return mastery;
+            }
             string t3 = DevCommandsTrainer3.Execute(p);
             if (t3 != null)
             {
