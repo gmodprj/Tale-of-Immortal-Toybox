@@ -20,7 +20,7 @@ namespace MOD_sWP6UL
             switch (p[0])
             {
                 case "rmodtry": return Try(int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]), p[4]);
-                case "rmodsweep": return Sweep(int.Parse(p[1]), p[2], p.Length > 3 ? int.Parse(p[3]) : 10);
+                case "rmodsweep": return Sweep(int.Parse(p[1]), p[2], p.Length > 3 ? int.Parse(p[3]) : 10, p.Length > 4 && p[4] == "all");
                 default: return null;
             }
         }
@@ -279,9 +279,9 @@ namespace MOD_sWP6UL
             return "path=" + path + " made=1 name=" + name + " sole=" + sole + " can=" + can + " base=" + BaseCan(grade) + " values=" + Join(values);
         }
 
-        private static string Sweep(int grade, string path, int repeat)
+        private static string Sweep(int grade, string path, int repeat, bool all)
         {
-            var file = new StringBuilder("kind\tid\tname\trows\tmultiSum\tok/rep\tcanMatch\treason\n");
+            var file = new StringBuilder("kind\tid\tname\trows\tmultiSum\tok/rep\tcanMatch\treason\tnameless\trowType\tsourceType\n");
             int ok = 0, partial = 0, fail = 0;
             int baseline = BaseCan(grade);
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
@@ -289,17 +289,26 @@ namespace MOD_sWP6UL
                 SkillCatalog.Kind kind = SkillCatalog.Kinds[k];
                 foreach (SkillCatalog.Entry e in SkillCatalog.Find(k, ""))
                 {
-                    if (!e.IsMod || e.Nameless)
+                    // all: 이름 없음 줄도 넣되, 이름·설명이 모두 없는 줄(M2로 숨길 것)은 뺀다.
+                    if (!e.IsMod || (e.Nameless && (!all || string.IsNullOrEmpty(e.Desc) || e.Desc == "0")))
                     {
                         continue;
                     }
-                    int rows = 0, multiSum = 0;
-                    for (int t = 1; t <= 5; t++)
+                    int rows = 0, multiSum = 0, rowType = 0, sourceType = -1;
+                    try
+                    {
+                        SkillCatalog.Entry src = SkillCatalog.SourceFor(k, e, grade);
+                        Il2CppStructArray<int> sr = src == null ? null : SkillCatalog.RollValues(kind, src.BaseId, grade, 3000, null);
+                        sourceType = sr == null ? -1 : SkillTypeOf(kind, sr);
+                    }
+                    catch (Exception) { sourceType = -2; }
+                    for (int t = 0; t <= 12; t++)
                     {
                         var items = g.conf.battleSkillPrefixValue.GetItems(t, e.BaseId);
                         if (items != null && items.Count > 0)
                         {
                             rows = items.Count;
+                            rowType = t;
                             multiSum = 0;
                             for (int i = 0; i < items.Count; i++) { multiSum += Math.Min(items[i].multi, 11); }
                             break;
@@ -329,7 +338,7 @@ namespace MOD_sWP6UL
                     }
                     if (success == repeat && canMatch == "same") { ok++; } else if (success > 0) { partial++; } else { fail++; }
                     file.Append(kind.Tab).Append('\t').Append(e.BaseId).Append('\t').Append(e.Name).Append('\t').Append(rows).Append('\t').Append(multiSum).Append('\t')
-                        .Append(success).Append('/').Append(repeat).Append('\t').Append(canMatch).Append('\t').Append(lastReason).Append('\n');
+                        .Append(success).Append('/').Append(repeat).Append('\t').Append(canMatch).Append('\t').Append(lastReason).Append('\t').Append(e.Nameless).Append('\t').Append(rowType).Append('\t').Append(sourceType).Append('\n');
                 }
             }
             File.WriteAllText(Path.Combine(DevCommands.Dir, "modsweep-" + grade + "-" + path + ".txt"), file.ToString(), new UTF8Encoding(false));
