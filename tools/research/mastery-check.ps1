@@ -188,6 +188,29 @@ switch ($Part) {
     Shot 'mastery-info'
     Cmd 'mfui off' 500 | Out-Null
   }
+  'modname' {
+    # 모드 공법 이름에 색 태그 글자(COLOR…)가 남지 않는다(83.7절). 만고신화(2814696167)가 실린 회차에서(-Exclude 없이).
+    Cmd 'mfstate tIjlr1' 300 | Out-Null
+    $mods = Cmd 'rmods 3' 3000
+    # 만고신화 검결: 이름에 '검결'이 든 모드 항목(분류:번호:이름:…)
+    $hit = [regex]::Match($mods, '(?m)(\d):(\d+):([^:\n]*검결[^:\n]*):')
+    if (-not $hit.Success) { "INFO no 검결 mod skill: $($mods.Substring(0, [Math]::Min(300, $mods.Length)))" }
+    else {
+      $r = Cmd "mfmake $($hit.Groups[1].Value) $($hit.Groups[2].Value) 3" 1500
+      $names = Cmd 'mfname' 1000
+      $line = [regex]::Match($names, "(?m)^(?:mfname -> )?\w+:$($hit.Groups[2].Value):([^|\n]*)\|(.*)$")
+      Check 'the mod skill was learned' ($line.Success) "$r | $names"
+      Check 'the raw game name has a color tag' ($line.Groups[2].Value -match '<') $line.Value
+      Check 'the editor name has no color tag text' ($line.Groups[1].Value -notmatch 'COLOR|color' -and $line.Groups[1].Value -match '검결') $line.Value
+      $all = @([regex]::Matches($names, '(?m):\d+:([^|\n]*)\|') | Where-Object { $_.Groups[1].Value -match 'COLOR' })
+      Check 'no learned skill name shows COLOR' ($all.Count -eq 0) (($all | ForEach-Object { $_.Value }) -join ' ')
+      Cmd 'uitarget player' | Out-Null
+      Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
+      Press 'MartialListLast' | Out-Null
+      Shot 'modname'
+      Cmd 'uitoggle' | Out-Null
+    }
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish

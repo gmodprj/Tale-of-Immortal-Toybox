@@ -57,6 +57,25 @@ namespace MOD_sWP6UL
                     }
                 case "mfvals":
                     return Vals(Unit(p, 2), p[1]);
+                case "mfmake":
+                    {
+                        // mfmake <분류 0~4> <기술 번호> <경지>: 옵션 없이 MartialService.Make로 만들어 배운다(모드 공법 이름 검사 준비)
+                        var type = SkillCatalog.Kinds[int.Parse(p[1])].Type;
+                        string made;
+                        string error = MartialService.Make(g.world.playerUnit, type, int.Parse(p[2]), int.Parse(p[3]), new int[0], out made, true);
+                        return error ?? "made " + made;
+                    }
+                case "mfname":
+                    {
+                        // 익힌 공법마다 sole:기본 번호:다듬은 이름|게임 원문(모드 이름의 태그 확인, 83.7절)
+                        var sb = new StringBuilder();
+                        foreach (var pair in g.world.playerUnit.data.unitData.allActionMartial)
+                        {
+                            var m = pair.Value.data.To<DataProps.MartialData>();
+                            sb.Append(pair.Key).Append(':').Append(m.baseID).Append(':').Append(MartialService.Name(m)).Append('|').Append(m.martialInfo.name).Append('\n');
+                        }
+                        return sb.ToString();
+                    }
                 case "mffailnext":
                     MasteryService.FailNextMake = true;
                     return "fail next";
