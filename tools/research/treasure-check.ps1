@@ -222,6 +222,47 @@ switch ($Part) {
     Check 'existing treasure keeps its rates' ((Art $s) -match 'level=2 ' -and (Art $s) -match 'rate=80/80/80/80/80 ') (Art $s)
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
+  'forge-ui' {
+    # 트레이너 3차 5.1~5.3: 줄의 강화… → 경지 +1·단계 6·경지 10까지, 지급 화면의 경지·단계 칩, 기령 줄의 친밀도 최대.
+    function Art([string]$s) { Cmd "trart $s" 300 }
+    Cmd 'trnpc me' 200 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab16' | Out-Null
+    $b = @([regex]::Matches((Tr), '\[(\w+):3031107:') | ForEach-Object { $_.Groups[1].Value })
+    Cmd 'trgive 3031107' 800 | Out-Null
+    $sole = @([regex]::Matches((Tr), '\[(\w+):3031107:') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $b -notcontains $_ })[0]
+    Press 'Tab15' | Out-Null; Press 'Tab16' | Out-Null
+    $g0 = if ((Art $sole) -match 'grade=(\d+) ') { [int]$Matches[1] } else { -1 }
+    Check 'the row has a forge button' (IsAt "TreasureForge$sole") $sole
+    Press "TreasureForge$sole" | Out-Null
+    Check 'the forge screen shows its info' ((Cmd 'uitext ForgeInfo') -match '단계 5') (Cmd 'uitext ForgeInfo')
+    Press 'ForgeGradeUp' | Out-Null
+    Check 'grade +1 from the screen' ((Art $sole) -match "grade=$($g0 + 1) ") (Art $sole)
+    Press 'ForgeStage6' | Out-Null
+    Check 'stage 6 from the screen' ((Art $sole) -match 'level=6 ' -and (Art $sole) -match 'rate=120/') (Art $sole)
+    Check 'the stage 6 chip says the limit break' ((Cmd 'uitext ForgeStage6') -match '한계돌파') (Cmd 'uitext ForgeStage6')
+    Press 'ForgeGradeMax' | Out-Null
+    Check 'grade to 10 from the screen' ((Art $sole) -match 'grade=10 ' -and (Art $sole) -match 'rate=120/') (Art $sole)
+    Check 'grade buttons are off at 10' ((IsOff 'ForgeGradeUp') -and (IsOff 'ForgeGradeMax'))
+    Shot 'treasure-forge'
+    Press 'Back' | Out-Null
+    Press 'TreasureGiveOpen' | Out-Null
+    Check 'the give screen has grade and stage chips' ((IsAt 'GiveGrade0') -and (IsAt 'GiveGrade10') -and (IsAt 'GiveStage1') -and (IsAt 'GiveStage6'))
+    Press 'GiveGrade8' | Out-Null; Press 'GiveStage4' | Out-Null
+    $b = @([regex]::Matches((Tr), '\[(\w+):3031105:') | ForEach-Object { $_.Groups[1].Value })
+    Press 'TreasureGive3031105' | Out-Null
+    $s2 = @([regex]::Matches((Tr), '\[(\w+):3031105:') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $b -notcontains $_ })[0]
+    Check 'give with grade 8 and stage 4 from the screen' ((Art $s2) -match 'grade=8 ' -and (Art $s2) -match 'level=4 ') (Art $s2)
+    Press 'Back' | Out-Null
+    $spOut = Cmd 'trmake 1003' 800
+    Press 'Tab15' | Out-Null; Press 'Tab16' | Out-Null
+    $sp = if ((Cmd 'trsp' 300) -match '(-?\d+):1003 intim=') { $Matches[1] } else { '' }
+    Check 'the spirit row shows intimacy' ((Cmd "uitext SpiritCloseText$sp") -match '친밀') (Cmd "uitext SpiritCloseText$sp")
+    Press "SpiritClose$sp" | Out-Null
+    Check 'intimacy max from the screen' ((Cmd 'trsp' 300) -match "${sp}:1003 intim=(\d+)/\1") (Cmd 'trsp' 300)
+    Check 'the intimacy button is off when full' (IsOff "SpiritClose$sp")
+    Check 'no callback exception in the log' ((Traps) -eq 0)
+    Cmd 'uitoggle' | Out-Null
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
