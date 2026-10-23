@@ -22,6 +22,29 @@ namespace MOD_sWP6UL
                 case "dump": return Dump(p.Length > 2 ? p[2] : "x");
                 case "lt": return Lt();
                 case "confid": return ConfId();
+                case "query":
+                    {
+                        // rperf query <검색어|-> [그룹 키]: 자원 탭의 OnQuery(검색 칸 글자 하나마다 하는 일)를 불러 ms와 줄 수(묶음 3)
+                        if (!EditorWindow.IsOpen)
+                        {
+                            EditorWindow.Toggle();
+                        }
+                        var tabs = (EditorTab[])typeof(EditorWindow).GetField("tabs", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+                        int index = Array.FindIndex(tabs, t => t is ResourcesTab);
+                        EditorWindow.SwitchTab(index);
+                        ResourcesTab tab = (ResourcesTab)tabs[index];
+                        if (p.Length > 3)
+                        {
+                            typeof(ResourcesTab).GetMethod("SetGroup", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(tab, new object[] { p[3] });
+                        }
+                        string q = p.Length > 2 && p[2] != "-" ? p[2] : "";
+                        var watch = Stopwatch.StartNew();
+                        typeof(ResourcesTab).GetMethod("OnQuery", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(tab, new object[] { q });
+                        long ms = watch.ElapsedMilliseconds;
+                        object list = typeof(ResourcesTab).GetField("list", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(tab);
+                        object count = list.GetType().GetProperty("Count") != null ? list.GetType().GetProperty("Count").GetValue(list, null) : "?";
+                        return "query='" + q + "' ms=" + ms + " rows=" + count;
+                    }
                 case "ltfail":
                     {
                         // Init의 번역 두 단계를 같은 순서로 다시 부르되 Scan이 첫 행에서 실패하게 한다. texts의 lt=가 그대로면 되돌아가기 길이 산다.
