@@ -88,6 +88,43 @@ namespace MOD_sWP6UL
                         sb.Append(" lossAll=").Append(w.ElapsedMilliseconds);
                         return sb.ToString();
                     }
+                case "ltscan":
+                    {
+                        // rperf ltscan: LocalText 훑기의 조각(묶음 3 Task 6). 사전에 아무것도 쓰지 않는다.
+                        var all = g.conf.localText.allConfList;
+                        var sb = new StringBuilder("rows=" + all.Count);
+                        var w = Stopwatch.StartNew();
+                        int first = -1, last = -1, mods = 0;
+                        for (int i = 0; i < all.Count; i++) { if (all[i].isModExtend) { mods++; if (first < 0) { first = i; } last = i; } }
+                        sb.Append(" modFlag=").Append(w.ElapsedMilliseconds).Append("ms mods=").Append(mods).Append(" first=").Append(first).Append(" last=").Append(last)
+                          .Append(" contiguous=").Append(last - first + 1 == mods); w.Restart();
+                        int chinese = 0;
+                        for (int i = 0; i < all.Count; i++) { string ch = all[i].ch; if (TextReplacer.HasChinese(ch)) { chinese++; } }
+                        sb.Append(" ch=").Append(w.ElapsedMilliseconds).Append("ms chinese=").Append(chinese); w.Restart();
+                        int keep = 0;
+                        for (int i = 0; i < all.Count; i++) { string ch = all[i].ch; string kr = all[i].kr; if (LocalTextRules.KeepsWhole(ch, kr)) { keep++; } }
+                        sb.Append(" chKr=").Append(w.ElapsedMilliseconds).Append("ms keep=").Append(keep); w.Restart();
+                        int keep2 = 0;
+                        for (int i = 0; i < all.Count; i++) { var it = all[i]; string ch = it.ch; if (!TextReplacer.HasChinese(ch)) { continue; } string kr = it.kr; if (LocalTextRules.KeepsWhole(ch, kr)) { keep2++; } }
+                        sb.Append(" chThenKr=").Append(w.ElapsedMilliseconds).Append("ms keep=").Append(keep2); w.Restart();
+                        for (int i = 0; i < all.Count; i++) { var it = all[i]; bool m = it.isModExtend; string ch = it.ch; string kr = it.kr; }
+                        sb.Append(" scanLike=").Append(w.ElapsedMilliseconds).Append("ms");
+                        return sb.ToString();
+                    }
+                case "press":
+                    {
+                        // rperf press <단추 이름>: 편집기의 단추를 찾아 onClick을 불러 다시 그리기까지의 ms(P3·P4 측정)
+                        var root = UnityEngine.GameObject.Find("TlToyboxEditor");
+                        UnityEngine.Transform found = root == null ? null : FindDeep(root.transform, p[2]);
+                        var button = found == null ? null : found.GetComponent<UnityEngine.UI.Button>();
+                        if (button == null)
+                        {
+                            return "no button " + p[2];
+                        }
+                        var w = Stopwatch.StartNew();
+                        button.onClick.Invoke();
+                        return "press " + p[2] + " ms=" + w.ElapsedMilliseconds;
+                    }
                 case "ltfail":
                     {
                         // Init의 번역 두 단계를 같은 순서로 다시 부르되 Scan이 첫 행에서 실패하게 한다. texts의 lt=가 그대로면 되돌아가기 길이 산다.
@@ -103,6 +140,24 @@ namespace MOD_sWP6UL
                     return "returnMain called";
                 default: return null;
             }
+        }
+
+        private static UnityEngine.Transform FindDeep(UnityEngine.Transform parent, string name)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                UnityEngine.Transform child = parent.GetChild(i);
+                if (child.gameObject.activeInHierarchy && child.name == name)
+                {
+                    return child;
+                }
+                UnityEngine.Transform deeper = FindDeep(child, name);
+                if (deeper != null)
+                {
+                    return deeper;
+                }
+            }
+            return null;
         }
 
         private static string Clean(string s)
