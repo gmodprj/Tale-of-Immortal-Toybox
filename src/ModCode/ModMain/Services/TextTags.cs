@@ -18,5 +18,20 @@ namespace MOD_sWP6UL
         {
             return string.IsNullOrEmpty(text) ? "" : Tag.Replace(text, "");
         }
+
+        // 이름 다듬기: 태그를 지운 뒤 글자·숫자만 남긴다(EditService.Compact. 태그를 먼저 지우지 않으면 "COLORFFAA00…COLOR"가 남았다, 05 문서 83.7절).
+        public static string CompactName(string text)
+        {
+            string plain = Strip(text);
+            var sb = new System.Text.StringBuilder(plain.Length);
+            foreach (char c in plain)
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
+        }
     }
 }

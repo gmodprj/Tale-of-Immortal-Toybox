@@ -3610,3 +3610,7 @@
 사용자 보고(설치본 9c144ef): 대도까지 채운 공법의 옵션이 6개만 보였다. 공법 탭 아래 상자가 옵션 줄을 `i < 6`으로 잘라 그리고 있었다(옵션이 7개 이상인 바닐라 기술도 7번째가 안 보였다). 11줄까지 모두 그리고, 6줄을 넘는 만큼(줄마다 38) 상자를 키우고 위의 공법 목록을 줄인다(11개면 목록 6줄). 브랜치 `fix/martial-options-11`, 회차 `mf-1023m`: `mastery-check ui`에 `all eleven option rows are drawn` 추가(RED는 게임이 켜져 있어 돌리지 못함), `ui`·`ui-check prefixforce`·`tabs` FAIL 0, 캡처 `.devremote\check-mastery-options.png`.
 
 전승은 심법에만 보인다(게임의 세트 표 `battleAbilitySuitBase`가 심법만 구성원으로 가짐). 절기·무예 등에서 전승 글이 없는 것은 정상이다.
+
+### 83.7 고침: 모드 기술 이름에 `COLORFFAA00…COLOR`가 남음 (2026-10-23)
+
+사용자 보고(설치본 e0be677, 공법 탭). 모드(만고신화 등)의 기술 이름 원문은 `<COLOR=#FFAA00>초자검결</COLOR>`처럼 색 태그를 가진다. 이름을 다듬는 `EditService.Compact`가 글자·숫자만 남기면서 태그 안의 `COLOR`·`FFAA00`까지 남겼다(72절의 태그 지우기는 기술 카탈로그에만 있었다). `Compact`가 `TextTags.CompactName`(태그를 먼저 지운 뒤 글자·숫자만)을 쓰게 해, 공법·기령·명우·신혼·세트 이름 등 `Compact`를 거치는 모든 이름이 고쳐진다. 브랜치 `fix/mod-name-color`. 단위 시험 4줄(RED→GREEN). 개발 명령 `mfname`(익힌 공법의 다듬은 이름|원문)·`mfmake <분류> <번호> <경지>`(옵션 없이 만들어 배우기. 모드 공법은 편집기 배우기 길이 막혀 있어 검사 준비용), 검사 `mastery-check.ps1 -Part modname`(만고신화가 실린 회차, -Exclude 없이): 원문에는 태그가 있고 편집기 이름에는 `COLOR`가 없음, 캡처 `.devremote\check-modname.png`. 회귀: `ui-check` `translation`·`groups`(회차 `mf-1023o`), `tabs`·`base`·`preset-check state`(`mf-1023p`), `items`(`mf-1023q`) 모두 FAIL 0. `Compact(null)`은 전에 예외였고 이제 빈 글이다.

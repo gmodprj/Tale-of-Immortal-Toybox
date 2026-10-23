@@ -253,6 +253,14 @@ namespace MOD_sWP6UL
             Check("tags null is empty", TextTags.Strip(null) == "");
             string d = TextTags.Strip("윤회지");
             Check("tags plain kept", d == "윤회지", d);
+            // 이름 다듬기(EditService.Compact가 쓴다): 태그를 먼저 지우고 글자·숫자만(사용자 보고: 공법 이름에 COLORFFAA00…COLOR가 남음)
+            string e = TextTags.CompactName("일운<COLOR=#FFAA00>황무검결</COLOR>");
+            Check("compact name drops color tags", e == "일운황무검결", e);
+            string f = TextTags.CompactName("역 궁 청풍검");
+            Check("compact name drops spaces", f == "역궁청풍검", f);
+            Check("compact name of null", TextTags.CompactName(null) == "");
+            string g = TextTags.CompactName("<size=25>[无邪</size>]<b>万古神话</b>");
+            Check("compact name drops brackets and tags", g == "无邪万古神话", g);
         }
 
         // 프리셋 역천개명 줄의 대체 번호(05 문서 73절: 만고신화는 혈염대법 등을 경지 1~1로 막고 탄천마공 등을 연다).
