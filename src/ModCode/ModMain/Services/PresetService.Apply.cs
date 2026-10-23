@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Outcome = MOD_sWP6UL.ApplyOutcome;
+using Put = MOD_sWP6UL.ApplyPut;
+using Tally = MOD_sWP6UL.ApplyTally;
 
 namespace MOD_sWP6UL
 {
@@ -9,63 +12,6 @@ namespace MOD_sWP6UL
     // 판정은 기존 서비스가 돌려준 문장이 아니라 넣은 뒤의 상태로 한다.
     internal static partial class PresetService
     {
-        private enum Outcome { Done, Skipped, Failed }
-
-        private delegate Outcome Put(out string text);
-
-        // 한 구역의 집계. "공법: 장착 3, 건너뜀 1, 못 넣음 1(이름: 이유)." 같은 문장이 된다.
-        private sealed class Tally
-        {
-            public int Done, Skipped;
-            public readonly List<string> Failed = new List<string>();
-
-            public bool Any
-            {
-                get { return Done + Skipped + Failed.Count > 0; }
-            }
-
-            public void Count(string label, Put put)
-            {
-                Outcome outcome;
-                string text;
-                try
-                {
-                    outcome = put(out text);
-                }
-                catch (Exception e)
-                {
-                    outcome = Outcome.Failed;
-                    text = label + ": 게임이 받지 않았습니다(" + e.GetType().Name + ")";
-                }
-                if (outcome == Outcome.Done)
-                {
-                    Done++;
-                }
-                else if (outcome == Outcome.Skipped)
-                {
-                    Skipped++;
-                }
-                else
-                {
-                    Failed.Add(string.IsNullOrEmpty(text) ? label : text.TrimEnd('.'));
-                }
-            }
-
-            public string Sentence(string title, string verb)
-            {
-                var sb = new StringBuilder(title + ": " + verb + " " + Done + ", 건너뜀 " + Skipped);
-                if (Failed.Count > 0)
-                {
-                    sb.Append(", 못 넣음 ").Append(Failed.Count).Append("(");
-                    for (int i = 0; i < Failed.Count && i < 5; i++)
-                    {
-                        sb.Append(i == 0 ? "" : " / ").Append(Failed[i]);
-                    }
-                    sb.Append(Failed.Count > 5 ? " 외 " + (Failed.Count - 5) + "개)" : ")");
-                }
-                return sb.Append(".").ToString();
-            }
-        }
 
         // 한 번의 적용에서 수도 점수를 올렸으면 처음 값과 마지막 값.
         private sealed class Points

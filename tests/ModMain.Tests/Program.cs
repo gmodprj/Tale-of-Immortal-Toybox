@@ -58,6 +58,7 @@ namespace MOD_sWP6UL
             FileStampTests();
             StampCacheTests();
             GiveBudgetTests();
+            ApplyTallyTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -374,6 +375,22 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void ApplyTallyTests()
+        {
+            var tally = new ApplyTally();
+            Check("tally: empty has nothing", !tally.Any);
+            tally.Count("가", (out string text) => { text = null; return ApplyOutcome.Done; });
+            tally.Count("나", (out string text) => { text = null; return ApplyOutcome.Skipped; });
+            tally.Count("다", (out string text) => { text = "다: 이유."; return ApplyOutcome.Failed; });
+            tally.Count("라", (out string text) => { throw new InvalidOperationException("x"); });
+            tally.Count("마", (out string text) => { text = ""; return ApplyOutcome.Failed; });
+            Check("tally: any", tally.Any);
+            Check("tally: sentence", tally.Sentence("공법", "장착") == "공법: 장착 1, 건너뜀 1, 못 넣음 3(다: 이유 / 라: 게임이 받지 않았습니다(InvalidOperationException) / 마).", tally.Sentence("공법", "장착"));
+            var many = new ApplyTally();
+            for (int i = 1; i <= 7; i++) { int n = i; many.Count("x" + n, (out string text) => { text = null; return ApplyOutcome.Failed; }); }
+            Check("tally: more than five failures", many.Sentence("운명", "넣음") == "운명: 넣음 0, 건너뜀 0, 못 넣음 7(x1 / x2 / x3 / x4 / x5 외 2개).", many.Sentence("운명", "넣음"));
+        }
+
         private static void GiveBudgetTests()
         {
             Check("budget: under 2s keeps going", !GiveBudget.ShouldStop(1999, 3, 20));
