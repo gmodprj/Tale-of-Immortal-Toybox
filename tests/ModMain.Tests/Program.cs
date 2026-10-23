@@ -56,6 +56,7 @@ namespace MOD_sWP6UL
             LocalTextRulesTests();
             ModSkillRulesTests();
             FileStampTests();
+            StampCacheTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -372,6 +373,23 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void StampCacheTests()
+        {
+            string stamp = "s1";
+            int loads = 0;
+            var cache = new StampCache<string>();
+            Func<string> load = () => { loads++; return "v" + loads; };
+            Check("stampcache: first call loads", cache.Get(() => stamp, load) == "v1" && loads == 1);
+            Check("stampcache: same stamp reuses", cache.Get(() => stamp, load) == "v1" && loads == 1);
+            // 읽는 도중에 밖에서 파일이 바뀌면(표지가 load 안에서 바뀜) 다음 호출은 다시 읽어야 한다(최종 리뷰 Important).
+            Func<string> changingLoad = () => { loads++; stamp = "s3"; return "v" + loads; };
+            stamp = "s2";
+            cache.Get(() => stamp, changingLoad);
+            Check("stampcache: a change during load is seen next time", cache.Get(() => stamp, load) == "v3" && loads == 3, "loads=" + loads);
+            cache.Forget();
+            Check("stampcache: forget reloads", cache.Get(() => stamp, load) == "v4");
+        }
+
         private static void FileStampTests()
         {
             string dir = Path.Combine(Path.GetTempPath(), "tlt-stamp-" + Guid.NewGuid().ToString("N"));

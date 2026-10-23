@@ -234,39 +234,30 @@ namespace MOD_sWP6UL
         }
 
         // 묶음 3(05 문서 79절): 프리셋 폴더의 표지(FileStamp)가 지난번과 같으면 지난 결과를 쓴다.
-        // 표지는 List()가 끝난 뒤에 잰다(List가 새 기본 파일을 쓸 수 있다). 편집기가 폴더에 쓰면 Forget()으로 비운다.
-        private static string listStamp, defaultsStamp;
-        private static List<Preset> listCache;
-        private static int defaultsCache;
+        // 편집기가 폴더에 쓰면 Forget()으로 비운다. List()가 새 기본 파일을 쓰면 다음 호출에서 한 번 더 읽는다.
+        // 표지는 읽기 앞에서 잰다(StampCache). 읽는 동안 밖에서 바뀌면 다음에 다시 읽는다.
+        private static readonly StampCache<List<Preset>> listCache = new StampCache<List<Preset>>();
+        private static readonly StampCache<object> defaultsCache = new StampCache<object>();
+
+        private static string FolderStamp()
+        {
+            return FileStamp.Of(Dir, "*.json");
+        }
 
         public static List<Preset> ListCached()
         {
-            if (listCache != null && FileStamp.Of(Dir, "*.json") == listStamp)
-            {
-                return listCache;
-            }
-            listCache = List();
-            listStamp = FileStamp.Of(Dir, "*.json");
-            return listCache;
+            return listCache.Get(FolderStamp, List);
         }
 
         public static int DefaultsChangedCached()
         {
-            string stamp = FileStamp.Of(Dir, "*.json");
-            if (defaultsStamp != null && stamp == defaultsStamp)
-            {
-                return defaultsCache;
-            }
-            defaultsCache = DefaultsChanged();
-            defaultsStamp = stamp;
-            return defaultsCache;
+            return (int)defaultsCache.Get(FolderStamp, () => (object)DefaultsChanged());
         }
 
         public static void Forget()
         {
-            listCache = null;
-            listStamp = null;
-            defaultsStamp = null;
+            listCache.Forget();
+            defaultsCache.Forget();
         }
 
         // 기본 프리셋을 다시 쓴다. 고친 기본 파일은 덮어쓰고, 다른 파일은 건드리지 않는다.
