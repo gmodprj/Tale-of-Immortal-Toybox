@@ -3425,7 +3425,7 @@
 
 ## 79. 묶음 3 — 성능 2: 다른 탭과 검색 (2026-10-23 추가)
 
-스펙 `docs/superpowers/specs/2026-10-23-perf-other-tabs-design.md`, 계획 `docs/superpowers/plans/2026-10-23-perf-other-tabs.md`, 브랜치 `feat/perf-other-tabs`. 12 문서 7절의 묶음 3. 회차 `po-1023a`~`q`(모두 고정본, `SAVE RESTORED AND IDENTICAL`).
+스펙 `docs/superpowers/specs/2026-10-23-perf-other-tabs-design.md`, 계획 `docs/superpowers/plans/2026-10-23-perf-other-tabs.md`, 브랜치 `feat/perf-other-tabs`. 12 문서 7절의 묶음 3. 회차 `po-1023a`~`x`(모두 고정본, `SAVE RESTORED AND IDENTICAL`).
 
 전후(`rperf tabs`, 창작마당 모드 40개를 실은 상태. 첫 열기 / 다시 열기, ms):
 
@@ -3466,6 +3466,7 @@
 
 검사 순서 함정:
 - `rperf tabs`·`query`·`press` 같은 측정 명령 뒤에 `ui-check`를 같은 회차에서 돌리면, 편집기 상태(탭·대상·검색어)가 남아 `tabs`가 실패하거나 다음 검사가 요약 없이 끝난다. 검사는 측정 없는 회차에서 돌린다.
+- `preset-check ui`는 게임 대화창(`DramaSprite`의 다음 단추)이 끼어들어 가끔 실패한다. `develop` 기준에서도 두 번 가운데 한 번 실패했다(`po-1023w`·`x`). 다시 돌려 통과를 본다.
 - `appellation-ui`는 만고신화를 실은 채로는 도호가 101개라 실패한다(검사는 100을 기대). `-Exclude`로 돌린다.
 
 개발 명령(`Dev/DevCommandsPerfProbes.cs`):
