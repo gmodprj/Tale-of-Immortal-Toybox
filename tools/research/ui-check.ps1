@@ -243,7 +243,9 @@ switch ($Part) {
     function Range { if ((Cmd 'uitext ItemTableRange') -match '전체 (\d+)개') { [int]$Matches[1] } elseif ((Cmd 'uitext ItemTableRange') -match "text='0개'") { 0 } else { -1 } }
     # 1. 카탈로그(Task 2)
     $mods = Cmd 'rmods' 3000
-    $count = if ($mods -match 'count=(\d+)') { [int]$Matches[1] } else { 0 }   # 45절 뒤 모드 공법이 100개를 넘는다(새 모드 8개)
+    # 화면에 남는 모드 줄 수(05 문서 78절: 이름·설명 없는 줄과 비급을 못 만드는 줄은 숨긴다. rmods의 listed= 은 경지 3 기준)
+    $count = if ($mods -match 'listed=(\d+)') { [int]$Matches[1] } else { 0 }
+    $hiddenBlank = if ($mods -match '\d:(-?\d+):[^,]*?:H이름·설명 없음') { $Matches[1] } else { '' }
     Check 'the catalog lists at least the five original mod skills' ($count -ge 5 -and $mods -match '1:984555698:' -and $mods -match '1:353535:' -and $mods -match '1:844854565:' -and $mods -match '0:3535351:' -and $mods -match '4:59898952:') $mods
     Check 'mod skill names are Korean after translation' ($mods -match '984555698:열염장:' -and $mods -match '59898952:천살신창:' -and $mods -match '3535351:적염검:basSword:False:') $mods
     Check 'no mod skill is blocked, the ultimate rolls from 32111' ($mods -match '4:59898952:[^:]*:[^:]*:False:-:32111' -and $mods -match '1:984555698:[^:]*:[^:]*:False:-:\d+' -and $mods -match '0:3535351:[^:]*:basSword:False:-:\d+') $mods
@@ -299,8 +301,9 @@ switch ($Part) {
     $first = if ((Cmd 'uipos BookName*') -match '-> (BookName\d+) at ') { $Matches[1] } else { '' }
     $t = if ($first) { Cmd "uitext $first" } else { '' }
     Check 'the first mod row has a name' ($t -match "text='([^']*)'" -and $Matches[1] -ne '' -and $Matches[1] -ne '0' -and -not $Matches[1].StartsWith('이름 없음')) $t
-    Cmd 'ui set ItemQuery 126954816' | Out-Null
-    Check 'a nameless mod skill is shown by number' ((Cmd 'uitext BookName126954816') -match "text='이름 없음\(126954816\)'") (Cmd 'uitext BookName126954816')
+    # 05 문서 78절: 이름·설명 없는 모드 행은 번호로 찾아도 목록에 없다
+    Cmd "ui set ItemQuery $hiddenBlank" | Out-Null
+    Check 'a blank mod row is hidden even when searched by number' ($hiddenBlank -ne '' -and (Range) -eq 0) "$hiddenBlank | $(Cmd 'uitext ItemTableRange')"
     Press 'ItemQueryClear' | Out-Null
     Cmd 'ui set ItemQuery 열염' | Out-Null   # 줄이 화면 밖일 수 있으므로 검색으로 띄운다
     Press 'BookName984555698' | Out-Null
