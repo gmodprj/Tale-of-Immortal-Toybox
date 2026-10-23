@@ -34,7 +34,7 @@ namespace MOD_sWP6UL
                 case "parts":
                     return Parts();
                 case "modroll":
-                    return ModRoll(p.Length > 2 ? int.Parse(p[2]) : 0);
+                    return ModRoll(p.Length > 2 ? int.Parse(p[2]) : 0, p.Length > 3 && p[3] == "listed");
                 case "modrows":
                     return ModRows();
                 case "skillbuild":
@@ -218,7 +218,7 @@ namespace MOD_sWP6UL
         }
 
         // 모드 공법마다 RollValuesForMod를 부르고, 실패한 것은 한 번 더 같은 길을 밟아 어디서 막히는지 적는다.
-        private static string ModRoll(int gradeArg)
+        private static string ModRoll(int gradeArg, bool listed)
         {
             WorldUnitBase player = PlayerOrNull();
             if (player == null)
@@ -235,9 +235,10 @@ namespace MOD_sWP6UL
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
                 int ok = 0, fail = 0;
-                foreach (SkillCatalog.Entry e in SkillCatalog.Find(k, ""))
+                // listed: 목록에 남는 줄(숨기지 않았고 그 경지에서 만들어지는 것)만(묶음 2)
+                foreach (SkillCatalog.Entry e in listed ? SkillCatalog.Listed(k, "") : SkillCatalog.Find(k, ""))
                 {
-                    if (!e.IsMod)
+                    if (!e.IsMod || (listed && !SkillCatalog.ModBookFits(e, grade)))
                     {
                         continue;
                     }

@@ -27,6 +27,10 @@ namespace MOD_sWP6UL
             public bool NameFromCh;      // 한국어 이름이 없어 LocalText의 ch(중국어)로 채웠다
             public string BasType;       // 무예·영술의 무기 종류(battleSkillAttack.basType). 그 밖은 ""
             public bool Nameless;        // 모드 행인데 이름이 비거나 "0"이거나 키 그대로라 "이름 없음(번호)"로 둔 것. 분류 목록의 끝에 온다(05 문서 48절)
+            public bool Hidden;          // 두 목록(자원 탭 기술 서적, 공법 탭 기술 추가)에서 숨김. Find·Get(프리셋·즐겨찾기·개발 명령)은 그대로 돌려준다(05 문서 78절)
+            public string HiddenReason;  // 숨긴 까닭(개발 명령 rmods와 지급 실패 문장이 쓴다)
+            public int BookGradeMin;     // 모드 행: 비급이 만들어지는 경지 범위(ModSkillRules.BookGrades). 못 만들면 0~0. 기본 행은 0
+            public int BookGradeMax;
         }
 
         public static readonly Kind[] Kinds =
@@ -110,6 +114,16 @@ namespace MOD_sWP6UL
             }
             // 모드가 이름 키를 LocalText에 넣지 않으면 이름이 비거나 "0"이다(46절). 번호로 찾을 수 있게 이름을 두고 목록 끝으로 보낸다.
             bool nameless = isMod && (name.Length == 0 || name == "0" || name == EditService.Compact(nameKey));
+            // M1(05 문서 78절): 이름 칸에 번역 키 대신 이름 글자를 그대로 넣은 모드 행은 그 글을 이름으로 쓴다.
+            if (nameless && ModSkillRules.IsLiteralName(nameKey))
+            {
+                string literal = EditService.Compact(TextTags.Strip(nameKey));
+                if (literal.Length > 0)
+                {
+                    name = literal;
+                    nameless = false;
+                }
+            }
             if (nameless)
             {
                 name = "이름 없음(" + id + ")";
@@ -119,11 +133,39 @@ namespace MOD_sWP6UL
             {
                 return;
             }
+            string desc = MartialService.CleanDesc(ResolveText(descKey, out descFromCh)).Replace("\r", "").Replace('\n', ' ');
+            bool hidden = false;
+            string hiddenReason = null;
+            int bookMin = 0, bookMax = 0;
+            if (isMod)
+            {
+                // M2·M4(사용자 결정 2026-10-23: 아예 숨김): 이름·설명 없는 행, 비급을 만들 수 없는 행.
+                if (ModSkillRules.IsBlankRow(nameKey, desc))
+                {
+                    hidden = true;
+                    hiddenReason = "이름·설명 없음";
+                }
+                else
+                {
+                    int multiSum;
+                    int rows = OptionRowCount(id, out multiSum);
+                    ModSkillRules.BookGrades(kindIndex, rows, multiSum, out bookMin, out bookMax);
+                    if (bookMax == 0)
+                    {
+                        hidden = true;
+                        hiddenReason = "비급을 만들 수 없음";
+                    }
+                }
+            }
             list.Add(new Entry
             {
                 BaseId = id,
                 Name = name,
-                Desc = MartialService.CleanDesc(ResolveText(descKey, out descFromCh)).Replace("\r", "").Replace('\n', ' '),
+                Desc = desc,
+                Hidden = hidden,
+                HiddenReason = hiddenReason,
+                BookGradeMin = bookMin,
+                BookGradeMax = bookMax,
                 GradeMin = isMod ? 1 : gradeMin,
                 GradeMax = isMod ? 10 : gradeMax,
                 Search = name + EditService.Compact(TextTags.Strip(ChOf(nameKey))),
@@ -191,6 +233,40 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 모드 공법의 옵션 행 수. GetItems는 skillType 1~12 어디서나 같은 행을 돌려주는 것으로 보여(회차 msl-1023c) 첫 일치를 쓴다.
+        // multiSum: 행마다 min(multi, ModSkillRules.MaxSlots)의 합(중복 한도 안에서 채울 수 있는 칸 수).
+        private static int OptionRowCount(int baseId, out int multiSum)
+        {
+            multiSum = 0;
+            for (int t = 0; t <= 12; t++)
+            {
+                var items = g.conf.battleSkillPrefixValue.GetItems(t, baseId);
+                if (items != null && items.Count > 0)
+                {
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        multiSum += Math.Min(items[i].multi, ModSkillRules.MaxSlots);
+                    }
+                    return items.Count;
+                }
+            }
+            return 0;
+        }
+
+        // 두 목록(자원 탭 기술 서적, 공법 탭 기술 추가)이 쓰는 것: Find에서 숨긴 행을 뺀다.
+        public static List<Entry> Listed(int kindIndex, string query)
+        {
+            List<Entry> found = Find(kindIndex, query);
+            found.RemoveAll(e => e.Hidden);
+            return found;
+        }
+
+        // 모드 행이고 그 경지에서 비급이 만들어지는지.
+        public static bool ModBookFits(Entry entry, int grade)
+        {
+            return entry.IsMod && entry.BookGradeMax > 0 && grade >= entry.BookGradeMin && grade <= entry.BookGradeMax;
+        }
+
         public static List<Entry> Find(int kindIndex, string query)
         {
             string needle = EditService.Compact(query ?? "");
@@ -234,6 +310,14 @@ namespace MOD_sWP6UL
                 if (grade < 1 || grade > 10)
                 {
                     return "경지는 1~10입니다";
+                }
+                if (entry.Hidden)
+                {
+                    return entry.HiddenReason;
+                }
+                if (!ModBookFits(entry, grade))
+                {
+                    return "경지 " + entry.BookGradeMin + "~" + entry.BookGradeMax + "에서만 비급을 만들 수 있습니다";
                 }
                 // 신통도 준다(옵션 번호를 모드 것으로 바꾸면 게임이 읽는다. 05 문서 44절). 그 경지에 원본으로 쓸 기본 공법이 없으면 미리 알린다(줄의 버튼과 결과가 어긋나지 않게).
                 return SourceFor(entry.KindIndex, entry, grade) == null ? "경지 " + grade + "에 원본으로 쓸 기본 공법이 없습니다" : null;
@@ -398,6 +482,49 @@ namespace MOD_sWP6UL
                     values[i] = pick;
                     used.Add(pick);
                 }
+            }
+            // 모드 번호를 한 번씩 다 써도 남은 자리(모드 공법의 옵션 행이 원본의 칸 수보다 적음, 대부분 5개)는
+            // 같은 번호를 중복 한도(multi) 안에서 되풀이해 채운다. 자리 가중치가 0보다 큰 번호를 먼저, 없으면 한도 안의 아무 번호.
+            // 실측(묶음 2, 회차 msl-1023b·c): 이름·설명 있는 모드 공법 103개 가운데 97개(경지 2·5·10)가 10번 모두 읽히고 게임 학습이 받아들였다(05 문서 78절).
+            var count = new Dictionary<int, int>();
+            for (int i = 2; i < end; i++)
+            {
+                if (modNumbers.Contains(values[i]))
+                {
+                    int c;
+                    count.TryGetValue(values[i], out c);
+                    count[values[i]] = c + 1;
+                }
+            }
+            for (int i = 2; i < end; i++)
+            {
+                if (values[i] <= 0 || modNumbers.Contains(values[i]))
+                {
+                    continue;
+                }
+                int pick = -1;
+                for (int pass = 0; pass < 2 && pick < 0; pass++)
+                {
+                    for (int k = 0; k < modItems.Count; k++)
+                    {
+                        int n = modItems[k].number;
+                        int c;
+                        count.TryGetValue(n, out c);
+                        if (c < modItems[k].multi && (pass == 1 || MartialService.Weight(modItems[k], i - 2) > 0))
+                        {
+                            pick = n;
+                            break;
+                        }
+                    }
+                }
+                if (pick < 0)
+                {
+                    break;
+                }
+                values[i] = pick;
+                int cc;
+                count.TryGetValue(pick, out cc);
+                count[pick] = cc + 1;
             }
         }
 

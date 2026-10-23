@@ -54,6 +54,7 @@ namespace MOD_sWP6UL
             TextTagsTests();
             FateAltTests();
             LocalTextRulesTests();
+            ModSkillRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -370,6 +371,42 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void ModSkillRulesTests()
+        {
+            Check("literal: plain chinese name", ModSkillRules.IsLiteralName("개자비"));
+            Check("literal: name with color tag", ModSkillRules.IsLiteralName("<COLOR=#FFAA00>용유사방</COLOR>"));
+            Check("literal: key shape is not a name", !ModSkillRules.IsLiteralName("skill_name_123"));
+            Check("literal: \"0\"", !ModSkillRules.IsLiteralName("0"));
+            Check("literal: empty", !ModSkillRules.IsLiteralName(""));
+            Check("literal: null", !ModSkillRules.IsLiteralName(null));
+            Check("literal: placeholder", !ModSkillRules.IsLiteralName("{#jlname}"));
+            Check("literal: text with placeholder", !ModSkillRules.IsLiteralName("abc{x}"));
+            Check("blank: \"0\" and empty desc", ModSkillRules.IsBlankRow("0", ""));
+            Check("blank: empty and null desc", ModSkillRules.IsBlankRow("", null));
+            Check("blank: \"0\" and \"0\"", ModSkillRules.IsBlankRow("0", "0"));
+            Check("blank: has desc", !ModSkillRules.IsBlankRow("0", "설명"));
+            Check("blank: has name key", !ModSkillRules.IsBlankRow("skill_1", ""));
+            int min, max;
+            ModSkillRules.BookGrades(0, 5, 35, out min, out max);
+            Check("books: martial art rows 5 -> 2~10", min == 2 && max == 10, min + "~" + max);
+            ModSkillRules.BookGrades(0, 14, 98, out min, out max);
+            Check("books: martial art rows 14 -> 2~10", min == 2 && max == 10, min + "~" + max);
+            ModSkillRules.BookGrades(1, 5, 35, out min, out max);
+            Check("books: skill rows 5 -> 1~10", min == 1 && max == 10, min + "~" + max);
+            ModSkillRules.BookGrades(4, 5, 35, out min, out max);
+            Check("books: ultimate rows 5 -> 1~10", min == 1 && max == 10, min + "~" + max);
+            ModSkillRules.BookGrades(2, 5, 35, out min, out max);
+            Check("books: step never", min == 0 && max == 0, min + "~" + max);
+            ModSkillRules.BookGrades(3, 0, 0, out min, out max);
+            Check("books: ability without rows never", min == 0 && max == 0, min + "~" + max);
+            ModSkillRules.BookGrades(1, 0, 0, out min, out max);
+            Check("books: no option rows never", min == 0 && max == 0, min + "~" + max);
+            ModSkillRules.BookGrades(1, 2, 2, out min, out max);
+            Check("books: multi too small to fill 11 slots never", min == 0 && max == 0, min + "~" + max);
+            ModSkillRules.BookGrades(4, 1, 11, out min, out max);
+            Check("books: one row with multi 11 fills", min == 1 && max == 10, min + "~" + max);
+        }
+
         private static void LocalTextRulesTests()
         {
             Check("modkr: \"0\" falls back to ch", LocalTextRules.ModKr("0", "中文", null) == "中文");

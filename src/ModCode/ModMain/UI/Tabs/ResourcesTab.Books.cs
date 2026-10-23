@@ -51,8 +51,12 @@ namespace MOD_sWP6UL
 
         private bool BookShown(SkillCatalog.Entry entry)
         {
-            // 모드 공법은 경지 범위가 없고(1~10) 막힌 줄(그 경지에 원본이 없는 것)도 이유를 읽을 수 있게 늘 보인다.
-            return entry.IsMod || !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
+            // 모드 공법은 고른 경지에서 비급이 만들어지는 줄만 보인다("이 경지만"과 무관. 사용자 결정 2026-10-23: 못 만드는 줄은 아예 숨김, 05 문서 78절).
+            if (entry.IsMod)
+            {
+                return SkillCatalog.ModBookFits(entry, BookGrade);
+            }
+            return !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
         }
 
         private bool BookInKind(SkillCatalog.Entry entry, int k)
@@ -66,7 +70,7 @@ namespace MOD_sWP6UL
             var nameless = new List<Row>();   // 이름 없는 모드 기술은 분류를 넘어 맨 끝에(05 문서 48절)
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
-                foreach (SkillCatalog.Entry entry in SkillCatalog.Find(k, filter.Query))
+                foreach (SkillCatalog.Entry entry in SkillCatalog.Listed(k, filter.Query))
                 {
                     if (BookInKind(entry, k) && BookShown(entry))
                     {
@@ -84,7 +88,7 @@ namespace MOD_sWP6UL
             var counts = new int[SkillCatalog.Kinds.Length + 1];
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
-                foreach (SkillCatalog.Entry entry in SkillCatalog.Find(k, filter.Query))
+                foreach (SkillCatalog.Entry entry in SkillCatalog.Listed(k, filter.Query))
                 {
                     if (BookShown(entry))
                     {

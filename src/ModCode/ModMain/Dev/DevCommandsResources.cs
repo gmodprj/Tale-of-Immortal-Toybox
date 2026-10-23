@@ -162,6 +162,7 @@ namespace MOD_sWP6UL
         private static string Mods(int grade)
         {
             var items = new List<string>();
+            int listed = 0, blank = 0, nobook = 0, outOfGrade = 0;
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
                 foreach (SkillCatalog.Entry e in SkillCatalog.Find(k, ""))
@@ -170,12 +171,17 @@ namespace MOD_sWP6UL
                     {
                         continue;
                     }
+                    // 묶음 2(05 문서 78절): 목록에 남는 수와 숨긴 까닭별 수
+                    if (e.Hidden) { if (e.HiddenReason == "이름·설명 없음") { blank++; } else { nobook++; } }
+                    else if (!SkillCatalog.ModBookFits(e, grade)) { outOfGrade++; }
+                    else { listed++; }
                     string block = SkillCatalog.BlockReason(e, grade) ?? "-";
                     SkillCatalog.Entry source = SkillCatalog.SourceFor(k, e, grade);
-                    items.Add(k + ":" + e.BaseId + ":" + e.Name + ":" + e.BasType + ":" + e.NameFromCh + ":" + block + ":" + (source == null ? "-" : source.BaseId.ToString()));
+                    items.Add(k + ":" + e.BaseId + ":" + e.Name + ":" + e.BasType + ":" + e.NameFromCh + ":" + block + ":" + (source == null ? "-" : source.BaseId.ToString())
+                        + ":g" + e.BookGradeMin + "-" + e.BookGradeMax + (e.Hidden ? ":H" + e.HiddenReason : ""));
                 }
             }
-            return "count=" + items.Count + " items=" + string.Join(",", items.ToArray());
+            return "count=" + items.Count + " listed=" + listed + " hiddenBlank=" + blank + " hiddenNoBook=" + nobook + " outOfGrade=" + outOfGrade + " items=" + string.Join(",", items.ToArray());
         }
 
         private static string Books(int baseId)
