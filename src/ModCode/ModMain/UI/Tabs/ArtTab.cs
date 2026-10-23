@@ -16,6 +16,7 @@ namespace MOD_sWP6UL
         private readonly DetailPane detail = new DetailPane("ArtDetail", "줄을 누르면 여기에 전체 설명이 나옵니다.");
         private int artKind;
         private string query = "";
+        private HashSet<int> learnedNow = new HashSet<int>();   // 지금 분류의 배운 번호(그리기마다 새로. 묶음 3)
 
         public override string Title
         {
@@ -33,7 +34,12 @@ namespace MOD_sWP6UL
             {
                 int index = i;
                 ArtService.Kind each = ArtService.Kinds[i];
-                Ui.Button("ArtKind" + i, content, each.Tab + " (" + ArtService.LearnedCount(each) + "/" + ArtService.Books(each, "").Count + ")", i * 176, 0, 170, 40,
+                HashSet<int> learnedIds = ArtService.LearnedIds(each);
+                if (i == artKind)
+                {
+                    learnedNow = learnedIds;
+                }
+                Ui.Button("ArtKind" + i, content, each.Tab + " (" + ArtService.LearnedCount(each, learnedIds) + "/" + ArtService.BookCount(each) + ")", i * 176, 0, 170, 40,
                     new Action(() => { artKind = index; list.Reset(); detail.Clear(); Redraw(); }), true, artKind == i);
             }
             // 기예 제작 재료(05 문서 62절): 연단·연기·부적 처방의 재료를 가방에 넣는 하위 화면.
@@ -69,7 +75,7 @@ namespace MOD_sWP6UL
         private void DrawRow(RectTransform row, ItemCatalog.Entry book, int index)
         {
             ArtService.Kind kind = ArtService.Kinds[artKind];
-            bool learned = ArtService.Learned(kind, book.Id);
+            bool learned = learnedNow.Contains(book.Id);
             // 배우지 않은 것은 지금 배울 수 있는지 게임에 물어 본다.
             string blocked = learned ? null : ArtService.BlockReason(kind, book.Id);
             float h = row.sizeDelta.y;

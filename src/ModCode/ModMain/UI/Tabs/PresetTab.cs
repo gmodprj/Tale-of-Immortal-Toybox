@@ -18,6 +18,7 @@ namespace MOD_sWP6UL
         private readonly ListView<PresetService.Stage> stages = new ListView<PresetService.Stage>("PresetStages", 44);
         private List<PresetService.Preset> presets;         // null이면 폴더를 다시 읽는다
         private List<PresetService.Learned> learned;        // 한 번 그리는 동안 쓰는 익힌 공법의 사본
+        private PresetService.Facts facts;                  // 한 번 그리는 동안 쓰는 게임 상태의 답(묶음 3)
         private PresetService.Preset opened;
 
         public override string Title
@@ -25,15 +26,23 @@ namespace MOD_sWP6UL
             get { return "프리셋"; }
         }
 
-        // 탭에 들어올 때와 편집기를 열 때 폴더를 다시 읽는다(밖에서 파일을 고치거나 넣은 것이 반영된다).
+        // 탭에 들어올 때와 편집기를 열 때 폴더를 다시 본다. 폴더의 표지가 같으면 지난 목록을 그대로 쓰고(묶음 3),
+        // 밖에서 파일을 넣거나 고치거나 지웠으면 다시 읽는다.
         public override void OnShow()
         {
-            presets = null;
+            LoadPresets();
         }
 
         public override void OnOpen()
         {
-            presets = null;
+            LoadPresets();
+        }
+
+        private void LoadPresets()
+        {
+            // 목록이 같아도 탭에 들어올 때는 예전처럼 맨 위에서 시작한다(보이는 동작은 그대로. 다시 읽기만 건너뛴다).
+            presets = PresetService.ListCached();
+            list.Reset();
         }
 
         private static string Unreadable(PresetService.Preset preset)
@@ -45,10 +54,10 @@ namespace MOD_sWP6UL
         {
             if (presets == null)
             {
-                presets = PresetService.List();
-                list.Reset();
+                LoadPresets();
             }
             learned = PresetService.Snapshot();
+            facts = new PresetService.Facts();
             Confirm.Button("PresetRestore", content, "기본 프리셋 되돌리기", "정말 되돌리기", 0, 0, 230, 38, "preset-restore",
                 "기본 프리셋 " + PresetService.DefaultCount + "개를 다시 씁니다. 고친 기본 파일은 덮어쓰고, 직접 넣은 다른 파일은 그대로 둡니다. \"정말 되돌리기\"를 한 번 더 누르세요.",
                 new Action(() =>
@@ -57,7 +66,7 @@ namespace MOD_sWP6UL
                     presets = null;
                     Say(result);
                 }));
-            int changed = PresetService.DefaultsChanged();
+            int changed = PresetService.DefaultsChangedCached();
             Text note = Ui.Label(content, changed > 0 ? "기본 프리셋 " + changed + "개가 없거나 고쳐졌습니다." : "", 244, 0, 480, 38, 16);
             note.color = Ui.Warn;
             note.gameObject.name = "PresetNote";
@@ -89,7 +98,7 @@ namespace MOD_sWP6UL
             Ui.Wrapped(row, preset.Name, 8, 0, NameW, h, 19);
             Ui.Wrapped(row, preset.Summary, 245, 0, SummaryW, h, 16);
             Ui.Wrapped(row, preset.Source, 672, 0, SourceW, h, 14).color = Ui.Dim;
-            Text state = Ui.Label(row, PresetService.AppliedCount(preset, learned) + "/" + PresetService.StageCount + " 단계", 848, 0, 84, h, 16);
+            Text state = Ui.Label(row, PresetService.AppliedCount(preset, learned, facts) + "/" + PresetService.StageCount + " 단계", 848, 0, 84, h, 16);
             state.gameObject.name = "PresetState" + index;
             Ui.Button("PresetDetail" + index, row, "상세보기", right - 356, 3, 100, 34, new Action(() =>
             {

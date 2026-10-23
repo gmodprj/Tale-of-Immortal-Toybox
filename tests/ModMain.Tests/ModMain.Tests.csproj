@@ -25,5 +25,7 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\FateAlt.cs" Link="Linked\FateAlt.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\LocalTextRules.cs" Link="Linked\LocalTextRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\ModSkillRules.cs" Link="Linked\ModSkillRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\FileStamp.cs" Link="Linked\FileStamp.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\StampCache.cs" Link="Linked\StampCache.cs" />
   </ItemGroup>
 </Project>

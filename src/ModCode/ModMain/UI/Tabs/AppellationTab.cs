@@ -35,6 +35,9 @@ namespace MOD_sWP6UL
         private string query = "";
         private bool ownedOnly;
         private HashSet<int> owned = new HashSet<int>();   // 그릴 때마다 읽는다
+        // 그리기 한 번 동안만 쓰는 다른 보유자 목록과 내 unitID(묶음 3, P2). 그리기마다 비운다.
+        private readonly Dictionary<int, List<WorldUnitBase>> holdersCache = new Dictionary<int, List<WorldUnitBase>>();
+        private string myUnitId;
         private int equipped;
         private int grade = 1;
         private int selectedId;     // 아래 칸에 보이는 도호. 0이면 없다
@@ -61,6 +64,8 @@ namespace MOD_sWP6UL
         {
             WorldUnitBase player = Player;
             owned = AppellationService.Owned(player);
+            holdersCache.Clear();
+            myUnitId = player.data.unitData.unitID;
             equipped = AppellationService.Equipped(player);
             grade = AppellationService.CurrentGrade(player);
             labels.Clear();
@@ -99,14 +104,60 @@ namespace MOD_sWP6UL
 
         private bool Passes(AppellationService.Entry e)
         {
+            return Passes(e, EditService.Compact(query ?? ""));
+        }
+
+        private bool Passes(AppellationService.Entry e, string needle)
+        {
             if (ownedOnly && !owned.Contains(e.Id))
             {
                 return false;
             }
-            string needle = EditService.Compact(query ?? "");
             int id;
             bool isId = int.TryParse(needle, out id);
             return needle.Length == 0 || e.Search.Contains(needle) || (isId && e.Id == id);
+        }
+
+        // 칩마다의 수를 한 번 훑어 함께 센다(묶음 3, P1). 키: 전체·가진 것·묶음 키.
+        private Dictionary<string, int> Counts()
+        {
+            var counts = new Dictionary<string, int>();
+            counts[AppellationService.AllKey] = 0;
+            counts[AppellationService.OwnedKey] = 0;
+            string needle = EditService.Compact(query ?? "");
+            foreach (AppellationService.Entry e in AppellationService.All())
+            {
+                if (!Passes(e, needle))
+                {
+                    continue;
+                }
+                counts[AppellationService.AllKey]++;
+                if (owned.Contains(e.Id))
+                {
+                    counts[AppellationService.OwnedKey]++;
+                }
+                int c;
+                counts.TryGetValue(e.ClassKey ?? "", out c);
+                counts[e.ClassKey ?? ""] = c + 1;
+            }
+            return counts;
+        }
+
+        private static int CountOf(Dictionary<string, int> counts, string key)
+        {
+            int c;
+            return counts.TryGetValue(key, out c) ? c : 0;
+        }
+
+        private List<WorldUnitBase> Holders(int id)
+        {
+            List<WorldUnitBase> holders;
+            if (!holdersCache.TryGetValue(id, out holders))
+            {
+                holders = AppellationService.OtherHolders(myUnitId ?? Player.data.unitData.unitID, id);
+                holdersCache[id] = holders;
+            }
+            return holders;
         }
 
         private bool InClass(AppellationService.Entry e, string key)
@@ -120,19 +171,6 @@ namespace MOD_sWP6UL
                 return owned.Contains(e.Id);
             }
             return e.ClassKey == key;
-        }
-
-        private int Count(string key)
-        {
-            int n = 0;
-            foreach (AppellationService.Entry e in AppellationService.All())
-            {
-                if (Passes(e) && InClass(e, key))
-                {
-                    n++;
-                }
-            }
-            return n;
         }
 
         private List<AppellationService.Entry> Rows()
@@ -163,6 +201,7 @@ namespace MOD_sWP6UL
                 names.Add(group.Name);
             }
             float x = 0, cy = y;
+            Dictionary<string, int> counts = Counts();
             for (int i = 0; i < keys.Count; i++)
             {
                 string key = keys[i];
@@ -172,7 +211,7 @@ namespace MOD_sWP6UL
                     x = 0;
                     cy += ChipH + ChipGap;
                 }
-                Button chip = Ui.Button("AplClass" + key, content, names[i] + " " + Count(key), x, cy, w, ChipH,
+                Button chip = Ui.Button("AplClass" + key, content, names[i] + " " + CountOf(counts, key), x, cy, w, ChipH,
                     new Action(() => { classKey = key; Changed(); }), true, classKey == key);
                 labels.Add(new CountLabel { Text = chip.GetComponentInChildren<Text>(), Name = names[i], Key = key });
                 x += w + ChipGap;
@@ -222,9 +261,10 @@ namespace MOD_sWP6UL
             selectedId = 0;
             detail.Clear();
             list.SetItems(Rows());
+            Dictionary<string, int> counts = Counts();
             foreach (CountLabel label in labels)
             {
-                label.Text.text = label.Name + " " + Count(label.Key);
+                label.Text.text = label.Name + " " + CountOf(counts, label.Key);
             }
         }
 
@@ -243,7 +283,7 @@ namespace MOD_sWP6UL
             {
                 loss.color = Ui.Warn;
             }
-            List<WorldUnitBase> holders = AppellationService.OtherHolders(Player, id);
+            List<WorldUnitBase> holders = Holders(id);
             Ui.Label(row, AppellationService.HolderText(e, holders), ColHolder, 0, HolderW, h, 16).gameObject.name = "AplHolder" + id;
             if (has)
             {
@@ -273,7 +313,7 @@ namespace MOD_sWP6UL
 
         private string DetailOf(AppellationService.Entry e)
         {
-            List<WorldUnitBase> holders = AppellationService.OtherHolders(Player, e.Id);
+            List<WorldUnitBase> holders = Holders(e.Id);
             var names = new List<string>();
             if (owned.Contains(e.Id))
             {

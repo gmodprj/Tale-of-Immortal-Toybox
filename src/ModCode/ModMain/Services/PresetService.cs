@@ -233,9 +233,37 @@ namespace MOD_sWP6UL
             return changed;
         }
 
+        // 묶음 3(05 문서 79절): 프리셋 폴더의 표지(FileStamp)가 지난번과 같으면 지난 결과를 쓴다.
+        // 편집기가 폴더에 쓰면 Forget()으로 비운다. List()가 새 기본 파일을 쓰면 다음 호출에서 한 번 더 읽는다.
+        // 표지는 읽기 앞에서 잰다(StampCache). 읽는 동안 밖에서 바뀌면 다음에 다시 읽는다.
+        private static readonly StampCache<List<Preset>> listCache = new StampCache<List<Preset>>();
+        private static readonly StampCache<object> defaultsCache = new StampCache<object>();
+
+        private static string FolderStamp()
+        {
+            return FileStamp.Of(Dir, "*.json");
+        }
+
+        public static List<Preset> ListCached()
+        {
+            return listCache.Get(FolderStamp, List);
+        }
+
+        public static int DefaultsChangedCached()
+        {
+            return (int)defaultsCache.Get(FolderStamp, () => (object)DefaultsChanged());
+        }
+
+        public static void Forget()
+        {
+            listCache.Forget();
+            defaultsCache.Forget();
+        }
+
         // 기본 프리셋을 다시 쓴다. 고친 기본 파일은 덮어쓰고, 다른 파일은 건드리지 않는다.
         public static string RestoreDefaults()
         {
+            Forget();
             try
             {
                 WriteDefaults();
@@ -914,18 +942,60 @@ namespace MOD_sWP6UL
         }
 
         // 단계의 상태. total은 쓸 수 있는 줄의 수, have는 그 가운데 이미 있는 줄의 수다(스펙 5.2절의 "있음").
+        // 그리기 한 번 동안만 쓰는 게임 상태의 답(묶음 3, 05 문서 79절). 같은 질문(운명 보유, 역천개명, 기령·신혼·명우 보유, 경지)을
+        // 프리셋 17개 × 단계 10개마다 되풀이해 읽지 않게 한다. 그리기마다 새로 만들므로 낡지 않는다. 적용(쓰기) 경로에서는 쓰지 않는다.
+        public sealed class Facts
+        {
+            internal readonly WorldUnitBase Me = PresetService.Me;
+            private readonly Dictionary<int, bool> lucks = new Dictionary<int, bool>();
+            private readonly Dictionary<int, int> fates = new Dictionary<int, int>();
+            private readonly Dictionary<object, bool> lines = new Dictionary<object, bool>();
+            private int grade = int.MinValue;
+
+            internal bool HasLuck(int id)
+            {
+                bool v;
+                if (!lucks.TryGetValue(id, out v)) { v = LuckService.Has(Me, id); lucks[id] = v; }
+                return v;
+            }
+
+            internal int FateAt(int g)
+            {
+                int v;
+                if (!fates.TryGetValue(g, out v)) { v = FateNow(Me, g); fates[g] = v; }
+                return v;
+            }
+
+            internal bool Line(object key, Func<bool> read)
+            {
+                bool v;
+                if (!lines.TryGetValue(key, out v)) { v = read(); lines[key] = v; }
+                return v;
+            }
+
+            internal int Grade
+            {
+                get { if (grade == int.MinValue) { grade = FateService.CurrentGrade(Me); } return grade; }
+            }
+        }
+
         public static StageState StateOf(Stage stage, List<Learned> learned, out int have, out int total)
         {
-            WorldUnitBase me = Me;
+            return StateOf(stage, learned, new Facts(), out have, out total);
+        }
+
+        public static StageState StateOf(Stage stage, List<Learned> learned, Facts facts, out int have, out int total)
+        {
+            WorldUnitBase me = facts.Me;
             have = 0;
             total = 0;
             foreach (LuckLine line in stage.Born)
             {
-                Tick(line.Problem == null, line.Problem == null && LuckService.Has(me, line.Id), ref have, ref total);
+                Tick(line.Problem == null, line.Problem == null && facts.HasLuck(line.Id), ref have, ref total);
             }
             if (stage.Fate != null)
             {
-                Tick(stage.Fate.Problem == null, FateNow(me, stage.Fate.Grade) == stage.Fate.Id && LuckService.Has(me, stage.Fate.Id), ref have, ref total);
+                Tick(stage.Fate.Problem == null, facts.FateAt(stage.Fate.Grade) == stage.Fate.Id && facts.HasLuck(stage.Fate.Id), ref have, ref total);
             }
             foreach (SkillLine line in stage.Skills)
             {
@@ -939,18 +1009,18 @@ namespace MOD_sWP6UL
             }
             if (stage.Sprite != null)
             {
-                Tick(stage.Sprite.Problem == null, stage.Sprite.Problem == null && SpriteService.Has(me, stage.Sprite.Id, stage.Sprite.ArtifactId), ref have, ref total);
+                Tick(stage.Sprite.Problem == null, stage.Sprite.Problem == null && facts.Line(stage.Sprite, () => SpriteService.Has(me, stage.Sprite.Id, stage.Sprite.ArtifactId)), ref have, ref total);
             }
             if (stage.Elder != null)
             {
-                Tick(stage.Elder.Problem == null, stage.Elder.Problem == null && ElderService.Has(me, stage.Elder.Id), ref have, ref total);
+                Tick(stage.Elder.Problem == null, stage.Elder.Problem == null && facts.Line(stage.Elder, () => ElderService.Has(me, stage.Elder.Id)), ref have, ref total);
             }
             if (stage.Wingman != null)
             {
                 Tick(stage.Wingman.Problem == null,
-                    stage.Wingman.Problem == null && WingmanService.Has(me, stage.Wingman.Id, stage.Wingman.Effects, stage.Wingman.Prefixes), ref have, ref total);
+                    stage.Wingman.Problem == null && facts.Line(stage.Wingman, () => WingmanService.Has(me, stage.Wingman.Id, stage.Wingman.Effects, stage.Wingman.Prefixes)), ref have, ref total);
             }
-            if (FateService.CurrentGrade(me) < stage.Grade)
+            if (facts.Grade < stage.Grade)
             {
                 return StageState.Locked;
             }
@@ -960,11 +1030,16 @@ namespace MOD_sWP6UL
         // "적용됨"인 단계의 수. 목록의 상태 칸에 쓴다.
         public static int AppliedCount(Preset preset, List<Learned> learned)
         {
+            return AppliedCount(preset, learned, new Facts());
+        }
+
+        public static int AppliedCount(Preset preset, List<Learned> learned, Facts facts)
+        {
             int count = 0;
             for (int grade = 1; grade <= StageCount; grade++)
             {
                 int have, total;
-                if (StateOf(StageOf(preset, grade), learned, out have, out total) == StageState.Applied && total > 0)
+                if (StateOf(StageOf(preset, grade), learned, facts, out have, out total) == StageState.Applied && total > 0)
                 {
                     count++;
                 }

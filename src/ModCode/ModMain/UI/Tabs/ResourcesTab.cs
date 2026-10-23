@@ -61,6 +61,7 @@ namespace MOD_sWP6UL
         private readonly ItemCatalog.Filter filter = new ItemCatalog.Filter();
         private readonly List<CountLabel> labels = new List<CountLabel>();
         private string groupKey = ItemGroups.AllKey;
+        private static readonly Dictionary<string, int[]> widestByGroup = new Dictionary<string, int[]>();   // 칩 폭용 거르기 전 종류 수
         private float chipScrollY;
         private string bagInput = "";
         private Dictionary<int, int> bagBooks = new Dictionary<int, int>();   // 가방의 기술별 비급 수(그릴 때마다 센다)
@@ -377,7 +378,13 @@ namespace MOD_sWP6UL
             }
             ItemGroups.Group group = ItemGroups.ByKey(groupKey);
             int[] counts = ItemCatalog.CountByKind(group, filter, owned);
-            int[] widest = ItemCatalog.CountByKind(group, new ItemCatalog.Filter(), owned);   // 칩의 폭은 거르기 전의 수로 잰다
+            // 칩의 폭은 거르기 전의 수로 잰다. 거르기가 비어 보유·가방과 무관하므로 그룹마다 한 번만 센다(묶음 3)
+            int[] widest;
+            if (!widestByGroup.TryGetValue(group.Key, out widest))
+            {
+                widest = ItemCatalog.CountByKind(group, new ItemCatalog.Filter(), owned);
+                widestByGroup[group.Key] = widest;
+            }
             var names = new List<string> { "전체" };
             var shown = new List<int>();
             var sized = new List<int>();
@@ -493,10 +500,14 @@ namespace MOD_sWP6UL
             detail.Clear();
             HashSet<int> owned = ItemCatalog.OwnedIds(Player);
             list.SetItems(Rows(owned));
-            Dictionary<string, int> counts = ItemCatalog.CountByGroup(filter, owned);
+            // 그룹 수와 지금 그룹의 종류 수를 한 번 훑어 함께 센다(묶음 3)
+            bool itemGroup = !IsFav && groupKey != ItemGroups.AllKey && groupKey != ManualKey && groupKey != CurrencyKey;
+            Dictionary<string, int> counts;
+            int[] itemKinds;
+            ItemCatalog.Counts(filter, owned, itemGroup ? ItemGroups.ByKey(groupKey) : null, out counts, out itemKinds);
             int[] kinds = IsFav || groupKey == ItemGroups.AllKey ? null
                 : groupKey == ManualKey ? BookKindCounts()
-                : ItemCatalog.CountByKind(ItemGroups.ByKey(groupKey), filter, owned);
+                : itemKinds;
             int favCount = FavCount(owned);
             int bookCount = BookCount();
             foreach (CountLabel label in labels)
