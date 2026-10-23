@@ -9,6 +9,8 @@ namespace MOD_sWP6UL
     //   관계 발전: NPC의 응답 UnitActionFeedback104.OnCreate 안에서, 요청자(requestUnit)가 플레이어일 때만
     //     친밀도 조건(closeRequire·schoolCloseRequire)과 필요 점수(requireScore<종류>·schoolRequireScore<직위>)를 -100000, 필요 명성(requireReputationGrade1~10)을 0으로.
     //   드롭 배수: ConfBattleUnitAttr.GetDropID가 돌려주는 보상 번호 문자열("a|b|c")을 n번 이어 붙인다(전투에서 적이 죽을 때만 쓰인다).
+    //   참오 결과 최대(트레이너 3차, 스펙 2026-10-23-trainer3-design.md 6절): 게임 참오 창의 OnRealizeClick·OnRealizeAgain이 도는 동안만
+    //     ConfBattleSkillPrefixValue.RandomPrefixLevel의 결과를 그 옵션의 최대 품질 × 100(그 품질의 맨 위 수치, 실측)으로. 공법 값은 건드리지 않는다.
     // 칸(필드)을 감싼 속성과 Vector 인자 메서드에는 걸지 않는다(05 문서 65·67절).
     internal static class SuccessService
     {
@@ -18,9 +20,11 @@ namespace MOD_sWP6UL
         public static bool Steal { get; private set; }
         public static bool Relation { get; private set; }
         public static int DropTimes { get; private set; } = 1;
+        public static bool Realize { get; private set; }
 
         private static HarmonyLib.Harmony harmony;
-        private static bool stealPatched, relationPatched, dropPatched, warned;
+        private static bool stealPatched, relationPatched, dropPatched, realizePatched, warned;
+        private static UIMartialRealize realizeWindow;   // 참오 단추가 도는 동안의 창. 그 밖에는 null
         private static bool inPlayerRequest;   // 지금 도는 관계 응답이 플레이어의 요청인지
 
 #if DEVTOOLS
@@ -72,8 +76,25 @@ namespace MOD_sWP6UL
             return "드롭 배수: x" + next;
         }
 
+        public static string SetRealize(bool on)
+        {
+            string error = on ? Ensure(ref realizePatched, PatchRealize) : null;
+            if (error != null)
+            {
+                return error;
+            }
+            ChangeLog.Add("성공·드롭", "참오 결과 최대", Realize ? "켜짐" : "꺼짐", on ? "켜짐" : "꺼짐", true);
+            Realize = on;
+            realizeWindow = null;
+            return "참오 결과 최대: " + (on ? "켜짐" : "꺼짐");
+        }
+
         public static string Reset()
         {
+            if (Realize)
+            {
+                SetRealize(false);
+            }
             if (Steal)
             {
                 SetSteal(false);
@@ -154,6 +175,43 @@ namespace MOD_sWP6UL
         private static void PatchDrop(HarmonyLib.Harmony h)
         {
             Hook(h, typeof(ConfBattleUnitAttr), "GetDropID", new[] { typeof(int), typeof(bool) }, null, "DropId");
+        }
+
+        private static void PatchRealize(HarmonyLib.Harmony h)
+        {
+            Hook(h, typeof(UIMartialRealize), "OnRealizeClick", Type.EmptyTypes, "RealizeBegin", "RealizeEnd");
+            Hook(h, typeof(UIMartialRealize), "OnRealizeAgain", Type.EmptyTypes, "RealizeBegin", "RealizeEnd");
+            Hook(h, typeof(ConfBattleSkillPrefixValue), "RandomPrefixLevel", new[] { typeof(int), typeof(ConfBattleSkillPrefixValueItem), typeof(int), typeof(RandomSeedData) }, null, "RealizeRoll");
+        }
+
+        public static void RealizeBegin(UIMartialRealize __instance)
+        {
+            realizeWindow = Realize ? __instance : null;
+        }
+
+        public static void RealizeEnd()
+        {
+            realizeWindow = null;
+        }
+
+        public static void RealizeRoll(ConfBattleSkillPrefixValueItem item, ref int __result)
+        {
+            try
+            {
+                if (!Realize || realizeWindow == null || item == null)
+                {
+                    return;
+                }
+                int max = g.conf.battleSkillPrefixValue.GetPrefixMaxLevel(realizeWindow.martialData, item);
+                if (max > 0)
+                {
+                    __result = max * 100;
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(e);
+            }
         }
 
         private static bool IsPlayer(WorldUnitBase unit)

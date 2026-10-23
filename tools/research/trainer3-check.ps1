@@ -3,6 +3,7 @@
 # 고정본 플레이어의 심법: 81001~86001 여섯, 세트 없음.
 #   -Part suit      전승 서비스(msole·msuits·msuit·msuitstate·mvalues): 붙이기·떼기·구성원 아님 거부·다른 글 거부·NPC 대상.
 #   -Part suit-ui   공법 탭의 전승 글·전승… 하위 화면(붙이기·떼기), 무예에는 단추 없음. 캡처 check-suit.png.
+#   -Part realize   성공·드롭 탭의 참오 결과 최대: 꺼짐이면 게임 굴림 그대로, 켬이면 최대 품질 3·5·6 기술 모두 맨 위 값으로 확정, 공법 탭 품질 단추는 그대로, 모두 끄기.
 param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
@@ -83,6 +84,62 @@ switch ($Part) {
     Check 'a skill has no suit button' ((Cmd 'uitext MartialSuitOpen') -match 'no element') (Cmd 'uitext MartialSuitOpen')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Cmd 'uitoggle' | Out-Null
+  }
+  'realize' {
+    # 성공·드롭 탭 5.5: 참오 결과 최대. 최대 품질 3·5·6인 기술(고정본 86001·85001·신통)에서 게임 참오 창으로 참오 → 확정.
+    $traps = Traps
+    function Held { if ((Cmd 'count 5021462' 300) -match 'count=(\d+)') { [int]$Matches[1] } else { -1 } }
+    function Rolls { [regex]::Matches((Cmd 'realstate' 300), 'rd\d+ old=(-?\d+) new=(-?\d+) max=(-?\d+)') }
+    function Realize([string]$sole) {
+      Cmd "realui $sole" 1000 | Out-Null
+      Cmd 'realclick' 5000 | Out-Null
+      $rolls = Rolls
+      Cmd 'realok' 2500 | Out-Null
+      Cmd 'uiclose MartialRealize' 500 | Out-Null
+      ,$rolls
+    }
+    $ult = if ((Cmd 'pstate' 300) -match 'ult=(\d+)') { SoleOf ([int]$Matches[1]) } else { '' }
+    $soles = @((SoleOf 86001), (SoleOf 85001), $ult)
+    foreach ($s in $soles) { Cmd "mexp me $s 200000" 500 | Out-Null }
+    Cmd 'tbbagset 5021462 1000' 500 | Out-Null
+    $h0 = Held
+    $rolls = Realize $soles[1]
+    $atMax = @($rolls | Where-Object { $_.Groups[2].Value -eq $_.Groups[3].Value }).Count
+    Check 'off: the game rolls as usual' ($rolls.Count -gt 0 -and $atMax -lt $rolls.Count) "lines=$($rolls.Count) atMax=$atMax"
+    Cmd 'uitarget player' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab17' | Out-Null
+    Press 'SuccessRealize' | Out-Null
+    Check 'the row turns on' ((Cmd 'uitext SuccessRealize') -match '켜짐') (Cmd 'uitext SuccessRealize')
+    Check 'the status shows it' ((Cmd 'uistate') -match '참오 최대') (Cmd 'uistate')
+    Cmd 'uitoggle' | Out-Null
+    foreach ($s in $soles) {
+      $rolls = Realize $s
+      $bad = @($rolls | Where-Object { $_.Groups[2].Value -ne $_.Groups[3].Value })
+      Check "on: every rolled line of $s is at its top value" ($rolls.Count -gt 0 -and $bad.Count -eq 0) "lines=$($rolls.Count) bad=$($bad | ForEach-Object { $_.Value })"
+      $opts = Cmd "mopts $s" 300
+      $notMax = @([regex]::Matches($opts, '\d+:\d+:(\d+)/(\d+)') | Where-Object { $_.Groups[1].Value -ne $_.Groups[2].Value })
+      Check "on: after confirm all lines of $s are at max quality" ($notMax.Count -eq 0) $opts
+    }
+    Check 'the material is spent as the game rules say' ((Held) -lt $h0) "before=$h0 after=$(Held)"
+    # 켠 채 공법 탭의 품질 단추는 그대로 동작한다
+    Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
+    Cmd "tb2pick $($soles[1])" 1500 | Out-Null
+    $before = Cmd "mopts $($soles[1])" 300
+    Press 'QualityMinus0' | Out-Null
+    $after = Cmd "mopts $($soles[1])" 300
+    $lv0 = if ($before -match '-> 0:\d+:(\d+)/') { [int]$Matches[1] } else { -1 }
+    Check 'quality buttons are untouched while realize-max is on' ($after -match "-> 0:\d+:$($lv0 - 1)/") "$before | $after"
+    Press 'Tab17' | Out-Null
+    Press 'SuccessReset' | Out-Null
+    Check 'reset turns it off' ((Cmd 'uitext SuccessRealize') -match '꺼짐' -and (Cmd 'uistate') -notmatch '참오 최대') (Cmd 'uistate')
+    Cmd 'uitoggle' | Out-Null
+    Cmd "realui $($soles[1])" 1000 | Out-Null
+    Cmd 'realclick' 5000 | Out-Null
+    Shot 'realize-off'
+    Cmd 'realok' 2500 | Out-Null; Cmd 'uiclose MartialRealize' 500 | Out-Null
+    Check 'no game window is left over' ((Cmd 'uilist' 300) -notmatch 'MartialRealize|Mask ') (Cmd 'uilist' 300)
+    Check 'the change log has realize lines' (LogHas '참오 결과 최대')
+    Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   default { throw "알 수 없는 Part: $Part" }
 }

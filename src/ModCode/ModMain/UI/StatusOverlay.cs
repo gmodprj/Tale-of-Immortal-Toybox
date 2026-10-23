@@ -60,6 +60,10 @@ namespace MOD_sWP6UL
             {
                 parts.Add("드롭 x" + SuccessService.DropTimes);
             }
+            if (SuccessService.Realize)
+            {
+                parts.Add("참오 최대");
+            }
             return string.Join(" · ", parts.ToArray());
         }
 

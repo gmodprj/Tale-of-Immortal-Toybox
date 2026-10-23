@@ -9,6 +9,10 @@ namespace MOD_sWP6UL
     //   msuit <sole> <세트 번호|0> [unitID]     ApplySuit, 0이면 RemoveSuit
     //   msuitstate <sole> [unitID]             suit=n isSuit=true|false values=<valuesStr>
     //   mvalues <sole> <글> [unitID]            valuesStr를 그 글로(검사 준비. "-"는 빈 글)
+    //   realui <sole>                          게임 참오 창 열기(플레이어)
+    //   realclick / realok / realagain         창의 btnOK(첫 화면: 참오, 참오 뒤: 확정하고 종료) / 다시 참오
+    //   realstate                              열린 참오 창의 굴린 값: rd<i> old= new= max=(최대 품질×100)
+    //   mopts <sole>                           공법 옵션: index:raw:lv/max …
     internal static class DevCommandsTrainer3
     {
         public static string Execute(string[] p)
@@ -37,9 +41,80 @@ namespace MOD_sWP6UL
                         action.data.valuesStr = p[2] == "-" ? "" : p[2];
                         return "values=" + action.data.valuesStr;
                     }
+                case "realui":
+                    {
+                        var action = g.world.playerUnit.data.unitData.GetActionMartial(p[1]);
+                        if (action == null)
+                        {
+                            return "no martial " + p[1];
+                        }
+                        g.ui.OpenUI<UIMartialRealize>(UIType.MartialRealize).InitData(action);
+                        return "opened";
+                    }
+                case "realclick":
+                case "realok":
+                case "realagain":
+                    {
+                        var ui = g.ui.GetUI<UIMartialRealize>(UIType.MartialRealize);
+                        if (ui == null)
+                        {
+                            return "no realize ui";
+                        }
+                        // 첫 화면의 btnOK는 참오, 참오 뒤에는 게임이 btnOK를 "확정하고 종료"로 다시 묶는다(OnRealizeClick 해독).
+                        if (p[0] == "realagain")
+                        {
+                            ui.btnAgain.onClick.Invoke();
+                        }
+                        else
+                        {
+                            ui.btnOK.onClick.Invoke();
+                        }
+                        return p[0] + " done";
+                    }
+                case "realstate":
+                    return RealState();
+                case "mopts":
+                    {
+                        var m = MartialService.Martial(g.world.playerUnit, p[1]);
+                        if (m == null)
+                        {
+                            return "no martial " + p[1];
+                        }
+                        var sb = new StringBuilder();
+                        foreach (MartialService.PrefixView v in MartialService.Prefixes(m))
+                        {
+                            sb.Append(v.Index).Append(':').Append(v.Raw).Append(':').Append(v.Level).Append('/').Append(v.MaxLevel).Append(' ');
+                        }
+                        return sb.ToString();
+                    }
                 default:
                     return null;
             }
+        }
+
+        private static string RealState()
+        {
+            var ui = g.ui.GetUI<UIMartialRealize>(UIType.MartialRealize);
+            var sb = new StringBuilder();
+            string sole = null;
+            if (ui != null)
+            {
+                var r = ui.martialRealize;
+                sole = ui.actionMartialData.data.soleID;
+                for (int i = 0; r != null && r.realizeDatas != null && i < r.realizeDatas.Count; i++)
+                {
+                    var d = r.realizeDatas[i];
+                    sb.Append("rd").Append(i).Append(" old=").Append(d.oldPrefixData == null ? -1 : d.oldPrefixData.prefixLevel)
+                        .Append(" new=").Append(d.newPrefixData == null ? -1 : d.newPrefixData.prefixLevel)
+                        .Append(" max=").Append(d.newPrefixData == null ? -1 : g.conf.battleSkillPrefixValue.GetPrefixMaxLevel(ui.martialData, d.newPrefixData.prefixValueItem) * 100)
+                        .Append(d.ingore ? " ingore" : "").Append('\n');
+                }
+            }
+            else
+            {
+                sb.Append("no realize ui\n");
+            }
+            return sb.ToString();
         }
 
         private static WorldUnitBase Unit(string[] p, int index)
