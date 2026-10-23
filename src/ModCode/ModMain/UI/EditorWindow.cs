@@ -431,14 +431,28 @@ namespace MOD_sWP6UL
             messageArea = Ui.Panel("MessageBox", window, 16, Height - MessageH - 8, Width - 32, MessageH, Ui.Section);
             messageBox = messageArea.GetComponent<Image>();
 
-            tabs = new EditorTab[]
+            // 탭과 고정 번호를 짝으로 적는다(10 문서 N11, 묶음 5: 두 배열을 손으로 맞추던 것). 순서는 탭 줄의 순서.
+            var entries = new KeyValuePair<int, EditorTab>[]
             {
-                new AttributesTab(), new ResourcesTab(), new VaultTab(), new GradeTab(), new MartialTab(), new ImmortalTab(), new ArtifactTab(), new LuckTab(),
-                new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new PresetTab(), new SafetyTab(), new AppellationTab(), new TreasureTab(),
-                new SuccessTab(),
+                Tab(0, new AttributesTab()), Tab(1, new ResourcesTab()), Tab(3, new VaultTab()), Tab(4, new GradeTab()),
+                Tab(5, new MartialTab()), Tab(6, new ImmortalTab()), Tab(7, new ArtifactTab()), Tab(8, new LuckTab()),
+                Tab(9, new ArtTab()), Tab(10, new NpcTab()), Tab(11, new WorldTab()), Tab(12, new RateTab()),
+                Tab(13, new PresetTab()), Tab(SafetyNumber, new SafetyTab()), Tab(15, new AppellationTab()), Tab(16, new TreasureTab()),
+                Tab(17, new SuccessTab()),
             };
-            tabNumbers = new[] { 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SafetyNumber, 15, 16, 17 };
+            tabs = new EditorTab[entries.Length];
+            tabNumbers = new int[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                tabNumbers[i] = entries[i].Key;
+                tabs[i] = entries[i].Value;
+            }
             safetyIndex = Array.IndexOf(tabNumbers, SafetyNumber);
+        }
+
+        private static KeyValuePair<int, EditorTab> Tab(int number, EditorTab tab)
+        {
+            return new KeyValuePair<int, EditorTab>(number, tab);
         }
 
         private static void Render()
