@@ -58,6 +58,9 @@ namespace MOD_sWP6UL
             FileStampTests();
             StampCacheTests();
             GiveBudgetTests();
+            ApplyTallyTests();
+            ConfigFileTests();
+            FavoriteLinesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -237,6 +240,8 @@ namespace MOD_sWP6UL
         // 모드 글의 서식 태그 지우기(05 문서 72절: 만고신화 기술 이름 <COLOR=#FFAA00>草字剑诀</COLOR>가 COLORFFAA00草字剑诀COLOR로 보였다).
         private static void TextTagsTests()
         {
+            Check("search key drops spaces and lowers", TextTags.SearchKey(" Fire Ball 화 염 ") == "fireball화염");
+            Check("search key of null", TextTags.SearchKey(null) == "");
             string a = TextTags.Strip("<COLOR=#FFAA00>草字剑诀</COLOR>");
             Check("tags color removed", a == "草字剑诀", a);
             string b = TextTags.Strip("<size=25>[无邪</size>]<b><color=#800000>万古神话</color></b>");
@@ -374,6 +379,59 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void FavoriteLinesTests()
+        {
+            var limits = new FavoriteStore.Limits { Kinds = 5, MaxAmount = 9999, MaxBook = 20 };
+            var lines = new[] { "# 주석", "", "1011011 10", "book 0 14111 3 1 2", "1011011 5", "bad line", "book 9 1 1 1 1", "book 1 22111 11 1 1", "2000 0", "3000 99999", "book 4 32111 2 6 50", "\t4000\t7 " };
+            int skipped;
+            List<FavoriteStore.Favorite> read = FavoriteStore.ReadLines(lines, limits, out skipped);
+            Check("fav lines: kept rows", read.Count == 6, "count=" + read.Count);
+            Check("fav lines: skipped broken and duplicate", skipped == 4, "skipped=" + skipped);
+            Check("fav lines: item row", read[0].Id == 1011011 && read[0].Amount == 10 && !read[0].Book);
+            Check("fav lines: book row", read[1].Book && read[1].BookKind == 0 && read[1].Id == 14111 && read[1].Grade == 3 && read[1].MinLevel == 1 && read[1].Amount == 2);
+            Check("fav lines: amount clamped up to 1", read[2].Id == 2000 && read[2].Amount == 1);
+            Check("fav lines: amount clamped down", read[3].Amount == 9999);
+            Check("fav lines: book amount clamped", read[4].Amount == 20);
+            Check("fav lines: tabs separate", read[5].Id == 4000 && read[5].Amount == 7);
+            string text = FavoriteStore.WriteLines(read);
+            int skipped2;
+            List<FavoriteStore.Favorite> again = FavoriteStore.ReadLines(text.Split('\n'), limits, out skipped2);
+            bool same = again.Count == read.Count && skipped2 == 0;
+            for (int i = 0; same && i < read.Count; i++) { same = again[i].Same(read[i]) && again[i].Amount == read[i].Amount && again[i].BookKind == read[i].BookKind; }
+            Check("fav lines: written text reads back the same", same, text);
+            Check("fav lines: header comment first", text.StartsWith("# TlToybox 자원 탭 즐겨찾기"));
+        }
+
+        private static void ConfigFileTests()
+        {
+            var lines = new[] { "# 편집기를 여닫는 키", "hotkey=F2", "  Window = 10, 20 ", "artifactkey1=Alpha1", "broken line", "window=30,40", "" };
+            Dictionary<string, string> map = ConfigFile.Parse(lines);
+            Check("config: comment and broken lines skipped", !map.ContainsKey("# 편집기를 여닫는 키") && !map.ContainsKey("broken line"));
+            Check("config: key is case-insensitive", map.ContainsKey("WINDOW") && map.ContainsKey("hotkey"));
+            Check("config: the last line wins", map["window"] == "30,40", map["window"]);
+            Check("config: values are trimmed", map["artifactkey1"] == "Alpha1");
+            List<string> written = ConfigFile.Replace(lines, new Dictionary<string, string> { { "window", "1,2" }, { "artifactgamekey", "off" } });
+            Check("config: other lines stay in order", written[0] == "# 편집기를 여닫는 키" && written[1] == "hotkey=F2" && written[2] == "artifactkey1=Alpha1" && written[3] == "broken line");
+            Check("config: replaced keys go to the end once", written.FindAll(l => l.StartsWith("window=")).Count == 1 && written[written.Count - 2] == "window=1,2" && written[written.Count - 1] == "artifactgamekey=off", string.Join("|", written.ToArray()));
+            Check("config: replace from nothing", ConfigFile.Replace(new string[0], new Dictionary<string, string> { { "hotkey", "Insert" } })[0] == "hotkey=Insert");
+        }
+
+        private static void ApplyTallyTests()
+        {
+            var tally = new ApplyTally();
+            Check("tally: empty has nothing", !tally.Any);
+            tally.Count("가", (out string text) => { text = null; return ApplyOutcome.Done; });
+            tally.Count("나", (out string text) => { text = null; return ApplyOutcome.Skipped; });
+            tally.Count("다", (out string text) => { text = "다: 이유."; return ApplyOutcome.Failed; });
+            tally.Count("라", (out string text) => { throw new InvalidOperationException("x"); });
+            tally.Count("마", (out string text) => { text = ""; return ApplyOutcome.Failed; });
+            Check("tally: any", tally.Any);
+            Check("tally: sentence", tally.Sentence("공법", "장착") == "공법: 장착 1, 건너뜀 1, 못 넣음 3(다: 이유 / 라: 게임이 받지 않았습니다(InvalidOperationException) / 마).", tally.Sentence("공법", "장착"));
+            var many = new ApplyTally();
+            for (int i = 1; i <= 7; i++) { int n = i; many.Count("x" + n, (out string text) => { text = null; return ApplyOutcome.Failed; }); }
+            Check("tally: more than five failures", many.Sentence("운명", "넣음") == "운명: 넣음 0, 건너뜀 0, 못 넣음 7(x1 / x2 / x3 / x4 / x5 외 2개).", many.Sentence("운명", "넣음"));
+        }
+
         private static void GiveBudgetTests()
         {
             Check("budget: under 2s keeps going", !GiveBudget.ShouldStop(1999, 3, 20));

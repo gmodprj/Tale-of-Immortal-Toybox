@@ -3494,3 +3494,27 @@
 함정: `bagcount`는 고정본의 1011011 x10을 전제한다. 같은 회차에서 `items`를 먼저 돌리면 그 아이템이 하나 늘어 실패한다(`sf-1023a`). 깨끗한 회차에서 돌린다.
 
 시간 상한은 권과 권 사이에서만 보므로 전체 시간은 "2초 + 한 권"까지 늘 수 있다. 문구의 "요청 m권"은 한 번에 20권으로 자른 수다. 시간 상한(2초)과 전투 중 막기(A1)는 실제로 그 상황(오래 걸리는 지급, 장면 전환 중 아이템 사용)을 회차에서 만들어 보지는 않았다. 코드와 단위 시험으로만 확인했다.
+
+## 81. 묶음 5 — 리팩토링 1차 (2026-10-23 추가)
+
+12 문서 7절의 묶음 5. 동작을 바꾸지 않는 정리라 대화에서 내용을 정해 사용자 승인을 받았다(2026-10-23). 브랜치 `chore/refactor-1023`, 회차 `rf-1023a`~`f`(고정본, `-Exclude 2814696167`, `SAVE RESTORED AND IDENTICAL`).
+
+- **R1 — 결과 집계 하나로**: 프리셋 적용(`PresetService.Apply.cs`)과 캐릭터 가져오기(`CharacterExportService.Import.cs`)가 각자 갖던 `Outcome`·`Put`·`Tally`를 `Services/ApplyTally.cs`(`ApplyOutcome`·`ApplyPut`·`ApplyTally`, 단위 시험 4개)로 모았다. 두 파일은 `using` 별칭으로 예전 이름을 그대로 쓴다. 문장 모양은 같다.
+- **R2 — `config.txt` 하나로**: 단축키(`EditorHost`), 창 위치(`EditorWindow`), 신기 단축키(`ArtifactKeyService`)가 `Services/ConfigFile.cs`(줄 → 사전, 바꿀 키의 줄만 지우고 끝에 덧붙이기. 단위 시험 7개)와 `ConfigFile.Io.cs`(읽기·쓰기·처음 만들기, 실패는 로그만)를 쓴다. 달라진 점(모두 손으로 고친 `config.txt`에서만 생기고, 한 번 저장하면 정리된다. 최종 리뷰에서 바로잡음):
+  - 같은 키가 두 줄 이상이면 마지막 줄을 쓴다. 전에는 단축키가 처음 나온 `f2`·`f3` 줄을 썼다(Insert 같은 다른 값은 지나침).
+  - 창 위치는 전에 올바른 `window=` 줄 가운데 마지막을 썼다. 지금은 마지막 `window` 줄이 깨져 있으면 기본 위치가 된다.
+  - `hotkey = F2`처럼 `=` 앞에 공백이 있는 줄도 이제 읽고, 쓸 때 지운다(전에는 읽지도 지우지도 않음).
+  - 신기 키를 쓸 때 지우는 줄은 `artifactkey1~3`·`artifactgamekey`뿐이다(전에는 `artifactkey`로 시작하는 모든 줄).
+  - 읽기·쓰기 실패 로그 문구가 "<이름>을(를) 읽지 못했습니다" 꼴로 바뀌었다(조사가 어색하다. 화면 글은 아님).
+- **R7 — 즐겨찾기 줄 시험**: `FavoriteStore`의 줄 해석·쓰기를 `FavoriteStore.Lines.cs`(`ReadLines`·`WriteLines`, 한도는 `Limits`로 받음)로 떼어 단위 시험 10개(아이템·비급 줄, 깨진 줄·중복 건너뛰기, 수량 자르기, 탭 구분, 쓴 글을 다시 읽으면 같음)를 붙였다.
+- **R3 — 글 정리 도우미**: 호천안·연요호의 같은 검색 정규화를 `TextTags.SearchKey`(단위 시험 2개)로, "번역 키 → 다듬은 설명 한 줄" 다섯 곳을 `MartialService.CleanLine(key)`로. `\r`도 지우는 아이템 목록 두 곳은 결과가 달라질 수 있어 그대로 두었다. 탭마다 모양이 다른 `Unreadable`·`CountLabel`은 이번에 두었다.
+- **N11 — 탭과 번호를 짝으로**: `EditorWindow`가 탭과 고정 번호를 한 목록에 짝으로 적고, 기존 두 배열(`tabs`·`tabNumbers`. 개발 명령이 반사로 읽는다)을 거기서 만든다.
+
+검사(모두 FAIL 0):
+- `ui-check`: `base`·`tabs`·`move`→`-Restart`→`move-restart`, `favstore`→`-Restart`→`favstore-restart`·`favorites`, `charvault`→`-Restart`→`charvault-restart`.
+- `artifact-check`: `keys`→`-Restart`→`keys-restart`→`keys-ui`.
+- `preset-check apply`. 단위 시험 FAIL 0.
+
+함정 둘:
+- **`base`의 Init 줄 찾기**: 묶음 1(77절)에서 더한 `[TlToybox] init ms=` 줄을 대소문자를 가리지 않는 `-match`가 `Init ` 줄로 잡아, `base`가 2개 실패하고 있었다. 묶음 1~4의 검사 목록에 `base`가 없어 놓쳤다. `-cmatch`로 고쳤다.
+- **`keys-restart`는 `keys` 바로 뒤에**: `keys`가 정한 연요호 키 K를 재시작 뒤 확인한다. `keys-ui` 뒤에 돌리면 사용자의 원래 설정이 읽혀 실패한다(`rf-1023c`).

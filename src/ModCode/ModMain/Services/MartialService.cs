@@ -46,6 +46,12 @@ namespace MOD_sWP6UL
             return EditService.Compact(martial.martialInfo.name);
         }
 
+        // 번역 키 → 다듬은 설명 한 줄(줄바꿈을 공백으로). 여러 탭이 같은 꼴로 쓰던 것을 모았다(10 문서 R3, 묶음 5).
+        public static string CleanLine(string key)
+        {
+            return CleanDesc(GameTool.LS(key)).Replace('\n', ' ');
+        }
+
         // 옵션 설명의 자리 표시자를 읽을 수 있게 다듬는다. 수치 자리(&...&)는 N으로, 용어 자리($...$)는 번역문으로 바꾼다.
         public static string CleanDesc(string desc)
         {

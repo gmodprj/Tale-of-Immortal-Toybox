@@ -8,6 +8,12 @@ namespace MOD_sWP6UL
     {
         private static readonly Regex Tag = new Regex(@"</?[A-Za-z][^<>]*>");
 
+        // 검색어 비교용: 공백을 지우고 소문자로(호천안·연요호가 각자 갖던 Normalize를 모았다. 10 문서 R3, 묶음 5).
+        public static string SearchKey(string text)
+        {
+            return (text ?? "").Replace(" ", "").ToLowerInvariant();
+        }
+
         public static string Strip(string text)
         {
             return string.IsNullOrEmpty(text) ? "" : Tag.Replace(text, "");

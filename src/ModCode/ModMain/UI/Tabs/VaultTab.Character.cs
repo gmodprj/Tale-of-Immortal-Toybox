@@ -140,7 +140,7 @@ namespace MOD_sWP6UL
         private static string LuckTips(int id)
         {
             ConfRoleCreateFeatureItem conf = g.conf.roleCreateFeature.GetItem(id);
-            return conf == null ? "" : MartialService.CleanDesc(GameTool.LS(conf.tips)).Replace('\n', ' ');
+            return conf == null ? "" : MartialService.CleanLine(conf.tips);
         }
 
         private List<CharLine> CharLines()

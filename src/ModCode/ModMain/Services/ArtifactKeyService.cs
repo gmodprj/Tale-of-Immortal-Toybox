@@ -324,11 +324,6 @@ namespace MOD_sWP6UL
             trigger.triggers.Add(entry);
         }
 
-        private static string ConfigPath
-        {
-            get { return Path.Combine(ChangeLog.DataDir, "config.txt"); }
-        }
-
         private static void Load()
         {
             if (loaded)
@@ -336,79 +331,39 @@ namespace MOD_sWP6UL
                 return;
             }
             loaded = true;
-            try
+            Dictionary<string, string> map = ConfigFile.Read("신기 단축키 설정");
+            for (int i = 0; i < Keys.Length; i++)
             {
-                if (!File.Exists(ConfigPath))
+                string value;
+                if (map.TryGetValue("artifactkey" + (i + 1), out value))
                 {
-                    return;
-                }
-                foreach (string line in File.ReadAllLines(ConfigPath))
-                {
-                    string t = line.Trim();
-                    for (int i = 0; i < Keys.Length; i++)
+                    try
                     {
-                        string head = "artifactkey" + (i + 1) + "=";
-                        if (t.StartsWith(head, StringComparison.OrdinalIgnoreCase))
-                        {
-                            try
-                            {
-                                Keys[i] = (KeyCode)Enum.Parse(typeof(KeyCode), t.Substring(head.Length).Trim(), true);
-                            }
-                            catch (ArgumentException)
-                            {
-                                Keys[i] = KeyCode.None;
-                            }
-                        }
+                        Keys[i] = (KeyCode)Enum.Parse(typeof(KeyCode), value, true);
                     }
-                    if (t.StartsWith("artifactgamekey=", StringComparison.OrdinalIgnoreCase))
+                    catch (ArgumentException)
                     {
-                        GameKeyOff = t.Substring(16).Trim().Equals("off", StringComparison.OrdinalIgnoreCase);
+                        Keys[i] = KeyCode.None;
                     }
                 }
             }
-            catch (IOException e)
+            string game;
+            if (map.TryGetValue("artifactgamekey", out game))
             {
-                MelonLogger.Msg("[TlToybox] 신기 단축키 설정을 읽지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 신기 단축키 설정을 읽지 못했습니다: " + e.Message);
+                GameKeyOff = game.Equals("off", StringComparison.OrdinalIgnoreCase);
             }
         }
 
         // 다른 줄(hotkey=, window= 등)은 그대로 두고 신기 줄만 바꾼다.
         private static void Save()
         {
-            try
+            var values = new Dictionary<string, string>();
+            for (int i = 0; i < Keys.Length; i++)
             {
-                Directory.CreateDirectory(ChangeLog.DataDir);
-                var lines = new List<string>();
-                if (File.Exists(ConfigPath))
-                {
-                    foreach (string line in File.ReadAllLines(ConfigPath))
-                    {
-                        string t = line.Trim();
-                        if (!t.StartsWith("artifactkey", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("artifactgamekey=", StringComparison.OrdinalIgnoreCase))
-                        {
-                            lines.Add(line);
-                        }
-                    }
-                }
-                for (int i = 0; i < Keys.Length; i++)
-                {
-                    lines.Add("artifactkey" + (i + 1) + "=" + Keys[i]);
-                }
-                lines.Add("artifactgamekey=" + (GameKeyOff ? "off" : "on"));
-                File.WriteAllLines(ConfigPath, lines.ToArray());
+                values["artifactkey" + (i + 1)] = Keys[i].ToString();
             }
-            catch (IOException e)
-            {
-                MelonLogger.Msg("[TlToybox] 신기 단축키 설정을 저장하지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 신기 단축키 설정을 저장하지 못했습니다: " + e.Message);
-            }
+            values["artifactgamekey"] = GameKeyOff ? "off" : "on";
+            ConfigFile.Write(values, "신기 단축키 설정");
         }
     }
 }

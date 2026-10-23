@@ -41,7 +41,7 @@ namespace MOD_sWP6UL
 
         internal static string Text(string key)
         {
-            return key == null || key == "0" ? "" : MartialService.CleanDesc(GameTool.LS(key)).Replace('\n', ' ');
+            return key == null || key == "0" ? "" : MartialService.CleanLine(key);
         }
 
         public static string Name(int id)

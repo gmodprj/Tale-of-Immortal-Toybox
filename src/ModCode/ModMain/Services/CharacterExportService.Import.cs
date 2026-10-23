@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Outcome = MOD_sWP6UL.ApplyOutcome;
+using Put = MOD_sWP6UL.ApplyPut;
+using Tally = MOD_sWP6UL.ApplyTally;
 
 namespace MOD_sWP6UL
 {
@@ -9,8 +12,6 @@ namespace MOD_sWP6UL
     // 줄·구역·전부 가져오기가 그것을 세어 문장으로 만든다. 게임이 던지는 예외는 줄 단위로 잡는다.
     internal static partial class CharacterExportService
     {
-        private enum Outcome { Done, Skipped, Failed }
-
         // ---- 화면이 상태를 보이는 데 쓰는 것 ----
 
         public static bool AttrNow(Attr line, out int value)
@@ -365,8 +366,6 @@ namespace MOD_sWP6UL
 
         // ---- 줄 하나의 가져오기(화면의 줄 버튼) ----
 
-        private delegate Outcome Put(out string text);
-
         private static string One(Pack pack, Put put)
         {
             string gone = Gone(pack);
@@ -424,55 +423,6 @@ namespace MOD_sWP6UL
 
         // ---- 구역과 전부 ----
 
-        // 한 구역의 집계. 끝나면 "공법: 추가 3, 건너뜀 20, 못 넣음 1(이름…)" 같은 문장이 된다.
-        private sealed class Tally
-        {
-            public int Done, Skipped;
-            public readonly List<string> Failed = new List<string>();
-
-            public void Count(Put put, string label)
-            {
-                Outcome outcome;
-                string text;
-                try
-                {
-                    outcome = put(out text);
-                }
-                catch (Exception e)
-                {
-                    outcome = Outcome.Failed;
-                    text = label + ": 게임이 받지 않았습니다(" + e.GetType().Name + ")";
-                }
-                if (outcome == Outcome.Done)
-                {
-                    Done++;
-                }
-                else if (outcome == Outcome.Skipped)
-                {
-                    Skipped++;
-                }
-                else
-                {
-                    // 줄이 돌려준 문장에 이유가 들어 있다("이름: 이유").
-                    Failed.Add(string.IsNullOrEmpty(text) ? label : text.TrimEnd('.'));
-                }
-            }
-
-            public string Sentence(string title, string verb)
-            {
-                var sb = new StringBuilder(title + ": " + verb + " " + Done + ", 건너뜀 " + Skipped);
-                if (Failed.Count > 0)
-                {
-                    sb.Append(", 못 넣음 ").Append(Failed.Count).Append("(");
-                    for (int i = 0; i < Failed.Count && i < 5; i++)
-                    {
-                        sb.Append(i == 0 ? "" : " / ").Append(Failed[i]);
-                    }
-                    sb.Append(Failed.Count > 5 ? " 외 " + (Failed.Count - 5) + "개)" : ")");
-                }
-                return sb.Append(".").ToString();
-            }
-        }
 
         private static string Name(string name, string fallback)
         {
@@ -511,33 +461,33 @@ namespace MOD_sWP6UL
                     foreach (Attr line in pack.Attributes)
                     {
                         Attr each = line;
-                        tally.Count((out string text) => PutAttr(each, out text), Name(each.Name, each.Key));
+                        tally.Count(Name(each.Name, each.Key), (out string text) => PutAttr(each, out text));
                     }
                     return tally.Sentence("능력치", "변경");
                 case Section.Martials:
                     foreach (MartialLine line in pack.Martials)
                     {
                         MartialLine each = line;
-                        tally.Count((out string text) => PutMartial(each, false, out text), Name(each.Name, "공법 " + each.BaseId));
+                        tally.Count(Name(each.Name, "공법 " + each.BaseId), (out string text) => PutMartial(each, false, out text));
                     }
                     return tally.Sentence("공법", "추가");
                 case Section.Arts:
                     foreach (ArtLine line in pack.Arts)
                     {
                         ArtLine each = line;
-                        tally.Count((out string text) => PutArt(each, out text), Name(each.Name, "서적 " + each.Id));
+                        tally.Count(Name(each.Name, "서적 " + each.Id), (out string text) => PutArt(each, out text));
                     }
                     return tally.Sentence("기예", "추가");
                 case Section.Lucks:
                     foreach (LuckLine line in pack.BornLucks)
                     {
                         LuckLine each = line;
-                        tally.Count((out string text) => PutLuck(each, true, out text), Name(each.Name, "운명 " + each.Id));
+                        tally.Count(Name(each.Name, "운명 " + each.Id), (out string text) => PutLuck(each, true, out text));
                     }
                     foreach (LuckLine line in pack.AddLucks)
                     {
                         LuckLine each = line;
-                        tally.Count((out string text) => PutLuck(each, false, out text), Name(each.Name, "운명 " + each.Id));
+                        tally.Count(Name(each.Name, "운명 " + each.Id), (out string text) => PutLuck(each, false, out text));
                     }
                     return tally.Sentence("운명", "추가");
                 default:
@@ -552,7 +502,7 @@ namespace MOD_sWP6UL
                     foreach (FateLine line in pack.Fates)
                     {
                         FateLine each = line;
-                        tally.Count((out string text) => PutFate(each, pending, out text), Name(each.Name, "역천개명 " + each.Id));
+                        tally.Count(Name(each.Name, "역천개명 " + each.Id), (out string text) => PutFate(each, pending, out text));
                     }
                     return tally.Sentence("역천개명", "지정");
             }

@@ -157,11 +157,6 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static string ConfigPath
-        {
-            get { return Path.Combine(ChangeLog.DataDir, "config.txt"); }
-        }
-
         private static Vector2 Clamp(Vector2 p)
         {
             return new Vector2(
@@ -179,65 +174,23 @@ namespace MOD_sWP6UL
         private static void LoadPosition()
         {
             position = new Vector2(DefaultX, DefaultY);
-            try
+            string value;
+            if (!ConfigFile.Read("창 위치").TryGetValue("window", out value))
             {
-                if (!File.Exists(ConfigPath))
-                {
-                    return;
-                }
-                foreach (string line in File.ReadAllLines(ConfigPath))
-                {
-                    string trimmed = line.Trim();
-                    if (!trimmed.StartsWith("window=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                    string[] parts = trimmed.Substring(7).Split(',');
-                    int x, y;
-                    if (parts.Length == 2 && int.TryParse(parts[0].Trim(), out x) && int.TryParse(parts[1].Trim(), out y))
-                    {
-                        position = Clamp(new Vector2(x, y));
-                    }
-                }
+                return;
             }
-            catch (IOException e)
+            string[] parts = value.Split(',');
+            int x, y;
+            if (parts.Length == 2 && int.TryParse(parts[0].Trim(), out x) && int.TryParse(parts[1].Trim(), out y))
             {
-                MelonLogger.Msg("[TlToybox] 창 위치를 읽지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 창 위치를 읽지 못했습니다: " + e.Message);
+                position = Clamp(new Vector2(x, y));
             }
         }
 
         // 위치를 config.txt에 쓴다. 다른 줄(hotkey= 등)은 그대로 두고 window= 줄만 바꾼다. 쓰지 못해도 동작에는 영향이 없다.
         private static void SavePosition()
         {
-            try
-            {
-                Directory.CreateDirectory(ChangeLog.DataDir);
-                var lines = new List<string>();
-                if (File.Exists(ConfigPath))
-                {
-                    foreach (string line in File.ReadAllLines(ConfigPath))
-                    {
-                        if (!line.Trim().StartsWith("window=", StringComparison.OrdinalIgnoreCase))
-                        {
-                            lines.Add(line);
-                        }
-                    }
-                }
-                lines.Add("window=" + (int)position.x + "," + (int)position.y);
-                File.WriteAllLines(ConfigPath, lines.ToArray());
-            }
-            catch (IOException e)
-            {
-                MelonLogger.Msg("[TlToybox] 창 위치를 저장하지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 창 위치를 저장하지 못했습니다: " + e.Message);
-            }
+            ConfigFile.Write(new Dictionary<string, string> { { "window", (int)position.x + "," + (int)position.y } }, "창 위치");
         }
 
         // 버튼 콜백 안의 예외는 화면에 나오지 않는다. 끌기는 초당 수십 번 불리므로 한 번만 로그에 남긴다.
@@ -478,14 +431,28 @@ namespace MOD_sWP6UL
             messageArea = Ui.Panel("MessageBox", window, 16, Height - MessageH - 8, Width - 32, MessageH, Ui.Section);
             messageBox = messageArea.GetComponent<Image>();
 
-            tabs = new EditorTab[]
+            // 탭과 고정 번호를 짝으로 적는다(10 문서 N11, 묶음 5: 두 배열을 손으로 맞추던 것). 순서는 탭 줄의 순서.
+            var entries = new KeyValuePair<int, EditorTab>[]
             {
-                new AttributesTab(), new ResourcesTab(), new VaultTab(), new GradeTab(), new MartialTab(), new ImmortalTab(), new ArtifactTab(), new LuckTab(),
-                new ArtTab(), new NpcTab(), new WorldTab(), new RateTab(), new PresetTab(), new SafetyTab(), new AppellationTab(), new TreasureTab(),
-                new SuccessTab(),
+                Tab(0, new AttributesTab()), Tab(1, new ResourcesTab()), Tab(3, new VaultTab()), Tab(4, new GradeTab()),
+                Tab(5, new MartialTab()), Tab(6, new ImmortalTab()), Tab(7, new ArtifactTab()), Tab(8, new LuckTab()),
+                Tab(9, new ArtTab()), Tab(10, new NpcTab()), Tab(11, new WorldTab()), Tab(12, new RateTab()),
+                Tab(13, new PresetTab()), Tab(SafetyNumber, new SafetyTab()), Tab(15, new AppellationTab()), Tab(16, new TreasureTab()),
+                Tab(17, new SuccessTab()),
             };
-            tabNumbers = new[] { 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SafetyNumber, 15, 16, 17 };
+            tabs = new EditorTab[entries.Length];
+            tabNumbers = new int[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                tabNumbers[i] = entries[i].Key;
+                tabs[i] = entries[i].Value;
+            }
             safetyIndex = Array.IndexOf(tabNumbers, SafetyNumber);
+        }
+
+        private static KeyValuePair<int, EditorTab> Tab(int number, EditorTab tab)
+        {
+            return new KeyValuePair<int, EditorTab>(number, tab);
         }
 
         private static void Render()
