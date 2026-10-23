@@ -67,6 +67,27 @@ namespace MOD_sWP6UL
                         sb.Append(" replacesFull=").Append(w.ElapsedMilliseconds).Append(" presets=").Append(list.Count);
                         return sb.ToString();
                     }
+                case "apl":
+                    {
+                        // rperf apl: 도호 탭 그리기의 조각별 ms(묶음 3)
+                        WorldUnitBase me = g.world.playerUnit;
+                        var sb = new StringBuilder();
+                        var w = Stopwatch.StartNew();
+                        var all = AppellationService.All();
+                        sb.Append("all=").Append(w.ElapsedMilliseconds).Append('(').Append(all.Count).Append(')'); w.Restart();
+                        var owned = AppellationService.Owned(me);
+                        sb.Append(" owned=").Append(w.ElapsedMilliseconds); w.Restart();
+                        string myId = me.data.unitData.unitID;
+                        int holders = 0;
+                        foreach (var e in all) { holders += AppellationService.OtherHolders(myId, e.Id).Count; }
+                        sb.Append(" holdersAll=").Append(w.ElapsedMilliseconds).Append('(').Append(holders).Append(')'); w.Restart();
+                        foreach (var e in all) { AppellationService.HolderText(e, AppellationService.OtherHolders(myId, e.Id)); }
+                        sb.Append(" holderTextAll=").Append(w.ElapsedMilliseconds); w.Restart();
+                        int grade = FateService.CurrentGrade(me);
+                        foreach (var e in all) { AppellationService.LossText(e, grade); AppellationService.DropsSoon(e, grade); }
+                        sb.Append(" lossAll=").Append(w.ElapsedMilliseconds);
+                        return sb.ToString();
+                    }
                 case "ltfail":
                     {
                         // Init의 번역 두 단계를 같은 순서로 다시 부르되 Scan이 첫 행에서 실패하게 한다. texts의 lt=가 그대로면 되돌아가기 길이 산다.
