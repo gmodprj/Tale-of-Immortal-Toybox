@@ -59,6 +59,7 @@ namespace MOD_sWP6UL
             StampCacheTests();
             GiveBudgetTests();
             ApplyTallyTests();
+            ConfigFileTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -375,6 +376,20 @@ namespace MOD_sWP6UL
             Check("slots: a non-stacking item needs one slot per piece", CraftPlan.NewSlots(forge10, id => false, id => id != 5121111) == 11);
             Check("slots: a non-stacking item already in the bag still needs slots", CraftPlan.NewSlots(forge10, id => true, id => id != 5121111) == 10);
         }
+        private static void ConfigFileTests()
+        {
+            var lines = new[] { "# 편집기를 여닫는 키", "hotkey=F2", "  Window = 10, 20 ", "artifactkey1=Alpha1", "broken line", "window=30,40", "" };
+            Dictionary<string, string> map = ConfigFile.Parse(lines);
+            Check("config: comment and broken lines skipped", !map.ContainsKey("# 편집기를 여닫는 키") && !map.ContainsKey("broken line"));
+            Check("config: key is case-insensitive", map.ContainsKey("WINDOW") && map.ContainsKey("hotkey"));
+            Check("config: the last line wins", map["window"] == "30,40", map["window"]);
+            Check("config: values are trimmed", map["artifactkey1"] == "Alpha1");
+            List<string> written = ConfigFile.Replace(lines, new Dictionary<string, string> { { "window", "1,2" }, { "artifactgamekey", "off" } });
+            Check("config: other lines stay in order", written[0] == "# 편집기를 여닫는 키" && written[1] == "hotkey=F2" && written[2] == "artifactkey1=Alpha1" && written[3] == "broken line");
+            Check("config: replaced keys go to the end once", written.FindAll(l => l.StartsWith("window=")).Count == 1 && written[written.Count - 2] == "window=1,2" && written[written.Count - 1] == "artifactgamekey=off", string.Join("|", written.ToArray()));
+            Check("config: replace from nothing", ConfigFile.Replace(new string[0], new Dictionary<string, string> { { "hotkey", "Insert" } })[0] == "hotkey=Insert");
+        }
+
         private static void ApplyTallyTests()
         {
             var tally = new ApplyTally();

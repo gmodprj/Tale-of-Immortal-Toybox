@@ -157,11 +157,6 @@ namespace MOD_sWP6UL
             }
         }
 
-        private static string ConfigPath
-        {
-            get { return Path.Combine(ChangeLog.DataDir, "config.txt"); }
-        }
-
         private static Vector2 Clamp(Vector2 p)
         {
             return new Vector2(
@@ -179,65 +174,23 @@ namespace MOD_sWP6UL
         private static void LoadPosition()
         {
             position = new Vector2(DefaultX, DefaultY);
-            try
+            string value;
+            if (!ConfigFile.Read("창 위치").TryGetValue("window", out value))
             {
-                if (!File.Exists(ConfigPath))
-                {
-                    return;
-                }
-                foreach (string line in File.ReadAllLines(ConfigPath))
-                {
-                    string trimmed = line.Trim();
-                    if (!trimmed.StartsWith("window=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                    string[] parts = trimmed.Substring(7).Split(',');
-                    int x, y;
-                    if (parts.Length == 2 && int.TryParse(parts[0].Trim(), out x) && int.TryParse(parts[1].Trim(), out y))
-                    {
-                        position = Clamp(new Vector2(x, y));
-                    }
-                }
+                return;
             }
-            catch (IOException e)
+            string[] parts = value.Split(',');
+            int x, y;
+            if (parts.Length == 2 && int.TryParse(parts[0].Trim(), out x) && int.TryParse(parts[1].Trim(), out y))
             {
-                MelonLogger.Msg("[TlToybox] 창 위치를 읽지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 창 위치를 읽지 못했습니다: " + e.Message);
+                position = Clamp(new Vector2(x, y));
             }
         }
 
         // 위치를 config.txt에 쓴다. 다른 줄(hotkey= 등)은 그대로 두고 window= 줄만 바꾼다. 쓰지 못해도 동작에는 영향이 없다.
         private static void SavePosition()
         {
-            try
-            {
-                Directory.CreateDirectory(ChangeLog.DataDir);
-                var lines = new List<string>();
-                if (File.Exists(ConfigPath))
-                {
-                    foreach (string line in File.ReadAllLines(ConfigPath))
-                    {
-                        if (!line.Trim().StartsWith("window=", StringComparison.OrdinalIgnoreCase))
-                        {
-                            lines.Add(line);
-                        }
-                    }
-                }
-                lines.Add("window=" + (int)position.x + "," + (int)position.y);
-                File.WriteAllLines(ConfigPath, lines.ToArray());
-            }
-            catch (IOException e)
-            {
-                MelonLogger.Msg("[TlToybox] 창 위치를 저장하지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 창 위치를 저장하지 못했습니다: " + e.Message);
-            }
+            ConfigFile.Write(new Dictionary<string, string> { { "window", (int)position.x + "," + (int)position.y } }, "창 위치");
         }
 
         // 버튼 콜백 안의 예외는 화면에 나오지 않는다. 끌기는 초당 수십 번 불리므로 한 번만 로그에 남긴다.

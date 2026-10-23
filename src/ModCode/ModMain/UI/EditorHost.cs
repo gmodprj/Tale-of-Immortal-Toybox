@@ -34,33 +34,13 @@ namespace MOD_sWP6UL
         // <세이브 루트>\TlToybox\config.txt 의 "hotkey=Insert|F2|F3". 파일이 없거나 값이 다르면 Insert.
         private static KeyCode ReadHotkey()
         {
-            try
+            ConfigFile.EnsureFile("# 편집기를 여닫는 키. Insert, F2, F3 중 하나." + Environment.NewLine + "hotkey=Insert" + Environment.NewLine, "설정 파일");
+            string value;
+            if (ConfigFile.Read("설정 파일").TryGetValue("hotkey", out value))
             {
-                string path = Path.Combine(ChangeLog.DataDir, "config.txt");
-                if (!File.Exists(path))
-                {
-                    Directory.CreateDirectory(ChangeLog.DataDir);
-                    File.WriteAllText(path, "# 편집기를 여닫는 키. Insert, F2, F3 중 하나." + Environment.NewLine + "hotkey=Insert" + Environment.NewLine);
-                    return KeyCode.Insert;
-                }
-                foreach (string line in File.ReadAllLines(path))
-                {
-                    string trimmed = line.Trim();
-                    if (trimmed.StartsWith("hotkey=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string value = trimmed.Substring(7).Trim().ToLowerInvariant();
-                        if (value == "f2") { return KeyCode.F2; }
-                        if (value == "f3") { return KeyCode.F3; }
-                    }
-                }
-            }
-            catch (IOException e)
-            {
-                MelonLogger.Msg("[TlToybox] 설정 파일을 읽지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] 설정 파일을 읽지 못했습니다: " + e.Message);
+                value = value.ToLowerInvariant();
+                if (value == "f2") { return KeyCode.F2; }
+                if (value == "f3") { return KeyCode.F3; }
             }
             return KeyCode.Insert;
         }
