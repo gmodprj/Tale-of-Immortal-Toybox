@@ -399,6 +399,49 @@ namespace MOD_sWP6UL
                     used.Add(pick);
                 }
             }
+            // 모드 번호를 한 번씩 다 써도 남은 자리(모드 공법의 옵션 행이 원본의 칸 수보다 적음, 대부분 5개)는
+            // 같은 번호를 중복 한도(multi) 안에서 되풀이해 채운다. 자리 가중치가 0보다 큰 번호를 먼저, 없으면 한도 안의 아무 번호.
+            // 실측(묶음 2, 회차 msl-1023b·c): 이름·설명 있는 모드 공법 103개 가운데 97개(경지 2·5·10)가 10번 모두 읽히고 게임 학습이 받아들였다(05 문서 78절).
+            var count = new Dictionary<int, int>();
+            for (int i = 2; i < end; i++)
+            {
+                if (modNumbers.Contains(values[i]))
+                {
+                    int c;
+                    count.TryGetValue(values[i], out c);
+                    count[values[i]] = c + 1;
+                }
+            }
+            for (int i = 2; i < end; i++)
+            {
+                if (values[i] <= 0 || modNumbers.Contains(values[i]))
+                {
+                    continue;
+                }
+                int pick = -1;
+                for (int pass = 0; pass < 2 && pick < 0; pass++)
+                {
+                    for (int k = 0; k < modItems.Count; k++)
+                    {
+                        int n = modItems[k].number;
+                        int c;
+                        count.TryGetValue(n, out c);
+                        if (c < modItems[k].multi && (pass == 1 || MartialService.Weight(modItems[k], i - 2) > 0))
+                        {
+                            pick = n;
+                            break;
+                        }
+                    }
+                }
+                if (pick < 0)
+                {
+                    break;
+                }
+                values[i] = pick;
+                int cc;
+                count.TryGetValue(pick, out cc);
+                count[pick] = cc + 1;
+            }
         }
 
         // 모드 공법의 비급 값(인계 8.3e절·05 문서 44절의 실측): 같은 분류의 기본 공법(원본)을 뽑아 0번(기술 번호)을 모드 번호로 바꾸고,

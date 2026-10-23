@@ -29,7 +29,8 @@ namespace MOD_sWP6UL
         internal static Il2CppStructArray<int> MakeValues(int kindIndex, SkillCatalog.Entry mod, int grade, string path, out string reason)
         {
             reason = null;
-            if (path == "now")
+            // repeat는 묶음 2에서 RollValuesForMod(RemapPrefixNumbers)에 들어갔다. now와 같다.
+            if (path == "now" || path == "repeat")
             {
                 return SkillCatalog.RollValuesForMod(kindIndex, mod, grade, out reason);
             }
