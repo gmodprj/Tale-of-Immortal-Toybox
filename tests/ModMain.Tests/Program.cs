@@ -61,6 +61,7 @@ namespace MOD_sWP6UL
             ApplyTallyTests();
             ConfigFileTests();
             FavoriteLinesTests();
+            TreasureRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -540,6 +541,34 @@ namespace MOD_sWP6UL
             Check("whole: kr with chinese", !LocalTextRules.KeepsWhole("中文", "한中"));
             Check("whole: null ch", !LocalTextRules.KeepsWhole(null, "한"));
             Check("whole: empty kr", !LocalTextRules.KeepsWhole("中文", ""));
+        }
+        private static void TreasureRulesTests()
+        {
+            int[] want = { 60, 80, 85, 95, 100, 120 };
+            for (int n = 1; n <= 6; n++)
+            {
+                Check("treasure: stage " + n + " rate", TreasureRules.StageRate(n) == want[n - 1], TreasureRules.StageRate(n).ToString());
+                int r = TreasureRules.StageRate(n);
+                Check("treasure: stage " + n + " round trip", TreasureRules.StageOf(r, r, r, r, r) == n);
+            }
+            bool thrown0 = false, thrown7 = false;
+            try { TreasureRules.StageRate(0); } catch (ArgumentOutOfRangeException) { thrown0 = true; }
+            try { TreasureRules.StageRate(7); } catch (ArgumentOutOfRangeException) { thrown7 = true; }
+            Check("treasure: stage 0 and 7 throw", thrown0 && thrown7);
+            int[,] even = { { 0, 1 }, { 60, 1 }, { 61, 2 }, { 80, 2 }, { 81, 3 }, { 89, 3 }, { 90, 4 }, { 99, 4 }, { 100, 5 }, { 109, 5 }, { 110, 6 }, { 200, 6 } };
+            for (int i = 0; i < even.GetLength(0); i++)
+            {
+                int r = even[i, 0];
+                Check("treasure: average " + r + " is stage " + even[i, 1], TreasureRules.StageOf(r, r, r, r, r) == even[i, 1], TreasureRules.StageOf(r, r, r, r, r).ToString());
+            }
+            Check("treasure: mixed 100x4+60 is 4", TreasureRules.StageOf(100, 100, 100, 100, 60) == 4);
+            Check("treasure: mixed 120x4+100 is 6", TreasureRules.StageOf(120, 120, 120, 120, 100) == 6);
+            Check("treasure: mixed 120+100x4 is 5", TreasureRules.StageOf(120, 100, 100, 100, 100) == 5);
+            Check("treasure: mixed 100x4+0 is 2", TreasureRules.StageOf(100, 100, 100, 100, 0) == 2);
+            Check("treasure: grade steps 2->10", TreasureRules.GradeSteps(2, 10) == 8);
+            Check("treasure: grade steps 10->10", TreasureRules.GradeSteps(10, 10) == 0);
+            Check("treasure: grade steps 14->10", TreasureRules.GradeSteps(14, 10) == 0);
+            Check("treasure: grade steps 3->12 stops at 10", TreasureRules.GradeSteps(3, 12) == 7);
         }
     }
 }
