@@ -141,6 +141,39 @@ switch ($Part) {
     Check 'the change log has realize lines' (LogHas '참오 결과 최대')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
+  'persist' {
+    # 저장 후 유지(앞): 법보 경지 7·단계 6, 기령 친밀도 최대, 심법 전승 10025, 참오 결과 최대 켬 → 저장. 다음은 session.ps1 -Restart → persist-restart.
+    Cmd 'trnpc me' 200 | Out-Null
+    Cmd 'trgive 3031101 7 6' 5000 | Out-Null
+    $tr = Cmd 'tr' 300
+    Check 'a grade 7 stage 6 treasure exists' ($tr -match '3031101:[^:]+:q\d+:g7:') $tr
+    Cmd 'trmake 1001' 800 | Out-Null
+    $sp = if ((Cmd 'trsp' 300) -match '(-?\d+):1001 intim=') { $Matches[1] } else { '' }
+    Cmd "trclose $sp" 500 | Out-Null
+    $s85 = SoleOf 85001
+    Cmd "msuit $s85 10025" 800 | Out-Null
+    Check 'the suit is set' ((State $s85) -match 'suit=10025 ') (State $s85)
+    Cmd 'uitarget player' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab17' | Out-Null; Press 'SuccessRealize' | Out-Null
+    Check 'realize-max is on before saving' ((Cmd 'uitext SuccessRealize') -match '켜짐')
+    Cmd 'uitoggle' | Out-Null
+    $r = Cmd 'save' 3000
+    Check 'saved' ($r -notmatch 'ERR|fail') $r
+  }
+  'persist-restart' {
+    $tr = Cmd 'tr' 300
+    $sole = if ($tr -match '\[(\w+):3031101:[^:]+:q\d+:g7:') { $Matches[1] } else { '' }
+    Check 'the treasure keeps grade 7' ($sole -ne '') $tr
+    $a = Cmd "trart $sole" 300
+    Check 'the treasure keeps stage 6 and rates 120' ($a -match 'level=6 ' -and $a -match 'rate=120/120/120/120/120 ') $a
+    Check 'the spirit keeps full intimacy' ((Cmd 'trsp' 300) -match ':1001 intim=(\d+)/\1') (Cmd 'trsp' 300)
+    $s85 = SoleOf 85001
+    Check 'the ability keeps its suit' ((State $s85) -match 'suit=10025 isSuit=true') (State $s85)
+    Cmd 'uitarget player' | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab17' | Out-Null
+    Check 'realize-max starts off after a restart' ((Cmd 'uitext SuccessRealize') -match '꺼짐') (Cmd 'uitext SuccessRealize')
+    Cmd 'uitoggle' | Out-Null
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
