@@ -136,6 +136,45 @@ switch ($Part) {
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Cmd 'uitoggle' | Out-Null
   }
+  'persist' {
+    # 끼워 넣기(장착 무예 청풍검)와 다시 만들기(장착 절기 광혈참 bUvsGP, 숙련 1138) 뒤 저장. 다음은 session.ps1 -Restart → persist-restart.
+    Cmd 'mfstate fY5GR9' 300 | Out-Null
+    $r1 = Cmd 'mfinsert fY5GR9 roll' 1500
+    $r2 = Cmd 'mfremake bUvsGP roll' 3000
+    $new = if ($r2 -match 'new=(\w{6})') { $Matches[1] } else { '' }
+    Check 'both done before saving' ((St 'fY5GR9') -match 'opts=11 ' -and (St $new) -match 'opts=11 ') "$r1 | $r2"
+    Set-Content -LiteralPath (Join-Path $env:TEMP 'mastery-persist.txt') -Value $new
+    $r = Cmd 'save' 3000
+    Check 'saved' ($r -notmatch 'ERR') $r
+  }
+  'persist-restart' {
+    $new = (Get-Content -LiteralPath (Join-Path $env:TEMP 'mastery-persist.txt')).Trim()
+    Cmd 'mfstate fY5GR9' 300 | Out-Null
+    Check 'the inserted skill keeps 11 options, the slot and the exp' ((St 'fY5GR9') -match 'opts=11 stages=12 ' -and (Vals 'fY5GR9') -match 'equip=1 exp=3570 ') "$(St 'fY5GR9') | $(Vals 'fY5GR9')"
+    Check 'the remade skill keeps 11 options and the slot' ((St $new) -match 'opts=11 stages=12 ' -and (Vals $new) -match 'equip=1 exp=1138 ') "$(St $new) | $(Vals $new)"
+    Check 'the old remade skill is gone' ((St 'bUvsGP') -match '찾지 못') (St 'bUvsGP')
+  }
+  'battle' {
+    # 전투에서 끼워 넣은 무예(1)·다시 만든 절기(2)를 쓴다. persist-restart 뒤 같은 회차에서. 전투에 들어간 채 끝나지 않게 bend와 결과 창 확인까지.
+    function Exp { Cmd 'rmart' 300 }
+    $e0 = Exp
+    Cmd 'fight 1011 20' 8000 20000 | Out-Null
+    # 전투 전 화면의 '전투 진입'(btnBattle, 게임 좌표 960,684. 회차 ms2-1023a 실측)
+    Rc 'click 960 684' 15000 | Out-Null
+    $c1 = Cmd 'bcast 1' 3000
+    $c2 = Cmd 'bcast 2' 3000
+    Check 'the filled skills cast in battle' ($c1 -match 'True' -and $c2 -match 'True') "$c1 | $c2"
+    $e1 = Exp
+    Check 'mastery grows in battle' ($e1 -ne $e0) "$e0 | $e1"
+    Cmd 'bend' 4000 | Out-Null
+    for ($i = 0; $i -lt 10; $i++) { $u = Cmd 'uilist' 300; if ($u -match 'BattleEnd') { Rc 'click 959 831' 3000 | Out-Null } elseif ($u -match 'BattleInfo') { Start-Sleep -Seconds 2 } else { break } }
+    Check 'back on the map' ((Cmd 'uilist' 300) -notmatch 'BattleEnd|MapBattlePre') (Cmd 'uilist' 300)
+    # 정보 창: 경험치를 대도까지 채우고 (11/11)
+    Cmd 'mexp me fY5GR9 200000' 500 | Out-Null
+    Cmd 'mfui fY5GR9' 1500 | Out-Null
+    Shot 'mastery-info'
+    Cmd 'mfui off' 500 | Out-Null
+  }
   default { throw "알 수 없는 Part: $Part" }
 }
 Finish
