@@ -82,6 +82,14 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 세이브를 떠날 때 통계를 비운다(12 문서 N3). 남은 원문 목록(Leftover)은 번역표를 채우는 자료라 그대로 둔다.
+        public static void ResetStats()
+        {
+            Calls = 0;
+            Replaced = 0;
+            Ticks = 0;
+        }
+
         public static string Stats()
         {
             double ms = Ticks * 1000.0 / Stopwatch.Frequency;

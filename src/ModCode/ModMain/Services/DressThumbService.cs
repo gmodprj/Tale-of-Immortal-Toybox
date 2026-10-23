@@ -177,6 +177,8 @@ namespace MOD_sWP6UL
             emptyBefore = new HashSet<string>();
             filledCells.Clear();
             lastError = null;
+            Filled = 0;     // 창마다 새로 센다(12 문서 A2)
+            Missing = 0;
             if (pending == 0)
             {
                 handlers.Clear();
