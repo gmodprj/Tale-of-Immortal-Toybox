@@ -233,9 +233,46 @@ namespace MOD_sWP6UL
             return changed;
         }
 
+        // 묶음 3(05 문서 79절): 프리셋 폴더의 표지(FileStamp)가 지난번과 같으면 지난 결과를 쓴다.
+        // 표지는 List()가 끝난 뒤에 잰다(List가 새 기본 파일을 쓸 수 있다). 편집기가 폴더에 쓰면 Forget()으로 비운다.
+        private static string listStamp, defaultsStamp;
+        private static List<Preset> listCache;
+        private static int defaultsCache;
+
+        public static List<Preset> ListCached()
+        {
+            if (listCache != null && FileStamp.Of(Dir, "*.json") == listStamp)
+            {
+                return listCache;
+            }
+            listCache = List();
+            listStamp = FileStamp.Of(Dir, "*.json");
+            return listCache;
+        }
+
+        public static int DefaultsChangedCached()
+        {
+            string stamp = FileStamp.Of(Dir, "*.json");
+            if (defaultsStamp != null && stamp == defaultsStamp)
+            {
+                return defaultsCache;
+            }
+            defaultsCache = DefaultsChanged();
+            defaultsStamp = stamp;
+            return defaultsCache;
+        }
+
+        public static void Forget()
+        {
+            listCache = null;
+            listStamp = null;
+            defaultsStamp = null;
+        }
+
         // 기본 프리셋을 다시 쓴다. 고친 기본 파일은 덮어쓰고, 다른 파일은 건드리지 않는다.
         public static string RestoreDefaults()
         {
+            Forget();
             try
             {
                 WriteDefaults();

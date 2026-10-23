@@ -25,15 +25,26 @@ namespace MOD_sWP6UL
             get { return "프리셋"; }
         }
 
-        // 탭에 들어올 때와 편집기를 열 때 폴더를 다시 읽는다(밖에서 파일을 고치거나 넣은 것이 반영된다).
+        // 탭에 들어올 때와 편집기를 열 때 폴더를 다시 본다. 폴더의 표지가 같으면 지난 목록을 그대로 쓰고(묶음 3),
+        // 밖에서 파일을 넣거나 고치거나 지웠으면 다시 읽는다.
         public override void OnShow()
         {
-            presets = null;
+            LoadPresets();
         }
 
         public override void OnOpen()
         {
-            presets = null;
+            LoadPresets();
+        }
+
+        private void LoadPresets()
+        {
+            List<PresetService.Preset> now = PresetService.ListCached();
+            if (!ReferenceEquals(now, presets))
+            {
+                presets = now;
+                list.Reset();
+            }
         }
 
         private static string Unreadable(PresetService.Preset preset)
@@ -45,8 +56,7 @@ namespace MOD_sWP6UL
         {
             if (presets == null)
             {
-                presets = PresetService.List();
-                list.Reset();
+                LoadPresets();
             }
             learned = PresetService.Snapshot();
             Confirm.Button("PresetRestore", content, "기본 프리셋 되돌리기", "정말 되돌리기", 0, 0, 230, 38, "preset-restore",
@@ -57,7 +67,7 @@ namespace MOD_sWP6UL
                     presets = null;
                     Say(result);
                 }));
-            int changed = PresetService.DefaultsChanged();
+            int changed = PresetService.DefaultsChangedCached();
             Text note = Ui.Label(content, changed > 0 ? "기본 프리셋 " + changed + "개가 없거나 고쳐졌습니다." : "", 244, 0, 480, 38, 16);
             note.color = Ui.Warn;
             note.gameObject.name = "PresetNote";
