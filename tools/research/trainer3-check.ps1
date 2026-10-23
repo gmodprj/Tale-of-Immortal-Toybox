@@ -121,6 +121,20 @@ switch ($Part) {
       Check "on: after confirm all lines of $s are at max quality" ($notMax.Count -eq 0) $opts
     }
     Check 'the material is spent as the game rules say' ((Held) -lt $h0) "before=$h0 after=$(Held)"
+    # 다시 참오(OnRealizeAgain)도 최대(리뷰 지적 3)
+    Cmd "realui $($soles[1])" 1000 | Out-Null
+    Cmd 'realclick' 5000 | Out-Null
+    Cmd 'realagain' 5000 | Out-Null
+    $rolls = Rolls
+    $bad = @($rolls | Where-Object { $_.Groups[2].Value -ne $_.Groups[3].Value })
+    Check 'on: realize again is also at the top value' ($rolls.Count -gt 0 -and $bad.Count -eq 0) "lines=$($rolls.Count) bad=$($bad | ForEach-Object { $_.Value }) | $(Cmd 'realstate' 300)"
+    # 참오 단추가 예외로 끝나 표시가 남아도 창 밖의 굴림은 그대로(리뷰 지적 1)
+    $r = Cmd 'realstick' 300
+    $out = Cmd "realroll $($soles[1])" 500
+    $max = if ($out -match 'max=(\d+)') { $Matches[1] } else { '-1' }
+    $vals = if ($out -match 'rolls=([\d,]+)') { @($Matches[1].Trim(',').Split(',')) } else { @() }
+    Check 'a stuck realize window does not max rolls outside the click' ($vals.Count -eq 6 -and @($vals | Where-Object { $_ -ne $max }).Count -gt 0) "$r | $out"
+    Cmd 'realok' 2500 | Out-Null; Cmd 'uiclose MartialRealize' 500 | Out-Null
     # 켠 채 공법 탭의 품질 단추는 그대로 동작한다
     Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
     Cmd "tb2pick $($soles[1])" 1500 | Out-Null
@@ -165,7 +179,7 @@ switch ($Part) {
     $sole = if ($tr -match '\[(\w+):3031101:[^:]+:q\d+:g7:') { $Matches[1] } else { '' }
     Check 'the treasure keeps grade 7' ($sole -ne '') $tr
     $a = Cmd "trart $sole" 300
-    Check 'the treasure keeps stage 6 and rates 120' ($a -match 'level=6 ' -and $a -match 'rate=120/120/120/120/120 ') $a
+    Check 'the treasure keeps stage 6 and rates 120 (sp 100)' ($a -match 'level=6 ' -and $a -match 'rate=120/120/120/120/100 ') $a
     Check 'the spirit keeps full intimacy' ((Cmd 'trsp' 300) -match ':1001 intim=(\d+)/\1') (Cmd 'trsp' 300)
     $s85 = SoleOf 85001
     Check 'the ability keeps its suit' ((State $s85) -match 'suit=10025 isSuit=true') (State $s85)

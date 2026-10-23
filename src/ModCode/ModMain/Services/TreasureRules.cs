@@ -21,6 +21,13 @@ namespace MOD_sWP6UL
             return StageRates[stage - 1];
         }
 
+        // 집중력 비율(equipSpRate). 100을 넘기면 법보의 집중력 점유가 같이 는다(실측: 단계 6에서 340 → 408). 그래서 100에서 멈춘다.
+        // 다섯의 평균이 단계를 정하므로 단계 6(120·120·120·120·100, 평균 116)도 6이다.
+        public static int SpRate(int stage)
+        {
+            return Math.Min(StageRate(stage), 100);
+        }
+
         // 게임이 SetAttrrRate(..., true)로 정하는 단계. 다섯 비율의 평균과 경계(실측): 60 이하 1, 80 이하 2, 90 미만 3, 100 미만 4, 110 미만 5, 그 위 6.
         public static int StageOf(int hp, int atk, int def, int soul, int sp)
         {

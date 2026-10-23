@@ -765,7 +765,7 @@ namespace MOD_sWP6UL
         private static string SetStageNoBackup(WorldUnitBase unit, Treasure t, int stage)
         {
             int r = TreasureRules.StageRate(stage);
-            t.Data.SetAttrrRate(r, r, r, r, r, true);
+            t.Data.SetAttrrRate(r, r, r, r, TreasureRules.SpRate(stage), true);
             Update(unit);
             Treasure after = Find(unit, t.SoleId);
             bool ok = after != null && after.Level == stage;

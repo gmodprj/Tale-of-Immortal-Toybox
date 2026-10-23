@@ -183,7 +183,7 @@ namespace MOD_sWP6UL
                     new Action(() => Say(TreasureService.SetStage(Target, sole, stage))), true, t.Level == n);
             }
             y += 50;
-            Ui.Wrapped(content, "경지를 올리면 옵션이 한 칸 늘고(최대 " + t.PrefixMax + "칸), 게임과 달리 비율은 줄지 않습니다. 단계는 비율 다섯을 같은 값으로 맞춥니다(1: 60 · 2: 80 · 3: 85 · 4: 95 · 5: 100 · 6: 120).",
+            Ui.Wrapped(content, "경지를 올리면 옵션이 한 칸 늘고(최대 " + t.PrefixMax + "칸), 게임과 달리 비율은 줄지 않습니다. 단계는 비율 다섯을 같은 값으로 맞춥니다(1: 60 · 2: 80 · 3: 85 · 4: 95 · 5: 100 · 6: 120). 집중력 비율은 100까지만 둡니다(넘기면 집중력 점유가 늘어납니다).",
                 0, y, ContentW, 40, 15).color = Ui.Dim;
         }
 

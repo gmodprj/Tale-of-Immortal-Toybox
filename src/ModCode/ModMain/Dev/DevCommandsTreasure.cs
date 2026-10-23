@@ -49,6 +49,10 @@ namespace MOD_sWP6UL
                     return p.Length > 2 ? TreasureService.GradeUpTo(Me(), p[1], int.Parse(p[2])) : TreasureService.GradeUp(Me(), p[1]);
                 case "trstage":
                     return TreasureService.SetStage(Me(), p[1], int.Parse(p[2]));
+                case "trview":
+                    // 게임 법보 화면을 그 법보로 연다(탭 1. 캡처로 정보 확인, 05 문서 82절)
+                    g.ui.OpenUI<UIArtifact>(UIType.Artifact).InitData(1, p[1]);
+                    return "opened";
                 case "trsp":
                     return Spirits(Me());
                 case "trclose":

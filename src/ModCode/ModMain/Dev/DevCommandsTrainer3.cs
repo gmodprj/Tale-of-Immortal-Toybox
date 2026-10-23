@@ -73,6 +73,35 @@ namespace MOD_sWP6UL
                     }
                 case "realstate":
                     return RealState();
+                case "realstick":
+                    {
+                        var ui = g.ui.GetUI<UIMartialRealize>(UIType.MartialRealize);
+                        if (ui == null)
+                        {
+                            return "no realize ui";
+                        }
+                        SuccessService.DevStickRealize(ui);
+                        return "stuck";
+                    }
+                case "realroll":
+                    {
+                        // 참오 창 밖에서 게임의 굴림을 n번 부른다: raw값들과 max(최대 품질×100)
+                        var m = MartialService.Martial(g.world.playerUnit, p[1]);
+                        if (m == null)
+                        {
+                            return "no martial " + p[1];
+                        }
+                        var item = g.conf.battleSkillPrefixValue.GetPrefix(m)[0].prefixValueItem;
+                        var seed = new RandomSeedData();
+                        seed.InitSeed();
+                        var sb = new StringBuilder();
+                        for (int i = 0; i < 6; i++)
+                        {
+                            sb.Append(g.conf.battleSkillPrefixValue.RandomPrefixLevel(m.grade, item, 0, seed)).Append(',');
+                            seed.RandomNexeSeed();
+                        }
+                        return "rolls=" + sb + " max=" + g.conf.battleSkillPrefixValue.GetPrefixMaxLevel(m, item) * 100;
+                    }
                 case "mopts":
                     {
                         var m = MartialService.Martial(g.world.playerUnit, p[1]);

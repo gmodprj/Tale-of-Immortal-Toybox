@@ -165,7 +165,7 @@ switch ($Part) {
       $r = Cmd "trstage $sole $n" 500
       $a = Art $sole
       $v = $want[$n]
-      Check "stage $n sets level $n and rates $v" ($a -match "level=$n " -and $a -match "rate=$v/$v/$v/$v/$v ") "$r | $a"
+      Check "stage $n sets level $n and rates $v" ($a -match "level=$n " -and $a -match "rate=$v/$v/$v/$v/$([Math]::Min($v, 100)) ") "$r | $a"
     }
     $r = Cmd 'trmake 1001' 800
     $s = Cmd 'trsp' 300
@@ -208,7 +208,7 @@ switch ($Part) {
     $r = Cmd 'trgive 3031102 6 6' 3000
     $s2 = NewSole 3031102 $b
     $a = Art $s2
-    Check 'give with grade 6 and stage 6' ($a -match 'grade=6 ' -and $a -match 'level=6 ' -and $a -match 'rate=120/120/120/120/120 ') "$r | $a"
+    Check 'give with grade 6 and stage 6' ($a -match 'grade=6 ' -and $a -match 'level=6 ' -and $a -match 'rate=120/120/120/120/100 ') "$r | $a"
     $b = Soles 3031104
     $r = Cmd 'trgive 3031104 12 3' 5000
     $s3 = NewSole 3031104 $b
@@ -220,6 +220,11 @@ switch ($Part) {
     $news = @((Soles 3031103) | Where-Object { $b -notcontains $_ })
     Check 'the common give path fixes every new treasure' ($news.Count -eq 2 -and @($news | Where-Object { (Art $_) -match 'rate=100/100/100/100/100 ' }).Count -eq 2) "$r | $($news -join ',')"
     Check 'existing treasure keeps its rates' ((Art $s) -match 'level=2 ' -and (Art $s) -match 'rate=80/80/80/80/80 ') (Art $s)
+    # 프리셋의 법보와 기령 줄(SpriteService.Apply)도 편집기 지급이다(리뷰 지적 2)
+    $b = Soles 3031109
+    $r = Cmd 'psprite 1004 3031109' 1500
+    $s4 = NewSole 3031109 $b
+    Check 'the preset sprite line gives a treasure with rates 100' ($s4 -and (Art $s4) -match 'rate=100/100/100/100/100 ') "$r | $(Art $s4)"
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   'forge-ui' {

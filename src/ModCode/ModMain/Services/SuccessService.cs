@@ -25,6 +25,7 @@ namespace MOD_sWP6UL
         private static HarmonyLib.Harmony harmony;
         private static bool stealPatched, relationPatched, dropPatched, realizePatched, warned;
         private static UIMartialRealize realizeWindow;   // 참오 단추가 도는 동안의 창. 그 밖에는 null
+        private static int realizeFrame = -1;            // 그 단추가 눌린 프레임
         private static bool inPlayerRequest;   // 지금 도는 관계 응답이 플레이어의 요청인지
 
 #if DEVTOOLS
@@ -35,6 +36,12 @@ namespace MOD_sWP6UL
         }
 
         public static int DropCalls, DropIds, DropIdsRaw;   // 개발 전용: GetDropID 호출 수, 돌려준 보상 번호 수(바꾼 뒤), 원래 번호 수
+
+        // 개발 전용: 참오 단추가 예외로 끝나 접미가 돌지 않은 상태를 흉내 낸다(검사 realize).
+        public static void DevStickRealize(UIMartialRealize window)
+        {
+            realizeWindow = window;
+        }
 #endif
 
         public static string SetSteal(bool on)
@@ -184,9 +191,11 @@ namespace MOD_sWP6UL
             Hook(h, typeof(ConfBattleSkillPrefixValue), "RandomPrefixLevel", new[] { typeof(int), typeof(ConfBattleSkillPrefixValueItem), typeof(int), typeof(RandomSeedData) }, null, "RealizeRoll");
         }
 
+        // 굴림은 클릭 안에서 같은 프레임에 일어난다(실측). 원본이 예외로 끝나 접미가 돌지 않아도, 다음 프레임부터는 걸리지 않게 프레임을 함께 본다.
         public static void RealizeBegin(UIMartialRealize __instance)
         {
             realizeWindow = Realize ? __instance : null;
+            realizeFrame = UnityEngine.Time.frameCount;
         }
 
         public static void RealizeEnd()
@@ -200,6 +209,11 @@ namespace MOD_sWP6UL
             {
                 if (!Realize || realizeWindow == null || item == null)
                 {
+                    return;
+                }
+                if (UnityEngine.Time.frameCount != realizeFrame)
+                {
+                    realizeWindow = null;   // 접미가 돌지 못하고 남은 표시
                     return;
                 }
                 int max = g.conf.battleSkillPrefixValue.GetPrefixMaxLevel(realizeWindow.martialData, item);

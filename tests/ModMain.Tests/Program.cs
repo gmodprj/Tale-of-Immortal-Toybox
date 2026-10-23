@@ -565,6 +565,12 @@ namespace MOD_sWP6UL
             Check("treasure: mixed 120x4+100 is 6", TreasureRules.StageOf(120, 120, 120, 120, 100) == 6);
             Check("treasure: mixed 120+100x4 is 5", TreasureRules.StageOf(120, 100, 100, 100, 100) == 5);
             Check("treasure: mixed 100x4+0 is 2", TreasureRules.StageOf(100, 100, 100, 100, 0) == 2);
+            for (int n = 1; n <= 6; n++)
+            {
+                int r = TreasureRules.StageRate(n), sp = TreasureRules.SpRate(n);
+                Check("treasure: stage " + n + " sp rate is at most 100", sp == Math.Min(r, 100), sp.ToString());
+                Check("treasure: stage " + n + " with the sp rate stays stage " + n, TreasureRules.StageOf(r, r, r, r, sp) == n);
+            }
             Check("treasure: grade steps 2->10", TreasureRules.GradeSteps(2, 10) == 8);
             Check("treasure: grade steps 10->10", TreasureRules.GradeSteps(10, 10) == 0);
             Check("treasure: grade steps 14->10", TreasureRules.GradeSteps(14, 10) == 0);
