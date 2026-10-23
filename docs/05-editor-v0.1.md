@@ -3422,3 +3422,54 @@
 검사: `ui-check`의 `items`·`groups`·`tabs`·`translation` FAIL 0(`msl-1023g`, 만고신화 포함), `books-ui` FAIL 0(`msl-1023h`), `modbooks` FAIL 0(`msl-1023j`. 검사를 고쳤다: 모드만 칩의 수는 `rmods`의 `listed=`, "이름 없음(126954816)이 번호로 보인다" 대신 "이름·설명 없는 행은 번호로 찾아도 없다"). 바닐라 공법과 아이템 목록은 고치기 전과 같다(`rperf dump base`·`after`). 단위 시험 FAIL 0.
 
 개발 명령: `rmods [경지]`가 `listed= hiddenBlank= hiddenNoBook= outOfGrade=`와 줄마다 `:g<최소>-<최대>`·`:H<이유>`를 더 적는다. `rperf modroll <경지> listed`는 목록에 남는 줄만 돈다. `rmodtry <분류> <번호> <경지> <now|repeat|own|trim>`, `rmodsweep <경지> <길> [반복] [all]`(결과 `.devremote\modsweep-<경지>-<길>.txt`). `repeat`는 이제 `now`와 같다.
+
+## 79. 묶음 3 — 성능 2: 다른 탭과 검색 (2026-10-23 추가)
+
+스펙 `docs/superpowers/specs/2026-10-23-perf-other-tabs-design.md`, 계획 `docs/superpowers/plans/2026-10-23-perf-other-tabs.md`, 브랜치 `feat/perf-other-tabs`. 12 문서 7절의 묶음 3. 회차 `po-1023a`~`q`(모두 고정본, `SAVE RESTORED AND IDENTICAL`).
+
+전후(`rperf tabs`, 창작마당 모드 40개를 실은 상태. 첫 열기 / 다시 열기, ms):
+
+| 탭 | 기준선(`po-1023a`) | 뒤(`po-1023n`) |
+|---|---|---|
+| 프리셋 | 593 / 335 | 130 / 108 (가장 빠른 회차 90 / 81) |
+| 기예 | 185 / 181 | 49 / 42 |
+| 도호 | 129 / 92 | 67~113 / 58~59 |
+| 자원 탭 검색 글자 하나(`rperf query`) | 빈 글 65·70, '단' 46·79 | 48~54, 56~73 (흔들림 안. 뚜렷한 차이 없음) |
+| `Init` | 3,634~3,715 | 3,715 (그대로) |
+
+바뀐 것:
+- **프리셋 탭**:
+  - 프리셋 폴더의 표지(`Services/FileStamp.cs`: 파일 이름·크기·수정 시각, 단위 시험 6개)가 같으면 지난 목록(`PresetService.ListCached`)과 기본 프리셋 비교 결과(`DefaultsChangedCached`)를 쓴다.
+  - 표지는 `List()`가 새 기본 파일을 쓴 **뒤**에 잰다. 되돌리기(`RestoreDefaults`)는 `Forget()`으로 비운다.
+  - 밖에서 파일을 넣거나 고치거나(같은 크기여도 수정 시각으로) 지우면 탭에 다시 들어올 때 반영된다(`po-1023b`: 17 → 18 → 17).
+  - 남은 0.23초는 단계 상태(`AppliedCount`, 프리셋 17개 × 단계 10개)가 같은 게임 질문(운명 보유, 역천개명, 기령·신혼·명우 보유, 경지)을 되풀이하던 것이었다. 그리기 한 번 동안만 답을 기억하는 `PresetService.Facts`를 두었다. 적용(쓰기) 경로는 쓰지 않는다.
+- **기예 탭**: 분류 단추의 배운 수를 서적마다 목록을 훑지 않고 배운 번호 집합(`ArtService.LearnedIds`, 그리기마다 새로)으로 센다. 전체 서적 수는 분류마다 한 번 세어 둔다(`BookCount`, 아이템 카탈로그는 한 실행 동안 바뀌지 않음). 줄의 "배움"도 같은 집합으로 본다. 강제 추가 직후 풍수 7/35 → 8/35.
+- **도호 탭**:
+  - 칩마다 도호 전체를 다시 세지 않고 한 번 훑어 함께 센다(P1).
+  - 다른 보유자는 출처(게임 사전 `WorldUnitAppellationMgr.allAppellationUnits`) 그대로, 그리기 한 번 동안만 목록을 기억하고 내 `unitID`는 한 번만 읽는다(P2).
+  - 잃는 경지의 대경지 이름(`ArtifactService.MajorName`, 설정 값)은 경지마다 한 번만 구한다.
+  - 다른 인물에게 도호를 준 직후 보유자가 바뀐다(`po-1023i`).
+  - 다시 열기는 64%로, 스펙의 "절반 이하"에 못 미쳤다. 남은 것은 줄·칩 UI 객체 만들기다(측정: 보유자 6 ms, 잃는 경지 6 ms).
+- **자원 탭 검색**: 그룹 수와 지금 그룹의 종류 수를 한 번 훑어 함께 센다(`ItemCatalog.Counts`). 칩 폭용 "거르기 전 종류 수"는 그룹마다 한 번만 센다. 글자 하나의 시간은 흔들림 안이라, 비용 대부분은 줄 목록 다시 만들기다.
+
+실험으로 정한 것(넣지 않음):
+- **`Init`의 LocalText 훑기(1.9초)는 줄일 수 없었다**(`rperf ltscan`, `po-1023m`).
+  - 72,347행을 한 번 훑는 데 읽는 칸과 무관하게 2.25~2.38초가 든다. 모드 표시 하나만 읽어도, 원문·한국어까지 읽어도 같다. 비용은 행마다 Il2Cpp 객체를 꺼내는 데 있다.
+  - 모드 행 17,282개는 2318번부터 끝까지 흩어져 있어(연속 아님), 바닐라 행만 건너뛰는 캐시 파일도 행마다 꺼내야 해서 훑기를 줄이지 못한다.
+  - 원문에 한자가 있는 행은 68,774개다.
+- **P3·P4**(`rperf press`): 공법 탭 기술 추가 열기 65 ms, 분류 바꾸기 46~56 ms, 선법 추가 열기 57 ms. 리뷰가 짚은 "같은 목록을 두 번 부름"은 코드에 없었다(그리기마다 한 번). 고치지 않았다.
+
+검사:
+- 만고신화 포함(`po-1023o`): `ui-check`의 `tabs`·`items`·`groups`·`translation` FAIL 0.
+- `-Exclude 2814696167`: `appellation-ui`·`preset-check`의 `ui` FAIL 0(`po-1023p`), `modbooks`·`books-ui` FAIL 0(`po-1023q`. `preset-check ui` 뒤 같은 회차에서는 요약 없이 끝나 따로 돌렸다).
+- 목록 덤프는 기준선과 같다. 단위 시험 FAIL 0.
+
+검사 순서 함정:
+- `rperf tabs`·`query`·`press` 같은 측정 명령 뒤에 `ui-check`를 같은 회차에서 돌리면, 편집기 상태(탭·대상·검색어)가 남아 `tabs`가 실패하거나 다음 검사가 요약 없이 끝난다. 검사는 측정 없는 회차에서 돌린다.
+- `appellation-ui`는 만고신화를 실은 채로는 도호가 101개라 실패한다(검사는 100을 기대). `-Exclude`로 돌린다.
+
+개발 명령(`Dev/DevCommandsPerfProbes.cs`):
+- `rperf query <검색어|-> [그룹 키]`: 자원 탭 `OnQuery`의 ms와 줄 수.
+- `rperf preset`, `rperf apl`: 프리셋·도호 탭 조각별 ms.
+- `rperf ltscan`: LocalText 훑기 조각.
+- `rperf press <단추 이름>`: 편집기 단추를 눌러 다시 그리기까지 ms.
