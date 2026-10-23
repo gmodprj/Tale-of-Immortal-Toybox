@@ -3474,3 +3474,23 @@
 - `rperf preset`, `rperf apl`: 프리셋·도호 탭 조각별 ms.
 - `rperf ltscan`: LocalText 훑기 조각.
 - `rperf press <단추 이름>`: 편집기 단추를 눌러 다시 그리기까지 ms.
+
+## 80. 묶음 4 — 작은 수정 (2026-10-23 추가)
+
+12 문서 7절의 묶음 4. 작은 변경이라 스펙 문서 없이 대화에서 내용을 정해 사용자 승인을 받았다(2026-10-23). 브랜치 `fix/small-fixes-1023`, 회차 `sf-1023a`~`c`(고정본, `SAVE RESTORED AND IDENTICAL`).
+
+- **08의 11(10 문서 C7) — 비급 지급의 시간 상한**: 한 번 지급에 2초를 넘기면 다음 권을 만들지 않고 "시간 상한(2초)에 걸려 n권만 만들었습니다(요청 m권). 다시 누르세요"를 결과에 붙인다(`Services/GiveBudget.cs`, 단위 시험 5개). 첫 권은 늘 시도하므로, 품질 6처럼 한 권 뽑기가 오래 걸리면 그 한 권은 상한을 넘을 수 있다(미확인: 실제 몇 초인지 재지 않음).
+- **A1 — 전투 중 아이템 소모 막기**: `RateGuards.InBattleSlot`이 `SceneType.battle`·`battleMap`·`playerUnitCtrl`·`props`를 하나씩 null인지 보고 넘긴다. 전에는 장면이 바뀌는 중 예외가 나 그 순간 막기가 풀리고(아이템이 줄고) 로그는 처음 한 번만 남았다.
+- **A2 — 의복 썸네일 확인값**: `DressThumbService.Clear`가 `Filled`·`Missing`을 0으로 되돌린다(창마다 새로 셈).
+- **A4 — 법보 강도 읽기**: `BagService.Strength`의 빈 `catch`가 첫 예외 하나를 로그에 남긴다.
+- **N3 — 화면 글 패치 통계**: `ModMain.Destroy`(주 화면으로 나갈 때)가 `TextPatch.ResetStats()`로 호출·치환 수와 시간을 비운다. 남은 원문 목록(`Leftover`, `rzhleft`가 씀)은 번역표를 채우는 자료라 그대로 둔다.
+- **F1 — 매 프레임 신기 버튼**: `ArtifactHudService.Tick`이 매 프레임 새 배열 둘을 만들지 않고 정적 배열을 다시 쓴다(`Row.Update`는 배열을 붙잡아 두지 않는다).
+
+검사:
+- `items` FAIL 0, `bagcount` FAIL 0(`sf-1023c`).
+- `books-ui`·`modbooks`·`itemuse` FAIL 0(`sf-1023b`, `-Exclude 2814696167`).
+- 단위 시험 FAIL 0.
+
+함정: `bagcount`는 고정본의 1011011 x10을 전제한다. 같은 회차에서 `items`를 먼저 돌리면 그 아이템이 하나 늘어 실패한다(`sf-1023a`). 깨끗한 회차에서 돌린다.
+
+시간 상한(2초)과 전투 중 막기(A1)는 실제로 그 상황(오래 걸리는 지급, 장면 전환 중 아이템 사용)을 회차에서 만들어 보지는 않았다. 코드와 단위 시험으로만 확인했다.
