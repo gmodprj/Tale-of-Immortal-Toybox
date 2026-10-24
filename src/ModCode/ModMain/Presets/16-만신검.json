@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "kind": "preset",
+  "name": "만신검",
+  "summary": "고성검으로 유혈을 쌓고 절영검으로 터뜨린다. 유혈 적을 처치해 검혼을 모아 만신검(검성 허상)을 부르고, 신통 동안 무예 재사용 대기시간이 줄고 신법을 쓰면 검기를 더 낸다",
+  "source": "gamersky 1361827, 18183 4051798",
+  "skills": [
+    { "slot": "left", "baseId": 14112, "name": "고성검", "options": [1, 1, 6, 1, 8, 1, 9, 1, 14, 1, 16] },
+    { "slot": "right", "baseId": 24111, "name": "절영검", "options": [1, 7, 10, 1, 11, 1, 9, 1, 12, 1, 8] },
+    { "slot": "step", "baseId": 510121, "name": "영", "options": [1, 4, 1, 6, 2, 7, 2, 8, 1, 10, 11] },
+    { "slot": "ultimate", "baseId": 34112, "name": "만신검", "options": [1, 7, 11, 1, 12, 1, 13, 1, 9, 1, 8] }
+  ],
+  "abilities": [
+    { "baseId": 81001, "name": "경", "options": [1, 1, 11, 1, 12, 1, 2, 1, 4, 1, 23], "suit": 10006, "filled": true },
+    { "baseId": 82001, "name": "공", "options": [1, 1, 5, 1, 3, 1, 25, 1, 19, 1, 2], "suit": 10006, "filled": true },
+    { "baseId": 83001, "name": "식", "options": [1, 1, 6, 1, 3, 1, 4, 1, 16, 1, 17], "filled": true },
+    { "baseId": 84001, "name": "결", "options": [1, 1, 7, 1, 3, 1, 2, 1, 13, 1, 14], "suit": 10012, "filled": true },
+    { "baseId": 85001, "name": "록", "options": [1, 1, 3, 1, 7, 1, 2, 1, 4, 1, 5], "filled": true },
+    { "baseId": 86003, "name": "비권(검)", "options": [1, 1, 8, 1, 2, 1, 6, 1, 4, 1, 3], "suit": 10012 },
+    { "baseId": 87003, "name": "신공(검)", "options": [1, 1, 4, 1, 2, 1, 7, 1, 3, 1, 6], "suit": 10012 },
+    { "baseId": 88001, "name": "대법(도)", "options": [1, 1, 12, 1, 9, 1, 17, 1, 19, 1, 20] }
+  ],
+  "fates": [
+    { "grade": 2, "id": 700017, "name": "수력발산" },
+    { "grade": 3, "id": 700035, "name": "병인전정" },
+    { "grade": 4, "id": 700116, "name": "무예정통", "alt": 700114 },
+    { "grade": 5, "id": 700056, "name": "혈염대법", "alt": 700028, "filled": true },
+    { "grade": 6, "id": 700091, "name": "영능의 바다" },
+    { "grade": 7, "id": 700156, "name": "응원적멸", "filled": true },
+    { "grade": 8, "id": 700137, "name": "천지동수", "filled": true },
+    { "grade": 9, "id": 700198, "name": "연라환장", "filled": true },
+    { "grade": 10, "id": 700158, "name": "살심취기", "filled": true }
+  ],
+  "elder": { "id": 1, "filled": true }
+}

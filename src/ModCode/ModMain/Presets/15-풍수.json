@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "kind": "preset",
+  "name": "풍수 — 오도",
+  "summary": "풍절술·광풍술의 선풍과 회피, 풍신법(용권풍), 풍 신통으로 거의 늘 무적인 풍 영법. 결정부터 성형되고 오도에서 회피 횟수가 늘어난다",
+  "source": "gamersky 1402409",
+  "skills": [
+    { "slot": "left", "baseId": 44113, "name": "풍절술", "options": [1, 1, 7, 1, 11, 1, 12, 1, 14, 1, 16] },
+    { "slot": "right", "baseId": 54114, "name": "광풍술", "options": [1, 7, 10, 1, 11, 1, 12, 1, 8, 1, 9] },
+    { "slot": "step", "baseId": 510141, "name": "권", "options": [1, 4, 1, 6, 2, 3, 2, 9, 1, 8, 11] },
+    { "slot": "ultimate", "baseId": 64111, "name": "극풍폭", "options": [1, 7, 8, 1, 12, 1, 11, 1, 13, 1, 9], "filled": true }
+  ],
+  "abilities": [
+    { "baseId": 81001, "name": "경", "options": [1, 1, 13, 1, 11, 1, 12, 1, 2, 1, 4], "suit": 10006, "filled": true },
+    { "baseId": 82001, "name": "공", "options": [1, 1, 5, 1, 3, 1, 25, 1, 19, 1, 2], "suit": 10006, "filled": true },
+    { "baseId": 83001, "name": "식", "options": [1, 1, 6, 1, 3, 1, 4, 1, 16, 1, 17], "filled": true },
+    { "baseId": 84001, "name": "결", "options": [1, 1, 7, 1, 3, 1, 2, 1, 13, 1, 14], "suit": 10030, "filled": true },
+    { "baseId": 85001, "name": "록", "options": [1, 1, 3, 1, 7, 1, 2, 1, 4, 1, 5], "filled": true },
+    { "baseId": 86010, "name": "비권(풍)", "options": [1, 1, 4, 1, 5, 1, 2, 1, 8, 1, 10], "suit": 10030 },
+    { "baseId": 87010, "name": "신공(풍)", "options": [1, 1, 4, 1, 7, 1, 5, 1, 3, 1, 6], "suit": 10030 },
+    { "baseId": 88010, "name": "대법(풍)", "options": [1, 1, 19, 1, 9, 1, 12, 1, 17, 1, 3], "suit": 10030 }
+  ],
+  "fates": [
+    { "grade": 2, "id": 700152, "name": "천운전섬", "filled": true },
+    { "grade": 3, "id": 700036, "name": "풍뢰경천", "filled": true },
+    { "grade": 4, "id": 700100, "name": "체력의 나무" },
+    { "grade": 5, "id": 700056, "name": "혈염대법", "alt": 700028 },
+    { "grade": 6, "id": 700097, "name": "영력의 나무" },
+    { "grade": 7, "id": 700156, "name": "응원적멸", "filled": true },
+    { "grade": 8, "id": 700137, "name": "천지동수", "filled": true },
+    { "grade": 9, "id": 700198, "name": "연라환장", "filled": true },
+    { "grade": 10, "id": 700158, "name": "살심취기", "filled": true }
+  ],
+  "elder": { "id": 2, "filled": true }
+}

@@ -1,0 +1,2 @@
+# 저장소에는 LF로 저장한다(작업 복사본은 core.autocrlf를 따른다). -c core.autocrlf=false 커밋으로 CRLF가 통째로 들어간 일(2026-10-16)을 막는다.
+* text=auto

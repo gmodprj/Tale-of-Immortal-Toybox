@@ -1,0 +1,4 @@
+# Steam 창작마당 컬렉션 ID(2026-10-16 만듦, 가시성 미등록 = 링크로만 접근). 도구 -Doc이 설치 줄과 비교하려 하지만,
+# 미등록 컬렉션은 공개 API(GetCollectionDetails)가 result=9로 돌려주지 않아 4절은 "조회 실패"로 남는다(실측 2026-10-16). 목록이 바뀌면 브라우저로 맞춘다.
+# 링크: https://steamcommunity.com/sharedfiles/filedetails/?id=3820620999
+3820620999

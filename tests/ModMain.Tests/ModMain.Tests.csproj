@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 게임 없이 도는 시험. 게임 형식을 쓰지 않는 모드 소스를 링크한다(05 문서 49절). 패키지 없음.
+       실행: dotnet run (프로젝트 tests/ModMain.Tests, 구성 Release). 줄마다 PASS/FAIL, 끝에 FAILS=<수>, 실패면 종료 코드 1 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>MOD_sWP6UL</RootNamespace>
+    <AssemblyName>ModMain.Tests</AssemblyName>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 링크 대상은 이 셋뿐이다. Unity·게임 형식을 쓰는 파일은 링크하지 않는다. ExportFiles가 쓰는 ChangeLog.DataDir은 Stubs\ChangeLog.cs가 대신한다. -->
+    <Compile Include="..\..\src\ModCode\ModMain\Services\Json.cs" Link="Linked\Json.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\ExportFiles.cs" Link="Linked\ExportFiles.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TranslationTable.cs" Link="Linked\TranslationTable.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TextReplacer.cs" Link="Linked\TextReplacer.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\CraftPlan.cs" Link="Linked\CraftPlan.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\BagPlan.cs" Link="Linked\BagPlan.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TraitRules.cs" Link="Linked\TraitRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\PresetDefaults.cs" Link="Linked\PresetDefaults.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TextTags.cs" Link="Linked\TextTags.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\FateAlt.cs" Link="Linked\FateAlt.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\LocalTextRules.cs" Link="Linked\LocalTextRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\ModSkillRules.cs" Link="Linked\ModSkillRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\FileStamp.cs" Link="Linked\FileStamp.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\StampCache.cs" Link="Linked\StampCache.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\GiveBudget.cs" Link="Linked\GiveBudget.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\ApplyTally.cs" Link="Linked\ApplyTally.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\ConfigFile.cs" Link="Linked\ConfigFile.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\FavoriteStore.Lines.cs" Link="Linked\FavoriteStore.Lines.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\TreasureRules.cs" Link="Linked\TreasureRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\MasteryRules.cs" Link="Linked\MasteryRules.cs" />
+  </ItemGroup>
+</Project>

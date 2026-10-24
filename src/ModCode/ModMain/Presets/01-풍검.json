@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "kind": "preset",
+  "name": "풍검",
+  "summary": "월영검으로 유혈을 쌓고 절영검으로 터뜨려 풍신법(용권풍)의 재사용 대기시간을 없앤다. 용권풍 동안 무적",
+  "source": "팬덤 위키 Wind Sword, 무협게임 마이너 갤러리 10097",
+  "skills": [
+    { "slot": "left", "baseId": 14113, "name": "월영검", "options": [1, 1, 6, 1, 9, 1, 14, 1, 16, 1, 8] },
+    { "slot": "right", "baseId": 24111, "name": "절영검", "options": [1, 7, 10, 1, 11, 1, 9, 1, 12, 1, 8] },
+    { "slot": "step", "baseId": 510141, "name": "권", "options": [1, 4, 1, 3, 2, 10, 2, 7, 1, 8, 11] },
+    { "slot": "ultimate", "baseId": 64111, "name": "극풍폭", "options": [1, 7, 12, 1, 13, 1, 8, 1, 9, 1, 10] }
+  ],
+  "abilities": [
+    { "baseId": 81001, "name": "경", "options": [1, 1, 11, 1, 12, 1, 2, 1, 4, 1, 23], "suit": 10006, "filled": true },
+    { "baseId": 82001, "name": "공", "options": [1, 1, 6, 1, 13, 1, 5, 1, 3, 1, 25], "suit": 10006, "filled": true },
+    { "baseId": 83001, "name": "식", "options": [1, 1, 6, 1, 3, 1, 4, 1, 16, 1, 17], "filled": true },
+    { "baseId": 84001, "name": "결", "options": [1, 1, 3, 1, 2, 1, 13, 1, 14, 1, 16], "suit": 10012, "filled": true },
+    { "baseId": 85001, "name": "록", "options": [1, 1, 3, 1, 7, 1, 2, 1, 4, 1, 5], "filled": true },
+    { "baseId": 86003, "name": "비권(검)", "options": [1, 1, 8, 1, 2, 1, 6, 1, 4, 1, 3], "suit": 10012 },
+    { "baseId": 87003, "name": "신공(검)", "options": [1, 1, 4, 1, 2, 1, 7, 1, 3, 1, 6], "suit": 10012 },
+    { "baseId": 88003, "name": "대법(검)", "options": [1, 1, 19, 1, 17, 1, 9, 1, 12, 1, 15], "suit": 10012 }
+  ],
+  "fates": [
+    { "grade": 2, "id": 700017, "name": "수력발산" },
+    { "grade": 3, "id": 700044, "name": "노이미견" },
+    { "grade": 4, "id": 700094, "name": "혈령정통" },
+    { "grade": 5, "id": 700056, "name": "혈염대법", "alt": 700028 },
+    { "grade": 6, "id": 700116, "name": "무예정통", "alt": 700114 },
+    { "grade": 7, "id": 700133, "name": "수심이어" },
+    { "grade": 8, "id": 700158, "name": "살심취기" },
+    { "grade": 9, "id": 700100, "name": "체력의 나무" },
+    { "grade": 10, "id": 700009, "name": "대근비충" }
+  ],
+  "sprite": { "id": 1001, "artifact": 3031101 },
+  "elder": { "id": 1 },
+  "wingman": { "id": 1009, "effects": [100101, 100103], "prefixes": [100903, 100905] }
+}
