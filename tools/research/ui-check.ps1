@@ -2182,6 +2182,35 @@ switch ($Part) {
   }
   'rates2-map' {
     # 지도 속도: x3에서 지도 이동이 빨라지고, 끄면 1. 게임 창이 떠 있지 않을 때.
+    # 전투를 끝내고 지도로 나온다. 들어간 직후의 bend는 게임 안에서 실패할 수 있어(회차 r2-a·rx-c) 몇 초 기다리고, 끝나지 않으면 다시 부른다.
+    function LeaveBattle {
+      Start-Sleep -Seconds 3
+      # 전투 전 화면의 '전투 개시'(btnStart)를 누르지 않으면 전투가 시작되지 않아 bend가 게임 안에서 실패한다(회차 rx-g-1027)
+      if ((Rc 'hit 956 749' 200) -match 'btnStart') { Rc 'click 956 749' 4000 | Out-Null }
+      for ($t = 0; $t -lt 3 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $t++) {
+        "INFO bend: $(Cmd 'bend' 3000)"
+        for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      }
+      if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot 'rates2-leave-fail' }
+      # 결과 창의 확인 단추는 창보다 늦게 뜬다(처음 몇 초는 창 바탕만 맞는다, 회차 rx-n-1027). 단추가 맞을 때까지 기다렸다가 누른다.
+      for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
+      Rc 'click 959 831' 2000 | Out-Null
+      # 지도 화면이 보여도 전투 장면이 아직 내려가는 중일 수 있다. inBattle=False까지 기다린다(다음 전투를 바로 열면 꼬인다).
+      for ($i = 0; $i -lt 30 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) { Start-Sleep -Milliseconds 500 }
+      Start-Sleep -Seconds 2
+    }
+    # 걷기·대화 뒤에 게임의 보상 창(GetReward)이나 이야기 창이 편집기를 가릴 수 있다. 닫고 연다.
+    function OpenRates {
+      for ($k = 0; $k -lt 8 -and (Cmd 'uilist' 200) -match 'GetReward|DramaDialogue|DramaSutraLetter|DramaFortuitous'; $k++) {
+        Cmd 'uiclose GetReward' 300 | Out-Null
+        if ((Rc 'hit 979 821' 200) -match 'goBtnItem') { Rc 'click 979 821' 1500 | Out-Null }
+        elseif ((Rc 'hit 960 677' 200) -match 'goOptionItem') { Rc 'click 960 677' 1500 | Out-Null }
+        elseif ((Rc 'hit 960 600' 200) -match 'btnNext') { Rc 'click 960 600' 1000 | Out-Null }
+        elseif ((Rc 'hit 960 540' 200) -match 'btnNext') { Rc 'click 960 540' 1000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+      Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    }
     function Scale { if ((Cmd 'rstate' 200) -match 'timeScale=([\d.]+)') { [double]$Matches[1] } else { -1 } }
     function Walk([int]$dx) {
       Cmd 'rtrack start' 200 | Out-Null
@@ -2192,35 +2221,33 @@ switch ($Part) {
     }
     $plain = Walk 3
     Walk -3 | Out-Null
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null
     Check 'map speed shows x3' ((Cmd 'uitext RateMapSpeed') -match "text='x3'")
     Cmd 'uitoggle' | Out-Null
     Start-Sleep -Milliseconds 500
     Check 'the map runs at 3' ((Scale) -eq 3) (Cmd 'rstate')
     $fast = Walk 3
-    Check 'the walk is about three times faster' ($plain -gt 0 -and $fast -gt $plain * 2.5) "plain=$plain fast=$fast"
+    # 3칸 걷기는 x3에서 0.4초쯤이라 프레임 간격의 흔들림이 크다(rx-c 3.0배, rx-o 2.2배). 게임 속도 3은 위 줄이 정확히 본다.
+    Check 'the walk is clearly faster (at least twice)' ($plain -gt 0 -and $fast -gt $plain * 2) "plain=$plain fast=$fast"
     Walk -3 | Out-Null
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateMapSpeed' | Out-Null
     Check 'map speed returns to x1' ((Cmd 'uitext RateMapSpeed') -match "text='x1'")
     Cmd 'uitoggle' | Out-Null
     Start-Sleep -Milliseconds 500
     Check 'the map runs at 1 again' ((Scale) -eq 1) (Cmd 'rstate')
     # 지도 속도를 켠 채 전투에 들어가면 전투는 1(전투 속도 줄이 맡는다), 나오면 다시 3
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null
     Cmd 'uitoggle' | Out-Null
     EnterBattle
     Start-Sleep -Milliseconds 800
     Check 'map speed is not applied in battle' ((Scale) -eq 1) (Cmd 'rstate')
-    Cmd 'bend' 3000 | Out-Null
-    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
-    Rc 'click 959 831' 2000 | Out-Null
-    for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    LeaveBattle
     Start-Sleep -Milliseconds 800
     Check 'map speed comes back on the map' ((Scale) -eq 3) (Cmd 'rstate')
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateReset' | Out-Null
     Start-Sleep -Milliseconds 500
     Check 'reset puts the map back to 1' ((Scale) -eq 1) (Cmd 'rstate')
@@ -2228,35 +2255,55 @@ switch ($Part) {
   }
   'rates2-battle' {
     # 전투 이동 속도: 전투 플레이어 moveSpeed가 x2, 새 전투에서도 다시 걸리고, 끄면 원래 값. 실제 걷는 빠르기는 도구로 잴 수 없다(05 문서 86절).
-    function Mv { $r = Cmd 'rmove' 200; if ($r -match 'value=(\d+) base=(\d+) add=(-?\d+) attached=(\w+)') { @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3], $Matches[4]) } else { "INFO $r"; @(-1, -1, 0, 'False') } }
-    function LeaveBattle {
-      Cmd 'bend' 3000 | Out-Null
-      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
-      Rc 'click 959 831' 2000 | Out-Null
-      for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    function OpenRates {
+      for ($k = 0; $k -lt 8 -and (Cmd 'uilist' 200) -match 'GetReward|DramaDialogue|DramaSutraLetter|DramaFortuitous'; $k++) {
+        Cmd 'uiclose GetReward' 300 | Out-Null
+        if ((Rc 'hit 979 821' 200) -match 'goBtnItem') { Rc 'click 979 821' 1500 | Out-Null }
+        elseif ((Rc 'hit 960 600' 200) -match 'btnNext') { Rc 'click 960 600' 1000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+      Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
     }
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    function MoveNow { $r = Cmd 'rmove' 200; if ($r -match 'value=(\d+) base=(\d+) add=(-?\d+) attached=(\w+)') { @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3], $Matches[4]) } else { "INFO $r"; @(-1, -1, 0, 'False') } }
+    # (rates2-map과 같음) 전투를 끝내고 지도로 나온다. 들어간 직후의 bend는 게임 안에서 실패할 수 있어(회차 r2-a·rx-c) 몇 초 기다리고, 끝나지 않으면 다시 부른다.
+    function LeaveBattle {
+      Start-Sleep -Seconds 3
+      # 전투 전 화면의 '전투 개시'(btnStart)를 누르지 않으면 전투가 시작되지 않아 bend가 게임 안에서 실패한다(회차 rx-g-1027)
+      if ((Rc 'hit 956 749' 200) -match 'btnStart') { Rc 'click 956 749' 4000 | Out-Null }
+      for ($t = 0; $t -lt 3 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $t++) {
+        "INFO bend: $(Cmd 'bend' 3000)"
+        for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      }
+      if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot 'rates2-leave-fail' }
+      # 결과 창의 확인 단추는 창보다 늦게 뜬다(처음 몇 초는 창 바탕만 맞는다, 회차 rx-n-1027). 단추가 맞을 때까지 기다렸다가 누른다.
+      for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
+      Rc 'click 959 831' 2000 | Out-Null
+      # 지도 화면이 보여도 전투 장면이 아직 내려가는 중일 수 있다. inBattle=False까지 기다린다(다음 전투를 바로 열면 꼬인다).
+      for ($i = 0; $i -lt 30 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) { Start-Sleep -Milliseconds 500 }
+      Start-Sleep -Seconds 2
+    }
+    OpenRates
     Press 'RateBattleMove' | Out-Null; Press 'RateBattleMove' | Out-Null
     Check 'battle move shows x2' ((Cmd 'uitext RateBattleMove') -match "text='x2'")
     Cmd 'uitoggle' | Out-Null
     EnterBattle
     Start-Sleep -Milliseconds 800
-    $m = Mv
+    $m = MoveNow
     Check 'the player moves at twice its base in battle' ($m[3] -eq 'True' -and $m[1] -gt 0 -and $m[0] -eq $m[1] * 2) "value=$($m[0]) base=$($m[1]) add=$($m[2])"
     LeaveBattle
     EnterBattle
     Start-Sleep -Milliseconds 800
-    $m = Mv
+    $m = MoveNow
     Check 'a new battle gets the rate again' ($m[3] -eq 'True' -and $m[0] -eq $m[1] * 2) "value=$($m[0]) base=$($m[1])"
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateBattleMove' | Out-Null
     Check 'battle move steps to x3 in battle' ((Cmd 'uitext RateBattleMove') -match "text='x3'")
     Start-Sleep -Milliseconds 500
-    $m = Mv
+    $m = MoveNow
     Check 'the add follows the step' ($m[0] -eq $m[1] * 3) "value=$($m[0]) base=$($m[1])"
     Press 'RateBattleMove' | Out-Null
     Start-Sleep -Milliseconds 500
-    $m = Mv
+    $m = MoveNow
     Check 'turning it off gives the base back' ($m[3] -eq 'False' -and $m[0] -eq $m[1]) "value=$($m[0]) base=$($m[1]) attached=$($m[3])"
     Cmd 'uitoggle' | Out-Null
     LeaveBattle
@@ -2265,6 +2312,18 @@ switch ($Part) {
   }
   'rates2-life' {
     # 호감 변화와 정력 소모. 고정본의 가까운 NPC(tb2npc)에 대화를 걸고 선택지를 넘긴다(05 문서 86절).
+    # 걷기·대화 뒤에 게임의 보상 창(GetReward)이나 이야기 창이 편집기를 가릴 수 있다. 닫고 연다.
+    function OpenRates {
+      for ($k = 0; $k -lt 8 -and (Cmd 'uilist' 200) -match 'GetReward|DramaDialogue|DramaSutraLetter|DramaFortuitous'; $k++) {
+        Cmd 'uiclose GetReward' 300 | Out-Null
+        if ((Rc 'hit 979 821' 200) -match 'goBtnItem') { Rc 'click 979 821' 1500 | Out-Null }
+        elseif ((Rc 'hit 960 677' 200) -match 'goOptionItem') { Rc 'click 960 677' 1500 | Out-Null }
+        elseif ((Rc 'hit 960 600' 200) -match 'btnNext') { Rc 'click 960 600' 1000 | Out-Null }
+        elseif ((Rc 'hit 960 540' 200) -match 'btnNext') { Rc 'click 960 540' 1000 | Out-Null }
+        else { Start-Sleep -Milliseconds 800 }
+      }
+      Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    }
     function Npc([int]$i) { $r = Cmd 'tb2npc 4' 300; $ids = [regex]::Matches($r, '(?:^|\s)(\d) (\w{6}) ') | ForEach-Object { $_.Groups[2].Value }; $ids[$i] }
     function Pair([string]$r) { if ($r -match 'intim (-?\d+)/(-?\d+) -> (-?\d+)/(-?\d+)') { @(([int]$Matches[3] - [int]$Matches[1]), ([int]$Matches[4] - [int]$Matches[2])) } else { @(0, 0) } }
     function PassDialog {
@@ -2283,7 +2342,7 @@ switch ($Part) {
     # 직접 호출: x1과 x5
     $r1 = Cmd "rintim $a 10" 300
     $d1 = Pair $r1
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateIntimGain' | Out-Null; Press 'RateIntimGain' | Out-Null
     Check 'favor shows x5' ((Cmd 'uitext RateIntimGain') -match "text='x5'")
     Cmd 'uitoggle' | Out-Null
@@ -2298,7 +2357,8 @@ switch ($Part) {
     Cmd "rchat $b" 2000 | Out-Null; PassDialog
     $after = Intim $b
     $gain5 = @(($after[0] - $before[0]), ($after[1] - $before[1]))
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    $last5 = Cmd "rintim $b 0" 300
+    OpenRates
     Press 'RateReset' | Out-Null
     Cmd 'uitoggle' | Out-Null
     $before = Intim $c
@@ -2306,9 +2366,12 @@ switch ($Part) {
     $after = Intim $c
     $gain1 = @(($after[0] - $before[0]), ($after[1] - $before[1]))
     Check 'a chat raises both sides' ($gain5[0] -gt 0 -and $gain5[1] -gt 0) "x5 $($gain5 -join '/') x1 $($gain1 -join '/')"
-    Check 'a chat at x5 raises more than a chat at x1' ($gain1[0] -gt 0 -and $gain5[0] -ge $gain1[0] * 2 -and $gain5[1] -ge $gain1[1] * 2) "x5 $($gain5 -join '/') x1 $($gain1 -join '/')"
+    Check 'a chat at x1 raises favor too' ($gain1[0] -gt 0 -and $gain1[1] -gt 0) "x1 $($gain1 -join '/')"
+    # NPC마다 대화의 기본 양이 달라(16, 25 …) 다른 NPC끼리는 견주지 않는다. 접두가 남긴 곱하기 전→뒤가 5배인지 본다.
+    $ok5 = $last5 -match 'last=([\d.]+)->([\d.]+)' -and [math]::Abs([double]$Matches[2] - 5 * [double]$Matches[1]) -lt 0.01
+    Check 'the chat gain was multiplied by five in the game call' $ok5 "$last5 | x5 $($gain5 -join '/')"
     # 정력: 없음이면 훔치기 뒤 그대로, x0.5면 반만 준다
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
     Check 'energy cost shows none' ((Cmd 'uitext RateEnergyCost') -match "text='없음'")
     Cmd 'uitoggle' | Out-Null
@@ -2317,7 +2380,7 @@ switch ($Part) {
     Start-Sleep -Milliseconds 500
     $e1 = Energy
     Check 'a steal costs no energy at none' ($e0 -gt 0 -and $e1 -eq $e0) "$e0 -> $e1 | $(Cmd 'renergy' 200)"
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
     Check 'energy cost shows x0.5' ((Cmd 'uitext RateEnergyCost') -match "text='x0.5'")
     Cmd 'uitoggle' | Out-Null
@@ -2326,7 +2389,7 @@ switch ($Part) {
     Start-Sleep -Milliseconds 500
     $e1 = Energy
     Check 'a chat costs about half at x0.5' ($e0 -gt $e1 -and ($e0 - $e1) -le 3) "$e0 -> $e1 | $(Cmd 'renergy' 200)"
-    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    OpenRates
     Press 'RateReset' | Out-Null
     Cmd 'uitoggle' | Out-Null
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
