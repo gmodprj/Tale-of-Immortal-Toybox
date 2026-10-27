@@ -2145,6 +2145,192 @@ switch ($Part) {
     Check 'no exception in button callbacks' ((Traps) -eq $traps)
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
+  'rates2' {
+    # 배율 탭 확장(05 문서 86절): 칩 다섯, 칩마다 줄, 새 줄 넷, 켜 둔 것, 모두 1배로. 개발 빌드는 처음에 모든 줄을 보이므로 칩 보기로 바꾼다.
+    $traps = Traps
+    function Has([string]$n) { (Cmd "uitext $n" 200) -notmatch 'no element' }
+    function T([string]$n) { if ((Cmd "uitext $n" 200) -match "text='([^']*)'") { $Matches[1] } else { '' } }
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Cmd 'ratechip 0' | Out-Null
+    $names = 0..4 | ForEach-Object { T "RateGroup$_" }
+    Check 'five chips with their names' ($names[0] -eq '성장' -and $names[1] -eq '시간·속도' -and $names[2] -eq '전투' -and $names[3] -eq '관계·소모' -and $names[4] -eq '켜 둔 것') ($names -join ',')
+    Check 'growth chip shows its rows only' ((Has 'RateExp') -and (Has 'RateMartial') -and (Has 'RateStudyGain') -and -not (Has 'RateMapSpeed') -and -not (Has 'God'))
+    Press 'RateGroup1' | Out-Null
+    Check 'time chip shows map speed and battle speed' ((Has 'RateMapSpeed') -and (Has 'RateSpeed') -and (Has 'RateMove') -and (Has 'RateActionDay') -and -not (Has 'RateExp'))
+    Check 'map speed starts at x1 with its note' ((T 'RateMapSpeed') -eq 'x1' -and (T 'RateNoteMapSpeed') -match '지도') "$(T 'RateMapSpeed') | $(T 'RateNoteMapSpeed')"
+    Press 'RateGroup2' | Out-Null
+    Check 'battle chip shows eight rows' ((Has 'RateBattleMove') -and (Has 'RateCooldown') -and (Has 'RateArtifactCooldown') -and (Has 'RateMpCost') -and (Has 'RateSpCost') -and (Has 'Multiplier') -and (Has 'RateTaken') -and (Has 'God'))
+    Check 'battle move steps up to x1.5' ((Press 'RateBattleMove') -and (T 'RateBattleMove') -eq 'x1.5') (T 'RateBattleMove')
+    Press 'RateGroup3' | Out-Null
+    Check 'relation chip shows favor, energy and items' ((Has 'RateIntimGain') -and (Has 'RateEnergyCost') -and (Has 'RateItemUse'))
+    Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
+    Check 'energy cost reaches none' ((T 'RateEnergyCost') -eq '없음') (T 'RateEnergyCost')
+    Check 'chips count what is on' ((T 'RateGroup2') -eq '전투 1' -and (T 'RateGroup3') -eq '관계·소모 1' -and (T 'RateGroup0') -eq '성장') "$(T 'RateGroup2') | $(T 'RateGroup3') | $(T 'RateGroup0')"
+    Press 'RateGroup4' | Out-Null
+    Check 'the on chip lists the two rows that are on' ((T 'RateGroup4') -eq '켜 둔 것 2' -and (Has 'RateBattleMove') -and (Has 'RateEnergyCost') -and -not (Has 'RateExp') -and -not (Has 'RateEmpty')) (T 'RateGroup4')
+    Start-Sleep -Milliseconds 800
+    Check 'the status line shows the new rows' ((Cmd 'uistate') -match 'status=\[[^\]]*이동 속도 x1.5[^\]]*정력 소모 없음') (Cmd 'uistate')
+    Shot 'rates2-on'
+    Press 'RateReset' | Out-Null
+    Check 'reset leaves the on chip empty' ((T 'RateGroup4') -eq '켜 둔 것' -and (Has 'RateEmpty') -and -not (Has 'RateBattleMove')) "$(T 'RateGroup4') | $(T 'RateEmpty')"
+    Check 'the chip is kept when the editor reopens' ((Cmd 'uitoggle' 300) -ne '' -and (Cmd 'editor' 300) -ne '' -and (Press 'Tab12') -and (Has 'RateEmpty')) (T 'RateGroup4')
+    Press 'RateGroup0' | Out-Null
+    Shot 'rates2'
+    Cmd 'ratechip all' | Out-Null
+    Check 'no exception in button callbacks' ((Traps) -eq $traps)
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'rates2-map' {
+    # 지도 속도: x3에서 지도 이동이 빨라지고, 끄면 1. 게임 창이 떠 있지 않을 때.
+    function Scale { if ((Cmd 'rstate' 200) -match 'timeScale=([\d.]+)') { [double]$Matches[1] } else { -1 } }
+    function Walk([int]$dx) {
+      Cmd 'rtrack start' 200 | Out-Null
+      Cmd "rpath $dx 0" 300 | Out-Null
+      Start-Sleep -Seconds 6
+      $r = Cmd 'rtrack read' 200
+      if ($r -match 'speed=([\d.]+)') { [double]$Matches[1] } else { "INFO $r"; 0 }
+    }
+    $plain = Walk 3
+    Walk -3 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null
+    Check 'map speed shows x3' ((Cmd 'uitext RateMapSpeed') -match "text='x3'")
+    Cmd 'uitoggle' | Out-Null
+    Start-Sleep -Milliseconds 500
+    Check 'the map runs at 3' ((Scale) -eq 3) (Cmd 'rstate')
+    $fast = Walk 3
+    Check 'the walk is about three times faster' ($plain -gt 0 -and $fast -gt $plain * 2.5) "plain=$plain fast=$fast"
+    Walk -3 | Out-Null
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateMapSpeed' | Out-Null
+    Check 'map speed returns to x1' ((Cmd 'uitext RateMapSpeed') -match "text='x1'")
+    Cmd 'uitoggle' | Out-Null
+    Start-Sleep -Milliseconds 500
+    Check 'the map runs at 1 again' ((Scale) -eq 1) (Cmd 'rstate')
+    # 지도 속도를 켠 채 전투에 들어가면 전투는 1(전투 속도 줄이 맡는다), 나오면 다시 3
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null; Press 'RateMapSpeed' | Out-Null
+    Cmd 'uitoggle' | Out-Null
+    EnterBattle
+    Start-Sleep -Milliseconds 800
+    Check 'map speed is not applied in battle' ((Scale) -eq 1) (Cmd 'rstate')
+    Cmd 'bend' 3000 | Out-Null
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+    Rc 'click 959 831' 2000 | Out-Null
+    for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    Start-Sleep -Milliseconds 800
+    Check 'map speed comes back on the map' ((Scale) -eq 3) (Cmd 'rstate')
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateReset' | Out-Null
+    Start-Sleep -Milliseconds 500
+    Check 'reset puts the map back to 1' ((Scale) -eq 1) (Cmd 'rstate')
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'rates2-battle' {
+    # 전투 이동 속도: 전투 플레이어 moveSpeed가 x2, 새 전투에서도 다시 걸리고, 끄면 원래 값. 실제 걷는 빠르기는 도구로 잴 수 없다(05 문서 86절).
+    function Mv { $r = Cmd 'rmove' 200; if ($r -match 'value=(\d+) base=(\d+) add=(-?\d+) attached=(\w+)') { @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3], $Matches[4]) } else { "INFO $r"; @(-1, -1, 0, 'False') } }
+    function LeaveBattle {
+      Cmd 'bend' 3000 | Out-Null
+      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+      Rc 'click 959 831' 2000 | Out-Null
+      for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Start-Sleep -Milliseconds 500 }
+    }
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateBattleMove' | Out-Null; Press 'RateBattleMove' | Out-Null
+    Check 'battle move shows x2' ((Cmd 'uitext RateBattleMove') -match "text='x2'")
+    Cmd 'uitoggle' | Out-Null
+    EnterBattle
+    Start-Sleep -Milliseconds 800
+    $m = Mv
+    Check 'the player moves at twice its base in battle' ($m[3] -eq 'True' -and $m[1] -gt 0 -and $m[0] -eq $m[1] * 2) "value=$($m[0]) base=$($m[1]) add=$($m[2])"
+    LeaveBattle
+    EnterBattle
+    Start-Sleep -Milliseconds 800
+    $m = Mv
+    Check 'a new battle gets the rate again' ($m[3] -eq 'True' -and $m[0] -eq $m[1] * 2) "value=$($m[0]) base=$($m[1])"
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateBattleMove' | Out-Null
+    Check 'battle move steps to x3 in battle' ((Cmd 'uitext RateBattleMove') -match "text='x3'")
+    Start-Sleep -Milliseconds 500
+    $m = Mv
+    Check 'the add follows the step' ($m[0] -eq $m[1] * 3) "value=$($m[0]) base=$($m[1])"
+    Press 'RateBattleMove' | Out-Null
+    Start-Sleep -Milliseconds 500
+    $m = Mv
+    Check 'turning it off gives the base back' ($m[3] -eq 'False' -and $m[0] -eq $m[1]) "value=$($m[0]) base=$($m[1]) attached=$($m[3])"
+    Cmd 'uitoggle' | Out-Null
+    LeaveBattle
+    Check 'back on the map' ((Cmd 'uilist' 100) -match 'MapMain')
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
+  'rates2-life' {
+    # 호감 변화와 정력 소모. 고정본의 가까운 NPC(tb2npc)에 대화를 걸고 선택지를 넘긴다(05 문서 86절).
+    function Npc([int]$i) { $r = Cmd 'tb2npc 4' 300; $ids = [regex]::Matches($r, '(?:^|\s)(\d) (\w{6}) ') | ForEach-Object { $_.Groups[2].Value }; $ids[$i] }
+    function Pair([string]$r) { if ($r -match 'intim (-?\d+)/(-?\d+) -> (-?\d+)/(-?\d+)') { @(([int]$Matches[3] - [int]$Matches[1]), ([int]$Matches[4] - [int]$Matches[2])) } else { @(0, 0) } }
+    function PassDialog {
+      for ($i = 0; $i -lt 20; $i++) {
+        if ((Cmd 'uilist' 200) -notmatch 'DramaDialogue|DramaFortuitous|GetReward') { return }
+        Cmd 'uiclose GetReward' 200 | Out-Null
+        foreach ($pt in '960 677', '750 679', '750 745', '1170 679', '960 540') {
+          if ((Rc "hit $pt" 200) -match 'goOptionItem|btnNext') { Rc "click $pt" 1500 | Out-Null; break }
+        }
+      }
+    }
+    function Intim([string]$id) { if ((Cmd "rintim $id 0" 300) -match 'intim (-?\d+)/(-?\d+)') { @([int]$Matches[1], [int]$Matches[2]) } else { @(0, 0) } }
+    function Energy { if ((Cmd 'renergy' 200) -match 'energy=(\d+)') { [int]$Matches[1] } else { -1 } }
+    $a = Npc 0; $b = Npc 1; $c = Npc 2
+    "INFO npcs $a $b $c"
+    # 직접 호출: x1과 x5
+    $r1 = Cmd "rintim $a 10" 300
+    $d1 = Pair $r1
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateIntimGain' | Out-Null; Press 'RateIntimGain' | Out-Null
+    Check 'favor shows x5' ((Cmd 'uitext RateIntimGain') -match "text='x5'")
+    Cmd 'uitoggle' | Out-Null
+    $r5 = Cmd "rintim $a 10" 300
+    $d5 = Pair $r5
+    Check 'a direct favor gain is five times larger' ($d1[0] -gt 0 -and $d5[0] -ge $d1[0] * 4) "x1 $r1 | x5 $r5"
+    $rn = Cmd "rintim $a -10" 300
+    $dn = Pair $rn
+    Check 'a favor loss is not scaled' ($dn[0] -lt 0 -and $dn[0] -ge -10) $rn
+    # 게임 대화: x5에서 양쪽이 오르고, x1인 다른 NPC의 대화보다 크게
+    $before = Intim $b
+    Cmd "rchat $b" 2000 | Out-Null; PassDialog
+    $after = Intim $b
+    $gain5 = @(($after[0] - $before[0]), ($after[1] - $before[1]))
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateReset' | Out-Null
+    Cmd 'uitoggle' | Out-Null
+    $before = Intim $c
+    Cmd "rchat $c" 2000 | Out-Null; PassDialog
+    $after = Intim $c
+    $gain1 = @(($after[0] - $before[0]), ($after[1] - $before[1]))
+    Check 'a chat raises both sides' ($gain5[0] -gt 0 -and $gain5[1] -gt 0) "x5 $($gain5 -join '/') x1 $($gain1 -join '/')"
+    Check 'a chat at x5 raises more than a chat at x1' ($gain1[0] -gt 0 -and $gain5[0] -ge $gain1[0] * 2 -and $gain5[1] -ge $gain1[1] * 2) "x5 $($gain5 -join '/') x1 $($gain1 -join '/')"
+    # 정력: 없음이면 훔치기 뒤 그대로, x0.5면 반만 준다
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
+    Check 'energy cost shows none' ((Cmd 'uitext RateEnergyCost') -match "text='없음'")
+    Cmd 'uitoggle' | Out-Null
+    $e0 = Energy
+    Cmd 'tb2steal 0' 3000 | Out-Null; PassDialog
+    Start-Sleep -Milliseconds 500
+    $e1 = Energy
+    Check 'a steal costs no energy at none' ($e0 -gt 0 -and $e1 -eq $e0) "$e0 -> $e1 | $(Cmd 'renergy' 200)"
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
+    Check 'energy cost shows x0.5' ((Cmd 'uitext RateEnergyCost') -match "text='x0.5'")
+    Cmd 'uitoggle' | Out-Null
+    $e0 = Energy
+    Cmd "rchat $a" 2000 | Out-Null; PassDialog
+    Start-Sleep -Milliseconds 500
+    $e1 = Energy
+    Check 'a chat costs about half at x0.5' ($e0 -gt $e1 -and ($e0 - $e1) -le 3) "$e0 -> $e1 | $(Cmd 'renergy' 200)"
+    Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
+    Press 'RateReset' | Out-Null
+    Cmd 'uitoggle' | Out-Null
+    Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
+  }
   'rates-battle' {
     # 배율 탭: 전투 중 공법 숙련과 전투 속도. 전투에 들어갔다가 끝내고 지도로 나온다.
     $traps = Traps

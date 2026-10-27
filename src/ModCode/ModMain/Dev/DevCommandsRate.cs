@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace MOD_sWP6UL
@@ -13,6 +15,13 @@ namespace MOD_sWP6UL
     //   rpath <dx> <dy> 게임의 경로 이동으로 그만큼 떨어진 칸까지 간다.
     //   bend [lose]    전투를 승리(또는 패배)로 끝낸다.
     //   rpause on|off  Time.timeScale을 0으로 쓰고(on), 그 전의 값으로 되돌린다(off).
+    //   배율 탭 확장(05 문서 86절):
+    //   ratechip <0~4|all|state>  배율 탭의 칩을 고른다. all은 모든 줄을 한 화면에(개발 빌드의 처음 상태). state는 지금 칩과 all 여부
+    //   rtrack start|read  매 프레임 지도 playerRoot(전투면 전투 플레이어) 위치를 unscaledTime과 함께 모은다(바뀔 때만). read는 처음·끝과 속도(칸/초)
+    //   rchat <unitID>     플레이어가 그 NPC에게 대화 행동(UnitActionRoleChat)을 만든다. 전후 호감(나→상대/상대→나)과 정력
+    //   rintim <unitID> <값>  플레이어 relationData.AddIntim(그 NPC, 값) 직접 호출, 전후 호감
+    //   renergy            정력, 상한, 정력 소모 배율이 돌려준 합, 마지막 돌려주기(전→후→돌려준 뒤)
+    //   rmove              전투 플레이어 moveSpeed value/base, 걸어 둔 add
     internal static class DevCommandsRate
     {
         private static float pausedFrom = 1f;
@@ -23,6 +32,45 @@ namespace MOD_sWP6UL
             {
                 case "rstate":
                     return State();
+                case "ratechip":
+                    if (p[1] == "all")
+                    {
+                        RateTab.ShowAll = true;
+                    }
+                    else if (p[1] != "state")
+                    {
+                        RateTab.ShowAll = false;
+                        RateTab.Chip = int.Parse(p[1]);
+                    }
+                    if (EditorWindow.IsOpen)
+                    {
+                        EditorWindow.Refresh();
+                    }
+                    return "chip=" + RateTab.Chip + " all=" + RateTab.ShowAll;
+                case "rtrack":
+                    return Track(p[1]);
+                case "rchat":
+                    return Chat(p[1]);
+                case "rintim":
+                    {
+                        WorldUnitBase me = g.world.playerUnit;
+                        WorldUnitBase to = g.world.unit.GetUnit(p[1], true);
+                        if (to == null)
+                        {
+                            return "no unit " + p[1];
+                        }
+                        string before = IntimText(me, to);
+                        me.data.unitData.relationData.AddIntim(p[1], float.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), 0, null, false);
+                        return "intim " + before + " -> " + IntimText(me, to) + " last=" + RateService.IntimGain.Last;
+                    }
+                case "renergy":
+                    {
+                        WorldUnitBase me = g.world.playerUnit;
+                        return "energy=" + me.data.unitData.propertyData.energy + " max=" + me.data.dynUnitData.energy.maxValue
+                            + " refunded=" + RateService.EnergyRefunded + " last=" + RateService.EnergyCost.Last + " rate=" + RateService.EnergyCost.Text;
+                    }
+                case "rmove":
+                    return RateService.MoveState();
                 case "rnpc":
                     return Npc();
                 case "rneg":
@@ -71,6 +119,81 @@ namespace MOD_sWP6UL
                 default:
                     return null;
             }
+        }
+
+        // ---- rtrack ----
+        private static bool tracking;
+        private static readonly List<float> trackTime = new List<float>();
+        private static readonly List<UnityEngine.Vector3> trackPos = new List<UnityEngine.Vector3>();
+
+        private static string Track(string arg)
+        {
+            if (arg == "start")
+            {
+                tracking = true;
+                trackTime.Clear();
+                trackPos.Clear();
+                return "tracking";
+            }
+            tracking = false;
+            int n = trackPos.Count;
+            if (n < 2)
+            {
+                return "samples=" + n;
+            }
+            // 움직인 구간(첫 변화 ~ 마지막 변화)의 거리와 시간
+            float dist = 0f;
+            for (int i = 1; i < n; i++)
+            {
+                dist += UnityEngine.Vector3.Distance(trackPos[i - 1], trackPos[i]);
+            }
+            float secs = trackTime[n - 1] - trackTime[1];
+            float speed = secs > 0f ? (dist - UnityEngine.Vector3.Distance(trackPos[0], trackPos[1])) / secs : 0f;
+            return "samples=" + n + " dist=" + dist.ToString("0.00") + " secs=" + secs.ToString("0.000") + " speed=" + speed.ToString("0.00")
+                + " from=" + trackPos[0].x.ToString("0.00") + "," + trackPos[0].y.ToString("0.00") + " to=" + trackPos[n - 1].x.ToString("0.00") + "," + trackPos[n - 1].y.ToString("0.00");
+        }
+
+        // 매 프레임(RateService.Tick에서, 개발 빌드만)
+        public static void TrackTick()
+        {
+            if (!tracking)
+            {
+                return;
+            }
+            try
+            {
+                UnityEngine.Vector3 v = RateService.InBattle ? SceneType.battle.battleMap.playerUnitCtrl.transform.position : SceneType.map.world.playerRoot.position;
+                if (trackPos.Count == 0 || (v - trackPos[trackPos.Count - 1]).sqrMagnitude > 1e-6f)
+                {
+                    trackPos.Add(v);
+                    trackTime.Add(UnityEngine.Time.unscaledTime);
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static string IntimText(WorldUnitBase me, WorldUnitBase to)
+        {
+            return me.data.unitData.relationData.GetIntim(to) + "/" + to.data.unitData.relationData.GetIntim(me);
+        }
+
+        private static string Chat(string id)
+        {
+            WorldUnitBase me = g.world.playerUnit;
+            WorldUnitBase to = g.world.unit.GetUnit(id, true);
+            if (to == null)
+            {
+                return "no unit " + id;
+            }
+            string before = IntimText(me, to);
+            int energy = me.data.unitData.propertyData.energy;
+            var action = new UnitActionRoleChat(to);
+            action.unit = me;
+            int can = me.IsCreateAction(action, false);
+            int code = can == 0 ? me.CreateAction(action, false) : -1;
+            return "chat can=" + can + " code=" + code + " intim " + before + " -> " + IntimText(me, to) + " energy " + energy + " -> " + me.data.unitData.propertyData.energy;
         }
 
         private static string State()
