@@ -82,15 +82,17 @@ namespace MOD_sWP6UL
             return -1;
         }
 
-        // 정력 소모 배율: 지난 값 before에서 now로 줄었으면 줄어든 양 × (1 − rate)를 반올림해 돌려준다. 늘었거나 같으면 0.
+        // 정력 소모 배율: 지난 값 before에서 now로 줄었으면, 남길 소모(줄어든 양 × rate, 올림)를 뺀 나머지를 돌려준다. 늘었거나 같으면 0.
+        // 올림이라 1짜리 소모도 x0.5·x0.25에서 1로 남는다(반올림이면 공짜가 됐다, 최종 리뷰). 없음(0)이면 전부 돌려준다.
         public static int EnergyRefund(int before, int now, float rate)
         {
             if (now >= before || rate >= 1f)
             {
                 return 0;
             }
-            double back = (before - now) * (1.0 - Math.Max(0f, rate));
-            return (int)Math.Round(back, MidpointRounding.AwayFromZero);
+            int drop = before - now;
+            int keep = (int)Math.Ceiling(drop * (double)Math.Max(0f, rate) - 1e-9);
+            return Math.Max(0, drop - keep);
         }
     }
 }

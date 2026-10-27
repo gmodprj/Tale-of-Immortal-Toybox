@@ -240,8 +240,6 @@ namespace MOD_sWP6UL
             return string.Join(",", list);
         }
 
-        // 새 기본 프리셋 풀기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 6.1절).
-        // 모드 글의 서식 태그 지우기(05 문서 72절: 만고신화 기술 이름 <COLOR=#FFAA00>草字剑诀</COLOR>가 COLORFFAA00草字剑诀COLOR로 보였다).
         // 배율 탭 확장(05 문서 86절): 칩 분류와 정력 돌려주기
         private static void RateGroupsTests()
         {
@@ -273,7 +271,8 @@ namespace MOD_sWP6UL
             Check("energy refund: half gives half back", RateGroups.EnergyRefund(74, 64, 0.5f) == 5);
             Check("energy refund: none gives all back", RateGroups.EnergyRefund(74, 64, 0f) == 10);
             Check("energy refund: x1 and a rise give nothing", RateGroups.EnergyRefund(74, 64, 1f) == 0 && RateGroups.EnergyRefund(64, 74, 0f) == 0 && RateGroups.EnergyRefund(5, 5, 0f) == 0);
-            Check("energy refund: odd amounts round half up", RateGroups.EnergyRefund(10, 5, 0.5f) == 3 && RateGroups.EnergyRefund(10, 7, 0.25f) == 2);
+            Check("energy refund: the kept cost rounds up", RateGroups.EnergyRefund(10, 5, 0.5f) == 2 && RateGroups.EnergyRefund(10, 7, 0.25f) == 2);
+            Check("energy refund: a cost of one is not free at x0.5 or x0.25", RateGroups.EnergyRefund(5, 4, 0.5f) == 0 && RateGroups.EnergyRefund(5, 4, 0.25f) == 0 && RateGroups.EnergyRefund(5, 4, 0f) == 1);
         }
 
         // 미룬 것 묶음(05 문서 85절): 로그의 을/를
@@ -288,6 +287,8 @@ namespace MOD_sWP6UL
             Check("object of empty and null", KoreanText.Object("") == "을(를)" && KoreanText.Object(null) == "을(를)");
         }
 
+        // 새 기본 프리셋 풀기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 6.1절).
+        // 모드 글의 서식 태그 지우기(05 문서 72절: 만고신화 기술 이름 <COLOR=#FFAA00>草字剑诀</COLOR>가 COLORFFAA00草字剑诀COLOR로 보였다).
         private static void TextTagsTests()
         {
             Check("search key drops spaces and lowers", TextTags.SearchKey(" Fire Ball 화 염 ") == "fireball화염");

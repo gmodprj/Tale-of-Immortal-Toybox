@@ -3694,3 +3694,55 @@
 모두 FAIL 0: `ui-check` `base`·`tabs`·`books-ui`·`modbooks`(`dfx-a`), `mastery-check ui`·`trainer3-check suit`(리뷰 뒤 `dfx-h`·`i`), `preset-check` `files`·`ui`(`dfx-a`), `mastery-check ui`(`dfx-b`), `mastery-check service`(`dfx-c`·`e`), `treasure-check` `service`·`forge`·`give`, `trainer3-check suit`, `ui-check mpnone`(`dfx-d`), `ui-check translation`(`dfx-g`, 만고신화 포함). 단위 시험 FAIL 0.
 
 함정: 작업 폴더가 `src\ModCode\ModMain`으로 바뀐 채 `pwsh -File tools/...` 상대 경로를 주면 회차가 열리지 않는다. 회차 명령은 절대 경로로 준다. `modbooks` 뒤의 `rperf query - Manual`은 `모드만` 칩이 켜진 채라 줄 수가 다르다(76줄). 시간 비교는 깨끗한 회차에서 한다.
+
+## 86. 배율 탭 확장 — 분류 칩, 지도 속도·전투 이동 속도·호감 변화·정력 소모 (2026-10-27)
+
+12 문서 7절 6번 (나), 11 문서 4절 3번. 사용자 결정(2026-10-27): 배율 탭을 분류 칩으로 나눈다(두 열·한 화면 줄이기 대신, 그림으로 셋을 견줘 고름). 스펙 `docs/superpowers/specs/2026-10-27-rate-tab-expand-design.md`, 계획 `plans/2026-10-27-rate-tab-expand.md`, 브랜치 `feat/rate-tab-expand`. 설계 전 실험은 실험 브랜치 `feat/rate2-research`(탐침 `r2*`, 회차 `r2-a`~`f-1027`, 병합하지 않음). 검증 회차 `rx-a`~`p-1027`. 모두 고정본, `-Exclude 2814696167`, 끝은 `SAVE RESTORED AND IDENTICAL`.
+
+### 86.1 설계 전 실험
+
+- **지도 속도**: 지도에서 `Time.timeScale` 3이면 매 프레임 `MapWorldMgr.playerRoot` 위치로 잰 이동이 초당 3.2칸 → 9.5칸. `Time.time`도 3배로 흐른다.
+- **전투 이동 속도**: 전투 플레이어 `data.moveSpeed`(DynInt, 기본 411 = 능력치 이동속도)에 `AddValue(base×(배수−1))` → 822, `DelValue`로 411. 실제 걷는 빠르기는 재지 못했다: 전투에 `UnitInputCtrl`이 없고(찾기 0개), 가상 키(`uikey`, `GetKeyInt` 패치)로는 인물이 움직이지 않는다. **사용자 확인 목록에 넣었다.**
+- **호감 변화**: `DataUnit/RelationData.AddIntim(unitID, value, …)`. 직접 호출 +10 → +7(게임이 자기 규칙으로 줄임). 게임 대화(`UnitActionRoleChat`)를 선택지(`goOptionItem`, (960,677) 등)까지 넘기면 끝에서 `AddIntim`이 **양쪽**(플레이어 relationData의 to=NPC, NPC relationData의 to=플레이어)으로 한 번씩 불리고(+16, +25) 그 안에서 `SetIntim`이 불린다. 편집기 NPC 탭은 `SetIntim`을 바로 쓰므로 `AddIntim` 접두에 걸리지 않는다. 선물은 이 고정본에서 호감을 바꾸지 않았다.
+- **정력 소모**: 깎는 곳이 행동마다 다른 표(`costEnergy`, 열넷)라 한 곳에 걸 수 없다. 훔치기 한 번 −10, 대화 한 번 −5가 한 프레임에 줄어든다 → 프레임마다 줄어든 만큼 돌려주는 방식.
+- 함정: 고정본에 들어가면 편지 창(`DramaSutraLetter`)이 뜬다(btnNext (960,600)). 걷기 뒤에 보상 창(`GetReward`), 가끔 우연 사건(`DramaFortuitous`, 선택지 (979,821))이 편집기를 가린다. 명령 채널 왕복이 1.7초라 이동 시간은 게임 안에서 잰다(`rtrack`).
+
+### 86.2 기능
+
+- **칩 다섯**: 성장(수련치·공법 숙련·비급 학습 진도) / 시간·속도(지도 속도·전투 속도·이동의 날짜 소모·수련·학습의 날짜 소모) / 전투(전투 이동 속도·기술 쿨타임·신기 쿨타임·영력·집중력 소모·주는 피해·받는 피해·무적) / 관계·소모(호감 변화·정력 소모·아이템 소모) / 켜 둔 것(1배가 아닌 줄만, 분류 순서. 없으면 `켜 둔 배율이 없습니다.`). 칩 글 뒤에 그 칩에서 켜진 줄 수(`전투 1`). 고른 칩은 세션 동안 기억(편집기를 닫았다 열어도). 줄 높이 64, 설명 글 그대로. 단추 이름은 전과 같고(`RateExp` …) 새 줄은 `RateMapSpeed`·`RateBattleMove`·`RateIntimGain`·`RateEnergyCost`, 칩은 `RateGroup0`~`4`, 빈 안내는 `RateEmpty`. 분류 표는 `Services/RateGroups.cs`(단위 시험 9줄).
+- **지도 속도**(x1·1.5·2·3): 세계에 있고 전투가 아닐 때 매 프레임 `Time.timeScale`. 0(정지)은 건드리지 않는다. 전투에 들어가면 1(전투 속도 줄이 맡는다), 나오면 다시. 지도 속도와 전투 속도는 걸었다는 기억(`mapApplied`·`speedApplied`)을 따로 두어 서로의 값을 되돌리지 않는다. 날짜 소모는 그대로다.
+- **전투 이동 속도**(x1·1.5·2·3): 전투 플레이어 `data.moveSpeed`에 `AddValue` 처리기(base×(배수−1)). 전투 단위가 바뀌면(새 전투) 다시 건다. 배수를 바꾸면 처리기가 돌려주는 값만 바뀐다. 끄면 같은 단위에서 `DelValue`.
+- **호감 변화**(x1·2·5·10): `RelationData.AddIntim` 접두. 플레이어가 주체이거나 대상인 호출의 양수 value만 곱한다(대화는 양쪽으로 부르므로 나→상대·상대→나 모두). 감소(음수·`AddHate`)와 NPC끼리, 편집기 NPC 탭은 그대로(내 판단).
+- **정력 소모**(x1·0.5·0.25·없음): 매 프레임 지난 값보다 줄었으면 줄어든 양×(1−배율)을 반올림해 돌려준다(`RateGroups.EnergyRefund`). 상한을 넘기지 않는다. 늘어난 것(회복)은 그대로. 편집기는 정력을 올리기만 하므로(능력치 탭 `모두 채우기`) 따로 표시하지 않았다(스펙의 "편집기가 쓴 프레임"은 필요 없었다).
+- 모두 저장하지 않고 게임을 켤 때·세이브를 떠날 때 끈다(기존 규칙). 위쪽 표시(`지도 속도 x2`, `이동 속도 x1.5`, `호감 x5`, `정력 소모 없음`)와 변경 이력에 남는다.
+- 개발 빌드는 처음에 모든 줄을 한 화면에 보인다(`RateTab.ShowAll`, 기존 검사가 줄 이름으로 누른다. 배포 빌드 `-p:DevTools=false`에는 없다). 개발 명령: `ratechip <0~4|all|state>`, `rtrack start|read`(이동 거리·초·속도), `rchat <unitID>`, `rintim <unitID> <값>`(0이면 바꾸지 않고 마지막 곱하기 전→뒤만 읽음), `renergy`, `rmove`. `rstate`에 새 키 넷.
+
+### 86.3 검사
+
+- 새 부분: `rates2`(칩 다섯과 수, 칩마다 줄, 새 줄 단추와 설명, 켜 둔 것, 위쪽 표시, 모두 1배로, 칩 기억. 캡처 `.devremote\check-rates2-on.png`·`check-rates2.png`), `rates2-map`(x3에서 게임 속도 3과 걷기 2배 이상, 끄면 1, 전투 안 1·나오면 3), `rates2-battle`(x2 값, 새 전투 다시, x3 따라감, 끄면 기본값), `rates2-life`(직접 호출 5배, 감소 그대로, 대화 양쪽과 게임 호출의 정확히 5배, 정력 없음·x0.5).
+- 모두 FAIL 0: `rates2`(`rx-p`), `rates2-map`(`rx-p`), `rates2-battle`(`rx-o`), `rates2-life`(`rx-g`), 기존 `rates`(`rx-d`), `rates-battle`(`rx-e`), `itemuse`·`mpnone`·`base`·`tabs`(`rx-f`, `tabs`는 `rx-p`도). 단위 시험 FAIL 0.
+- 검사에서 겪은 함정(기능은 그대로였다):
+  - 함수 이름 `Mv`는 PowerShell 별칭 `mv`(Move-Item)가 먼저 잡는다("Path 매개 변수 없음"). 검사 안 함수 이름은 별칭과 겹치지 않게(`R`도 그렇다).
+  - 전투 끝내기: 전투 전 화면의 `전투 개시`(btnStart, (956,749))를 누르지 않으면 `bend`가 게임 안에서 `ArgumentOutOfRangeException`. 결과 창의 확인 단추는 창보다 늦게 떠, 처음 몇 초는 (959,831)이 창 바탕만 맞는다. 지도 화면이 보여도 전투 장면이 내려가는 중일 수 있어 `inBattle=False`까지 기다린다. 이걸 어기면 다음 전투가 빈 화면으로 뜬다(전투 이동을 끈 채로도 같았다, `rx-n`).
+  - 3칸 걷기는 x3에서 0.4초쯤이라 걷기 빠르기 비율이 2.2~3.0배로 흔들린다. 게임 속도 값은 따로 정확히 본다.
+
+### 86.4 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical·Important 없음. 사소한 것 일곱 가운데 넷을 고쳤다.
+- 전투 속도와 지도 속도를 둘 다 켠 채 전투를 나오는 첫 프레임에 전투 속도 되돌리기가 지도 속도를 1로 덮던 것: 지도 속도가 켜져 있고 걸려 있으면 1을 쓰지 않는다.
+- 정력 돌려주기의 반올림 때문에 1짜리 소모가 x0.5·x0.25에서 공짜가 되던 것: 남길 소모를 올림(줄어든 양 × 배율)으로 두고 나머지를 돌려준다. 대화 −5는 x0.5에서 3이 남는다. 단위 시험 2줄(바꿈 1, 더함 1).
+- 정력 줄 설명: 행동만이 아니라 정력이 줄어드는 모든 경우(사건 등)에 걸린다고 적었다.
+- 단위 시험 파일의 남의 주석 둘이 새 시험 위로 밀려 있던 것을 원래 자리로.
+- 고친 뒤 회차 `rx-r-1027`: `rates2-life`·`rates2-map`·`rates-battle` 모두 FAIL 0, 단위 시험 FAIL 0.
+
+남긴 것:
+- 지도 속도는 `g.world != null && !InBattle`에서 건다. `InBattle`은 `playerUnitCtrl`이 생긴 뒤에만 참이라, 전투 장면을 싣는 동안·내려가는 동안에도 지도 배율이 걸려 그 연출이 빨라질 수 있다. 게임이 지도에서 자기 `timeScale`을 쓰는 경우도 매 프레임 덮는다(미확인).
+- 전투 이동 속도는 지난 전투 단위를 IL2CPP 포인터로만 구분한다(쿨타임의 `cooldownUnit`과 같다). 새 전투의 단위가 같은 주소에 잡히면 그 전투에서 처리기를 걸지 않는다(확률 낮음). 게임이 전투 중에 DynInt 처리기를 비우면 배율이 사라진다(미확인).
+- 개발 명령 `ratechip`·`rintim`의 인자 검사 없음.
+
+### 86.5 확인하지 못한 것
+
+- 전투 이동 속도의 실제 걷는 빠르기(도구로 인물을 움직일 수 없음). 값은 확인했다. 사용자 확인 목록(06 문서 8.0절).
+- 선물·다른 관계 행동(사제·도려 등)의 호감 길. 대화만 확인했다.
+- 정력을 깎는 다른 행동(공격·요청·호송 등)은 훔치기·대화로만 확인했다.
+- 지도 속도에서 달을 넘길 때·지도 사건 연출.

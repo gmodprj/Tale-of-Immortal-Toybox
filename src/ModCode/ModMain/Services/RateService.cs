@@ -173,7 +173,7 @@ namespace MOD_sWP6UL
         public static readonly Rate EnergyCost = new Rate
         {
             Key = "energyCost", Label = "정력 소모", Short = "정력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0f }, ZeroText = "없음",
-            Note = "대화·선물·훔치기 같은 행동에 드는 정력을 곱합니다(없음이면 줄지 않음). 줄어든 뒤 같은 프레임에 돌려주므로 회복은 그대로입니다.",
+            Note = "정력이 줄어드는 양을 곱합니다(대화·훔치기 같은 행동, 사건 등 줄어드는 모든 경우. 없음이면 줄지 않음). 회복은 그대로입니다.",
         };
 
         // All은 위의 줄들보다 뒤에 둔다(정적 필드는 적힌 순서로 초기화된다).
@@ -666,7 +666,11 @@ namespace MOD_sWP6UL
             {
                 return;
             }
-            Time.timeScale = 1f;
+            // 지도 속도가 켜져 있으면 1로 덮지 않는다(전투를 나온 첫 프레임에 지도 속도를 지우지 않게, 최종 리뷰).
+            if (!(MapSpeed.On && mapApplied))
+            {
+                Time.timeScale = 1f;
+            }
             speedApplied = false;
         }
 
