@@ -241,7 +241,8 @@ namespace MOD_sWP6UL
 
         private static string FolderStamp()
         {
-            return FileStamp.Of(Dir, "*.json");
+            // .defaults(풀어 놓은 기본 파일 기록)도 표지에 넣는다. 밖에서 지우거나 고치면 다음에 다시 읽는다(05 문서 85절).
+            return FileStamp.Of(Dir, "*.json") + "#" + FileStamp.Of(Dir, PresetDefaults.RecordName);
         }
 
         public static List<Preset> ListCached()

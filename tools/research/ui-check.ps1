@@ -167,6 +167,10 @@ switch ($Part) {
     # fallback은 영어 플래그 1 + 원문으로 둔 3행(미성년 묘사) = 4. 두 번째 Init이면 플래그의 kr이 이미 ch라 3.
     Check 'translations are applied on init' ($s -match 'file=(풀어 둠|있음|덧붙임 9666|덧붙임 9909|덧붙임 15360) rows=16184 applied=16184 fallback=[56] unused=0 broken=0') $s
     Check 'the translation file was written to the data folder' (Test-Path -LiteralPath $tfile) $tfile
+    # 05 문서 85절: 번역을 다시 적용하면 도호 탭의 대경지 이름 캐시를 비운다(도호 탭을 그려 채운 뒤).
+    Cmd 'rperf apl' 300 20000 | Out-Null
+    $ra = Cmd 'rloc apply' 300 30000
+    Check 'applying translations again empties the realm name cache' ($ra -match 'names=([1-9]\d*)') $ra
     $k = Cmd 'rloc key skill_name_middle984555698' 300
     Check 'a mod skill name resolves to Korean' ($k -match 'ls=열염장 kr=열염장 ch=烈炎掌') $k
     Check 'a mod term resolves to Korean' ((Cmd 'rloc key s_shenqiang' 300) -match 'ls=신창') (Cmd 'rloc key s_shenqiang' 300)
@@ -308,11 +312,12 @@ switch ($Part) {
     Cmd 'ui set ItemQuery 열염' | Out-Null   # 줄이 화면 밖일 수 있으므로 검색으로 띄운다
     Press 'BookName984555698' | Out-Null
     $d = Cmd 'uitext ItemDetail'
-    Check 'the box below explains a mod skill' ($d -match '\[모드\], 경지 1~10\(모드 공법\)' -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '옵션 번호를 모드 것으로') $d
+    $g = if ((Cmd 'rmods 3' 300 20000) -match '984555698:[^,]*:g(\d+)-(\d+)') { "경지 $($Matches[1])~$($Matches[2])\(비급을 만들 수 있는 경지\)" } else { 'no-rmods-range' }
+    Check 'the box below explains a mod skill' ($d -match "\[모드\], $g" -and $d -match '지급하면: 경지 3의 비급 1권' -and $d -match '최소 품질을 적용하지 않습니다' -and $d -match '옵션 번호를 모드 것으로') $d
     Cmd 'ui set ItemQuery 천살' | Out-Null
     Press 'BookName59898952' | Out-Null
     $d = Cmd 'uitext ItemDetail'
-    Check 'the box below no longer refuses the ultimate' ($d -notmatch '지급할 수 없습니다' -and $d -match '\[모드\], 경지 1~10\(모드 공법\)') $d
+    Check 'the box below no longer refuses the ultimate' ($d -notmatch '지급할 수 없습니다' -and $d -match '\[모드\], 경지 \d+~\d+\(비급을 만들 수 있는 경지\)') $d
     $before = BookCount 984555698
     Cmd 'ui set ItemQuery 열염' | Out-Null
     Press 'item1' | Out-Null

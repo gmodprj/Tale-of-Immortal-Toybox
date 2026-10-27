@@ -3650,3 +3650,47 @@
 - 편집기를 뺀 회차의 첫 달 넘기기에서 NPC 대화(충상양이 "호연 여동"에게 도움을 청하자는 이야기)의 선택지 세 칸이 글 없이 `0`만 보였고, 선택지가 눌리지 않아(맨 위가 `DramaDialogue/G:btnNext`) 대화에서 멈췄다. 게임을 다시 띄우자 다른 사건이 떴다. 편집기가 있을 때 같은 사건이 정상인지는 비교하지 못했다(회차 D는 절도 사건, 선택지 글 정상). 편집기의 글 바꿔 끼우기(54·74절)가 빠진 탓인지, 그 사건 자체의 문제인지 모른다. 다시 보이면 편집기 있는 회차에서 그 사건의 선택지 표를 찾아 비교한다.
 - 넘친 가방(90/64)에서 아이템을 얻거나 버릴 때, 편집기를 뺀 채 여러 달 플레이할 때.
 - 편집기의 모드 공법 비급(42절)이 든 세이브. 그 비급은 창작마당 모드의 것이라 그 모드를 뺄 때의 문제다.
+
+## 85. 미룬 사소한 것 묶음 (2026-10-27)
+
+06 문서 8.0절 1번. 사용자 결정(2026-10-27): 고침 1~7과 측정 8·9를 한 묶음으로. 스펙 `docs/superpowers/specs/2026-10-27-deferred-fixes-design.md`, 계획 `plans/2026-10-27-deferred-fixes.md`, 브랜치 `fix/deferred-1027`. 회차 `dfx-0-1027`(고치기 전 측정)·`dfx-a`~`g-1027`, 모두 고정본, `g`만 만고신화 포함, 끝은 `SAVE RESTORED AND IDENTICAL`.
+
+### 85.1 고친 것(원래 절)
+
+- **80절** 전투 영력·집중력 막기 `RateGuards.IsPlayerBattleData`: `SceneType.battle`부터 하나씩 null을 보고 넘긴다. 답은 전과 같고 예외 로그만 없다. 전투 장면 전환 순간은 게임에서 흉내 내지 않았다(`mpnone` 통과).
+- **78절** 자원 탭 모드 비급의 아래 칸이 늘 `경지 1~10(모드 공법)`이었다. 이제 `경지 2~10(비급을 만들 수 있는 경지)`처럼 `BookGradeMin~BookGradeMax`.
+- **78절** 원본 없는 모드 줄: `BookShown`이 모드 줄도 `BlockReason == null`을 본다(그 경지에 원본으로 쓸 기본 공법이 없으면 숨김). 지금 모드 40개(만고신화 포함)에는 그런 줄이 경지 1~10 어디에도 없다(`rmods <경지>`의 새 칸 `noSource=0`). 앞으로 생길 때의 막기다. 기술 서적 그룹 그리기 시간은 고치기 전 43~65 ms, 뒤 36~64 ms(262줄)라 캐시는 두지 않았다.
+- **79절** 프리셋 폴더 표지(`PresetService.FolderStamp`)에 `.defaults`를 넣었다. 검사 `preset-check files`의 `the cached list reads again when .defaults is deleted outside`.
+- **79절** 도호 탭의 대경지 이름 캐시를 `TranslationService.Apply`(`rloc apply`)와 `ModMain.Destroy`에서 비운다(`AppellationService.ForgetNames`). `rloc` 답 끝에 `names=<비운 수>`. 검사 `translation`의 `applying translations again empties the realm name cache`.
+- **81절** 설정 파일 로그(읽기·저장·만들기 실패 여섯 줄)의 `을(를)`을 받침으로 고른다(`Services/KoreanText.cs`의 `Object`. 한글 음절이 아니면 `을(를)`. 단위 시험 6). 입출력 실패는 흉내 내지 않았다. 다른 곳의 `을(를)`은 그대로다(전승 떼기 문구 하나만 이것으로 바꿈).
+- **82.3절** 법보·전승:
+  - `GradeUpTo`가 되풀이 중이나 끝에서 법보를 찾지 못하면 멈추고 알린다.
+  - `GradeUpOne`은 경지가 오르지 않았어도 비율이 바뀌었으면 옛 비율로 되돌린다.
+  - `SetStageNoBackup`·`CloseMax`의 쓰기를 try로 감쌌다.
+  - 경지 10을 넘은 법보는 `이미 경지 14입니다(최대 10을 넘음).`
+  - `{"suitID":0}`만 적힌 비급을 떼면 `빈 전승 기록을 지웠습니다.`(검사 `trainer3-check suit`의 `removing an empty suit record says so`).
+  - 전승 쓰기 확인이 어긋나면 옛 `valuesStr`로 되돌린다(공법 탭·`msuit` 길만. 프리셋 적용 길은 그대로).
+  - 게임에서 흉내 내지 않은 것: 법보가 사라짐, 비율만 깎고 던짐, 쓰기 예외, 전승 확인 실패. 기령 줄 글 `친밀`(폭)은 그대로다.
+- **83.4절** 대도까지 채우기:
+  - 다시 만들기가 실패하면 올린 수도 점수를 되돌린다. 검사 `mastery-check service`의 `a failed remake of an equipped ability puts the points back`(장착 심법 6oIJ5D, 실제로 올렸다가 되돌림. `INFO points were raised and put back`).
+  - 수도 점수 올리기가 다른 값을 남기면 `SetAttribute`의 문구를 붙인다.
+  - 다시 만들기에서 옛 옵션 수치 복사를 확인해, 다르면 실패로 되돌린다(장착 전에 본다).
+  - 새 공법이 옛 칸이 아닌 칸에 장착되면 실패로 되돌린다.
+  - 끼워 넣기 실패 뒤 값 배열이 옛 것과 같은지 보고, 다르면 `되돌리지 못했을 수 있습니다`.
+  - 옵션 11개면 공법 탭 줄이 `수련 단계 12/12 · 대도까지 있음`(검사 `mastery-check ui`의 `the stage text says it reaches the last stage`).
+  - 그 글 칸에 `resizeTextForBestFit`(9~12)를 켜 긴 까닭 글이 잘리지 않게 했다. `Ui.Label`이 세로 넘침을 Overflow로 두면 BestFit이 줄이지 않으므로(최종 리뷰) 그 칸만 `Truncate`로 둔다. 검사 `the stage text fits its box`(`ifit MasteryText` 0), 캡처 `.devremote\check-mastery-stage.png`(두 줄, 칸 안). 긴 까닭 글(규칙 위반·자리 없음)이 실제로 줄어드는 모습은 고정본에 그런 공법이 없어 보지 못했다.
+  - 그대로 둔 것: 그릴 때마다 후보 계산 반복, try 밖의 게임 호출, 단계 이름 대응은 캡처로만 확인.
+
+### 85.2 잰 것
+
+- **77절** 비급 즐겨찾기 줄이 있을 때 자원 탭 첫 열기: 재시작 직후 `rperf tabs`의 자원 211 ms(비급 줄 없이 217 ms, `dfx-f-1027`). 77절의 929 ms는 다시 나오지 않았다. 다만 첫 열기가 즐겨찾기 그룹을 그리는지는 확인하지 않았다(미확인).
+- **80절** 비급 한 권(품질 6)의 시간: 기본 공법 13111·모드 공법 3535351, 경지 3·9에서 `rbook … 1`이 명령 채널 왕복을 합쳐 1.4~1.8초. 짧은 명령 `cstate`의 왕복이 1.7~1.9초라 뽑기 자체는 재지 못할 만큼 짧다. 2초 상한이 첫 권에서 넘칠 일은 지금 없다.
+- 둘 다 1초를 넘지 않아 고치지 않는다.
+
+### 85.3 검사
+
+최종 리뷰(opus 한 번): Critical 없음. Important 하나(위의 BestFit과 세로 넘침)를 고쳤고, 사소한 것 가운데 전승 쓰기의 죽은 갈래 정리·되돌린 값 확인·시험 이름을 고쳤다. 남긴 것: 전승 정규식 세 곳 중복, `BookShown`이 그리기마다 `BlockReason`을 세 번 부름(측정에 차이 없음. 줄이려면 (분류, 경지)별로 원본 유무를 기억).
+
+모두 FAIL 0: `ui-check` `base`·`tabs`·`books-ui`·`modbooks`(`dfx-a`), `mastery-check ui`·`trainer3-check suit`(리뷰 뒤 `dfx-h`·`i`), `preset-check` `files`·`ui`(`dfx-a`), `mastery-check ui`(`dfx-b`), `mastery-check service`(`dfx-c`·`e`), `treasure-check` `service`·`forge`·`give`, `trainer3-check suit`, `ui-check mpnone`(`dfx-d`), `ui-check translation`(`dfx-g`, 만고신화 포함). 단위 시험 FAIL 0.
+
+함정: 작업 폴더가 `src\ModCode\ModMain`으로 바뀐 채 `pwsh -File tools/...` 상대 경로를 주면 회차가 열리지 않는다. 회차 명령은 절대 경로로 준다. `modbooks` 뒤의 `rperf query - Manual`은 `모드만` 칩이 켜진 채라 줄 수가 다르다(76줄). 시간 비교는 깨끗한 회차에서 한다.

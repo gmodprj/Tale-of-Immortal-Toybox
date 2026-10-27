@@ -36,6 +36,10 @@ switch ($Part) {
     Check 'foreign valuesStr is refused' ($r -match '다른 정보' -and (State $s83) -match 'values=\{"x":1\}') "$r | $(State $s83)"
     $r = Cmd "msuit $s83 0" 500
     Check 'foreign valuesStr is not removed either' ($r -match '다른 정보' -and (State $s83) -match 'values=\{"x":1\}') "$r | $(State $s83)"
+    # 05 문서 85절: {"suitID":0}만 적힌 비급을 떼면 "빈 전승 기록"이라고 한다(전에는 "전승 0을(를) 뗐습니다" 꼴)
+    Cmd "mvalues $s83 {`"suitID`":0}" 300 | Out-Null
+    $r = Cmd "msuit $s83 0" 500
+    Check 'removing an empty suit record says so' ($r -match '빈 전승 기록을 지웠습니다' -and (State $s83) -match 'values=$') "$r | $(State $s83)"
     Cmd "mvalues $s83 -" 300 | Out-Null
     # NPC 대상
     $npc = if ((Cmd 'trnpc any' 300) -match 'target=(\S+)') { $Matches[1] } else { '' }

@@ -54,7 +54,8 @@ namespace MOD_sWP6UL
             // 모드 공법은 고른 경지에서 비급이 만들어지는 줄만 보인다("이 경지만"과 무관. 사용자 결정 2026-10-23: 못 만드는 줄은 아예 숨김, 05 문서 78절).
             if (entry.IsMod)
             {
-                return SkillCatalog.ModBookFits(entry, BookGrade);
+                // 그 경지에 원본으로 쓸 기본 공법이 없는 줄도 숨긴다(꺼진 단추로 남기지 않음. 05 문서 85절).
+                return SkillCatalog.ModBookFits(entry, BookGrade) && SkillCatalog.BlockReason(entry, BookGrade) == null;
             }
             return !bookFit || SkillCatalog.BlockReason(entry, BookGrade) == null;
         }
@@ -232,7 +233,8 @@ namespace MOD_sWP6UL
         {
             SkillCatalog.Entry skill = r.Skill;
             string head = skill.Name + "  [" + skill.BaseId + "]  " + SkillCatalog.Kinds[r.SkillKind].Tab
-                + (skill.IsMod ? " [모드], 경지 1~10(모드 공법)" : ", 경지 " + skill.GradeMin + "~" + skill.GradeMax);
+                + (skill.IsMod ? " [모드], " + (skill.BookGradeMax > 0 ? "경지 " + skill.BookGradeMin + "~" + skill.BookGradeMax + "(비급을 만들 수 있는 경지)" : "비급을 만들 수 없음")
+                    : ", 경지 " + skill.GradeMin + "~" + skill.GradeMax);
             string note = "";
             if (skill.IsMod)
             {

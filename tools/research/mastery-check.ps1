@@ -58,6 +58,13 @@ switch ($Part) {
     Cmd 'mffailequip' 200 | Out-Null
     $r = Cmd 'mfremake bUvsGP roll' 3000
     Check 'remake rolls back when equip fails' ($r -match '그대로' -and (Vals 'bUvsGP') -match 'equip=1 exp=1138 ' -and (Count) -eq $n0 -and (Cmd 'pstate' 300) -match 'right=22111 ') "$r | $(Vals 'bUvsGP') | n0=$n0 now=$(Count)"
+    # 5b') 장착 심법 6oIJ5D 다시 만들기에서 장착 실패 흉내: 올린 수도 점수를 되돌린다(05 문서 85절)
+    $ap0 = if ((Cmd 'pstate' 300) -match ' ap=(\d+) ') { [int]$Matches[1] } else { -1 }
+    Cmd 'mffailequip' 200 | Out-Null
+    $r = Cmd 'mfremake 6oIJ5D roll' 3000
+    $ap1 = if ((Cmd 'pstate' 300) -match ' ap=(\d+) ') { [int]$Matches[1] } else { -2 }
+    Check 'a failed remake of an equipped ability puts the points back' ($r -match '그대로' -and $ap1 -eq $ap0 -and (St '6oIJ5D') -notmatch 'opts=11 ') "$r | ap $ap0 -> $ap1"
+    if ($r -match '수도 점수는 \d+\(으\)로 되돌렸습니다') { 'INFO points were raised and put back' } else { 'INFO the remake did not need to raise points' }
     # 5c) 장착 심법에 끼워 넣기: 수도 점수가 모자라지 않게
     $r = Cmd 'mfinsert 6oIJ5D roll' 1500
     $ps = Cmd 'pstate' 300
@@ -117,6 +124,9 @@ switch ($Part) {
     Press 'Back' | Out-Null
     Pick 'tIjlr1'
     Check 'the stage text shows 12/12 and the button is off' ((Text 'MasteryText') -match '12/12' -and (IsOffBtn 'MasteryOpen')) (Text 'MasteryText')
+    Check 'the stage text says it reaches the last stage' ((Text 'MasteryText') -match '대도까지 있음') (Text 'MasteryText')
+    Check 'the stage text fits its box' ((Cmd 'ifit MasteryText' 300) -match '(^|\D)0(\D|$)') (Cmd 'ifit MasteryText' 300)
+    Shot 'mastery-stage'
     # 옵션 11개가 모두 그려진다(사용자 보고 2026-10-23: 6개까지만 보임)
     Check 'all eleven option rows are drawn' ((Has 'OptionText10') -and (Has 'QualityMax10') -and (IsAt 'MartialEquip')) (Text 'OptionText10')
     Shot 'mastery-options'

@@ -25,11 +25,11 @@ namespace MOD_sWP6UL
             }
             catch (IOException e)
             {
-                MelonLogger.Msg("[TlToybox] " + what + "을(를) 읽지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 읽지 못했습니다: " + e.Message);
             }
             catch (UnauthorizedAccessException e)
             {
-                MelonLogger.Msg("[TlToybox] " + what + "을(를) 읽지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 읽지 못했습니다: " + e.Message);
             }
             return Parse(new string[0]);
         }
@@ -45,11 +45,11 @@ namespace MOD_sWP6UL
             }
             catch (IOException e)
             {
-                MelonLogger.Msg("[TlToybox] " + what + "을(를) 저장하지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 저장하지 못했습니다: " + e.Message);
             }
             catch (UnauthorizedAccessException e)
             {
-                MelonLogger.Msg("[TlToybox] " + what + "을(를) 저장하지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 저장하지 못했습니다: " + e.Message);
             }
         }
 
@@ -66,11 +66,11 @@ namespace MOD_sWP6UL
             }
             catch (IOException e)
             {
-                MelonLogger.Msg("[TlToybox] " + what + "을(를) 만들지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 만들지 못했습니다: " + e.Message);
             }
             catch (UnauthorizedAccessException e)
             {
-                MelonLogger.Msg("[TlToybox] " + what + "을(를) 만들지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 만들지 못했습니다: " + e.Message);
             }
         }
     }

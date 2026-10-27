@@ -87,6 +87,7 @@ namespace MOD_sWP6UL
             InputGuard.Release();
             PointerGuard.Release();
             TextPatch.ResetStats();
+            AppellationService.ForgetNames();
 #if DEVTOOLS
             StopDevPoll();
 #endif
