@@ -1,13 +1,15 @@
-# 06. 작업 인계 (2026-10-24 기준)
+# 06. 작업 인계 (2026-10-27 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
-세부 실험 기록은 `docs/05-editor-v0.1.md`(1~83절)에 있고, 이 문서는 그 길잡이다.
+세부 실험 기록은 `docs/05-editor-v0.1.md`(1~86절)에 있고, 이 문서는 그 길잡이다.
 
 **이어받는 순서**: 아래 "지금 한 줄 요약"을 읽고 → 8.0절(다음에 할 일)을 읽고 → 일을 시작할 때 5절(검증 방법)과 6절(함정)을 본다. 1절의 날짜별 줄은 필요할 때만.
 
-**지금 한 줄 요약(2026-10-24)**:
+**지금 한 줄 요약(2026-10-27)**:
+- **2026-10-27에 끝낸 것(셋, 모두 develop에 병합, 게임 설치는 하지 않음)**: 모드를 뺀 뒤의 세이브 동작 확인(05 문서 84절, `session.ps1 -NoEditor`), 미룬 사소한 것 묶음(85절), 배율 탭 확장 — 분류 칩 다섯과 지도 속도·전투 이동 속도·호감 변화·정력 소모(86절). 그래서 `develop`이 `main`보다 앞서 있다(다음 릴리스 때 병합). 게임 설치본은 여전히 022d832다.
+- 남은 일은 8.0절: 사용자 확인(전투 이동 속도의 실제 걷는 빠르기 등), 12 문서 5절의 남은 트레이너 기능, 게임 설치.
 - **첫 릴리스**: 2026-10-24에 `develop`을 `main`에 `--no-ff`로 병합했다(사용자 지시 "develop to main"). 그 전까지 `main`은 초기 커밋 그대로였다. 이제 `main` = `develop`(이 문서 정리까지)이다.
-- 게임 설치본은 022d832(2026-10-23 22:18. 1절 "지금 게임에 설치된 것"). 그 뒤의 변경은 문서뿐이라 배포 기능은 `main`과 같다.
+- 게임 설치본은 022d832(2026-10-23 22:18. 1절 "지금 게임에 설치된 것"). 2026-10-24까지는 그 뒤의 변경이 문서뿐이었고, 2026-10-27의 세 묶음은 아직 설치하지 않았다.
 - 2026-10-23에 끝낸 것: 12 문서의 묶음 1~5(05 문서 77~81절), 묶음 6 트레이너 3차 (가)(82절), 수련 단계 대도까지 채우기(83절), 사용자 보고 둘(공법 탭 옵션 11줄 표시 83.6절, 모드 기술 이름의 색 태그 83.7절).
 - 남은 큰 일은 8.0절: 묶음 6 (나) 배율 탭 확장, 각 절 끝에 미룬 사소한 것, 사용자 확인 목록.
 - 일하는 방식(2026-10-23에 굳어진 것): 묶음마다 brainstorming → 설계 전 실험(실험 브랜치 `feat/*-research`, 회차) → 스펙(`docs/superpowers/specs/`) → 검토자 서브에이전트의 질문 → 계획(`docs/superpowers/plans/`) → 이 세션에서 직접 실행(executing-plans, 진행 기록은 `.superpowers/sdd/<계획>/progress.md`, 끝나면 지움) → 브랜치 전체를 opus 검토자 한 번 → Critical·Important만 시험부터 고치고 문서 → 사용자 확인 뒤 `--no-ff` 병합과 브랜치 삭제. 설치 기록은 `docs/install-*` 문서 브랜치로 남긴다. 사용자 보고 같은 작은 고침은 `fix/*` 브랜치에서 검사 줄을 먼저 더하고 고친다.
@@ -18,7 +20,7 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다. `main`은 2026-10-24에 `develop`을 처음 병합했다(첫 릴리스, 요약 참고). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열일곱(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리, 2026-10-22에 `feat/perf-research`·`feat/mastery-research`, 2026-10-23에 `feat/trainer3-research` 추가. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
+- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다. `main`은 2026-10-24에 `develop`을 처음 병합했다(첫 릴리스, 요약 참고). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 열아홉(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리, 2026-10-22에 `feat/perf-research`·`feat/mastery-research`, 2026-10-23에 `feat/trainer3-research`·`feat/mastery2-research`, 2026-10-27에 `feat/rate2-research` 추가. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
 - **지금 게임에 설치된 것**(2026-10-23 22:18 기준. 앞 설치본의 기록은 8.8절):
   - **2026-10-23 22:18 갱신(83.7절)**: 편집기 DLL을 `develop` 022d832로 바꿨다 — 사용자 지시("모드 기술 이름에 남는 COLORFFAA00…COLOR 색 표시도 고쳐 줘. 검증하고 develop에 병합한 뒤 설치까지")·게임 꺼짐 뒤 `tools/install.ps1`, `installed build: 022d832`(3,017,216바이트). 바로 앞 설치본은 e0be677(21:53). 고친 것: 모드 기술 이름의 색 태그 글자(이름 다듬기 전에 태그 지움).
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
@@ -702,7 +704,7 @@ PowerShell과 도구:
 
 ### 8.7 남겨 둔 것
 
-- 실험 브랜치 열넷(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`, `feat/workshop-research`, `feat/modskill-research`, `feat/korean-research`, `feat/ultimate-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다. 2026-10-22에 열다섯째 `feat/perf-research`(측정 명령 `rperf`, 12 문서), 열여섯째 `feat/mastery-research`(수련 단계 조사 명령 `ms*`, 05 문서 76절)를 더했다. 2026-10-23에 열일곱째 `feat/trainer3-research`(트레이너 3차 설계 전 실험 명령 `t3*`, 생성자도 읽는 `xrefl`, 05 문서 82절), 열여덟째 `feat/mastery2-research`(76절의 `ms*`에 제자리 끼워 넣기 실험 `msvals`·`msinsert`, 83절)를 더했다.
+- 실험 브랜치 열넷(`feat/date-bag-research`, `feat/ui-rework-research`, `feat/bag-export-research`, `feat/char-export-research`, `feat/multiplier-research`, `feat/preset-research`, `feat/immortal-research`, `feat/artifact-research`, `feat/martialbook-research`, `feat/appellation-research`, `feat/workshop-research`, `feat/modskill-research`, `feat/korean-research`, `feat/ultimate-research`): 사전 실험 명령이 들어 있다. 사용자가 남기기로 했다. `develop`에 병합하지 않는다. 2026-10-22에 열다섯째 `feat/perf-research`(측정 명령 `rperf`, 12 문서), 열여섯째 `feat/mastery-research`(수련 단계 조사 명령 `ms*`, 05 문서 76절)를 더했다. 2026-10-23에 열일곱째 `feat/trainer3-research`(트레이너 3차 설계 전 실험 명령 `t3*`, 생성자도 읽는 `xrefl`, 05 문서 82절), 열여덟째 `feat/mastery2-research`(76절의 `ms*`에 제자리 끼워 넣기 실험 `msvals`·`msinsert`, 83절)를 더했다. 2026-10-27에 열아홉째 `feat/rate2-research`(배율 탭 확장 설계 전 실험 명령 `r2*`, 86절)를 더했다.
 - 모드의 자동 백업(`TlToybox\backups`, 약 100개, 약 300MB): 사용자가 지우지 않기로 했다. 고정본의 원본(`20261013-125814`)이 여기 있다.
 - `.devremote`의 세이브 복사본: `-End`가 최근 다섯 회차의 것만 남긴다. 조사 산출물도 여기 있다: `zh-all.txt`·`zh-display-20261017.txt`·`zh-left.txt`(53·54절), `playerprefs-Mod_LoadData-*.txt`(52절), 캡처 `zh-1017*.png`·`check-treasure.png`·`fu-1017b-*.png`.
 - 2026-10-17 저녁에 사용자 지시로 지운 브랜치·워크트리: `feat/zh-korean`·`docs/install-1017b`(워크트리 `zh-korean`), `fix/editor-followups`·`feat/treasure-tab`·`docs/install-1017c`(워크트리 `editor-followups`). 모두 develop에 병합된 뒤였다.
