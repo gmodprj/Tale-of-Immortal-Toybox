@@ -207,6 +207,8 @@ namespace MOD_sWP6UL
                 340, box + 280 + grown, 160, 44, blocked || full ? 12 : 16);
             stageText.gameObject.name = "MasteryText";
             // 긴 까닭 글이 두 줄 칸에서 잘리지 않게 글자를 줄여 맞춘다(05 문서 85절).
+            // Ui.Label은 세로 넘침을 Overflow로 두는데, 그러면 BestFit이 줄이지 않는다(최종 리뷰). 칸 안으로 자른다.
+            stageText.verticalOverflow = VerticalWrapMode.Truncate;
             stageText.resizeTextForBestFit = true;
             stageText.resizeTextMinSize = 9;
             stageText.resizeTextMaxSize = blocked || full ? 12 : 16;

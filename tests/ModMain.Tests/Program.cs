@@ -246,7 +246,8 @@ namespace MOD_sWP6UL
         {
             Check("object after a final consonant", KoreanText.Object("번역 목록") == "번역 목록을");
             Check("object after no final consonant", KoreanText.Object("창 위치") == "창 위치를");
-            Check("object after rieul", KoreanText.Object("신기 단축키 설정") == "신기 단축키 설정을" && KoreanText.Object("물") == "물을");
+            Check("object after ieung", KoreanText.Object("신기 단축키 설정") == "신기 단축키 설정을");
+            Check("object after rieul", KoreanText.Object("물") == "물을" && KoreanText.Object("설정 파일") == "설정 파일을");
             Check("object after latin", KoreanText.Object("config") == "config을(를)");
             Check("object after a digit", KoreanText.Object("목록 3") == "목록 3을(를)");
             Check("object of empty and null", KoreanText.Object("") == "을(를)" && KoreanText.Object(null) == "을(를)");

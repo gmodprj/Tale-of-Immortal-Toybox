@@ -872,12 +872,12 @@ namespace MOD_sWP6UL
                 // 확인이 어긋나면 쓴 값을 옛 것으로 되돌린다(05 문서 85절. 프리셋 길은 그대로).
                 action.data.valuesStr = oldValues;
                 RefreshSuits(unit);
-                ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), "쓰기 실패(되돌림)", false);
-                return name + ": 전승을 쓰지 못해 옛 값으로 되돌렸습니다.";
+                bool back = (action.data.valuesStr ?? "") == oldValues;
+                ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), "쓰기 실패" + (back ? "(되돌림)" : ""), false);
+                return back ? name + ": 전승을 쓰지 못해 옛 값으로 되돌렸습니다." : name + ": 전승을 쓰지 못했고 옛 값으로도 되돌리지 못했습니다(공법 탭에서 확인하세요).";
             }
-            ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), PresetService.SuitName(suitId), ok);
-            return ok ? name + ": 전승 " + (before == 0 ? "없음" : PresetService.SuitName(before)) + " → " + PresetService.SuitName(suitId) + "."
-                : name + ": 전승을 쓰지 못했습니다.";
+            ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), PresetService.SuitName(suitId), true);
+            return name + ": 전승 " + (before == 0 ? "없음" : PresetService.SuitName(before)) + " → " + PresetService.SuitName(suitId) + ".";
         }
 
         public static string RemoveSuit(WorldUnitBase unit, string soleId)

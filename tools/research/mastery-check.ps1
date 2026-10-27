@@ -125,6 +125,8 @@ switch ($Part) {
     Pick 'tIjlr1'
     Check 'the stage text shows 12/12 and the button is off' ((Text 'MasteryText') -match '12/12' -and (IsOffBtn 'MasteryOpen')) (Text 'MasteryText')
     Check 'the stage text says it reaches the last stage' ((Text 'MasteryText') -match '대도까지 있음') (Text 'MasteryText')
+    Check 'the stage text fits its box' ((Cmd 'ifit MasteryText' 300) -match '(^|\D)0(\D|$)') (Cmd 'ifit MasteryText' 300)
+    Shot 'mastery-stage'
     # 옵션 11개가 모두 그려진다(사용자 보고 2026-10-23: 6개까지만 보임)
     Check 'all eleven option rows are drawn' ((Has 'OptionText10') -and (Has 'QualityMax10') -and (IsAt 'MartialEquip')) (Text 'OptionText10')
     Shot 'mastery-options'
