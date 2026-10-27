@@ -3614,3 +3614,135 @@
 ### 83.7 고침: 모드 기술 이름에 `COLORFFAA00…COLOR`가 남음 (2026-10-23)
 
 사용자 보고(설치본 e0be677, 공법 탭). 모드(만고신화 등)의 기술 이름 원문은 `<COLOR=#FFAA00>초자검결</COLOR>`처럼 색 태그를 가진다. 이름을 다듬는 `EditService.Compact`가 글자·숫자만 남기면서 태그 안의 `COLOR`·`FFAA00`까지 남겼다(72절의 태그 지우기는 기술 카탈로그에만 있었다). `Compact`가 `TextTags.CompactName`(태그를 먼저 지운 뒤 글자·숫자만)을 쓰게 해, 공법·기령·명우·신혼·세트 이름 등 `Compact`를 거치는 모든 이름이 고쳐진다. 브랜치 `fix/mod-name-color`. 단위 시험 4줄(RED→GREEN). 개발 명령 `mfname`(익힌 공법의 다듬은 이름|원문)·`mfmake <분류> <번호> <경지>`(옵션 없이 만들어 배우기. 모드 공법은 편집기 배우기 길이 막혀 있어 검사 준비용), 검사 `mastery-check.ps1 -Part modname`(만고신화가 실린 회차, -Exclude 없이): 원문에는 태그가 있고 편집기 이름에는 `COLOR`가 없음, 캡처 `.devremote\check-modname.png`. 회귀: `ui-check` `translation`·`groups`(회차 `mf-1023o`), `tabs`·`base`·`preset-check state`(`mf-1023p`), `items`(`mf-1023q`) 모두 FAIL 0. `Compact(null)`은 전에 예외였고 이제 빈 글이다.
+
+## 84. 모드를 뺀 뒤의 세이브 동작 (2026-10-27 확인)
+
+첫 릴리스 때 확인하기로 한 것(06 문서 7절 표, 8.0절 2번). 편집기로 바꾼 값이 든 세이브를 편집기 없이 불러오고, 편집기 없이 저장된 그 세이브에 편집기를 다시 넣었다. 브랜치 `feat/session-noeditor`.
+
+### 84.1 도구: `session.ps1 -NoEditor`
+
+- `-Begin`과 함께 쓴다. 빌드·설치를 건너뛰고, 표식을 남긴 뒤 편집기 폴더 `ModExportData\Mod_sWP6UL`을 `-Exclude`와 같은 작업 폴더(`.devremote\session-parked-mods`)로 옮긴다(`EDITOR PARKED: Mod_sWP6UL`). `-End`가 되돌린다(`MOD RESTORED: Mod_sWP6UL`).
+- 편집기가 없으면 준비 로그(`TlToybox] state: ready`)가 없으므로 배포 빌드처럼 30초 기다린다(`session.mode`=`noeditor`, `WAITED 30 s`). `-Restart`도 같다.
+- `-ReleaseBuild`와 함께 쓰면 거부, 편집기 폴더가 없으면 회차를 열지 않는다. 시험 4개(`session.tests.ps1` 45개).
+- 편집기가 없는 동안에는 개발 명령(`mod.ps1`)이 없다. 화면은 `rc.ps1`(`hit`·`click`)과 `win.ps1 -Do shot`으로만 본다. 캡처 좌표 → 게임 좌표는 `(x / Scale - 8, y / Scale - 31)`을 빠뜨리지 않는다.
+
+### 84.2 절차와 회차
+
+1. 회차 `noed-a-1027`(편집기 있음, `-Fixture base -Exclude 2814696167`): `mastery-check persist`(청풍검 끼워 넣기·광혈참 다시 만들기, 옵션 11줄), `trainer3-check persist`(법보 3031101 경지 7·단계 6, 기령 친밀도 최대, 심법 85001 전승 10025, 참오 결과 최대)로 바꾸고 저장. `-End` 뒤 남은 `save-before-restore-noed-a-1027`로 고정본 `edited`를 만들었다(`.devremote\fixtures\edited`, git 제외).
+2. 회차 `noed-b-1027`(`-Fixture edited -Exclude 2814696167 -NoEditor`): 불러오기, 가방·기술 화면, 달 넘기기. 게임이 편집기 없이 새 달(2년 3월)을 자동 저장했다. 그 세이브(`save-before-restore-noed-b-1027`)로 고정본 `noed-after`.
+3. 회차 `noed-c-1027`(편집기 다시 넣음, `-Fixture noed-after -Exclude 2814696167`): 개발 명령으로 값을 읽어 1과 비교, 전투에서 기술 쓰기, 인물 화면.
+4. 회차 `noed-d-1027`(편집기 있음, `-Fixture edited`): 3번의 빈 선택지 사건과 비교하려고 달을 넘김(다른 사건이 떠 비교하지 못함).
+
+모든 회차 `SAVE RESTORED AND IDENTICAL`, `-NoEditor` 회차는 `MOD RESTORED: Mod_sWP6UL`.
+
+### 84.3 결과
+
+- **불러오기는 된다.** 편집기가 없어도 세이브 진입 전 모드 경고 창(`TextInfoLong`)이 뜨고 확인을 누르면 지도에 들어간다(편집기가 있을 때도 같은 창이 뜬다). 세이브가 깨졌다는 창은 없었다.
+- **편집기로 바꾼 값은 세이브에 남는다.** 편집기 없이 저장된 세이브에 편집기를 다시 넣고 읽은 값이 1과 같다: `cstate`(경지 9, 공법 28, 역천개명 `2:700016,3:700040`), `tr`(황염호각 g7, 기령 운몽의), `pstate`(수도 점수 62/54, 85001 전승 10025), `mfstate fY5GR9`(`opts=11 stages=12 last=대도`). 편집기가 없는 동안에도 게임 기술 화면에서 청풍검이 `대성`·`장비 중`으로 보였다.
+- **가방 추가 칸은 편집기가 없으면 사라진다(아이템은 남음).** 추가 칸은 세이브가 아니라 `TlToybox\bag-slots.txt`에 있고 편집기가 실행 중에 건다(25절). 편집기 없이 가방은 `가방 용량: 90/64`(90이 빨간 글자)로 보였고 아이템 90개는 그대로였다. 편집기를 다시 넣자 `가방 90/154 (편집기 추가 +90)`. 칸을 넘친 채 새 아이템을 얻을 때의 동작은 보지 않았다.
+- 게임의 모드 순서 값(레지스트리 `Mod_LoadData_h173884042`, 06 문서 1절): 네 회차 뒤에 41줄 모두 `isLoad:true`, 첫 줄이 `Mod_sWP6UL`로 그대로였다. 편집기를 뺀 채 띄워도 게임이 편집기 줄을 지우거나 끄지 않았다. 회차 전 값과의 바이트 비교는 하지 않았다(미확인).
+- 메모리에만 거는 것(배율·무적·아이템 소모 없음 등, 설정 파일)은 편집기가 없으면 걸리지 않는다. 다시 넣자 `rstate`가 모두 1(이 회차의 설정 파일 기준).
+- 로그의 오류는 다른 모드의 것뿐이다: Fatury의 `ResLateLoadPatch`·스프라이트 오류(회차 A에도 같음), 인물 화면을 열 때 `TeamBest.SMoonUITools.CreatePlayerInfoNewPatch`의 NullReference(편집기가 있는 회차 C에서도 같은 오류. 편집기와 상관없음).
+- 전투(달 넘기기의 생사결전 습격): 편집기를 다시 넣은 회차에서 `bcast 1`·`bcast 2`가 `CreateSkillAttack=True`. 습격 NPC가 강해 인물이 쓰러졌다(게임 사건. 시험 세이브라 되돌림).
+
+### 84.4 확인하지 못한 것
+
+- 편집기를 뺀 회차의 첫 달 넘기기에서 NPC 대화(충상양이 "호연 여동"에게 도움을 청하자는 이야기)의 선택지 세 칸이 글 없이 `0`만 보였고, 선택지가 눌리지 않아(맨 위가 `DramaDialogue/G:btnNext`) 대화에서 멈췄다. 게임을 다시 띄우자 다른 사건이 떴다. 편집기가 있을 때 같은 사건이 정상인지는 비교하지 못했다(회차 D는 절도 사건, 선택지 글 정상). 편집기의 글 바꿔 끼우기(54·74절)가 빠진 탓인지, 그 사건 자체의 문제인지 모른다. 다시 보이면 편집기 있는 회차에서 그 사건의 선택지 표를 찾아 비교한다.
+- 넘친 가방(90/64)에서 아이템을 얻거나 버릴 때, 편집기를 뺀 채 여러 달 플레이할 때.
+- 편집기의 모드 공법 비급(42절)이 든 세이브. 그 비급은 창작마당 모드의 것이라 그 모드를 뺄 때의 문제다.
+
+## 85. 미룬 사소한 것 묶음 (2026-10-27)
+
+06 문서 8.0절 1번. 사용자 결정(2026-10-27): 고침 1~7과 측정 8·9를 한 묶음으로. 스펙 `docs/superpowers/specs/2026-10-27-deferred-fixes-design.md`, 계획 `plans/2026-10-27-deferred-fixes.md`, 브랜치 `fix/deferred-1027`. 회차 `dfx-0-1027`(고치기 전 측정)·`dfx-a`~`g-1027`, 모두 고정본, `g`만 만고신화 포함, 끝은 `SAVE RESTORED AND IDENTICAL`.
+
+### 85.1 고친 것(원래 절)
+
+- **80절** 전투 영력·집중력 막기 `RateGuards.IsPlayerBattleData`: `SceneType.battle`부터 하나씩 null을 보고 넘긴다. 답은 전과 같고 예외 로그만 없다. 전투 장면 전환 순간은 게임에서 흉내 내지 않았다(`mpnone` 통과).
+- **78절** 자원 탭 모드 비급의 아래 칸이 늘 `경지 1~10(모드 공법)`이었다. 이제 `경지 2~10(비급을 만들 수 있는 경지)`처럼 `BookGradeMin~BookGradeMax`.
+- **78절** 원본 없는 모드 줄: `BookShown`이 모드 줄도 `BlockReason == null`을 본다(그 경지에 원본으로 쓸 기본 공법이 없으면 숨김). 지금 모드 40개(만고신화 포함)에는 그런 줄이 경지 1~10 어디에도 없다(`rmods <경지>`의 새 칸 `noSource=0`). 앞으로 생길 때의 막기다. 기술 서적 그룹 그리기 시간은 고치기 전 43~65 ms, 뒤 36~64 ms(262줄)라 캐시는 두지 않았다.
+- **79절** 프리셋 폴더 표지(`PresetService.FolderStamp`)에 `.defaults`를 넣었다. 검사 `preset-check files`의 `the cached list reads again when .defaults is deleted outside`.
+- **79절** 도호 탭의 대경지 이름 캐시를 `TranslationService.Apply`(`rloc apply`)와 `ModMain.Destroy`에서 비운다(`AppellationService.ForgetNames`). `rloc` 답 끝에 `names=<비운 수>`. 검사 `translation`의 `applying translations again empties the realm name cache`.
+- **81절** 설정 파일 로그(읽기·저장·만들기 실패 여섯 줄)의 `을(를)`을 받침으로 고른다(`Services/KoreanText.cs`의 `Object`. 한글 음절이 아니면 `을(를)`. 단위 시험 6). 입출력 실패는 흉내 내지 않았다. 다른 곳의 `을(를)`은 그대로다(전승 떼기 문구 하나만 이것으로 바꿈).
+- **82.3절** 법보·전승:
+  - `GradeUpTo`가 되풀이 중이나 끝에서 법보를 찾지 못하면 멈추고 알린다.
+  - `GradeUpOne`은 경지가 오르지 않았어도 비율이 바뀌었으면 옛 비율로 되돌린다.
+  - `SetStageNoBackup`·`CloseMax`의 쓰기를 try로 감쌌다.
+  - 경지 10을 넘은 법보는 `이미 경지 14입니다(최대 10을 넘음).`
+  - `{"suitID":0}`만 적힌 비급을 떼면 `빈 전승 기록을 지웠습니다.`(검사 `trainer3-check suit`의 `removing an empty suit record says so`).
+  - 전승 쓰기 확인이 어긋나면 옛 `valuesStr`로 되돌린다(공법 탭·`msuit` 길만. 프리셋 적용 길은 그대로).
+  - 게임에서 흉내 내지 않은 것: 법보가 사라짐, 비율만 깎고 던짐, 쓰기 예외, 전승 확인 실패. 기령 줄 글 `친밀`(폭)은 그대로다.
+- **83.4절** 대도까지 채우기:
+  - 다시 만들기가 실패하면 올린 수도 점수를 되돌린다. 검사 `mastery-check service`의 `a failed remake of an equipped ability puts the points back`(장착 심법 6oIJ5D, 실제로 올렸다가 되돌림. `INFO points were raised and put back`).
+  - 수도 점수 올리기가 다른 값을 남기면 `SetAttribute`의 문구를 붙인다.
+  - 다시 만들기에서 옛 옵션 수치 복사를 확인해, 다르면 실패로 되돌린다(장착 전에 본다).
+  - 새 공법이 옛 칸이 아닌 칸에 장착되면 실패로 되돌린다.
+  - 끼워 넣기 실패 뒤 값 배열이 옛 것과 같은지 보고, 다르면 `되돌리지 못했을 수 있습니다`.
+  - 옵션 11개면 공법 탭 줄이 `수련 단계 12/12 · 대도까지 있음`(검사 `mastery-check ui`의 `the stage text says it reaches the last stage`).
+  - 그 글 칸에 `resizeTextForBestFit`(9~12)를 켜 긴 까닭 글이 잘리지 않게 했다. `Ui.Label`이 세로 넘침을 Overflow로 두면 BestFit이 줄이지 않으므로(최종 리뷰) 그 칸만 `Truncate`로 둔다. 검사 `the stage text fits its box`(`ifit MasteryText` 0), 캡처 `.devremote\check-mastery-stage.png`(두 줄, 칸 안). 긴 까닭 글(규칙 위반·자리 없음)이 실제로 줄어드는 모습은 고정본에 그런 공법이 없어 보지 못했다.
+  - 그대로 둔 것: 그릴 때마다 후보 계산 반복, try 밖의 게임 호출, 단계 이름 대응은 캡처로만 확인.
+
+### 85.2 잰 것
+
+- **77절** 비급 즐겨찾기 줄이 있을 때 자원 탭 첫 열기: 재시작 직후 `rperf tabs`의 자원 211 ms(비급 줄 없이 217 ms, `dfx-f-1027`). 77절의 929 ms는 다시 나오지 않았다. 다만 첫 열기가 즐겨찾기 그룹을 그리는지는 확인하지 않았다(미확인).
+- **80절** 비급 한 권(품질 6)의 시간: 기본 공법 13111·모드 공법 3535351, 경지 3·9에서 `rbook … 1`이 명령 채널 왕복을 합쳐 1.4~1.8초. 짧은 명령 `cstate`의 왕복이 1.7~1.9초라 뽑기 자체는 재지 못할 만큼 짧다. 2초 상한이 첫 권에서 넘칠 일은 지금 없다.
+- 둘 다 1초를 넘지 않아 고치지 않는다.
+
+### 85.3 검사
+
+최종 리뷰(opus 한 번): Critical 없음. Important 하나(위의 BestFit과 세로 넘침)를 고쳤고, 사소한 것 가운데 전승 쓰기의 죽은 갈래 정리·되돌린 값 확인·시험 이름을 고쳤다. 남긴 것: 전승 정규식 세 곳 중복, `BookShown`이 그리기마다 `BlockReason`을 세 번 부름(측정에 차이 없음. 줄이려면 (분류, 경지)별로 원본 유무를 기억).
+
+모두 FAIL 0: `ui-check` `base`·`tabs`·`books-ui`·`modbooks`(`dfx-a`), `mastery-check ui`·`trainer3-check suit`(리뷰 뒤 `dfx-h`·`i`), `preset-check` `files`·`ui`(`dfx-a`), `mastery-check ui`(`dfx-b`), `mastery-check service`(`dfx-c`·`e`), `treasure-check` `service`·`forge`·`give`, `trainer3-check suit`, `ui-check mpnone`(`dfx-d`), `ui-check translation`(`dfx-g`, 만고신화 포함). 단위 시험 FAIL 0.
+
+함정: 작업 폴더가 `src\ModCode\ModMain`으로 바뀐 채 `pwsh -File tools/...` 상대 경로를 주면 회차가 열리지 않는다. 회차 명령은 절대 경로로 준다. `modbooks` 뒤의 `rperf query - Manual`은 `모드만` 칩이 켜진 채라 줄 수가 다르다(76줄). 시간 비교는 깨끗한 회차에서 한다.
+
+## 86. 배율 탭 확장 — 분류 칩, 지도 속도·전투 이동 속도·호감 변화·정력 소모 (2026-10-27)
+
+12 문서 7절 6번 (나), 11 문서 4절 3번. 사용자 결정(2026-10-27): 배율 탭을 분류 칩으로 나눈다(두 열·한 화면 줄이기 대신, 그림으로 셋을 견줘 고름). 스펙 `docs/superpowers/specs/2026-10-27-rate-tab-expand-design.md`, 계획 `plans/2026-10-27-rate-tab-expand.md`, 브랜치 `feat/rate-tab-expand`. 설계 전 실험은 실험 브랜치 `feat/rate2-research`(탐침 `r2*`, 회차 `r2-a`~`f-1027`, 병합하지 않음). 검증 회차 `rx-a`~`p-1027`. 모두 고정본, `-Exclude 2814696167`, 끝은 `SAVE RESTORED AND IDENTICAL`.
+
+### 86.1 설계 전 실험
+
+- **지도 속도**: 지도에서 `Time.timeScale` 3이면 매 프레임 `MapWorldMgr.playerRoot` 위치로 잰 이동이 초당 3.2칸 → 9.5칸. `Time.time`도 3배로 흐른다.
+- **전투 이동 속도**: 전투 플레이어 `data.moveSpeed`(DynInt, 기본 411 = 능력치 이동속도)에 `AddValue(base×(배수−1))` → 822, `DelValue`로 411. 실제 걷는 빠르기는 재지 못했다: 전투에 `UnitInputCtrl`이 없고(찾기 0개), 가상 키(`uikey`, `GetKeyInt` 패치)로는 인물이 움직이지 않는다. **사용자 확인 목록에 넣었다.**
+- **호감 변화**: `DataUnit/RelationData.AddIntim(unitID, value, …)`. 직접 호출 +10 → +7(게임이 자기 규칙으로 줄임). 게임 대화(`UnitActionRoleChat`)를 선택지(`goOptionItem`, (960,677) 등)까지 넘기면 끝에서 `AddIntim`이 **양쪽**(플레이어 relationData의 to=NPC, NPC relationData의 to=플레이어)으로 한 번씩 불리고(+16, +25) 그 안에서 `SetIntim`이 불린다. 편집기 NPC 탭은 `SetIntim`을 바로 쓰므로 `AddIntim` 접두에 걸리지 않는다. 선물은 이 고정본에서 호감을 바꾸지 않았다.
+- **정력 소모**: 깎는 곳이 행동마다 다른 표(`costEnergy`, 열넷)라 한 곳에 걸 수 없다. 훔치기 한 번 −10, 대화 한 번 −5가 한 프레임에 줄어든다 → 프레임마다 줄어든 만큼 돌려주는 방식.
+- 함정: 고정본에 들어가면 편지 창(`DramaSutraLetter`)이 뜬다(btnNext (960,600)). 걷기 뒤에 보상 창(`GetReward`), 가끔 우연 사건(`DramaFortuitous`, 선택지 (979,821))이 편집기를 가린다. 명령 채널 왕복이 1.7초라 이동 시간은 게임 안에서 잰다(`rtrack`).
+
+### 86.2 기능
+
+- **칩 다섯**: 성장(수련치·공법 숙련·비급 학습 진도) / 시간·속도(지도 속도·전투 속도·이동의 날짜 소모·수련·학습의 날짜 소모) / 전투(전투 이동 속도·기술 쿨타임·신기 쿨타임·영력·집중력 소모·주는 피해·받는 피해·무적) / 관계·소모(호감 변화·정력 소모·아이템 소모) / 켜 둔 것(1배가 아닌 줄만, 분류 순서. 없으면 `켜 둔 배율이 없습니다.`). 칩 글 뒤에 그 칩에서 켜진 줄 수(`전투 1`). 고른 칩은 세션 동안 기억(편집기를 닫았다 열어도). 줄 높이 64, 설명 글 그대로. 단추 이름은 전과 같고(`RateExp` …) 새 줄은 `RateMapSpeed`·`RateBattleMove`·`RateIntimGain`·`RateEnergyCost`, 칩은 `RateGroup0`~`4`, 빈 안내는 `RateEmpty`. 분류 표는 `Services/RateGroups.cs`(단위 시험 9줄).
+- **지도 속도**(x1·1.5·2·3): 세계에 있고 전투가 아닐 때 매 프레임 `Time.timeScale`. 0(정지)은 건드리지 않는다. 전투에 들어가면 1(전투 속도 줄이 맡는다), 나오면 다시. 지도 속도와 전투 속도는 걸었다는 기억(`mapApplied`·`speedApplied`)을 따로 두어 서로의 값을 되돌리지 않는다. 날짜 소모는 그대로다.
+- **전투 이동 속도**(x1·1.5·2·3): 전투 플레이어 `data.moveSpeed`에 `AddValue` 처리기(base×(배수−1)). 전투 단위가 바뀌면(새 전투) 다시 건다. 배수를 바꾸면 처리기가 돌려주는 값만 바뀐다. 끄면 같은 단위에서 `DelValue`.
+- **호감 변화**(x1·2·5·10): `RelationData.AddIntim` 접두. 플레이어가 주체이거나 대상인 호출의 양수 value만 곱한다(대화는 양쪽으로 부르므로 나→상대·상대→나 모두). 감소(음수·`AddHate`)와 NPC끼리, 편집기 NPC 탭은 그대로(내 판단).
+- **정력 소모**(x1·0.5·0.25·없음): 매 프레임 지난 값보다 줄었으면 줄어든 양×(1−배율)을 반올림해 돌려준다(`RateGroups.EnergyRefund`). 상한을 넘기지 않는다. 늘어난 것(회복)은 그대로. 편집기는 정력을 올리기만 하므로(능력치 탭 `모두 채우기`) 따로 표시하지 않았다(스펙의 "편집기가 쓴 프레임"은 필요 없었다).
+- 모두 저장하지 않고 게임을 켤 때·세이브를 떠날 때 끈다(기존 규칙). 위쪽 표시(`지도 속도 x2`, `이동 속도 x1.5`, `호감 x5`, `정력 소모 없음`)와 변경 이력에 남는다.
+- 개발 빌드는 처음에 모든 줄을 한 화면에 보인다(`RateTab.ShowAll`, 기존 검사가 줄 이름으로 누른다. 배포 빌드 `-p:DevTools=false`에는 없다). 개발 명령: `ratechip <0~4|all|state>`, `rtrack start|read`(이동 거리·초·속도), `rchat <unitID>`, `rintim <unitID> <값>`(0이면 바꾸지 않고 마지막 곱하기 전→뒤만 읽음), `renergy`, `rmove`. `rstate`에 새 키 넷.
+
+### 86.3 검사
+
+- 새 부분: `rates2`(칩 다섯과 수, 칩마다 줄, 새 줄 단추와 설명, 켜 둔 것, 위쪽 표시, 모두 1배로, 칩 기억. 캡처 `.devremote\check-rates2-on.png`·`check-rates2.png`), `rates2-map`(x3에서 게임 속도 3과 걷기 2배 이상, 끄면 1, 전투 안 1·나오면 3), `rates2-battle`(x2 값, 새 전투 다시, x3 따라감, 끄면 기본값), `rates2-life`(직접 호출 5배, 감소 그대로, 대화 양쪽과 게임 호출의 정확히 5배, 정력 없음·x0.5).
+- 모두 FAIL 0: `rates2`(`rx-p`), `rates2-map`(`rx-p`), `rates2-battle`(`rx-o`), `rates2-life`(`rx-g`), 기존 `rates`(`rx-d`), `rates-battle`(`rx-e`), `itemuse`·`mpnone`·`base`·`tabs`(`rx-f`, `tabs`는 `rx-p`도). 단위 시험 FAIL 0.
+- 검사에서 겪은 함정(기능은 그대로였다):
+  - 함수 이름 `Mv`는 PowerShell 별칭 `mv`(Move-Item)가 먼저 잡는다("Path 매개 변수 없음"). 검사 안 함수 이름은 별칭과 겹치지 않게(`R`도 그렇다).
+  - 전투 끝내기: 전투 전 화면의 `전투 개시`(btnStart, (956,749))를 누르지 않으면 `bend`가 게임 안에서 `ArgumentOutOfRangeException`. 결과 창의 확인 단추는 창보다 늦게 떠, 처음 몇 초는 (959,831)이 창 바탕만 맞는다. 지도 화면이 보여도 전투 장면이 내려가는 중일 수 있어 `inBattle=False`까지 기다린다. 이걸 어기면 다음 전투가 빈 화면으로 뜬다(전투 이동을 끈 채로도 같았다, `rx-n`).
+  - 3칸 걷기는 x3에서 0.4초쯤이라 걷기 빠르기 비율이 2.2~3.0배로 흔들린다. 게임 속도 값은 따로 정확히 본다.
+
+### 86.4 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical·Important 없음. 사소한 것 일곱 가운데 넷을 고쳤다.
+- 전투 속도와 지도 속도를 둘 다 켠 채 전투를 나오는 첫 프레임에 전투 속도 되돌리기가 지도 속도를 1로 덮던 것: 지도 속도가 켜져 있고 걸려 있으면 1을 쓰지 않는다.
+- 정력 돌려주기의 반올림 때문에 1짜리 소모가 x0.5·x0.25에서 공짜가 되던 것: 남길 소모를 올림(줄어든 양 × 배율)으로 두고 나머지를 돌려준다. 대화 −5는 x0.5에서 3이 남는다. 단위 시험 2줄(바꿈 1, 더함 1).
+- 정력 줄 설명: 행동만이 아니라 정력이 줄어드는 모든 경우(사건 등)에 걸린다고 적었다.
+- 단위 시험 파일의 남의 주석 둘이 새 시험 위로 밀려 있던 것을 원래 자리로.
+- 고친 뒤 회차 `rx-r-1027`: `rates2-life`·`rates2-map`·`rates-battle` 모두 FAIL 0, 단위 시험 FAIL 0.
+
+남긴 것:
+- 지도 속도는 `g.world != null && !InBattle`에서 건다. `InBattle`은 `playerUnitCtrl`이 생긴 뒤에만 참이라, 전투 장면을 싣는 동안·내려가는 동안에도 지도 배율이 걸려 그 연출이 빨라질 수 있다. 게임이 지도에서 자기 `timeScale`을 쓰는 경우도 매 프레임 덮는다(미확인).
+- 전투 이동 속도는 지난 전투 단위를 IL2CPP 포인터로만 구분한다(쿨타임의 `cooldownUnit`과 같다). 새 전투의 단위가 같은 주소에 잡히면 그 전투에서 처리기를 걸지 않는다(확률 낮음). 게임이 전투 중에 DynInt 처리기를 비우면 배율이 사라진다(미확인).
+- 개발 명령 `ratechip`·`rintim`의 인자 검사 없음.
+
+### 86.5 확인하지 못한 것
+
+- 전투 이동 속도의 실제 걷는 빠르기(도구로 인물을 움직일 수 없음). 값은 확인했다. 사용자 확인 목록(06 문서 8.0절).
+- 선물·다른 관계 행동(사제·도려 등)의 호감 길. 대화만 확인했다.
+- 정력을 깎는 다른 행동(공격·요청·호송 등)은 훔치기·대화로만 확인했다.
+- 지도 속도에서 달을 넘길 때·지도 사건 연출.

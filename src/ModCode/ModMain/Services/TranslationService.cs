@@ -135,8 +135,9 @@ namespace MOD_sWP6UL
             }
             lastKeys = new HashSet<string>(map.Keys);
             SkillCatalog.Reset();
+            int names = AppellationService.ForgetNames();
             LastSummary = "file=" + file + " rows=" + map.Count + " applied=" + applied + " fallback=" + fallback + " unused=" + unused + " broken=" + broken
-                + " ms=" + total.ElapsedMilliseconds + " ensure=" + ensureMs + " scan=" + scanMs;
+                + " ms=" + total.ElapsedMilliseconds + " ensure=" + ensureMs + " scan=" + scanMs + " names=" + names;
             MelonLogger.Msg("[TlToybox] translations: " + LastSummary);
             return LastSummary;
         }

@@ -190,7 +190,16 @@ namespace MOD_sWP6UL
         {
             try
             {
-                return data != null && RateService.InBattle && data.Pointer == SceneType.battle.battleMap.playerUnitCtrl.data.Pointer;
+                if (data == null || !RateService.InBattle)
+                {
+                    return false;
+                }
+                // 전투 장면이 바뀌는 중이면 일부가 비어 있다. InBattleSlot처럼 하나씩 본다(05 문서 80·85절). 답은 전과 같고 예외 로그만 없다.
+                var battle = SceneType.battle;
+                var map = battle == null ? null : battle.battleMap;
+                var ctrl = map == null ? null : map.playerUnitCtrl;
+                var player = ctrl == null ? null : ctrl.data;
+                return player != null && data.Pointer == player.Pointer;
             }
             catch (Exception e)
             {

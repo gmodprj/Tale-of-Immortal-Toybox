@@ -63,6 +63,8 @@ namespace MOD_sWP6UL
             FavoriteLinesTests();
             TreasureRulesTests();
             MasteryRulesTests();
+            KoreanTextTests();
+            RateGroupsTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -236,6 +238,53 @@ namespace MOD_sWP6UL
         private static string Names(List<string> list)
         {
             return string.Join(",", list);
+        }
+
+        // 배율 탭 확장(05 문서 86절): 칩 분류와 정력 돌려주기
+        private static void RateGroupsTests()
+        {
+            string[] all = { "exp", "martial", "move", "actionDay", "speed", "cooldown", "artifactCooldown", "mpCost", "spCost", "studyGain", "itemUse", "taken",
+                "mapSpeed", "battleMove", "intimGain", "energyCost", "multiplier", "god" };
+            var seen = new System.Collections.Generic.Dictionary<string, int>();
+            foreach (RateGroups.Group group in RateGroups.Groups)
+            {
+                foreach (string key in group.Keys)
+                {
+                    int n;
+                    seen.TryGetValue(key, out n);
+                    seen[key] = n + 1;
+                }
+            }
+            bool once = seen.Count == all.Length;
+            foreach (string key in all)
+            {
+                int n;
+                once = once && seen.TryGetValue(key, out n) && n == 1;
+            }
+            Check("rate groups: every row is in exactly one chip", once, "rows=" + seen.Count);
+            Check("rate groups: new rows are in their chips", RateGroups.GroupOf("mapSpeed") == 1 && RateGroups.GroupOf("battleMove") == 2 && RateGroups.GroupOf("intimGain") == 3 && RateGroups.GroupOf("energyCost") == 3);
+            Check("rate groups: five chips, the last is on", RateGroups.Count == 5 && RateGroups.NameOf(4) == RateGroups.OnName);
+            System.Func<string, bool> on = k => k == "god" || k == "exp";
+            var onKeys = RateGroups.KeysOf(4, on);
+            Check("rate groups: the on chip lists only rows that are on, in chip order", onKeys.Count == 2 && onKeys[0] == "exp" && onKeys[1] == "god");
+            Check("rate groups: on counts per chip", RateGroups.OnCount(0, on) == 1 && RateGroups.OnCount(1, on) == 0 && RateGroups.OnCount(2, on) == 1 && RateGroups.OnCount(4, on) == 2);
+            Check("energy refund: half gives half back", RateGroups.EnergyRefund(74, 64, 0.5f) == 5);
+            Check("energy refund: none gives all back", RateGroups.EnergyRefund(74, 64, 0f) == 10);
+            Check("energy refund: x1 and a rise give nothing", RateGroups.EnergyRefund(74, 64, 1f) == 0 && RateGroups.EnergyRefund(64, 74, 0f) == 0 && RateGroups.EnergyRefund(5, 5, 0f) == 0);
+            Check("energy refund: the kept cost rounds up", RateGroups.EnergyRefund(10, 5, 0.5f) == 2 && RateGroups.EnergyRefund(10, 7, 0.25f) == 2);
+            Check("energy refund: a cost of one is not free at x0.5 or x0.25", RateGroups.EnergyRefund(5, 4, 0.5f) == 0 && RateGroups.EnergyRefund(5, 4, 0.25f) == 0 && RateGroups.EnergyRefund(5, 4, 0f) == 1);
+        }
+
+        // 미룬 것 묶음(05 문서 85절): 로그의 을/를
+        private static void KoreanTextTests()
+        {
+            Check("object after a final consonant", KoreanText.Object("번역 목록") == "번역 목록을");
+            Check("object after no final consonant", KoreanText.Object("창 위치") == "창 위치를");
+            Check("object after ieung", KoreanText.Object("신기 단축키 설정") == "신기 단축키 설정을");
+            Check("object after rieul", KoreanText.Object("물") == "물을" && KoreanText.Object("설정 파일") == "설정 파일을");
+            Check("object after latin", KoreanText.Object("config") == "config을(를)");
+            Check("object after a digit", KoreanText.Object("목록 3") == "목록 3을(를)");
+            Check("object of empty and null", KoreanText.Object("") == "을(를)" && KoreanText.Object(null) == "을(를)");
         }
 
         // 새 기본 프리셋 풀기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 6.1절).
