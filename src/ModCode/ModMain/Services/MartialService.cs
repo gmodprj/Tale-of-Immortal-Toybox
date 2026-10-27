@@ -859,12 +859,22 @@ namespace MOD_sWP6UL
             {
                 return backupError + " 변경을 중단했습니다.";
             }
-            if (!SetSuit(action.data, suitId))
+            string oldValues = action.data.valuesStr ?? "";
+            if (oldValues.Length > 0 && !Regex.IsMatch(oldValues, "^\\{\"suitID\":\\d+\\}$"))
             {
                 return name + ": 다른 정보가 적힌 비급이라 전승을 쓰지 않았습니다.";
             }
+            bool written = SetSuit(action.data, suitId);
             RefreshSuits(unit);
-            bool ok = SuitOf(action.data) == suitId;
+            bool ok = written && SuitOf(action.data) == suitId;
+            if (!ok)
+            {
+                // 확인이 어긋나면 쓴 값을 옛 것으로 되돌린다(05 문서 85절. 프리셋 길은 그대로).
+                action.data.valuesStr = oldValues;
+                RefreshSuits(unit);
+                ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), "쓰기 실패(되돌림)", false);
+                return name + ": 전승을 쓰지 못해 옛 값으로 되돌렸습니다.";
+            }
             ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), PresetService.SuitName(suitId), ok);
             return ok ? name + ": 전승 " + (before == 0 ? "없음" : PresetService.SuitName(before)) + " → " + PresetService.SuitName(suitId) + "."
                 : name + ": 전승을 쓰지 못했습니다.";
@@ -897,7 +907,9 @@ namespace MOD_sWP6UL
             RefreshSuits(unit);
             bool ok = SuitOf(action.data) == 0;
             ChangeLog.Add(EditService.NameOf(unit), name + " 전승", before == 0 ? "없음" : PresetService.SuitName(before), "없음", ok);
-            return ok ? name + ": 전승 " + PresetService.SuitName(before) + "을(를) 뗐습니다." : name + ": 전승을 떼지 못했습니다.";
+            return !ok ? name + ": 전승을 떼지 못했습니다."
+                : before == 0 ? name + ": 빈 전승 기록을 지웠습니다."
+                : name + ": 전승 " + KoreanText.Object(PresetService.SuitName(before)) + " 뗐습니다.";
         }
 
         private static void RefreshSuits(WorldUnitBase unit)

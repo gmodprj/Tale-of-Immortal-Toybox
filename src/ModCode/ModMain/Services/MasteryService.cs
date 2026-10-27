@@ -243,12 +243,15 @@ namespace MOD_sWP6UL
                 catch (Exception)
                 {
                 }
+                // 되돌린 값 배열이 옛 것과 같은지 본다(05 문서 85절).
+                bool back = Action(unit, sole) != null && string.Join(",", Array.ConvertAll(Values(action), x => x.ToString())) == string.Join(",", Array.ConvertAll(old, x => x.ToString()));
                 ChangeLog.Add(EditService.NameOf(unit), name + " 수련 단계", before, "끼워 넣기 실패", false);
-                return name + ": " + error + ". 되돌렸습니다.";
+                return name + ": " + error + (back ? ". 되돌렸습니다." : ". 되돌리지 못했을 수 있습니다(공법 탭에서 확인하세요).");
             }
             string after = Stage(unit, sole);
             string newName = MartialService.Name(action.data.To<DataProps.MartialData>());
-            string points = martial.martialType == MartialType.Ability && MartialService.IsEquipped(unit, sole) ? RaisePoints(unit, 0) : "";
+            int unusedFrom;
+            string points = martial.martialType == MartialType.Ability && MartialService.IsEquipped(unit, sole) ? RaisePoints(unit, 0, out unusedFrom) : "";
             ChangeLog.Add(EditService.NameOf(unit), name + " 수련 단계", before, after + " (끼워 넣기 +" + add.Count + ")", true);
             return newName + ": 옵션 " + oldOptions.Length + " → " + (oldOptions.Length + add.Count) + ", 수련 단계 " + before + " → " + after + "(끼워 넣기)." + points;
         }
@@ -288,6 +291,7 @@ namespace MOD_sWP6UL
             string made = null;
             string tried = null;   // 만들었다가 되돌린 새 공법(되돌리기 확인용)
             string points = "";
+            int pointsFrom = -1;   // 수도 점수를 올렸으면 올리기 전 값(실패 때 되돌림)
             string error;
 #if DEVTOOLS
             if (FailNextMake)
@@ -310,22 +314,36 @@ namespace MOD_sWP6UL
                     {
                         m.SetPrefixLevel(pair.Key, pair.Value);
                     }
+                    // 옛 수치가 실제로 옮겨졌는지 본다(05 문서 85절).
+                    Dictionary<int, int> copied = Raws(fresh.data.To<DataProps.MartialData>());
+                    foreach (var pair in oldRaws)
+                    {
+                        int got;
+                        if (error == null && (!copied.TryGetValue(pair.Key, out got) || got != pair.Value))
+                        {
+                            error = "옛 옵션 수치를 옮기지 못했습니다";
+                        }
+                    }
                     fresh.exp = exp;
                     if (valuesStr.Length > 0)
                     {
                         fresh.data.valuesStr = valuesStr;
                     }
-                    if (slot >= 0)
+                    if (error == null && slot >= 0)
                     {
                         unit.CreateAction(new UnitActionMartialUnequip(action), false);
                         if (type == MartialType.Ability)
                         {
-                            points = RaisePoints(unit, m.martialInfo.abilityPoint);
+                            points = RaisePoints(unit, m.martialInfo.abilityPoint, out pointsFrom);
                         }
                         unit.CreateAction(new UnitActionMartialEquip(fresh, slot), false);
                         if (!MartialService.IsEquipped(unit, made))
                         {
                             error = "새 공법을 장착하지 못했습니다";
+                        }
+                        else if (EquipSlot(unit, made) != slot)
+                        {
+                            error = "새 공법이 옛 칸(" + slot + ")이 아닌 칸(" + EquipSlot(unit, made) + ")에 장착됐습니다";
                         }
 #if DEVTOOLS
                         if (FailNextEquip)
@@ -368,6 +386,11 @@ namespace MOD_sWP6UL
             if (error != null)
             {
                 // 되돌리기가 실제로 됐는지 본다: 새 것이 없고, 옛 것이 원래 칸에 있어야 "그대로"다.
+                // 올린 수도 점수를 되돌린다(05 문서 85절).
+                if (pointsFrom >= 0)
+                {
+                    points = RestorePoints(unit, pointsFrom);
+                }
                 bool newGone = tried == null || data.GetActionMartial(tried) == null;
                 bool slotBack = slot < 0 || EquipSlot(unit, sole) == slot;
                 ChangeLog.Add(EditService.NameOf(unit), name + " 수련 단계", before, "다시 만들기 실패", false);
@@ -399,8 +422,10 @@ namespace MOD_sWP6UL
 
         // 장착한(또는 장착할) 심법의 수도 점수가 모자라면 모자란 만큼 올린다(프리셋과 같은 규칙, 게임의 장착 거부 코드 61).
         // extra: 아직 장착하지 않은 심법의 비용. 올렸으면 문구, 아니면 "".
-        private static string RaisePoints(WorldUnitBase unit, int extra)
+        // raisedFrom: 올렸으면 올리기 전 값, 아니면 -1. 게임이 값을 다르게 남기면 SetAttribute의 문구를 붙인다(05 문서 85절).
+        private static string RaisePoints(WorldUnitBase unit, int extra, out int raisedFrom)
         {
+            raisedFrom = -1;
             try
             {
                 AttributeDef def = AttributeCatalog.All.Find(d => d.Key == "abilityPoint");
@@ -411,12 +436,34 @@ namespace MOD_sWP6UL
                     return "";
                 }
                 int before = def.Get(unit.data.unitData.propertyData);
-                EditService.SetAttribute(unit, def, before + (used - total));
-                return " 수도 점수 " + before + " → " + def.Get(unit.data.unitData.propertyData) + ".";
+                int want = before + (used - total);
+                string reply = EditService.SetAttribute(unit, def, want);
+                int now = def.Get(unit.data.unitData.propertyData);
+                if (now != before)
+                {
+                    raisedFrom = before;
+                }
+                return " 수도 점수 " + before + " → " + now + "." + (now == want ? "" : " (" + reply + ")");
             }
             catch (Exception e)
             {
                 return " 수도 점수를 맞추지 못했습니다(" + e.GetType().Name + ").";
+            }
+        }
+
+        // 다시 만들기가 실패했을 때 올린 수도 점수를 원래 값으로 되돌린다.
+        private static string RestorePoints(WorldUnitBase unit, int value)
+        {
+            try
+            {
+                AttributeDef def = AttributeCatalog.All.Find(d => d.Key == "abilityPoint");
+                EditService.SetAttribute(unit, def, value);
+                int now = def.Get(unit.data.unitData.propertyData);
+                return now == value ? " 수도 점수는 " + value + "(으)로 되돌렸습니다." : " 수도 점수를 되돌리지 못했습니다(지금 " + now + ").";
+            }
+            catch (Exception e)
+            {
+                return " 수도 점수를 되돌리지 못했습니다(" + e.GetType().Name + ").";
             }
         }
 

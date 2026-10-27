@@ -201,9 +201,15 @@ namespace MOD_sWP6UL
             float rowY = box + 286 + grown;
             MasteryService.State mastery = MasteryService.Read(Target, martialId);
             bool blocked = mastery.Block != null && mastery.Options < MasteryRules.MaxOptions;
-            Text stageText = Ui.Wrapped(content, blocked ? "수련 " + mastery.Stages + "/12 · " + mastery.Block : "수련 단계 " + mastery.Stages + "/12",
-                340, box + 280 + grown, 160, 44, blocked ? 12 : 16);
+            bool full = mastery.Options >= MasteryRules.MaxOptions;
+            Text stageText = Ui.Wrapped(content, blocked ? "수련 " + mastery.Stages + "/12 · " + mastery.Block
+                : full ? "수련 단계 " + mastery.Stages + "/12 · 대도까지 있음" : "수련 단계 " + mastery.Stages + "/12",
+                340, box + 280 + grown, 160, 44, blocked || full ? 12 : 16);
             stageText.gameObject.name = "MasteryText";
+            // 긴 까닭 글이 두 줄 칸에서 잘리지 않게 글자를 줄여 맞춘다(05 문서 85절).
+            stageText.resizeTextForBestFit = true;
+            stageText.resizeTextMinSize = 9;
+            stageText.resizeTextMaxSize = blocked || full ? 12 : 16;
             if (blocked)
             {
                 stageText.color = Ui.Warn;

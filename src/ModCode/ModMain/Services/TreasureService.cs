@@ -672,7 +672,7 @@ namespace MOD_sWP6UL
             }
             if (t.Grade >= TreasureRules.MaxGrade)
             {
-                return "법보 " + t.Name + ": 이미 경지 " + TreasureRules.MaxGrade + "입니다.";
+                return AtMaxText(t);
             }
             string backupError = SaveBackup.EnsureOnce();
             if (backupError != null)
@@ -680,6 +680,14 @@ namespace MOD_sWP6UL
                 return backupError + " 변경을 중단했습니다.";
             }
             return GradeUpOne(unit, t);
+        }
+
+        // 경지 10을 넘은 법보(실험 E3의 14)는 지금 값을 적는다(05 문서 85절).
+        private static string AtMaxText(Treasure t)
+        {
+            return t.Grade > TreasureRules.MaxGrade
+                ? "법보 " + t.Name + ": 이미 경지 " + t.Grade + "입니다(최대 " + TreasureRules.MaxGrade + "을 넘음)."
+                : "법보 " + t.Name + ": 이미 경지 " + TreasureRules.MaxGrade + "입니다.";
         }
 
         private static string GradeUpOne(WorldUnitBase unit, Treasure t)
@@ -695,9 +703,17 @@ namespace MOD_sWP6UL
                 error = e.Message;
             }
             Treasure after = Find(unit, t.SoleId);
-            if (after != null && after.Data != null && after.Grade > t.Grade)
+            // 경지가 오르지 않았어도 게임이 비율만 깎고 던졌으면 되돌린다(05 문서 85절).
+            if (after != null && after.Data != null && (after.Grade > t.Grade || RatesText(after.Rates) != RatesText(rates)))
             {
-                after.Data.SetAttrrRate(rates[0], rates[1], rates[2], rates[3], rates[4], false);
+                try
+                {
+                    after.Data.SetAttrrRate(rates[0], rates[1], rates[2], rates[3], rates[4], false);
+                }
+                catch (Exception e)
+                {
+                    error = (error == null ? "" : error + ", ") + "비율 되돌리기 실패 " + e.GetType().Name;
+                }
             }
             Update(unit);
             after = Find(unit, t.SoleId);
@@ -719,7 +735,7 @@ namespace MOD_sWP6UL
             int steps = TreasureRules.GradeSteps(t.Grade, target);
             if (steps == 0)
             {
-                return t.Grade >= TreasureRules.MaxGrade ? "법보 " + t.Name + ": 이미 경지 " + TreasureRules.MaxGrade + "입니다."
+                return t.Grade >= TreasureRules.MaxGrade ? AtMaxText(t)
                     : "법보 " + t.Name + ": 이미 경지 " + GradeLabel(t.Grade) + "입니다.";
             }
             string backupError = SaveBackup.EnsureOnce();
@@ -731,6 +747,10 @@ namespace MOD_sWP6UL
             for (int i = 0; i < steps; i++)
             {
                 Treasure now = Find(unit, soleId);
+                if (now == null || now.Data == null)
+                {
+                    return "법보 " + t.Name + ": 경지를 올리는 중에 법보가 사라져 멈췄습니다(" + GradeLabel(start) + "에서 시작).";
+                }
                 string r = GradeUpOne(unit, now);
                 if (!r.StartsWith("법보: "))
                 {
@@ -739,6 +759,10 @@ namespace MOD_sWP6UL
                 }
             }
             Treasure end = Find(unit, soleId);
+            if (end == null)
+            {
+                return "법보 " + t.Name + ": 경지를 올린 뒤 법보를 찾지 못했습니다.";
+            }
             return "법보: " + t.Name + " 경지 " + GradeLabel(start) + " → " + GradeLabel(end.Grade) + ", 옵션 " + t.Prefixes + " → " + end.Prefixes + "칸.";
         }
 
@@ -765,8 +789,16 @@ namespace MOD_sWP6UL
         private static string SetStageNoBackup(WorldUnitBase unit, Treasure t, int stage)
         {
             int r = TreasureRules.StageRate(stage);
-            t.Data.SetAttrrRate(r, r, r, r, TreasureRules.SpRate(stage), true);
-            Update(unit);
+            try
+            {
+                t.Data.SetAttrrRate(r, r, r, r, TreasureRules.SpRate(stage), true);
+                Update(unit);
+            }
+            catch (Exception e)
+            {
+                ChangeLog.Add(Name(unit), Field, t.Name + " 단계 " + t.Level, "쓰기 실패", false);
+                return "법보 " + t.Name + ": 단계를 쓰지 못했습니다(" + e.GetType().Name + ").";
+            }
             Treasure after = Find(unit, t.SoleId);
             bool ok = after != null && after.Level == stage;
             ChangeLog.Add(Name(unit), Field, t.Name + " 단계 " + t.Level + " 비율 " + RatesText(t.Rates),
@@ -796,8 +828,16 @@ namespace MOD_sWP6UL
             {
                 return backupError + " 변경을 중단했습니다.";
             }
-            s.Data.intimacy = max;
-            Update(unit);
+            try
+            {
+                s.Data.intimacy = max;
+                Update(unit);
+            }
+            catch (Exception e)
+            {
+                ChangeLog.Add(Name(unit), "기령 친밀도", s.Name + " " + s.Intimacy, "쓰기 실패", false);
+                return "기령 " + s.Name + ": 친밀도를 쓰지 못했습니다(" + e.GetType().Name + ").";
+            }
             Spirit after = FindSpirit(unit, spiritSole);
             bool ok = after != null && after.Intimacy == max;
             ChangeLog.Add(Name(unit), "기령 친밀도", s.Name + " " + s.Intimacy, after == null ? "?" : after.Intimacy.ToString(), ok);

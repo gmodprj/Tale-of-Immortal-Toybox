@@ -273,6 +273,11 @@ switch ($Part) {
     Check 'a deleted default is not written again by listing' ([int](Fields (Cmd 'plist' 400)).count -eq $n -and -not (Test-Path -LiteralPath $first.FullName))
     Check 'a deleted default is counted' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
     Cmd 'prestore' 400 | Out-Null
+    # .defaults도 폴더 표지에 든다(05 문서 85절): 탭의 목록(ListCached)을 읽어 둔 뒤 밖에서 .defaults를 지우면 다음 읽기가 다시 만든다.
+    Cmd 'rperf preset' 300 20000 | Out-Null
+    [IO.File]::Delete((Join-Path $presetDir '.defaults'))
+    Cmd 'rperf preset' 300 20000 | Out-Null
+    Check 'the cached list reads again when .defaults is deleted outside' (Test-Path -LiteralPath (Join-Path $presetDir '.defaults'))
 
     # 읽을 수 없는 파일
     WritePreset 'uicheck-broken.json' '{ "format": 1, "kind": "preset", '

@@ -63,6 +63,7 @@ namespace MOD_sWP6UL
             FavoriteLinesTests();
             TreasureRulesTests();
             MasteryRulesTests();
+            KoreanTextTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -240,6 +241,17 @@ namespace MOD_sWP6UL
 
         // 새 기본 프리셋 풀기(docs/superpowers/specs/2026-10-20-preset-drafts-design.md 6.1절).
         // 모드 글의 서식 태그 지우기(05 문서 72절: 만고신화 기술 이름 <COLOR=#FFAA00>草字剑诀</COLOR>가 COLORFFAA00草字剑诀COLOR로 보였다).
+        // 미룬 것 묶음(05 문서 85절): 로그의 을/를
+        private static void KoreanTextTests()
+        {
+            Check("object after a final consonant", KoreanText.Object("번역 목록") == "번역 목록을");
+            Check("object after no final consonant", KoreanText.Object("창 위치") == "창 위치를");
+            Check("object after rieul", KoreanText.Object("신기 단축키 설정") == "신기 단축키 설정을" && KoreanText.Object("물") == "물을");
+            Check("object after latin", KoreanText.Object("config") == "config을(를)");
+            Check("object after a digit", KoreanText.Object("목록 3") == "목록 3을(를)");
+            Check("object of empty and null", KoreanText.Object("") == "을(를)" && KoreanText.Object(null) == "을(를)");
+        }
+
         private static void TextTagsTests()
         {
             Check("search key drops spaces and lowers", TextTags.SearchKey(" Fire Ball 화 염 ") == "fireball화염");
