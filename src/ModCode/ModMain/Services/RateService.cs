@@ -145,8 +145,40 @@ namespace MOD_sWP6UL
             Note = "플레이어가 아이템을 써도(단약·전투 아이템·비급 공부·돌파 재료·상자 열기·부적) 수가 줄지 않습니다. 제작 재료·판매·선물·퀘스트 제출은 그대로 줄어듭니다.",
         };
 
+        // ---- 배율 탭 확장(05 문서 86절, 스펙 2026-10-27-rate-tab-expand-design.md) ----
+
+        // 지도 속도: 세계에 있고 전투가 아닐 때 매 프레임 Time.timeScale을 맞춘다(실측 x3에서 지도 이동 3배, 회차 r2-c-1027).
+        public static readonly Rate MapSpeed = new Rate
+        {
+            Key = "mapSpeed", Label = "지도 속도", Short = "지도 속도", Steps = new[] { 1f, 1.5f, 2f, 3f },
+            Note = "전투 밖(지도)의 진행 속도를 곱합니다. 이동과 연출이 빨라지고, 날짜 소모는 그대로입니다. 전투 안은 전투 속도 줄이 맡습니다.",
+        };
+
+        // 전투 이동 속도: 전투 플레이어 data.moveSpeed(DynInt)에 AddValue로 base×(배수−1)을 더한다(실측 411 → 822, 회차 r2-a-1027).
+        public static readonly Rate BattleMove = new Rate
+        {
+            Key = "battleMove", Label = "전투 이동 속도", Short = "이동 속도", Steps = new[] { 1f, 1.5f, 2f, 3f },
+            Note = "전투 안에서 플레이어가 걷는 빠르기(이동속도)를 곱합니다. 전투마다 다시 걸고, 전투 밖의 이동속도 값은 바꾸지 않습니다.",
+        };
+
+        // 호감 변화: RelationData.AddIntim 접두에서 플레이어가 주체·대상인 양수 value를 곱한다(게임 대화는 양쪽으로 부른다, 회차 r2-f-1027).
+        public static readonly Rate IntimGain = new Rate
+        {
+            Key = "intimGain", Label = "호감 변화", Short = "호감", Steps = new[] { 1f, 2f, 5f, 10f },
+            Note = "대화 등으로 플레이어와 NPC 사이의 호감이 오를 때 오르는 양을 곱합니다(양쪽 모두). 내려가는 것과 편집기 NPC 탭의 값은 그대로입니다.",
+            Hook = "IntimPrefix",
+        };
+
+        // 정력 소모: 정력을 깎는 곳이 행동마다 달라(costEnergy 열넷) 매 프레임 줄어든 만큼을 돌려준다(실측 훔치기 −10, 대화 −5).
+        public static readonly Rate EnergyCost = new Rate
+        {
+            Key = "energyCost", Label = "정력 소모", Short = "정력 소모", Steps = new[] { 1f, 0.5f, 0.25f, 0f }, ZeroText = "없음",
+            Note = "정력이 줄어드는 양을 곱합니다(대화·훔치기 같은 행동, 사건 등 줄어드는 모든 경우. 없음이면 줄지 않음). 회복은 그대로입니다.",
+        };
+
         // All은 위의 줄들보다 뒤에 둔다(정적 필드는 적힌 순서로 초기화된다).
-        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, ItemUse, Taken };
+        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, ItemUse, Taken,
+            MapSpeed, BattleMove, IntimGain, EnergyCost };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -196,12 +228,16 @@ namespace MOD_sWP6UL
             BattleService.Reset();
             BattleService.Refresh();
             RestoreSpeed();
+            RestoreMapSpeed();
             return "배율: 모두 1배로 되돌리고 무적을 껐습니다.";
         }
 
         public static void OnDestroy()
         {
             RestoreSpeed();
+            RestoreMapSpeed();
+            moveUnit = IntPtr.Zero;
+            energyLast = int.MinValue;
             cooldownUnit = IntPtr.Zero;
             skillUnit = IntPtr.Zero;
             skillValues.Clear();
@@ -328,6 +364,10 @@ namespace MOD_sWP6UL
             {
                 return typeof(UnitActionPropMartialStudy).GetMethod("OnCreate", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             }
+            if (rate == IntimGain)
+            {
+                return typeof(DataUnit.RelationData).GetMethod("AddIntim");
+            }
             return null;
         }
 
@@ -357,6 +397,37 @@ namespace MOD_sWP6UL
             {
                 rate.Warned = true;
                 MelonLogger.Msg("[TlToybox] 배율 처리 오류(" + rate.Key + "): " + e.Message);
+            }
+        }
+
+        // 호감 변화: 플레이어가 주체이거나 대상인 호출의 양수만 곱한다. 예외를 던지지 않는다.
+        public static void IntimPrefix(DataUnit.RelationData __instance, string __0, ref float __1)
+        {
+            if (!IntimGain.On || __1 <= 0f)
+            {
+                return;
+            }
+            try
+            {
+                WorldUnitBase player = Player;
+                if (player == null)
+                {
+                    return;
+                }
+                string me = player.data.unitData.unitID;
+                if (__instance.unitID != me && __0 != me)
+                {
+                    return;
+                }
+                float before = __1;
+                __1 = before * IntimGain.Value;
+#if DEVTOOLS
+                IntimGain.Last = before + "->" + __1;
+#endif
+            }
+            catch (Exception e)
+            {
+                Warn(IntimGain, e);
             }
         }
 
@@ -548,6 +619,12 @@ namespace MOD_sWP6UL
         {
             TickCooldown();
             TickSkillValues();
+            TickMapSpeed();
+            TickBattleMove();
+            TickEnergy();
+#if DEVTOOLS
+            DevCommandsRate.TrackTick();
+#endif
             if (!Speed.On && !speedApplied)
             {
                 return;
@@ -589,8 +666,191 @@ namespace MOD_sWP6UL
             {
                 return;
             }
-            Time.timeScale = 1f;
+            // 지도 속도가 켜져 있으면 1로 덮지 않는다(전투를 나온 첫 프레임에 지도 속도를 지우지 않게, 최종 리뷰).
+            if (!(MapSpeed.On && mapApplied))
+            {
+                Time.timeScale = 1f;
+            }
             speedApplied = false;
+        }
+
+        // ---- 지도 속도 ----
+        private static bool mapApplied;
+
+        private static void TickMapSpeed()
+        {
+            if (!MapSpeed.On && !mapApplied)
+            {
+                return;
+            }
+            try
+            {
+                if (!MapSpeed.On || g.world == null || InBattle)
+                {
+                    RestoreMapSpeed();
+                    return;
+                }
+                float now = Time.timeScale;
+                if (now != 0f && now != MapSpeed.Value)
+                {
+                    Time.timeScale = MapSpeed.Value;
+                }
+                mapApplied = true;
+            }
+            catch (Exception e)
+            {
+                Warn(MapSpeed, e);
+                try
+                {
+                    RestoreMapSpeed();
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        // 지도 속도가 걸어 둔 것만 1로 되돌린다. 전투 속도가 건 것은 건드리지 않는다(전투 속도는 speedApplied로 따로 되돌린다).
+        private static void RestoreMapSpeed()
+        {
+            if (!mapApplied || Time.timeScale == 0f)
+            {
+                return;
+            }
+            if (!speedApplied)
+            {
+                Time.timeScale = 1f;
+            }
+            mapApplied = false;
+        }
+
+        // ---- 전투 이동 속도 ----
+        private static IntPtr moveUnit;             // 처리기를 건 전투 단위(전투마다 새로 만들어진다)
+        private static DynInt moveSpeedOf;
+        private static int moveAdd;
+        private static DynInt.DynObjectAddHandler moveHandler;
+        private const string MoveTag = "TlToybox.battleMove";
+
+        private static void TickBattleMove()
+        {
+            if (!BattleMove.On && moveUnit == IntPtr.Zero)
+            {
+                return;
+            }
+            try
+            {
+                UnitCtrlPlayer ctrl = InBattle ? SceneType.battle.battleMap.playerUnitCtrl : null;
+                UnitDataBase data = ctrl == null ? null : ctrl.data;
+                if (!BattleMove.On || data == null)
+                {
+                    DetachMove(data);
+                    return;
+                }
+                if (moveUnit != data.Pointer)
+                {
+                    // 새 전투: 지난 단위는 사라졌으므로 떼지 않고 잊는다.
+                    moveUnit = IntPtr.Zero;
+                    moveSpeedOf = null;
+                }
+                int want = (int)Math.Round(data.moveSpeed.baseValue * (BattleMove.Value - 1f));
+                if (moveUnit == IntPtr.Zero)
+                {
+                    if (moveHandler == null)
+                    {
+                        moveHandler = UnhollowerRuntimeLib.DelegateSupport.ConvertDelegate<DynInt.DynObjectAddHandler>(new Func<int>(() => moveAdd));
+                    }
+                    moveAdd = want;
+                    data.moveSpeed.AddValue(moveHandler, MoveTag);
+                    moveUnit = data.Pointer;
+                    moveSpeedOf = data.moveSpeed;
+#if DEVTOOLS
+                    BattleMove.Last = data.moveSpeed.baseValue + "->" + data.moveSpeed.value;
+#endif
+                }
+                else if (moveAdd != want)
+                {
+                    moveAdd = want;
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(BattleMove, e);
+            }
+        }
+
+        // 걸어 둔 처리기를 뗀다. 지금 전투의 단위가 건 단위와 같을 때만 DelValue를 부른다.
+        private static void DetachMove(UnitDataBase data)
+        {
+            if (moveUnit == IntPtr.Zero)
+            {
+                return;
+            }
+            if (data != null && data.Pointer == moveUnit && moveSpeedOf != null)
+            {
+                moveSpeedOf.DelValue(moveHandler);
+            }
+            moveUnit = IntPtr.Zero;
+            moveSpeedOf = null;
+            moveAdd = 0;
+        }
+
+#if DEVTOOLS
+        public static string MoveState()
+        {
+            if (!InBattle)
+            {
+                return "not in battle";
+            }
+            DynInt ms = SceneType.battle.battleMap.playerUnitCtrl.data.moveSpeed;
+            return "moveSpeed value=" + ms.value + " base=" + ms.baseValue + " add=" + moveAdd + " attached=" + (moveUnit != IntPtr.Zero);
+        }
+#endif
+
+        // ---- 정력 소모 ----
+        private static int energyLast = int.MinValue;
+        public static int EnergyRefunded;   // 이번 실행에서 돌려준 합(개발 명령이 읽는다)
+
+        private static void TickEnergy()
+        {
+            if (!EnergyCost.On)
+            {
+                energyLast = int.MinValue;
+                return;
+            }
+            try
+            {
+                WorldUnitBase player = Player;
+                if (player == null)
+                {
+                    energyLast = int.MinValue;
+                    return;
+                }
+                var saved = player.data.unitData.propertyData;
+                int now = saved.energy;
+                if (energyLast != int.MinValue)
+                {
+                    int back = RateGroups.EnergyRefund(energyLast, now, EnergyCost.Value);
+                    if (back > 0)
+                    {
+                        int max = player.data.dynUnitData.energy.maxValue;
+                        int next = Math.Min(max, now + back);
+                        if (next > now)
+                        {
+                            saved.energy = next;
+                            EnergyRefunded += next - now;
+#if DEVTOOLS
+                            EnergyCost.Last = energyLast + "->" + now + "->" + next;
+#endif
+                            now = next;
+                        }
+                    }
+                }
+                energyLast = now;
+            }
+            catch (Exception e)
+            {
+                Warn(EnergyCost, e);
+            }
         }
 
         // 쿨타임 속도에 쓰는 값의 상한. "없음"은 원래 값의 만 배다(13초가 0.0013초).
