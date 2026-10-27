@@ -12,6 +12,8 @@
 #   -ReleaseBuild   -Begin과 함께 쓴다. 개발 도구를 뺀 배포 구성으로 빌드해 설치한다. 준비 로그가 없으므로 30초를 기다린다
 #   -Exclude <ID,…> -Begin과 함께 쓴다. 회차 동안 그 창작마당 모드 폴더를 작업 폴더(session-parked-mods)로 옮겨 두어 게임이 싣지 않게 한다. -End가 되돌린다
 #                   (만고신화 2814696167은 경지 표를 바꿔 고정본 검사의 전제가 깨진다. 05 문서 73절)
+#   -NoEditor       -Begin과 함께 쓴다. 빌드와 설치를 건너뛰고, 회차 동안 편집기 폴더(Mod_<모드ID>)를 작업 폴더(session-parked-mods)로 옮겨 두어
+#                   게임이 편집기 없이 뜬다. 준비 로그가 없으므로 30초를 기다린다. -End가 되돌린다(모드를 뺀 뒤의 세이브 동작 확인용. 05 문서 84절)
 #   -Login          -Begin·-Restart와 함께 쓴다. 세이브에 들어가지 않고 메인(로그인) 화면에서 멈춘다(캐릭터 만들기 화면 확인용). 결과 줄은 LOGIN READY
 # 게임은 달이 넘어갈 때 자동 저장하므로, 저장 명령을 쓰지 않은 회차도 -End로 되돌린다.
 #
@@ -22,7 +24,7 @@
 #   - 세이브를 되돌리기 직전의 상태를 save-before-restore-<이름>으로 한 벌 남긴다.
 #   - 고정본을 썼어도 -End 뒤의 세이브는 회차 전의 사용자 것이다. 고정본 자체는 바뀌지 않는다.
 #   - -End는 최근 다섯 회차의 복사본만 남기고 오래된 것을 지운다. 회차 동안 모드가 만든 세이브 자동 백업도 지운다(회차 전부터 있던 것은 남긴다).
-param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [switch]$Login, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '', [string[]]$Exclude = @(),
+param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [switch]$Login, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '', [string[]]$Exclude = @(), [switch]$NoEditor,
   [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$ModId = 'sWP6UL',
   # 아래는 session.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다.
   [string]$SaveDir = '', [string]$WorkDir = '', [string]$DataDir = '', [string]$ProcessName = 'guigubahuang', [switch]$DryRun)
@@ -93,7 +95,7 @@ function Launch {
   DeleteFiles (@('mod-cmd.txt', 'mod-cmd.tmp', 'mod-out.txt', 'cmd.txt', 'cmd.tmp', 'out.txt') | ForEach-Object { Join-Path $dir $_ })
   if ($DryRun) { 'DRY LAUNCH'; return }
   [IO.File]::WriteAllText($flag, '')
-  $blind = (Test-Path $modeFile) -and ([IO.File]::ReadAllText($modeFile).Trim() -eq 'release')
+  $blind = (Test-Path $modeFile) -and (@('release', 'noeditor') -contains [IO.File]::ReadAllText($modeFile).Trim())
   $enter = Join-Path $PSScriptRoot 'enter.ps1'
   $lines = if ($Login) { & $enter -GameDir $GameDir -Launch -Direct -StopAtLogin }
     elseif ($blind) { & $enter -GameDir $GameDir -Launch -Direct -BlindWaitSeconds 30 }
@@ -160,12 +162,14 @@ if ($Begin) {
   if (Test-Path -LiteralPath $parked) { throw "끝내지 않은 회차가 옮겨 둔 모드 폴더가 있습니다($parked). ModExportData로 되돌린 뒤 지우고 다시 시작합니다." }
   # 같은 번호를 두 번 주면 두 번째 이동이 표식 뒤에서 실패한다. 여기서 막는다.
   if (@($Exclude | Select-Object -Unique).Count -ne $Exclude.Count) { throw "-Exclude에 같은 번호가 두 번 있습니다: $($Exclude -join ',')" }
+  if ($NoEditor -and $ReleaseBuild) { throw '-NoEditor와 -ReleaseBuild는 함께 쓸 수 없습니다(-NoEditor는 편집기를 설치하지 않는다).' }
+  if ($NoEditor -and -not (Test-Path -LiteralPath (Join-Path $modsDir "Mod_$ModId") -PathType Container)) { throw "편집기 폴더가 없습니다: $(Join-Path $modsDir "Mod_$ModId")" }
   foreach ($id in $Exclude) {
     if ($id -eq "Mod_$ModId" -or $id -notmatch '^[0-9A-Za-z_]+$') { throw "뺄 수 없는 폴더입니다: $id" }
     if (-not (Test-Path -LiteralPath (Join-Path $modsDir $id) -PathType Container)) { throw "설치되지 않은 모드입니다: $id" }
   }
   $proj = Join-Path $repo 'src\ModCode\ModMain\ModMain.csproj'
-  if ($DryRun) {
+  if ($DryRun -or $NoEditor) {
     $dll = $null
   } elseif ($ReleaseBuild) {
     $outDir = Join-Path $env:TEMP "tltoybox-release-$ModId"
@@ -175,7 +179,7 @@ if ($Begin) {
     dotnet build $proj -c Release --nologo | Select-Object -Last 3
     $dll = Join-Path $repo "src\ModCode\ModMain\bin\Release\MOD_$ModId.dll"
   }
-  if (-not $DryRun -and $LASTEXITCODE -ne 0) { throw '빌드에 실패했습니다.' }
+  if (-not $DryRun -and -not $NoEditor -and $LASTEXITCODE -ne 0) { throw '빌드에 실패했습니다.' }
 
   # 세이브를 복사하고, 복사본이 원본과 같은지 확인한 뒤에야 회차를 연다.
   Copy-Item -LiteralPath $save -Destination $bak -Recurse
@@ -186,7 +190,9 @@ if ($Begin) {
   KeepFile $favFile $keptFav $noFav
   KeepFile "$favFile.bak" $keptFavBak $noFavBak
   KeepFile $gridFile $keptGrid $noGrid
-  if (-not $DryRun) {
+  if ($NoEditor) {
+    [IO.File]::WriteAllText($modeFile, 'noeditor')
+  } elseif (-not $DryRun) {
     Copy-Item -LiteralPath $installed -Destination $keptDll
     Copy-Item -LiteralPath $dll -Destination $installed -Force
     [IO.File]::WriteAllText($modeFile, $(if ($ReleaseBuild) { 'release' } else { 'dev' }))
@@ -209,6 +215,11 @@ if ($Begin) {
     [void][IO.Directory]::CreateDirectory($parked)
     [IO.Directory]::Move((Join-Path $modsDir $id), (Join-Path $parked $id))
     "MOD PARKED: $id"
+  }
+  if ($NoEditor) {
+    [void][IO.Directory]::CreateDirectory($parked)
+    [IO.Directory]::Move((Join-Path $modsDir "Mod_$ModId"), (Join-Path $parked "Mod_$ModId"))
+    "EDITOR PARKED: Mod_$ModId"
   }
   if ($Fixture) {
     # 표식을 남긴 뒤에 바꾼다. 여기서 멈춰도 -End가 사용자의 세이브를 복사본으로 되돌린다.

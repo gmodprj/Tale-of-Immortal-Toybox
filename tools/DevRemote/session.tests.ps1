@@ -284,6 +284,21 @@ $b = NewBox
 [void][IO.Directory]::CreateDirectory("$($b.game)\ModExportData\2814696167")
 $o = Run $b $none @{ End = 'x' }
 Check 'End stops when the folder came back and keeps the parked copy' ($o -match '^THROWN' -and [IO.File]::ReadAllText("$($b.work)\session-parked-mods\2814696167\ModExportData.cache") -eq 'wangu' -and (Test-Path "$($b.work)\session.name")) $o
+# 32. -NoEditor: 설치하지 않고 회차 동안 편집기 폴더를 작업 폴더로 옮겨 두며, 30초 기다림 표시를 남긴다. -End가 되돌린다(05 문서 84절: 모드를 뺀 뒤의 세이브 동작)
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; NoEditor = $true }
+$mode = if (Test-Path "$($b.work)\session.mode") { [IO.File]::ReadAllText("$($b.work)\session.mode") } else { '' }
+Check 'Begin with NoEditor parks the editor folder and installs nothing' ($o -match 'EDITOR PARKED: Mod_sWP6UL' -and -not (Test-Path "$($b.game)\ModExportData\Mod_sWP6UL") -and (Test-Path "$($b.work)\session-parked-mods\Mod_sWP6UL\ModExportData.cache") -and -not (Test-Path "$($b.work)\session-installed.dll") -and $mode -eq 'noeditor') $o
+$o = Run $b $none @{ End = 'x' }
+Check 'End puts the editor folder back' ($o -match 'MOD RESTORED: Mod_sWP6UL' -and [IO.File]::ReadAllText("$($b.game)\ModExportData\Mod_sWP6UL\ModExportData.cache") -eq 'ours' -and -not (Test-Path "$($b.work)\session-parked-mods") -and -not (Test-Path "$($b.work)\session.mode")) $o
+# 33. -NoEditor는 -ReleaseBuild와 함께 쓸 수 없고, 편집기 폴더가 없으면 회차를 열지 않는다
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; NoEditor = $true; ReleaseBuild = $true }
+Check 'Begin refuses NoEditor with ReleaseBuild' ($o -match '^THROWN' -and (Test-Path "$($b.game)\ModExportData\Mod_sWP6UL") -and -not (Test-Path "$($b.work)\session.name")) $o
+$b = NewBox
+[IO.Directory]::Delete("$($b.game)\ModExportData\Mod_sWP6UL", $true)
+$o = Run $b $none @{ Begin = 'x'; NoEditor = $true }
+Check 'Begin with NoEditor refuses when the editor folder is missing' ($o -match '^THROWN' -and -not (Test-Path "$($b.work)\session.name") -and -not (Test-Path "$($b.work)\save-backup-x")) $o
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }

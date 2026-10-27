@@ -3614,3 +3614,39 @@
 ### 83.7 고침: 모드 기술 이름에 `COLORFFAA00…COLOR`가 남음 (2026-10-23)
 
 사용자 보고(설치본 e0be677, 공법 탭). 모드(만고신화 등)의 기술 이름 원문은 `<COLOR=#FFAA00>초자검결</COLOR>`처럼 색 태그를 가진다. 이름을 다듬는 `EditService.Compact`가 글자·숫자만 남기면서 태그 안의 `COLOR`·`FFAA00`까지 남겼다(72절의 태그 지우기는 기술 카탈로그에만 있었다). `Compact`가 `TextTags.CompactName`(태그를 먼저 지운 뒤 글자·숫자만)을 쓰게 해, 공법·기령·명우·신혼·세트 이름 등 `Compact`를 거치는 모든 이름이 고쳐진다. 브랜치 `fix/mod-name-color`. 단위 시험 4줄(RED→GREEN). 개발 명령 `mfname`(익힌 공법의 다듬은 이름|원문)·`mfmake <분류> <번호> <경지>`(옵션 없이 만들어 배우기. 모드 공법은 편집기 배우기 길이 막혀 있어 검사 준비용), 검사 `mastery-check.ps1 -Part modname`(만고신화가 실린 회차, -Exclude 없이): 원문에는 태그가 있고 편집기 이름에는 `COLOR`가 없음, 캡처 `.devremote\check-modname.png`. 회귀: `ui-check` `translation`·`groups`(회차 `mf-1023o`), `tabs`·`base`·`preset-check state`(`mf-1023p`), `items`(`mf-1023q`) 모두 FAIL 0. `Compact(null)`은 전에 예외였고 이제 빈 글이다.
+
+## 84. 모드를 뺀 뒤의 세이브 동작 (2026-10-27 확인)
+
+첫 릴리스 때 확인하기로 한 것(06 문서 7절 표, 8.0절 2번). 편집기로 바꾼 값이 든 세이브를 편집기 없이 불러오고, 편집기 없이 저장된 그 세이브에 편집기를 다시 넣었다. 브랜치 `feat/session-noeditor`.
+
+### 84.1 도구: `session.ps1 -NoEditor`
+
+- `-Begin`과 함께 쓴다. 빌드·설치를 건너뛰고, 표식을 남긴 뒤 편집기 폴더 `ModExportData\Mod_sWP6UL`을 `-Exclude`와 같은 작업 폴더(`.devremote\session-parked-mods`)로 옮긴다(`EDITOR PARKED: Mod_sWP6UL`). `-End`가 되돌린다(`MOD RESTORED: Mod_sWP6UL`).
+- 편집기가 없으면 준비 로그(`TlToybox] state: ready`)가 없으므로 배포 빌드처럼 30초 기다린다(`session.mode`=`noeditor`, `WAITED 30 s`). `-Restart`도 같다.
+- `-ReleaseBuild`와 함께 쓰면 거부, 편집기 폴더가 없으면 회차를 열지 않는다. 시험 4개(`session.tests.ps1` 45개).
+- 편집기가 없는 동안에는 개발 명령(`mod.ps1`)이 없다. 화면은 `rc.ps1`(`hit`·`click`)과 `win.ps1 -Do shot`으로만 본다. 캡처 좌표 → 게임 좌표는 `(x / Scale - 8, y / Scale - 31)`을 빠뜨리지 않는다.
+
+### 84.2 절차와 회차
+
+1. 회차 `noed-a-1027`(편집기 있음, `-Fixture base -Exclude 2814696167`): `mastery-check persist`(청풍검 끼워 넣기·광혈참 다시 만들기, 옵션 11줄), `trainer3-check persist`(법보 3031101 경지 7·단계 6, 기령 친밀도 최대, 심법 85001 전승 10025, 참오 결과 최대)로 바꾸고 저장. `-End` 뒤 남은 `save-before-restore-noed-a-1027`로 고정본 `edited`를 만들었다(`.devremote\fixtures\edited`, git 제외).
+2. 회차 `noed-b-1027`(`-Fixture edited -Exclude 2814696167 -NoEditor`): 불러오기, 가방·기술 화면, 달 넘기기. 게임이 편집기 없이 새 달(2년 3월)을 자동 저장했다. 그 세이브(`save-before-restore-noed-b-1027`)로 고정본 `noed-after`.
+3. 회차 `noed-c-1027`(편집기 다시 넣음, `-Fixture noed-after -Exclude 2814696167`): 개발 명령으로 값을 읽어 1과 비교, 전투에서 기술 쓰기, 인물 화면.
+4. 회차 `noed-d-1027`(편집기 있음, `-Fixture edited`): 3번의 빈 선택지 사건과 비교하려고 달을 넘김(다른 사건이 떠 비교하지 못함).
+
+모든 회차 `SAVE RESTORED AND IDENTICAL`, `-NoEditor` 회차는 `MOD RESTORED: Mod_sWP6UL`.
+
+### 84.3 결과
+
+- **불러오기는 된다.** 편집기가 없어도 세이브 진입 전 모드 경고 창(`TextInfoLong`)이 뜨고 확인을 누르면 지도에 들어간다(편집기가 있을 때도 같은 창이 뜬다). 세이브가 깨졌다는 창은 없었다.
+- **편집기로 바꾼 값은 세이브에 남는다.** 편집기 없이 저장된 세이브에 편집기를 다시 넣고 읽은 값이 1과 같다: `cstate`(경지 9, 공법 28, 역천개명 `2:700016,3:700040`), `tr`(황염호각 g7, 기령 운몽의), `pstate`(수도 점수 62/54, 85001 전승 10025), `mfstate fY5GR9`(`opts=11 stages=12 last=대도`). 편집기가 없는 동안에도 게임 기술 화면에서 청풍검이 `대성`·`장비 중`으로 보였다.
+- **가방 추가 칸은 편집기가 없으면 사라진다(아이템은 남음).** 추가 칸은 세이브가 아니라 `TlToybox\bag-slots.txt`에 있고 편집기가 실행 중에 건다(25절). 편집기 없이 가방은 `가방 용량: 90/64`(90이 빨간 글자)로 보였고 아이템 90개는 그대로였다. 편집기를 다시 넣자 `가방 90/154 (편집기 추가 +90)`. 칸을 넘친 채 새 아이템을 얻을 때의 동작은 보지 않았다.
+- 게임의 모드 순서 값(레지스트리 `Mod_LoadData_h173884042`, 06 문서 1절): 네 회차 뒤에 41줄 모두 `isLoad:true`, 첫 줄이 `Mod_sWP6UL`로 그대로였다. 편집기를 뺀 채 띄워도 게임이 편집기 줄을 지우거나 끄지 않았다. 회차 전 값과의 바이트 비교는 하지 않았다(미확인).
+- 메모리에만 거는 것(배율·무적·아이템 소모 없음 등, 설정 파일)은 편집기가 없으면 걸리지 않는다. 다시 넣자 `rstate`가 모두 1(이 회차의 설정 파일 기준).
+- 로그의 오류는 다른 모드의 것뿐이다: Fatury의 `ResLateLoadPatch`·스프라이트 오류(회차 A에도 같음), 인물 화면을 열 때 `TeamBest.SMoonUITools.CreatePlayerInfoNewPatch`의 NullReference(편집기가 있는 회차 C에서도 같은 오류. 편집기와 상관없음).
+- 전투(달 넘기기의 생사결전 습격): 편집기를 다시 넣은 회차에서 `bcast 1`·`bcast 2`가 `CreateSkillAttack=True`. 습격 NPC가 강해 인물이 쓰러졌다(게임 사건. 시험 세이브라 되돌림).
+
+### 84.4 확인하지 못한 것
+
+- 편집기를 뺀 회차의 첫 달 넘기기에서 NPC 대화(충상양이 "호연 여동"에게 도움을 청하자는 이야기)의 선택지 세 칸이 글 없이 `0`만 보였고, 선택지가 눌리지 않아(맨 위가 `DramaDialogue/G:btnNext`) 대화에서 멈췄다. 게임을 다시 띄우자 다른 사건이 떴다. 편집기가 있을 때 같은 사건이 정상인지는 비교하지 못했다(회차 D는 절도 사건, 선택지 글 정상). 편집기의 글 바꿔 끼우기(54·74절)가 빠진 탓인지, 그 사건 자체의 문제인지 모른다. 다시 보이면 편집기 있는 회차에서 그 사건의 선택지 표를 찾아 비교한다.
+- 넘친 가방(90/64)에서 아이템을 얻거나 버릴 때, 편집기를 뺀 채 여러 달 플레이할 때.
+- 편집기의 모드 공법 비급(42절)이 든 세이브. 그 비급은 창작마당 모드의 것이라 그 모드를 뺄 때의 문제다.
