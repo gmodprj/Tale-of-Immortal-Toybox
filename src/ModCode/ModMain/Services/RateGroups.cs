@@ -17,9 +17,10 @@ namespace MOD_sWP6UL
         public static readonly Group[] Groups =
         {
             new Group { Name = "성장", Keys = new[] { "exp", "martial", "studyGain" } },
-            new Group { Name = "시간·속도", Keys = new[] { "mapSpeed", "speed", "move", "actionDay" } },
-            new Group { Name = "전투", Keys = new[] { "battleMove", "cooldown", "artifactCooldown", "mpCost", "spCost", "multiplier", "taken", "god" } },
-            new Group { Name = "관계·소모", Keys = new[] { "intimGain", "energyCost", "itemUse" } },
+            new Group { Name = "시간·속도", Keys = new[] { "mapSpeed", "speed", "battleMove", "move", "actionDay" } },
+            // 전투 칩은 8줄을 넘기지 않는다(줄 높이 64). 전투 이동 속도는 트레이너 4차에서 시간·속도로 옮겼다(05 문서 87절).
+            new Group { Name = "전투", Keys = new[] { "cooldown", "itemCooldown", "artifactCooldown", "mpCost", "spCost", "multiplier", "taken", "god" } },
+            new Group { Name = "관계·소모", Keys = new[] { "intimGain", "energyCost", "itemUse", "artifactDurable" } },
         };
 
         // 칩 수: 분류 넷 + 켜 둔 것
@@ -93,6 +94,40 @@ namespace MOD_sWP6UL
             int drop = before - now;
             int keep = (int)Math.Ceiling(drop * (double)Math.Max(0f, rate) - 1e-9);
             return Math.Max(0, drop - keep);
+        }
+
+        // ---- 트레이너 4차(05 문서 87절, 스펙 2026-10-28-trainer4-battle-design.md) ----
+
+        // 기술마다의 쿨타임(선법·영역의 cd, 밀리초)의 하한. 없음(0)도 0이 아니라 이 값이다(선법은 에너지를 cdTime으로 나눠 채우는 꼴).
+        public const int SkillCooldownFloor = 100;
+
+        // 기술마다의 쿨타임 값. 0 이하(게임이 멈춘 값)와 x1은 그대로. 원래 값이 하한보다 짧으면 늘리지 않는다.
+        public static int SkillCooldown(int original, float rate)
+        {
+            if (original <= 0 || rate >= 1f)
+            {
+                return original;
+            }
+            int floor = Math.Min(SkillCooldownFloor, original);
+            if (rate <= 0f)
+            {
+                return floor;
+            }
+            int scaled = (int)Math.Round(original * (double)rate, MidpointRounding.AwayFromZero);
+            return Math.Max(floor, scaled);
+        }
+
+        // 일격의 피해: 대상의 남은 체력 + 최대 체력(넘치면 int 최댓값). 0은 피해가 아니므로 최소 1.
+        public static int OneHitDamage(int hp, int maxHp)
+        {
+            long sum = (long)Math.Max(0, hp) + Math.Max(0, maxHp);
+            return sum > int.MaxValue ? int.MaxValue : (int)Math.Max(1L, sum);
+        }
+
+        // 법보 내구 소모 없음: 켜져 있고 플레이어 법보이며 줄어드는 쓰기일 때만 막는다(수리로 늘리는 것은 그대로).
+        public static bool DurableBlocked(int now, int next, bool owned, bool on)
+        {
+            return on && owned && next < now;
         }
     }
 }
