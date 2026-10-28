@@ -203,7 +203,7 @@ namespace MOD_sWP6UL
             {
                 sb.Append(rate.Key).Append('=').Append(rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)).Append(rate.Patched ? "(patched)" : "").Append(' ');
             }
-            sb.Append("god=").Append(BattleService.God).Append(" damage=").Append(BattleService.Multiplier)
+            sb.Append("god=").Append(BattleService.God).Append(" damage=").Append(BattleService.Multiplier == BattleService.OneHit ? "onehit" : BattleService.Multiplier.ToString())
                 .Append(" lastExp=").Append(RateService.Exp.Last)
                 .Append(" lastMartial=").Append(RateService.Martial.Last)
                 .Append(" lastMove=").Append(RateService.Move.Last)

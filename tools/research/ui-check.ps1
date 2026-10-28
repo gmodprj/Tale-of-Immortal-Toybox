@@ -2156,16 +2156,17 @@ switch ($Part) {
     Check 'five chips with their names' ($names[0] -eq '성장' -and $names[1] -eq '시간·속도' -and $names[2] -eq '전투' -and $names[3] -eq '관계·소모' -and $names[4] -eq '켜 둔 것') ($names -join ',')
     Check 'growth chip shows its rows only' ((Has 'RateExp') -and (Has 'RateMartial') -and (Has 'RateStudyGain') -and -not (Has 'RateMapSpeed') -and -not (Has 'God'))
     Press 'RateGroup1' | Out-Null
-    Check 'time chip shows map speed and battle speed' ((Has 'RateMapSpeed') -and (Has 'RateSpeed') -and (Has 'RateMove') -and (Has 'RateActionDay') -and -not (Has 'RateExp'))
+    Check 'time chip shows map speed and battle speed' ((Has 'RateMapSpeed') -and (Has 'RateSpeed') -and (Has 'RateBattleMove') -and (Has 'RateMove') -and (Has 'RateActionDay') -and -not (Has 'RateExp'))
     Check 'map speed starts at x1 with its note' ((T 'RateMapSpeed') -eq 'x1' -and (T 'RateNoteMapSpeed') -match '지도') "$(T 'RateMapSpeed') | $(T 'RateNoteMapSpeed')"
-    Press 'RateGroup2' | Out-Null
-    Check 'battle chip shows eight rows' ((Has 'RateBattleMove') -and (Has 'RateCooldown') -and (Has 'RateArtifactCooldown') -and (Has 'RateMpCost') -and (Has 'RateSpCost') -and (Has 'Multiplier') -and (Has 'RateTaken') -and (Has 'God'))
+    # 전투 이동 속도는 트레이너 4차(05 문서 87절)에서 시간·속도 칩으로 옮겼다.
     Check 'battle move steps up to x1.5' ((Press 'RateBattleMove') -and (T 'RateBattleMove') -eq 'x1.5') (T 'RateBattleMove')
+    Press 'RateGroup2' | Out-Null
+    Check 'battle chip shows eight rows' ((Has 'RateCooldown') -and (Has 'RateItemCooldown') -and (Has 'RateArtifactCooldown') -and (Has 'RateMpCost') -and (Has 'RateSpCost') -and (Has 'Multiplier') -and (Has 'RateTaken') -and (Has 'God') -and -not (Has 'RateBattleMove'))
     Press 'RateGroup3' | Out-Null
     Check 'relation chip shows favor, energy and items' ((Has 'RateIntimGain') -and (Has 'RateEnergyCost') -and (Has 'RateItemUse'))
     Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
     Check 'energy cost reaches none' ((T 'RateEnergyCost') -eq '없음') (T 'RateEnergyCost')
-    Check 'chips count what is on' ((T 'RateGroup2') -eq '전투 1' -and (T 'RateGroup3') -eq '관계·소모 1' -and (T 'RateGroup0') -eq '성장') "$(T 'RateGroup2') | $(T 'RateGroup3') | $(T 'RateGroup0')"
+    Check 'chips count what is on' ((T 'RateGroup1') -eq '시간·속도 1' -and (T 'RateGroup3') -eq '관계·소모 1' -and (T 'RateGroup0') -eq '성장') "$(T 'RateGroup1') | $(T 'RateGroup3') | $(T 'RateGroup0')"
     Press 'RateGroup4' | Out-Null
     Check 'the on chip lists the two rows that are on' ((T 'RateGroup4') -eq '켜 둔 것 2' -and (Has 'RateBattleMove') -and (Has 'RateEnergyCost') -and -not (Has 'RateExp') -and -not (Has 'RateEmpty')) (T 'RateGroup4')
     Start-Sleep -Milliseconds 800
@@ -2556,7 +2557,9 @@ switch ($Part) {
     Leave
     Tab; Press 'RateReset' | Out-Null
     $s = Cmd 'rstate' 200
-    Check 'reset puts the battle rows back' ($s -match 'cooldown=1 artifactCooldown=1 mpCost=1 spCost=1 studyGain=1 itemUse=1 taken=1 god=False damage=1') $s
+    # 줄 순서(RateService.All)에 묶지 않고 키마다 본다(트레이너 4차에서 줄이 끼어들었다).
+    $back = @('cooldown', 'itemCooldown', 'artifactCooldown', 'mpCost', 'spCost', 'studyGain', 'itemUse', 'taken', 'artifactDurable') | Where-Object { $s -notmatch " $_=1(\(patched\))? " }
+    Check 'reset puts the battle rows back' (@($back).Count -eq 0 -and $s -match 'god=False damage=1 ') "$($back -join ',') | $s"
     Press 'Close' | Out-Null
     Shot 'combat'
     Check 'no exception in button callbacks' ((Traps) -eq $traps)

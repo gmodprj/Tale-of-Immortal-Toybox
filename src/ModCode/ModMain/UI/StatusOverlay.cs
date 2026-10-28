@@ -33,9 +33,9 @@ namespace MOD_sWP6UL
             {
                 parts.Add("무적");
             }
-            if (BattleService.Multiplier > 1)
+            if (BattleService.DamageOn)
             {
-                parts.Add("피해 x" + BattleService.Multiplier);
+                parts.Add("피해 " + BattleService.DamageText);
             }
             if (TimeService.Frozen)
             {
