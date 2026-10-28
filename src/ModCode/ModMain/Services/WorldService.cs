@@ -63,11 +63,30 @@ namespace MOD_sWP6UL
 
         public static bool God;
         public static int Multiplier = 1;
-        public static readonly int[] Multipliers = { 1, 2, 5, 10, 100 };
+        // 일격(트레이너 4차, 05 문서 87절): 맞은 적의 체력 + 최대 체력만큼 준다. 배율 단계 끝의 표지 값.
+        public const int OneHit = -1;
+        public static readonly int[] Multipliers = { 1, 2, 5, 10, 100, OneHit };
+
+        // 주는 피해가 1배가 아닌지(일격 포함)
+        public static bool DamageOn
+        {
+            get { return Multiplier != 1; }
+        }
+
+        // 화면에 보일 주는 피해 값: x2 … x100, 일격
+        public static string DamageText
+        {
+            get { return TextOf(Multiplier); }
+        }
+
+        private static string TextOf(int multiplier)
+        {
+            return multiplier == OneHit ? "일격" : "x" + multiplier;
+        }
 
         private static bool Wanted
         {
-            get { return God || Multiplier > 1 || RateService.Taken.On; }
+            get { return God || DamageOn || RateService.Taken.On; }
         }
 
         // 받는 피해 배율이 바뀌었을 때 구독 상태를 맞춘다.
@@ -102,8 +121,8 @@ namespace MOD_sWP6UL
             int index = Array.IndexOf(Multipliers, Multiplier);
             Multiplier = Multipliers[(index + 1) % Multipliers.Length];
             Sync();
-            ChangeLog.Add("전투", "피해 배율(플레이어가 주는 피해)", "x" + before, "x" + Multiplier, true);
-            return "피해 배율: x" + Multiplier;
+            ChangeLog.Add("전투", "피해 배율(플레이어가 주는 피해)", TextOf(before), DamageText, true);
+            return "피해 배율: " + DamageText;
         }
 
         // 무적을 끄고 피해 배율을 1로 되돌린다(배율 탭의 "모두 1배로").
@@ -118,7 +137,7 @@ namespace MOD_sWP6UL
                 int before = Multiplier;
                 Multiplier = 1;
                 Sync();
-                ChangeLog.Add("전투", "피해 배율(플레이어가 주는 피해)", "x" + before, "x1", true);
+                ChangeLog.Add("전투", "피해 배율(플레이어가 주는 피해)", TextOf(before), "x1", true);
             }
         }
 
@@ -151,6 +170,7 @@ namespace MOD_sWP6UL
 #if DEVTOOLS
         // 개발 전용: 구독 여부와, 이벤트가 불린 횟수·배율을 건 횟수·마지막으로 건 값.
         public static int DevHits;
+        public static UnitCtrlBase DevKillTarget;   // 일격으로 마지막에 맞은 단위(개발 명령 bhp가 읽는다)
         public static int DevScaled;
         public static string DevLast = "-";
         public static string DevDrop = "-";
@@ -214,6 +234,17 @@ namespace MOD_sWP6UL
                 return;
             }
             UnitCtrlBase attacker = data.hitData == null ? null : data.hitData.attackUnit;
+            if (Multiplier == OneHit && attacker != null && attacker.data != null && attacker.data.unitType == UnitType.Player
+                && data.hitUnit != null && data.hitUnit.data != null)
+            {
+                data.dynV.baseValue = RateGroups.OneHitDamage(data.hitUnit.data.hp, data.hitUnit.data.maxHP.value);
+#if DEVTOOLS
+                DevScaled++;
+                DevKillTarget = data.hitUnit;
+                DevLast = "onehit base->" + data.dynV.baseValue + " value=" + data.dynV.value + " targetHp=" + data.hitUnit.data.hp + "/" + data.hitUnit.data.maxHP.value;
+#endif
+                return;
+            }
             if (Multiplier > 1 && attacker != null && attacker.data != null && attacker.data.unitType == UnitType.Player)
             {
 #if DEVTOOLS
