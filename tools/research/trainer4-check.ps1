@@ -52,9 +52,12 @@ switch ($Part) {
     Start-Sleep -Milliseconds 800
     $st = Cmd 'uistate'
     Check 'the status line shows them' ($st -match '피해 일격' -and $st -match '아이템 쿨타임 없음' -and $st -match '법보 내구 없음') $st
+    # 켜 둔 것 칩에서는 x1이 되는 순간 줄이 사라지므로 전투 칩에서 돌린다.
+    Press 'RateGroup2' | Out-Null
     Press 'Multiplier' | Out-Null
     Check 'damage wraps from one hit to x1' ((T 'Multiplier') -eq 'x1') (T 'Multiplier')
     Press 'RateReset' | Out-Null
+    Press 'RateGroup4' | Out-Null
     Check 'reset turns the new rows off' ((T 'RateGroup4') -eq '켜 둔 것' -and (Has 'RateEmpty')) (T 'RateGroup4')
     Press 'Tab14' | Out-Null
     $lines = Cmd 'uidescs HistoryLine' 300
@@ -67,15 +70,20 @@ switch ($Part) {
   }
   'items' {
     $traps = Traps
+    # 법보 칸도 보려고 법보를 지급·장착한다(고정본에는 장착 법보가 없다).
+    Cmd 'trgive 3031101' 800 | Out-Null
+    $sole = if ((Cmd 'tr' 200) -match '\[(\w+):3031101') { $Matches[1] } else { '' }
+    Check 'an artifact is equipped for the slot' ($sole -ne '' -and (Cmd "trequip $sole" 800) -match '장착') $sole
     Into 5
     $c = Cmd 'cdall' 200
     Check 'the battle has pills and the artifact slot' ($c -match 'prop3 PropItemPill' -and $c -match 'prop4 PropItemPill') $c
+    # 칸 3(1011101, 20초)을 쓴다. 칸 4(1011161)는 다른 단약과 쿨타임을 나누지 않는다(회차 t4-a).
     Check 'a pill works once at x1' ((Cmd 'tbbuse 3' 400) -match 'IsCreate=True') ''
-    Check 'a second pill is refused at x1' ((Cmd 'tbbuse 4' 400) -match 'IsCreate=False') ''
+    Check 'the same pill is refused at x1' ((Cmd 'tbbuse 3' 400) -match 'IsCreate=False') ''
     Check 'item cooldown is none' ((Step 'RateItemCooldown' 4) -eq '없음')
     $c = Cmd 'cdall' 200
     Check 'item rate is raised' ((Num $c 'item=(\d+)/') -ge 1000000) $c
-    $ok = @(1..2 | ForEach-Object { Cmd 'tbbuse 4' 400 } | Where-Object { $_ -match 'IsCreate=True' }).Count
+    $ok = @(1..2 | ForEach-Object { Cmd 'tbbuse 3' 400 } | Where-Object { $_ -match 'IsCreate=True' }).Count
     Check 'the pill is used twice in a row' ($ok -eq 2) "ok=$ok"
     $art = if ($c -match 'prop(\d) PropItemArtifact') { $Matches[1] } else { '' }
     if ($art -ne '') {
