@@ -880,6 +880,8 @@ namespace MOD_sWP6UL
         private static int cooldownSkill;       // 그 단위의 원래 skillCDRate
         private static int cooldownStep;        // 원래 stepCDRate
         private static int cooldownItem;        // 원래 itemCDRate(전투 아이템 쿨타임 줄)
+        private static bool skillApplied;       // 기술 쿨타임 줄이 이 단위의 skill·stepCDRate에 걸려 있다
+        private static bool itemApplied;        // 전투 아이템 쿨타임 줄이 itemCDRate에 걸려 있다
 
         // 전투 중인 플레이어의 쿨타임 속도를 맞춘다. 기술 쿨타임은 skillCDRate·stepCDRate, 전투 아이템 쿨타임은 itemCDRate.
         // 전투마다 원래 값을 떠 두고, 줄을 1배로 돌리면 그 비율을 원래 값으로 되돌린다.
@@ -918,10 +920,21 @@ namespace MOD_sWP6UL
                     cooldownSkill = skill.baseValue;
                     cooldownStep = step.baseValue;
                     cooldownItem = item.baseValue;
+                    skillApplied = false;
+                    itemApplied = false;
                 }
-                ApplyCooldown(skill, cooldownSkill, Cooldown);
-                ApplyCooldown(step, cooldownStep, Cooldown);
-                ApplyCooldown(item, cooldownItem, ItemCooldown);
+                // 줄마다 켜져 있을 때와 되돌릴 때만 쓴다. 다른 줄만 켰을 때 꺼진 줄의 비율(게임 값)을 덮지 않는다(최종 리뷰).
+                if (RateGroups.WritesRate(Cooldown.On, skillApplied))
+                {
+                    ApplyCooldown(skill, cooldownSkill, Cooldown);
+                    ApplyCooldown(step, cooldownStep, Cooldown);
+                    skillApplied = Cooldown.On;
+                }
+                if (RateGroups.WritesRate(ItemCooldown.On, itemApplied))
+                {
+                    ApplyCooldown(item, cooldownItem, ItemCooldown);
+                    itemApplied = ItemCooldown.On;
+                }
                 if (!any)
                 {
                     // 모두 원래 값으로 되돌렸다.

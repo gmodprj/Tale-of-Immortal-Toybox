@@ -117,6 +117,13 @@ namespace MOD_sWP6UL
             return Math.Max(floor, scaled);
         }
 
+        // 전투 단위 비율(skill·step·item CDRate)을 이 프레임에 쓸지: 줄이 켜져 있거나, 걸어 둔 것을 되돌릴 때 한 번.
+        // 꺼진 채 걸지 않은 줄의 비율은 건드리지 않는다(다른 줄만 켰을 때 게임 값을 덮지 않게, 최종 리뷰).
+        public static bool WritesRate(bool on, bool applied)
+        {
+            return on || applied;
+        }
+
         // 일격의 피해: 대상의 남은 체력 + 최대 체력(넘치면 int 최댓값). 0은 피해가 아니므로 최소 1.
         public static int OneHitDamage(int hp, int maxHp)
         {

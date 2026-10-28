@@ -279,6 +279,8 @@ namespace MOD_sWP6UL
             Check("one hit: overflow is cut", RateGroups.OneHitDamage(int.MaxValue, 5) == int.MaxValue);
             Check("one hit: never zero", RateGroups.OneHitDamage(0, 0) == 1);
             Check("durable: only a drop on an owned artifact is blocked", RateGroups.DurableBlocked(100, 98, true, true) && !RateGroups.DurableBlocked(100, 98, false, true) && !RateGroups.DurableBlocked(98, 100, true, true) && !RateGroups.DurableBlocked(100, 98, true, false));
+            Check("cooldown rate: an off row that was never applied is not written", !RateGroups.WritesRate(false, false));
+            Check("cooldown rate: an on row is written, and an off row once to restore", RateGroups.WritesRate(true, false) && RateGroups.WritesRate(true, true) && RateGroups.WritesRate(false, true));
             Check("energy refund: half gives half back", RateGroups.EnergyRefund(74, 64, 0.5f) == 5);
             Check("energy refund: none gives all back", RateGroups.EnergyRefund(74, 64, 0f) == 10);
             Check("energy refund: x1 and a rise give nothing", RateGroups.EnergyRefund(74, 64, 1f) == 0 && RateGroups.EnergyRefund(64, 74, 0f) == 0 && RateGroups.EnergyRefund(5, 5, 0f) == 0);
