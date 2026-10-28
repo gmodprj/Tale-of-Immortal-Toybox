@@ -97,7 +97,22 @@ namespace MOD_sWP6UL
         public static readonly Rate Cooldown = new Rate
         {
             Key = "cooldown", Label = "기술 쿨타임", Short = "쿨타임", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
-            Note = "전투에서 무예·절기·신법·신통의 재사용 대기시간을 곱합니다. 없음이면 바로 다시 쓸 수 있습니다(영력 소모와 발동 조건은 그대로).",
+            Note = "전투에서 무예·절기·신법·신통과 명우 기술, 선법·영역 기술의 재사용 대기시간을 곱합니다. 없음이면 바로 다시 쓸 수 있습니다(영력·도력 소모와 발동 조건, 선법의 발동 시간은 그대로).",
+        };
+
+        // 전투 아이템 칸(단약 등)과 장착 법보 발동의 쿨타임: 전투 단위 비율 itemCDRate(기본 100)를 올린다.
+        // 신기 쪽 artifactCDRate와 달리 전투 중에 바꿔도 듣는다(05 문서 87절, 회차 t4-a-1028).
+        public static readonly Rate ItemCooldown = new Rate
+        {
+            Key = "itemCooldown", Label = "전투 아이템 쿨타임", Short = "아이템 쿨타임", Steps = new[] { 1f, 0.5f, 0.25f, 0.1f, 0f }, ZeroText = "없음",
+            Note = "전투 아이템 칸(단약·부적 등)과 장착 법보를 쓴 뒤의 재사용 대기시간을 곱합니다. 아이템 수는 아이템 소모 줄이 맡습니다.",
+        };
+
+        // 법보 내구 소모 없음: PropsArtifact.set_durable 접두에서 플레이어 법보의 줄어드는 쓰기를 막는다(패치는 RateGuards, 05 문서 87절).
+        public static readonly Rate ArtifactDurable = new Rate
+        {
+            Key = "artifactDurable", Label = "법보 내구 소모", Short = "법보 내구", Steps = new[] { 1f, 0f }, ZeroText = "없음",
+            Note = "없음이면 플레이어 법보의 내구가 줄지 않습니다(전투에서 법보를 처음 쓸 때 줄어드는 것 등). 수리로 늘리는 것은 그대로입니다.",
         };
 
         // 플레이어가 받는 피해. 주는 피해와 같은 이벤트에서 BattleService가 곱한다.
@@ -177,8 +192,8 @@ namespace MOD_sWP6UL
         };
 
         // All은 위의 줄들보다 뒤에 둔다(정적 필드는 적힌 순서로 초기화된다).
-        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, ItemUse, Taken,
-            MapSpeed, BattleMove, IntimGain, EnergyCost };
+        public static readonly Rate[] All = { Exp, Martial, Move, ActionDay, Speed, Cooldown, ItemCooldown, ArtifactCooldown, MpCost, SpCost, StudyGain, ItemUse, Taken,
+            MapSpeed, BattleMove, IntimGain, EnergyCost, ArtifactDurable };
 
         private static HarmonyLib.Harmony harmony;
         private static bool speedApplied;
@@ -253,6 +268,10 @@ namespace MOD_sWP6UL
             if (rate == ItemUse)
             {
                 return PatchWith(rate, RateGuards.PatchItemUse);
+            }
+            if (rate == ArtifactDurable)
+            {
+                return PatchWith(rate, RateGuards.PatchDurable);
             }
             if (rate.Hook == null)
             {
@@ -860,11 +879,14 @@ namespace MOD_sWP6UL
         private static IntPtr cooldownUnit;     // 값을 떠 둔 전투 단위. 전투마다 새로 만들어진다
         private static int cooldownSkill;       // 그 단위의 원래 skillCDRate
         private static int cooldownStep;        // 원래 stepCDRate
+        private static int cooldownItem;        // 원래 itemCDRate(전투 아이템 쿨타임 줄)
 
-        // 전투 중인 플레이어의 쿨타임 속도를 맞춘다. 전투마다 원래 값을 떠 두고, 1배로 돌리면 그 값으로 되돌린다.
+        // 전투 중인 플레이어의 쿨타임 속도를 맞춘다. 기술 쿨타임은 skillCDRate·stepCDRate, 전투 아이템 쿨타임은 itemCDRate.
+        // 전투마다 원래 값을 떠 두고, 줄을 1배로 돌리면 그 비율을 원래 값으로 되돌린다.
         private static void TickCooldown()
         {
-            if (!Cooldown.On && cooldownUnit == IntPtr.Zero)
+            bool any = Cooldown.On || ItemCooldown.On;
+            if (!any && cooldownUnit == IntPtr.Zero)
             {
                 return;
             }
@@ -875,7 +897,7 @@ namespace MOD_sWP6UL
                     // 전투 단위가 보이지 않는다. 꺼져 있으면 되돌릴 것이 없으니 잊는다.
                     // 켜져 있으면 떠 둔 값을 남긴다: 같은 단위가 다시 보였을 때(연출 등으로 잠깐 사라진 경우)
                     // 이미 곱한 값을 원래 값으로 다시 뜨면 배율이 겹친다. 새 전투의 단위는 포인터가 달라 새로 뜬다.
-                    if (!Cooldown.On)
+                    if (!any)
                     {
                         cooldownUnit = IntPtr.Zero;
                     }
@@ -884,9 +906,10 @@ namespace MOD_sWP6UL
                 UnitCtrlPlayer unit = SceneType.battle.battleMap.playerUnitCtrl;
                 DynInt skill = unit.data.skillCDRate;
                 DynInt step = unit.data.stepCDRate;
+                DynInt item = unit.data.itemCDRate;
                 if (unit.Pointer != cooldownUnit)
                 {
-                    if (!Cooldown.On)
+                    if (!any)
                     {
                         cooldownUnit = IntPtr.Zero;
                         return;
@@ -894,29 +917,39 @@ namespace MOD_sWP6UL
                     cooldownUnit = unit.Pointer;
                     cooldownSkill = skill.baseValue;
                     cooldownStep = step.baseValue;
+                    cooldownItem = item.baseValue;
                 }
-                if (!Cooldown.On)
+                ApplyCooldown(skill, cooldownSkill, Cooldown);
+                ApplyCooldown(step, cooldownStep, Cooldown);
+                ApplyCooldown(item, cooldownItem, ItemCooldown);
+                if (!any)
                 {
-                    skill.baseValue = cooldownSkill;
-                    step.baseValue = cooldownStep;
+                    // 모두 원래 값으로 되돌렸다.
                     cooldownUnit = IntPtr.Zero;
-                    return;
-                }
-                float factor = Cooldown.Value == 0f ? CooldownNone : 1f / Cooldown.Value;
-                int wantSkill = CooldownTarget(cooldownSkill, factor);
-                int wantStep = CooldownTarget(cooldownStep, factor);
-                if (cooldownSkill > 0 && skill.baseValue != wantSkill)
-                {
-                    skill.baseValue = wantSkill;
-                }
-                if (cooldownStep > 0 && step.baseValue != wantStep)
-                {
-                    step.baseValue = wantStep;
                 }
             }
             catch (Exception e)
             {
-                Warn(Cooldown, e);
+                Warn(ItemCooldown.On && !Cooldown.On ? ItemCooldown : Cooldown, e);
+            }
+        }
+
+        // 비율 하나를 그 줄의 배율에 맞춘다(꺼져 있으면 원래 값). 원래 값이 0 이하이면 건드리지 않는다.
+        private static void ApplyCooldown(DynInt value, int original, Rate rate)
+        {
+            if (original <= 0)
+            {
+                return;
+            }
+            int want = original;
+            if (rate.On)
+            {
+                float factor = rate.Value == 0f ? CooldownNone : 1f / rate.Value;
+                want = CooldownTarget(original, factor);
+            }
+            if (value.baseValue != want)
+            {
+                value.baseValue = want;
             }
         }
 
@@ -935,7 +968,7 @@ namespace MOD_sWP6UL
         // 1배로 돌리면 그 값으로 되돌린다. 전투 중에 새로 생긴 기술(호천안 기술을 바꾼 경우 등)은 보이는 대로 떠 둔다.
         private static void TickSkillValues()
         {
-            bool any = ArtifactCooldown.On || MpCost.On || SpCost.On;
+            bool any = ArtifactCooldown.On || MpCost.On || SpCost.On || Cooldown.On;
             if (!any && skillValues.Count == 0)
             {
                 return;
@@ -970,7 +1003,9 @@ namespace MOD_sWP6UL
                 foreach (var pair in skillValues)
                 {
                     SkillValue v = pair.Value;
-                    int want = v.Rate.On ? Scaled(v.Original, v.Rate.Value) : v.Original;
+                    // 기술 쿨타임 줄(선법·영역의 cd)은 없음도 0이 아니라 하한(RateGroups.SkillCooldown)
+                    int want = !v.Rate.On ? v.Original
+                        : v.Rate == Cooldown ? RateGroups.SkillCooldown(v.Original, v.Rate.Value) : Scaled(v.Original, v.Rate.Value);
                     if (v.Value.baseValue != want)
                     {
                         v.Value.baseValue = want;
@@ -988,7 +1023,7 @@ namespace MOD_sWP6UL
             }
             catch (Exception e)
             {
-                Warn(MpCost.On ? MpCost : SpCost.On ? SpCost : ArtifactCooldown, e);
+                Warn(MpCost.On ? MpCost : SpCost.On ? SpCost : ArtifactCooldown.On ? ArtifactCooldown : Cooldown, e);
             }
         }
 
@@ -1017,6 +1052,16 @@ namespace MOD_sWP6UL
             if (SpCost.On)
             {
                 Track(unit.devilDemonSkill == null ? null : unit.devilDemonSkill.spCost, SpCost);
+            }
+            if (Cooldown.On)
+            {
+                // 선법·영역은 단위 비율 skillCDRate가 듣지 않아 기술마다의 cd를 곱한다(05 문서 87절, 회차 t4-b·t4-d).
+                for (int i = 0; unit.immortalSkill != null && i < unit.immortalSkill.Count; i++)
+                {
+                    ImmortalSkillBase s = unit.immortalSkill[i];
+                    Track(s == null || s.data == null ? null : s.data.cd, Cooldown);
+                }
+                Track(unit.fieldSkill == null || unit.fieldSkill.data == null ? null : unit.fieldSkill.data.cd, Cooldown);
             }
         }
 
