@@ -219,6 +219,14 @@ namespace MOD_sWP6UL
         // 개발 명령이 읽는다: 접두가 불린 수와 막은 수.
         public static int DurableCalls;
         public static int DurableBlockedCount;
+#if DEVTOOLS
+        // 개발 탐침(2026-10-29): 플레이어 것이 아닌 법보의 줄어드는 쓰기 수와 마지막 값(sole now->next).
+        public static int DevDurableOtherCalls;
+        public static string DevDurableOtherLast;
+#else
+        public const int DevDurableOtherCalls = 0;
+        public const string DevDurableOtherLast = null;
+#endif
 
         // 매개변수 이름이 다를 수 있어 자리(__0)로 받는다. 예외를 던지지 않는다.
         public static void DurableGuard(DataProps.PropsArtifact __instance, ref int __0)
@@ -231,11 +239,19 @@ namespace MOD_sWP6UL
             {
                 DurableCalls++;
                 int now = __instance.durable;
-                if (__0 < now && RateGroups.DurableBlocked(now, __0, OwnedByPlayer(__instance), true))
+                bool owned = OwnedByPlayer(__instance);
+                if (__0 < now && RateGroups.DurableBlocked(now, __0, owned, true))
                 {
                     __0 = now;
                     DurableBlockedCount++;
                 }
+#if DEVTOOLS
+                else if (__0 < now && !owned)
+                {
+                    DevDurableOtherCalls++;
+                    DevDurableOtherLast = (__instance.data == null ? "?" : __instance.data.soleID) + " " + now + "->" + __0;
+                }
+#endif
             }
             catch (Exception e)
             {

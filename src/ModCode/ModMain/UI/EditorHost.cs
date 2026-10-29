@@ -64,6 +64,8 @@ namespace MOD_sWP6UL
             AppellationService.Tick();
 #if DEVTOOLS
             DevInputWatch.Tick();
+            DevTimeScaleWatch.Tick();
+            DevImmortalWatch.Tick();
 #endif
             if (Input.GetKeyDown(EditorHost.Hotkey))
             {

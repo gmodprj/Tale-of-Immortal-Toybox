@@ -1,5 +1,5 @@
 # 트레이너 4차 전투 묶음(스펙 docs/superpowers/specs/2026-10-28-trainer4-battle-design.md, 05 문서 87절)의 게임 내 검증.
-# tools\DevRemote\session.ps1 -Begin <이름> -Fixture base -Exclude 2814696167로 게임이 떠서 세계에 들어가 있어야 한다. 부분마다 깨끗한 회차.
+# tools\DevRemote\session.ps1 -Begin <이름> -Fixture base -Exclude 2814696167로 게임이 떠서 세계에 들어가 있어야 한다. ui·items는 한 회차, 나머지는 부분마다 깨끗한 회차(06 문서 5절).
 #   -Part ui       배율 탭: 칩별 줄(전투 이동 속도는 시간·속도, 전투 칩 8줄, 법보 내구는 관계·소모), 새 줄 설명, 주는 피해 일격 단계, 켜 둔 것과 화면 위 표시.
 #   -Part items    전투 아이템 쿨타임: x1이면 단약 두 번째 거부, 없음이면 단약·법보 연달아, x1로 돌리면 itemCDRate 100.
 #   -Part skills   기술 쿨타임의 선법·영역: 등선(40)·선법 장착·영역 넣기 뒤 전투, 없음이면 cd 100과 연달아 발동, x1·x0.5에서 원래 값과 겹치지 않음.
@@ -25,7 +25,7 @@ function Num([string]$text, [string]$pattern) { if ($text -match $pattern) { [do
 # 그 줄을 n번 누른다(편집기를 열고 닫는다).
 function Step([string]$row, [int]$n) { Tab; 1..$n | ForEach-Object { Press $row | Out-Null }; $v = T $row; Press 'Close' | Out-Null; Start-Sleep -Milliseconds 500; $v }
 
-Cmd 'ping' 300 | Out-Null
+Cmd 'uistate' 300 | Out-Null
 switch ($Part) {
   'ui' {
     $traps = Traps
