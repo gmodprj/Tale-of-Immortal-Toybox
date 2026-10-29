@@ -98,7 +98,7 @@ namespace MOD_sWP6UL
         {
             if (key == "multiplier")
             {
-                return BattleService.Multiplier > 1;
+                return BattleService.DamageOn;
             }
             if (key == "god")
             {
@@ -124,8 +124,8 @@ namespace MOD_sWP6UL
         {
             if (key == "multiplier")
             {
-                return Row(y, "Multiplier", "주는 피해", "x" + BattleService.Multiplier, BattleService.Multiplier > 1,
-                    "플레이어가 주는 피해를 곱합니다. 동료와 적끼리의 피해는 그대로입니다.",
+                return Row(y, "Multiplier", "주는 피해", BattleService.DamageText, BattleService.DamageOn,
+                    "플레이어가 주는 피해를 곱합니다. 일격이면 맞은 적이 한 방에 쓰러집니다. 동료와 적끼리의 피해는 그대로입니다.",
                     new Action(() => Say(BattleService.NextMultiplier())));
             }
             if (key == "god")

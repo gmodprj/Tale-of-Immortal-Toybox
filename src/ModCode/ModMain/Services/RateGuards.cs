@@ -14,6 +14,9 @@ namespace MOD_sWP6UL
     //   - 전투 중: 행동 없이 바로 줄어드는 전투 단약이 있어 플레이어 전투 아이템 칸(playerUnitCtrl.props)의 sole도 막는다.
     //   전투 아이템의 OnCreate(Vector2 인자)에는 패치를 걸지 않는다(걸면 게임이 꺼졌다).
     // 영력·집중력 없음: 기술의 영력 소모와 전투 단약의 집중력 소모가 UnitDataBase.AddMP·AddSP 음수로 들어온다.
+    // 법보 내구 소모 없음(05 문서 87절): 전투에서 법보를 처음 쓸 때 PropItemArtifact.OnCreate가 PropsArtifact.set_durable로 내구를 깎는다
+    //   (AddDurable은 거치지 않는다). 설정자에 접두를 걸어 플레이어 법보의 줄어드는 쓰기만 막는다. 플레이어 것인지는 soleID로 가린다
+    //   (전투 쪽 PropsArtifact 객체는 가방의 To<PropsArtifact>()와 포인터가 다르다).
     internal static class RateGuards
     {
         private static readonly HashSet<string> usingSoles = new HashSet<string>();   // 지금 도는 쓰기 행동이 쓰는 아이템
@@ -206,6 +209,58 @@ namespace MOD_sWP6UL
                 Warn(e);
                 return false;
             }
+        }
+        public static void PatchDurable(HarmonyLib.Harmony h)
+        {
+            var prop = typeof(DataProps.PropsArtifact).GetProperty("durable");
+            Hook(h, prop == null ? null : prop.GetSetMethod(), "DurableGuard", null);
+        }
+
+        // 개발 명령이 읽는다: 접두가 불린 수와 막은 수.
+        public static int DurableCalls;
+        public static int DurableBlockedCount;
+
+        // 매개변수 이름이 다를 수 있어 자리(__0)로 받는다. 예외를 던지지 않는다.
+        public static void DurableGuard(DataProps.PropsArtifact __instance, ref int __0)
+        {
+            if (!RateService.ArtifactDurable.On)
+            {
+                return;
+            }
+            try
+            {
+                DurableCalls++;
+                int now = __instance.durable;
+                if (__0 < now && RateGroups.DurableBlocked(now, __0, OwnedByPlayer(__instance), true))
+                {
+                    __0 = now;
+                    DurableBlockedCount++;
+                }
+            }
+            catch (Exception e)
+            {
+                Warn(e);
+            }
+        }
+
+        // 그 법보의 soleID가 플레이어 가방(allProps)에 있으면 참.
+        private static bool OwnedByPlayer(DataProps.PropsArtifact art)
+        {
+            string sole = art == null || art.data == null ? null : art.data.soleID;
+            WorldUnitBase player = g.world == null ? null : g.world.playerUnit;
+            if (string.IsNullOrEmpty(sole) || player == null)
+            {
+                return false;
+            }
+            var all = player.data.unitData.propData.allProps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i] != null && all[i].soleID == sole)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

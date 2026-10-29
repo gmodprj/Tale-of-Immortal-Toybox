@@ -244,7 +244,7 @@ namespace MOD_sWP6UL
         private static void RateGroupsTests()
         {
             string[] all = { "exp", "martial", "move", "actionDay", "speed", "cooldown", "artifactCooldown", "mpCost", "spCost", "studyGain", "itemUse", "taken",
-                "mapSpeed", "battleMove", "intimGain", "energyCost", "multiplier", "god" };
+                "mapSpeed", "battleMove", "intimGain", "energyCost", "multiplier", "god", "itemCooldown", "artifactDurable" };
             var seen = new System.Collections.Generic.Dictionary<string, int>();
             foreach (RateGroups.Group group in RateGroups.Groups)
             {
@@ -262,12 +262,25 @@ namespace MOD_sWP6UL
                 once = once && seen.TryGetValue(key, out n) && n == 1;
             }
             Check("rate groups: every row is in exactly one chip", once, "rows=" + seen.Count);
-            Check("rate groups: new rows are in their chips", RateGroups.GroupOf("mapSpeed") == 1 && RateGroups.GroupOf("battleMove") == 2 && RateGroups.GroupOf("intimGain") == 3 && RateGroups.GroupOf("energyCost") == 3);
+            Check("rate groups: new rows are in their chips", RateGroups.GroupOf("mapSpeed") == 1 && RateGroups.GroupOf("battleMove") == 1 && RateGroups.GroupOf("intimGain") == 3 && RateGroups.GroupOf("energyCost") == 3);
             Check("rate groups: five chips, the last is on", RateGroups.Count == 5 && RateGroups.NameOf(4) == RateGroups.OnName);
             System.Func<string, bool> on = k => k == "god" || k == "exp";
             var onKeys = RateGroups.KeysOf(4, on);
             Check("rate groups: the on chip lists only rows that are on, in chip order", onKeys.Count == 2 && onKeys[0] == "exp" && onKeys[1] == "god");
             Check("rate groups: on counts per chip", RateGroups.OnCount(0, on) == 1 && RateGroups.OnCount(1, on) == 0 && RateGroups.OnCount(2, on) == 1 && RateGroups.OnCount(4, on) == 2);
+            Check("rate groups: battle chip keeps eight rows", RateGroups.Groups[2].Keys.Length == 8 && RateGroups.GroupOf("itemCooldown") == 2);
+            Check("rate groups: artifact durable is in life", RateGroups.GroupOf("artifactDurable") == 3);
+            Check("skill cooldown: half rounds away", RateGroups.SkillCooldown(60000, 0.5f) == 30000 && RateGroups.SkillCooldown(250, 0.5f) == 125 && RateGroups.SkillCooldown(150, 0.5f) == 100);
+            Check("skill cooldown: none is the floor", RateGroups.SkillCooldown(190000, 0f) == 100);
+            Check("skill cooldown: a short one is not lengthened", RateGroups.SkillCooldown(50, 0f) == 50 && RateGroups.SkillCooldown(50, 0.5f) == 50);
+            Check("skill cooldown: zero or less is kept", RateGroups.SkillCooldown(0, 0f) == 0 && RateGroups.SkillCooldown(-10000, 0.5f) == -10000);
+            Check("skill cooldown: x1 keeps", RateGroups.SkillCooldown(365, 1f) == 365);
+            Check("one hit: hp plus max", RateGroups.OneHitDamage(29877, 29877) == 59754);
+            Check("one hit: overflow is cut", RateGroups.OneHitDamage(int.MaxValue, 5) == int.MaxValue);
+            Check("one hit: never zero", RateGroups.OneHitDamage(0, 0) == 1);
+            Check("durable: only a drop on an owned artifact is blocked", RateGroups.DurableBlocked(100, 98, true, true) && !RateGroups.DurableBlocked(100, 98, false, true) && !RateGroups.DurableBlocked(98, 100, true, true) && !RateGroups.DurableBlocked(100, 98, true, false));
+            Check("cooldown rate: an off row that was never applied is not written", !RateGroups.WritesRate(false, false));
+            Check("cooldown rate: an on row is written, and an off row once to restore", RateGroups.WritesRate(true, false) && RateGroups.WritesRate(true, true) && RateGroups.WritesRate(false, true));
             Check("energy refund: half gives half back", RateGroups.EnergyRefund(74, 64, 0.5f) == 5);
             Check("energy refund: none gives all back", RateGroups.EnergyRefund(74, 64, 0f) == 10);
             Check("energy refund: x1 and a rise give nothing", RateGroups.EnergyRefund(74, 64, 1f) == 0 && RateGroups.EnergyRefund(64, 74, 0f) == 0 && RateGroups.EnergyRefund(5, 5, 0f) == 0);

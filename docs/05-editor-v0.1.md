@@ -3746,3 +3746,48 @@ Critical·Important 없음. 사소한 것 일곱 가운데 넷을 고쳤다.
 - 선물·다른 관계 행동(사제·도려 등)의 호감 길. 대화만 확인했다.
 - 정력을 깎는 다른 행동(공격·요청·호송 등)은 훔치기·대화로만 확인했다.
 - 지도 속도에서 달을 넘길 때·지도 사건 연출.
+
+## 87. 트레이너 4차 — 선법·영역·전투 아이템 쿨타임, 일격, 법보 내구 고정 (2026-10-28)
+
+12 문서 5절의 남은 트레이너 기능 가운데 전투 셋. 사용자 지시(2026-10-28 "트레이너 기능 추가", 질문 없이 "진행"): 무엇부터 할지는 내가 골랐다. 스펙 `docs/superpowers/specs/2026-10-28-trainer4-battle-design.md`, 계획 `plans/2026-10-28-trainer4-battle.md`, 브랜치 `feat/trainer4-battle`. 설계 전 실험은 실험 브랜치 `feat/trainer4-research`(탐침 `t4*`, 회차 `t4-a`~`d-1028`, 병합하지 않음). 검증 회차 `t4-i`~`q-1028`. 모두 고정본, `-Exclude 2814696167`, 끝은 `SAVE RESTORED AND IDENTICAL`.
+
+### 87.1 설계 전 실험
+
+- **전투 아이템**: 전투 플레이어 `props`(`List<PropItemBase>`)에 단약(`PropItemPill`)과 장착 법보(`PropItemArtifact`)가 함께 든다. 칸마다 `data.cd`(밀리초)·`cdTime`(초). 단약 20·30초, 법보 5초. 단약 1011052·1011051·1011101은 하나를 쓰면 함께 쿨타임에 들고, 1011161은 따로 돈다. 단위 비율 `data.itemCDRate`(기본 100)를 전투 중에 1000000으로 쓰면 다섯 칸 모두 `cdTime` 0, 법보 셋·같은 단약 둘을 연달아 썼다. 신기의 `artifactCDRate`(37절)와 달리 전투 중 쓰기가 듣는다.
+- **선법**: 고정본(경지 9)은 전투 `immortalSkill`이 비었다. `setgrade 40`(대경지 10) + `ImmortalCard.EquipCard(5000, false, 0)`이면 생긴다. `ImmortalSkillDataBase.cd` 60000, `cdTime` 30, `energy`가 0→1로 차오르는 꼴. `cd` 3000이면 3초 안에 차서 발동, 600이면 약 3초마다 발동(사이 약 2초는 발동 연출로 본다). 첫 발동 뒤 `cdTime`이 두 배. 기존 `skillCDRate`는 선법에 듣지 않는다.
+- **영역**: `unitInfo.fieldSkillData.mainType1 = 1`, `dp`·`dpMax` 300이면 전투 `fieldSkill`이 생긴다. `FieldSkillDataBase.cd` 190000, 충전 `chargeTime` 30000, `dpCost` 100. `cd` 2000이면 3초 뒤 다시 발동, 발동마다 `data.dp` −100. `skillCDRate`는 영역에도 듣지 않는다(`t4-d`).
+- **명우**: 명우 공격 기술 14111(`cd` 365)은 플레이어 `skills`에 함께 든다. 기존 기술 쿨타임 없음에서 `cdTime` 0.37 → 0. 따로 할 일이 없었다.
+- **일격**: 피해 이벤트에서 `dynV.baseValue`를 대상 `hp + maxHP`로(호출 유지)만 해도 수준 60 적이 한 방에 `hp=0 die=True`. `ClearCall`은 필요 없었다.
+- **법보 내구**: 전투마다 법보를 처음 쓸 때만 2 준다(`ConfArtifactShapeRepair.costDurable`). `PropItemArtifact.AddDurable`은 불리지 않고, `OnCreate`가 `PropsArtifact.set_durable`을 직접 부른다(`xrefl`). 전투 쪽 `PropsArtifact`는 가방의 `To<PropsArtifact>()`와 포인터가 달라 `PropsArtifact.data.soleID`로 플레이어 것을 가린다.
+
+### 87.2 기능
+
+- **칩**: 전투 이동 속도를 전투 칩에서 시간·속도 칩(지도 속도·전투 속도 다음)으로 옮겼다. 전투 칩은 8줄(기술 쿨타임·**전투 아이템 쿨타임**·신기 쿨타임·영력·집중력 소모·주는 피해·받는 피해·무적), 관계·소모에 **법보 내구 소모**. 모두 20줄.
+- **기술 쿨타임**(넓힘): 지금의 `skillCDRate`·`stepCDRate`에 더해, 기술마다의 값 길(`TickSkillValues`/`Track`)로 선법마다 `ImmortalSkillDataBase.cd`와 영역 `FieldSkillDataBase.cd`를 곱한다. 없음은 0이 아니라 하한 100밀리초(`RateGroups.SkillCooldown`. 원래 값이 더 짧으면 그대로). 설명에 명우·선법·영역을 적었다. 영역의 도력 소모와 선법의 발동 연출은 그대로다.
+- **전투 아이템 쿨타임**(새, x1·0.5·0.25·0.1·없음, `RateItemCooldown`): `TickCooldown`이 `itemCDRate`도 떠 두고 맞춘다(없음은 기술 쿨타임과 같은 만 배). 단약 등 전투 아이템 칸과 장착 법보 발동.
+- **주는 피해 일격**: 단계 x1·2·5·10·100·**일격**(`BattleService.OneHit` = −1, `DamageOn`·`DamageText`). 공격자가 플레이어인 타격의 값을 `RateGroups.OneHitDamage(hp, maxHP)`로. 플레이어가 맞는 타격은 그 앞에서 무적·받는 피해 쪽으로 돌아간다. 화면 위 `피해 일격`, 이력 `x100 → 일격`.
+- **법보 내구 소모**(새, x1·없음, `RateArtifactDurable`): 처음 켤 때 `PropsArtifact.set_durable`에 접두(`RateGuards.PatchDurable`/`DurableGuard`). 줄어드는 쓰기이고 soleID가 플레이어 `allProps`에 있으면 지금 값으로 바꾼다(`RateGroups.DurableBlocked`). 늘리는 쓰기(수리)는 그대로. 전투 밖의 직접 쓰기(개발 명령 `trdur`)도 막힌다.
+- 개발 명령(`Dev/DevCommandsTrainer4.cs`): `cdall`, `icast <i>`, `fcast`, `iequip <카드> <칸>`, `fieldset <main1> <dp>`, `bhp`, `artdur`. `rstate`의 `damage=`는 일격이면 `onehit`.
+
+### 87.3 검사
+
+- 새 스크립트 `tools/research/trainer4-check.ps1`: `ui`·`items`(`t4-q`), `skills`(`t4-j`), `onehit`(`t4-k`), `durable`(`t4-l`) 모두 FAIL 0. 기존 `rates`·`rates2`(`t4-m`), `combat`(`t4-n`), `rates-battle`(`t4-o`), `itemuse`·`mpnone`(`t4-p`) FAIL 0. 단위 시험 FAIL 0(새 줄 13).
+- 기존 검사 고침: `rates2`가 전투 이동 속도를 시간·속도 칩에서 본다. `combat`의 "모두 1배로" 줄이 `rstate`의 줄 순서에 묶여 있던 것(86절에서 줄이 늘어난 뒤로 맞지 않는 꼴이었다)을 키마다 보게 했다.
+- 검사에서 겪은 함정: "켜 둔 것" 칩에서 줄을 x1로 돌리면 그 줄이 바로 사라진다(값은 분류 칩에서 읽는다). 고정본에는 장착 법보가 없어 검사가 지급·장착한다.
+
+### 87.4 확인하지 못한 것
+
+- 선법 `coolTime`(5.00)의 뜻, 쿨타임 없음에서도 남는 약 2초가 연출인지 다른 제한인지.
+- 보스처럼 피해 상한·무적 구간·부활이 있는 적에게 일격(수준 60 일반 적까지만).
+- 법보 내구가 전투 밖에서 줄어드는 게임의 길(있다면 같은 접두가 막는다).
+- 명우의 다른 기술(폭발·상태 바꾸기)의 쿨타임.
+- 실제 마우스·단축키로 선법·영역을 쓸 때의 체감(도구로는 `IsCreate`·`Create`로 발동).
+- 플레이어 것이 아닌 법보(NPC·적)의 내구가 없음에서도 그대로 줄어드는지(soleID 판정의 단위 시험과 코드로만 확인), 전투 밖 세계 진행에서 내구 접두가 얼마나 자주 불리는지.
+
+### 87.5 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical·Important 없음. 사소한 것 일곱 가운데 하나를 효과로 다시 매겨 고쳤다.
+- 전투 아이템 쿨타임만 켜도 꺼진 기술 쿨타임의 `skillCDRate`·`stepCDRate`까지 매 프레임 처음 뜬 값으로 덮던 것(반대도 같음): 줄마다 "걸려 있음"을 두고, 켜져 있을 때와 되돌리는 한 번만 쓴다(`RateGroups.WritesRate`, 단위 시험 2줄). 회차 `t4-r`~`t-1028`에서 `ui`·`items`·`skills`·`combat` FAIL 0.
+- 06 문서 기능 표의 "18줄"을 20줄로.
+
+남긴 것: 일격이 동료·아군 대상인지는 보지 않는다(플레이어 공격이 동료를 맞히는 길은 미확인, 기존 피해 배율과 같은 꼴), 피해 0인 타격도 일격 값이 된다. 일격 판정이 `OnHitCore` 안에 있어 단위 시험이 없다(게임 검사로 덮음). 내구 접두가 감소 쓰기마다 allProps를 훑는다(캐시는 필요해지면). 개발 명령 `bhp`가 지난 전투의 단위를 잡고 있을 수 있고, `iequip`이 카드를 못 찾아도 장착을 부른다(개발 빌드만).
