@@ -3791,3 +3791,53 @@ Critical·Important 없음. 사소한 것 일곱 가운데 하나를 효과로 �
 - 06 문서 기능 표의 "18줄"을 20줄로.
 
 남긴 것: 일격이 동료·아군 대상인지는 보지 않는다(플레이어 공격이 동료를 맞히는 길은 미확인, 기존 피해 배율과 같은 꼴), 피해 0인 타격도 일격 값이 된다. 일격 판정이 `OnHitCore` 안에 있어 단위 시험이 없다(게임 검사로 덮음). 내구 접두가 감소 쓰기마다 allProps를 훑는다(캐시는 필요해지면). 개발 명령 `bhp`가 지난 전투의 단위를 잡고 있을 수 있고, `iequip`이 카드를 못 찾아도 장착을 부른다(개발 빌드만).
+
+## 88. 리뷰 2026-10-29의 탐침 — 미확인 항목 확인 (2026-10-29 추가)
+
+13 문서(`docs/13-review-2026-10-29.md`)의 2절. 06 문서 8.0절 3번(미확인으로 적어 둔 것)을 고정본 회차 `rv-a-1029`(`-Fixture base -Exclude 2814696167`, 끝 `SAVE RESTORED AND IDENTICAL`)에서 쟀다. 브랜치 `chore/review-1029`. 배포 코드는 바뀌지 않았다.
+
+### 88.1 탐침 명령(개발 빌드만, `Dev/DevCommandsProbe1029.cs`)
+
+- `tswatch start|read|stop`: 매 프레임 `Time.timeScale`과 `SceneType.battle`·`battleMap`·`playerUnitCtrl`·`SceneType.map`·`g.world`의 유무를 보고 바뀐 프레임만 적는다(최대 300줄). `loadingFrames`는 battle은 있고 playerUnitCtrl은 없는 프레임 수, `loadingScaledFrames`는 그 가운데 `timeScale != 1`인 수.
+- `iwatch <i>|read|stop`: 선법 i(`playerUnitCtrl.immortalSkill[i]`)의 `data.cdTime`·`coolTime`·`cool`·`cast`·`isUse`·`energy`·`useCount`·`stopTime`·`delaySkillTime`과 `IsCreate(false)`를 매 프레임 보고 바뀐 프레임만 적는다(최대 400줄).
+- `npcart`: 전투의 플레이어 아닌 단위(`allUnitIncludeDie`)마다 종류·hp와, `UnitDataHuman.worldUnitData.unitData.propData.allProps`의 법보 sole·내구. `RateGuards`의 확인값 `DevDurableOtherCalls`·`DevDurableOtherLast`(내구 접두가 플레이어 것이 아닌 법보의 줄어드는 쓰기를 본 수와 마지막 값. `DEVTOOLS`에서만 센다).
+- 셋은 `EditorHost`의 `DEVTOOLS` 틱에서 돈다(`DevInputWatch`와 같은 자리).
+
+### 88.2 전투 장면을 싣는 동안의 지도 속도(86.4절) — 걸리지 않는다
+
+지도 속도 x3을 켜고 `fight 1011 5` → 전투 진입 → 전투 개시. `tswatch`:
+
+    f1   t=187.14 ts=3 battle=0 battleMap=0 player=0 map=1
+    f442 t=201.39 ts=1 battle=1 battleMap=1 player=1 map=0
+    loadingFrames=0 loadingScaledFrames=0
+
+`battle`·`battleMap`·`playerUnitCtrl`이 같은 프레임에 생기고 그 프레임에서 모드의 `Update`가 보는 `timeScale`은 이미 1이다(`RateService.Tick`이 탐침보다 먼저 돈다). 전투에서 나올 때(`bend` → 확인)도 `battle=0`·`map=1`이 같은 프레임. 86.4절의 염려는 지운다. 한 전투 안에서 `playerUnitCtrl`이 잠깐 사라지는 연출은 이 전투에서 보지 못했다(32·33절의 "판단 보류"는 그대로).
+
+### 88.3 선법 `coolTime`과 쿨타임 없음에서 남는 시간(87.4절)
+
+- 해독(`xrefl`): `ImmortalSkillBase.IsCreate`(173 명령)는 필드 getter를 부르지 않고(IL2CPP 인라인) `UnitCtrlBase.IsState`·`SceneType.battle`·`Time.time`을 읽는다. `IsCool`(22 명령)·`IsCost`(17 명령)는 각각 한 함수만 부른다. `Create`(1087 명령)는 `ConfGameParameter.immortalPublicCd`(공용 쿨타임 문자열)를 읽어 `Single.Parse`한다(값은 미확인).
+- 실측(`iwatch 0`, 등선 40, `iequip 5000 0`, 쿨타임 `없음`):
+
+      f1   t=298.30 cdTime=0.05 coolTime=5.00 cool=0.00 cast=2.00 isUse=0 energy=1.19 canCreate=True
+      f61  t=299.09 … isUse=1 energy=0.00 canCreate=False      ← icast
+      f545 t=303.08 … isUse=0 energy=0.46 useCount=1 canCreate=False
+      f554 t=303.12 … isUse=0 energy=1.03 canCreate=True
+
+  `coolTime`은 내내 5.00, `cool`은 0.00(줄지 않는 설정값. `stopTime=5000`과 같은 수). 남는 시간은 `isUse=1`인 약 4.0초(기술이 나가는 동안)와 그 뒤 `energy`가 1에 닿는 0.04초다. x1에서는 같은 4.0초 뒤 `cdTime=60`과 `energy`가 0.6초에 0.01씩 차서 `canCreate=False`가 유지된다(기력 회복도 쿨타임 비율을 타는 것으로 보인다. 추측).
+- 결론: "쿨타임 없음에서도 남는 약 2초"는 이 선법의 사용 시간이고 쿨타임 줄로는 줄일 수 없다. `coolTime`의 뜻은 여전히 미확인(사용 시간 상한일 가능성).
+
+### 88.4 NPC 법보 내구(87.4절) — 괴수 전투에는 법보가 없다
+
+`npcart`: 전투 1011의 단위 6개는 모두 `UnitType.Monst`이고 `UnitDataHuman`이 아니라(`TryCast` 실패) 법보 목록이 없다. `otherDecrease=0`. 인간 NPC(`UnitCtrlHumanNPC`) 전투는 지도에서 NPC를 공격해야 열리는데 `fight`는 `MonstData`만 받는다. 코드로는 접두가 플레이어 가방의 `soleID`만 막으므로 NPC 법보는 그대로 줄어든다. 남겨 둔다(NPC 공격 도구가 생기면 `npcart`로 바로 볼 수 있다).
+
+### 88.5 전투 불러오기 멈춤(55절) — 재현되지 않음(두 번째)
+
+편집기를 연 채 `awset 1,3` → `fight 1011 20` → 전투 진입: 9초 뒤 `BattleInfo`와 `inBattle=True`, 전투 개시 뒤 진행, `bend`로 `MapMain` 복귀. 캡처 `.devremote\check-probe-stall.png`.
+
+이 전투에서 로그에 `[TlToybox] artifact hud drift (전투 화면, mask=5): G:btnDevilDemon -240,-93 (want -194,-93)`이 남았다. 신기 1(쌍어패)·3(호천안)을 켠 전투 화면에서 호천안 단추가 기대한 x(−194)가 아니라 쌍어패 자리(−240)에 있었다. 55절의 전투 화면 규칙(위로 60씩)이 두 신기일 때 어긋나거나 기대값이 낡았을 수 있다. `artifact-check.ps1 -Part hud-battle`·`hud-battle-slots`로 볼 일(13 문서 7절 묶음 1). 같은 회차에서 이어 돌린 `trainer4-check -Part durable`은 13 PASS, FAIL 1이 이 경고 한 줄(검사가 로그의 경고를 절대값으로 본다)이었다.
+
+### 88.6 코드로만 본 것과 하지 않은 것
+
+- 일격의 동료 대상(87.5절): `UnitType`에 `PlayerNPC = 2`가 있다. `BattleService.OnHitCore`의 일격 분기는 맞는 쪽의 `unitType`을 보지 않는다. `hitUnit.data.unitType`이 `Player`·`PlayerNPC`이면 걸지 않는 가드 한 줄이 안전장치가 된다(묶음 1).
+- 전투 단위를 포인터로만 구분(86.4절): `UnitDataBase`에 고유 번호를 `types.txt`에서 찾지 못했다. 전투마다 상태를 비우는 쪽으로(13 문서 7절 묶음 2, A2·A4와 함께).
+- 하지 않은 것: 편집기를 뺀 회차의 빈 선택지 대화(84.4절. 무작위 사건), 넘친 가방에서 아이템 얻기(84.4절. `-NoEditor`에는 개발 명령이 없다), 옵션 행 없는 기술의 `대도까지…` 화면(83.5절. 보일 길이 없다), 83.6절의 고치기 전 실패 확인(고친 뒤 검사가 통과한다).

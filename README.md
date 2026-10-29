@@ -35,7 +35,7 @@
 요구 사항: .NET SDK 8, MelonLoader가 포함된 게임 설치본.
 
     dotnet build src/ModCode/ModMain/ModMain.csproj -c Release                       # 개발 빌드(개발 명령 포함)
-    dotnet build src/ModCode/ModMain/ModMain.csproj -c Release -p:DevTools=false     # 배포 구성
+    dotnet build src/ModCode/ModMain/ModMain.csproj -c Release -p:DevTools=false -o <임시폴더>   # 배포 구성(-o 없이 돌리면 bin\Release의 개발 DLL을 덮어 에디터 프로젝트에 복사된다)
     dotnet run --project tests/ModMain.Tests -c Release                              # 단위 시험
 
 산출물은 `src/ModCode/ModMain/bin/Release/MOD_sWP6UL.dll` 하나다. Release 빌드는 DLL을 모드 에디터 프로젝트(`ModProject_sWP6UL/`)의 `bin/Release`로도 복사한다. 평소에는 `tools/install.ps1`이 배포 빌드를 게임의 `ModExportData\Mod_sWP6UL`에 설치한다.
