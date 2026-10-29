@@ -116,6 +116,11 @@ namespace MOD_sWP6UL
             {
                 return t4;
             }
+            string probe = DevCommandsProbe1029.Execute(p);
+            if (probe != null)
+            {
+                return probe;
+            }
             string t3 = DevCommandsTrainer3.Execute(p);
             if (t3 != null)
             {
