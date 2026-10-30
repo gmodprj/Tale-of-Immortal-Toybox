@@ -67,6 +67,7 @@ namespace MOD_sWP6UL
             RateGroupsTests();
             NumberFieldRulesTests();
             RateUnitRulesTests();
+            AtomicFileTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -732,6 +733,29 @@ namespace MOD_sWP6UL
             Check("unit: same pointer, nothing on, written values apply (restore)", RateUnitRules.Decide(true, false, true, true, true, true) == RateUnitRules.Step.Apply);
             Check("move: attach only when on and not attached", RateUnitRules.MoveAttachNeeded(true, false) && !RateUnitRules.MoveAttachNeeded(true, true) && !RateUnitRules.MoveAttachNeeded(false, false));
             Check("move: detach only when off and attached", RateUnitRules.MoveDetachNeeded(false, true) && !RateUnitRules.MoveDetachNeeded(true, true) && !RateUnitRules.MoveDetachNeeded(false, false));
+        }
+
+        // 임시 파일에 쓴 뒤 바꿔치기(13 문서 A7, 05 문서 92절). 번역표·config.txt 같은 사용자 파일이 쓰는 도중 사라지지 않게.
+        private static void AtomicFileTests()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "tlt-atomic-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string path = Path.Combine(dir, "sub", "a.txt");
+                var utf8 = new System.Text.UTF8Encoding(false);
+                AtomicFile.WriteAllText(path, "one\n", utf8);
+                Check("atomic: writes a new file and creates the folder", File.Exists(path) && File.ReadAllText(path, utf8) == "one\n" && !File.Exists(path + ".tmp"));
+                AtomicFile.WriteAllText(path, "two\n", utf8);
+                Check("atomic: overwrites and leaves no tmp", File.ReadAllText(path, utf8) == "two\n" && !File.Exists(path + ".tmp"));
+                byte[] bytes = File.ReadAllBytes(path);
+                Check("atomic: no BOM", bytes.Length > 0 && bytes[0] != 0xEF);
+                AtomicFile.WriteAllText(path, "한글\n", utf8);
+                Check("atomic: utf-8 text round-trips", File.ReadAllText(path, utf8) == "한글\n");
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) { Directory.Delete(dir, true); }
+            }
             Check("unit: same pointer, held but nothing written yet applies", RateUnitRules.Decide(true, true, true, false, true, true) == RateUnitRules.Step.Apply);
             // 줄 단위 원래 값(최종 리뷰 Important 1): 안 쓴 줄은 지금 값이 원래 값, 쓴 줄은 마지막으로 쓴 값 그대로면 원래 값 유지, 다르면 지금 값.
             Check("row original: a row not written yet takes the current value", RateUnitRules.RowOriginal(false, 100, 250, 0) == 250);
