@@ -137,7 +137,6 @@ switch ($Part) {
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'repair-restart' {
-    $traps = Traps
     $parts = ([IO.File]::ReadAllText((Join-Path $work 'treasure-repair-soles.txt'))).Split(' ')
     $a = $parts[0]; $b = $parts[1]; $max = $parts[2]
     $s = Tr

@@ -247,6 +247,8 @@ if ($End) {
   if (-not (Test-Path $bak)) { throw "복사본이 없습니다: $bak" }
   CloseGame
   if (Running) { throw '게임이 아직 실행 중입니다. 이 스크립트가 띄운 게임이 아니므로 닫지 않았고, 세이브도 되돌리지 않았습니다.' }
+  # park.flag(상주 DLL이 게임 창을 화면 밖에 두는 표식)는 게임을 끈 즉시 지운다. 복원이 도중에 멈춰도 사용자가 켠 게임이 숨지 않게(최종 리뷰).
+  DeleteFiles $flag
 
   # 되돌리기 직전의 세이브를 한 벌 남긴 뒤 복사본으로 되돌린다.
   $pre = Join-Path $dir "save-before-restore-$End"
@@ -343,8 +345,8 @@ if ($End) {
     "WORKSHOP FOLDERS REMOVED: $removedMods"
   }
 
-  # 표식·모드 파일은 복원이 끝난 뒤에 지운다. 복원 도중 멈추면 -Restart가 모드(noeditor·release)를 알아야 한다(13 문서 C5).
-  DeleteFiles $flag, $modeFile
+  # 모드 파일(session.mode)은 복원이 끝난 뒤에 지운다. 복원 도중 멈추면 -Restart가 모드(noeditor·release)를 알아야 한다(13 문서 C5).
+  DeleteFiles $modeFile
   [IO.File]::Delete($marker)
 
   # 회차 동안 모드가 만든 세이브 자동 백업을 지운다(시험 중의 세이브를 뜬 것이라 쓸모가 없다). 회차 전부터 있던 것은 남긴다.

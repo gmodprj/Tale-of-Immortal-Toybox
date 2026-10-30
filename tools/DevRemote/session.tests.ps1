@@ -304,7 +304,7 @@ $b = NewBox
 $o = Run $b $none @{ Begin = 'x' }
 [IO.File]::WriteAllText("$($b.data)\config.txt", "x=1`n")
 $o = Run $b $none @{ End = 'x' }
-Check 'End removes a config.txt the session made' ($o -match 'CONFIG RESTORED \(there was no file\)' -and -not (Test-Path "$($b.data)\config.txt")) $o
+Check 'End removes a config.txt the session made' ($o -match 'CONFIG RESTORED \(there was no file\)' -and -not (Test-Path "$($b.data)\config.txt") -and -not (Test-Path "$($b.work)\session-config.absent")) $o
 
 # 47. martial-grid.txt: -Begin이 보관하고 -End가 되돌린다(13 문서 C3 — 덮지 않던 갈래)
 $b = NewBox
@@ -332,6 +332,16 @@ $o = Run $b $none @{ Begin = 'x'; NoEditor = $true }
 [IO.File]::WriteAllText("$($b.work)\save-backup-x", 'not a folder')
 $o = Run $b $none @{ End = 'x' }
 Check 'End that fails while restoring keeps the session marker and mode file' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session.name") -and (Test-Path "$($b.work)\session.mode")) $o
+
+# 51. -End가 복원 도중 실패해도 park.flag(상주 DLL이 게임 창을 화면 밖에 두는 표식)는 CloseGame 뒤 바로 지워져 있어야 한다(최종 리뷰 Important 1).
+#     -DryRun의 Launch는 flag를 만들지 않으므로 손으로 둔다.
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; NoEditor = $true }
+[IO.File]::WriteAllText("$($b.work)\park.flag", '')
+[IO.Directory]::Delete("$($b.work)\save-backup-x", $true)
+[IO.File]::WriteAllText("$($b.work)\save-backup-x", 'not a folder')
+$o = Run $b $none @{ End = 'x' }
+Check 'End that fails while restoring still removes park.flag but keeps the mode file' ($o -match '^THROWN' -and -not (Test-Path "$($b.work)\park.flag") -and (Test-Path "$($b.work)\session.mode")) $o
 
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }

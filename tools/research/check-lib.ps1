@@ -1,4 +1,4 @@
-# 게임 내 검증 스크립트가 함께 쓰는 함수. tools/research/*-check.ps1(아홉)이 점(.)으로 불러 쓴다.
+# 게임 내 검증 스크립트가 함께 쓰는 함수. tools/research의 검사 아홉(major-breakthrough-check.ps1 빼고)이 점(.)으로 불러 쓴다.
 # 줄마다 PASS/FAIL이 나오고 Finish가 마지막 줄 FAILS=<수>를 낸다. "SHOT <파일>"은 눈으로 확인할 캡처다.
 $ErrorActionPreference = 'Stop'
 $tools = Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote'
@@ -77,8 +77,9 @@ function LeaveBattleScene([string]$shotName = 'leave-fail') {
   }
   if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot $shotName }
   for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
-  Rc 'click 959 831' 2000 | Out-Null
-  # 지도가 돌아올 때까지 최대 30초(첫 전투 뒤의 장면 적재는 15초를 넘길 때가 있다. 회차 ctc-d-1030). 결과 창이 아직 떠 있으면 확인을 다시 누른다.
+  # 확인 단추가 맞을 때만 누른다(이미 지도라면 지도의 그 자리를 누르지 않는다. 최종 리뷰).
+  if ((Rc 'hit 959 831' 200) -match 'btnOK') { Rc 'click 959 831' 2000 | Out-Null }
+  # 지도가 돌아올 때까지 최대 60번(0.5초 + 명령 답 시간. 첫 전투 뒤의 장면 적재는 15초를 넘길 때가 있다. 회차 ctc-d-1030). 결과 창이 아직 떠 있으면 확인을 다시 누른다.
   for ($i = 0; $i -lt 60 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) {
     if ($i % 10 -eq 9 -and (Cmd 'uilist' 100) -match 'BattleEnd' -and (Rc 'hit 959 831' 200) -match 'btnOK') { Rc 'click 959 831' 1000 | Out-Null }
     Start-Sleep -Milliseconds 500
