@@ -68,6 +68,10 @@ namespace MOD_sWP6UL
             NumberFieldRulesTests();
             RateUnitRulesTests();
             AtomicFileTests();
+            PrefixRulesTests();
+            PresetRulesTests();
+            BreakthroughRulesTests();
+            ChipBarTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -739,6 +743,80 @@ namespace MOD_sWP6UL
             Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
             Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
             Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
+        }
+
+        private static PrefixRow Row(int number, int multi, int[] weights, params int[] requires)
+        {
+            var w = new int[11];
+            for (int i = 0; i < weights.Length && i < 11; i++) { w[i] = weights[i]; }
+            return new PrefixRow { Number = number, Multi = multi, Weights = w, Requires = requires };
+        }
+
+        // 옵션 번호 치환(78절)과 옵션 규칙(T4): 게임 형식 없이 PrefixRow로(05 문서 93절, 13 문서 T2·T4).
+        private static void PrefixRulesTests()
+        {
+            // 모드 공법의 옵션 행: 101(자리 0·1), 102(자리 1·2), 103(자리 0, multi 3). 원본에서 뽑은 번호 1·2·3·101.
+            var rows = new List<PrefixRow> { Row(101, 1, new[] { 5, 5, 0 }), Row(102, 1, new[] { 0, 5, 5 }), Row(103, 3, new[] { 5, 0, 0 }) };
+            Check("option end: up to the first -1 from index 2", ModSkillRules.OptionEnd(new[] { 9, 9, 1, 2, -1, 0 }) == 4 && ModSkillRules.OptionEnd(new[] { 9, 9, 1, 2 }) == 4);
+            int[] v = { 9, 9, 101, 2, 3, -1 };
+            int changed = ModSkillRules.RemapPrefixNumbers(v, 5, rows, n => 0);
+            // 101은 모드에 있어 그대로(쓴 번호). 자리 1의 2 → 가중치>0인 안 쓴 번호 가운데 첫째(102). 자리 2의 3 → 102는 썼고 103은 자리 2 가중치 0 → 안 쓴 첫 번호 103.
+            Check("remap: keeps mod numbers, fills by slot weight, falls back to the first unused", changed == 2 && v[2] == 101 && v[3] == 102 && v[4] == 103, string.Join(",", v));
+            int[] v2 = { 9, 9, 1, 2, 3, 4, 5, -1 };
+            changed = ModSkillRules.RemapPrefixNumbers(v2, 7, rows, n => 0);
+            // 다섯 자리에 번호 셋: 첫 패스가 101·102·103을 쓰고, 남은 두 자리는 한도(multi) 안에서 103(3개까지)을 되풀이.
+            Check("remap: repeats within the multi limit when numbers run out", changed == 5 && v2[2] == 101 && v2[3] == 102 && v2[4] == 103 && v2[5] == 103 && v2[6] == 103, string.Join(",", v2));
+            int[] v3 = { 9, 9, 1, 2, -1 };
+            changed = ModSkillRules.RemapPrefixNumbers(v3, 4, new List<PrefixRow>(), n => 0);
+            Check("remap: nothing to pick leaves values alone", changed == 0 && v3[2] == 1 && v3[3] == 2);
+            // 무작위는 후보 수를 받아 그 범위의 자리를 고른다(최종 리뷰 Minor 2): 자리 1(가중치 첫 칸)에 맞는 번호는 101·103, rng가 마지막을 고르면 103. 0 칸과 범위 밖은 그대로.
+            int[] v4 = { 7, 8, 1, 0, -1, 55 };
+            int seen = -1;
+            changed = ModSkillRules.RemapPrefixNumbers(v4, 4, rows, n => { seen = n; return n - 1; });
+            Check("remap: the rng gets the fit count and the last pick is used; zero and out-of-range cells stay", changed == 1 && seen == 2 && v4[2] == 103 && v4[3] == 0 && v4[0] == 7 && v4[1] == 8 && v4[5] == 55, string.Join(",", v4) + " seen=" + seen);
+            // OptionProblem: 문구는 MartialService의 것과 글자까지 같다.
+            var prs = new List<PrefixRow> { Row(1, 1, new[] { 5, 5, 5 }), Row(2, 2, new[] { 0, 5, 5 }, 1), Row(3, 1, new[] { 5, 5, 5 }, -1) };
+            Check("option problem: more than eleven", MartialRules.OptionProblem(new int[12], prs, false, 0) == "옵션은 11개까지입니다");
+            Check("option problem: unknown number", MartialRules.OptionProblem(new[] { 7 }, prs, false, 0) == "이 기술에 없는 옵션입니다(7)");
+            Check("option problem: slot weight zero", MartialRules.OptionProblem(new[] { 2 }, prs, false, 0) == "옵션 1: " + MartialRules.SlotReason);
+            Check("option problem: anySlot skips the slot rule but keeps the rest", MartialRules.OptionProblem(new[] { 2 }, prs, true, 0) == "옵션 2번에 필요한 1번 옵션이 없음");
+            // 중복은 목록 전체를 세므로 첫 자리에서 이미 걸린다(옮기기 전 코드와 같다).
+            Check("option problem: duplicate over multi", MartialRules.OptionProblem(new[] { 1, 1 }, prs, false, 0) == "옵션 1: 중복 한도 1개 초과");
+            Check("option problem: exclusive pair", MartialRules.OptionProblem(new[] { 1, 3 }, prs, false, 0) == "옵션 3번과 1번은 함께 둘 수 없음");
+            Check("option problem: slotFrom skips earlier slots", MartialRules.OptionProblem(new[] { 2, 1 }, prs, false, 1) == null);
+            Check("option problem: valid list", MartialRules.OptionProblem(new[] { 1, 2 }, prs, false, 0) == null);
+        }
+
+        // 프리셋의 "같은 공법 고르기"(13 문서 T5).
+        private static void PresetRulesTests()
+        {
+            var a = new PresetRules.Learned { Sole = "a", BaseId = 10, Grade = 3, Options = new[] { 1, 2 }, Suit = 0, Equipped = false };
+            var b = new PresetRules.Learned { Sole = "b", BaseId = 10, Grade = 5, Options = new[] { 1, 2 }, Suit = 0, Equipped = true };
+            var c = new PresetRules.Learned { Sole = "c", BaseId = 10, Grade = 5, Options = new[] { 1, 2 }, Suit = 7, Equipped = false };
+            var all = new List<PresetRules.Learned> { a, b, c };
+            Check("preset find: same options, grade at least, equipped first", PresetRules.Find(all, 10, new[] { 1, 2 }, 3, false, 0).Sole == "b");
+            Check("preset find: lower grade is skipped", PresetRules.Find(all, 10, new[] { 1, 2 }, 4, false, 0).Sole == "b" && PresetRules.Find(new List<PresetRules.Learned> { a }, 10, new[] { 1, 2 }, 4, false, 0) == null);
+            Check("preset find: abilities must match the suit", PresetRules.Find(all, 10, new[] { 1, 2 }, 3, true, 7).Sole == "c" && PresetRules.Find(all, 10, new[] { 1, 2 }, 3, true, 9) == null);
+            Check("preset find: different options do not match", PresetRules.Find(all, 10, new[] { 2, 1 }, 3, false, 0) == null && PresetRules.SameOptions(new[] { 1 }, new[] { 1 }) && !PresetRules.SameOptions(new[] { 1 }, new[] { 1, 1 }));
+        }
+
+        // 돌파 재료 고르기(13 문서 T6).
+        private static void BreakthroughRulesTests()
+        {
+            Check("breakthrough: ParseIds skips zero, text and duplicates", string.Join(",", BreakthroughRules.ParseIds("3_0_x_5_3")) == "3,5" && BreakthroughRules.ParseIds(null).Count == 0);
+            Check("breakthrough: one needed takes the last kind", string.Join(",", BreakthroughRules.NeedItems("1_2_3", 1)) == "3");
+            Check("breakthrough: several needed cycle from the front", string.Join(",", BreakthroughRules.NeedItems("1_2", 3)) == "1,2,1" && BreakthroughRules.NeedItems("1_2", 0).Count == 0 && BreakthroughRules.NeedItems("", 2).Count == 0);
+            Check("breakthrough: treasures cycle the candidates", string.Join(",", BreakthroughRules.Treasures("7_8", 3)) == "7,8,7" && BreakthroughRules.Treasures("", 2).Count == 0);
+        }
+
+        // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.
+        private static void ChipBarTests()
+        {
+            float[] xs = new float[3], ys = new float[3];
+            float h = ChipBar.Layout(new float[] { 100, 100, 100 }, 250, 34, 6, xs, ys);
+            Check("chip bar: wraps at the area width", xs[0] == 0 && xs[1] == 106 && xs[2] == 0 && ys[2] == 40 && h == 74, string.Join(",", xs) + "/" + string.Join(",", ys) + "/" + h);
+            h = ChipBar.Layout(new float[] { 100, 100, 100 }, 0, 34, 6, xs, ys);
+            Check("chip bar: one line when the area is unbounded", xs[2] == 212 && ys[2] == 0 && h == 34);
         }
 
         // 임시 파일에 쓴 뒤 바꿔치기(13 문서 A7, 05 문서 92절). 번역표·config.txt 같은 사용자 파일이 쓰는 도중 사라지지 않게.

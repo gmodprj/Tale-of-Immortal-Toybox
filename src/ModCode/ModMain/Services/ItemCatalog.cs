@@ -272,27 +272,7 @@ namespace MOD_sWP6UL
         }
 
         // 그룹 키마다 거르기(검색어, 품질, 보유 중만)를 통과한 수. AllKey에는 전체의 수.
-        public static Dictionary<string, int> CountByGroup(Filter filter, HashSet<int> owned)
-        {
-            List<Entry> entries = All;
-            var counts = new Dictionary<string, int>();
-            counts[ItemGroups.AllKey] = 0;
-            foreach (ItemGroups.Group group in ItemGroups.Groups)
-            {
-                counts[group.Key] = 0;
-            }
-            foreach (Entry entry in entries)
-            {
-                if (Passes(entry, filter, owned))
-                {
-                    counts[ItemGroups.AllKey]++;
-                    counts[entry.Group.Key]++;
-                }
-            }
-            return counts;
-        }
-
-        // CountByGroup과 CountByKind(group)를 한 번 훑어 함께 센다(묶음 3, 자원 탭 검색 칸). group이 null이면 byKind도 null.
+        // 그룹마다의 수와(group이 있으면) 그 그룹의 종류마다의 수를 한 번 훑어 함께 센다(묶음 3. 13 문서 R6: 셋이던 세기를 하나로). group이 null이면 byKind도 null.
         public static void Counts(Filter filter, HashSet<int> owned, ItemGroups.Group group, out Dictionary<string, int> byGroup, out int[] byKind)
         {
             List<Entry> entries = All;
@@ -318,19 +298,5 @@ namespace MOD_sWP6UL
             }
         }
 
-        // 그 그룹의 종류마다 거르기를 통과한 수(그룹의 Kinds 순서).
-        public static int[] CountByKind(ItemGroups.Group group, Filter filter, HashSet<int> owned)
-        {
-            List<Entry> entries = All;
-            var counts = new int[group.Kinds.Count];
-            foreach (Entry entry in entries)
-            {
-                if (entry.Group == group && Passes(entry, filter, owned))
-                {
-                    counts[entry.Kind.Order]++;
-                }
-            }
-            return counts;
-        }
     }
 }

@@ -222,7 +222,7 @@ namespace MOD_sWP6UL
             return SlotBlocked(item, index) ? SlotReason : RuleBlockReason(martial, index, item);
         }
 
-        public const string SlotReason = "이 자리에는 나올 수 없는 옵션";
+        public const string SlotReason = MartialRules.SlotReason;
 
         // 그 자리의 가중치가 0이라 게임이 그 자리에 만들지 않는 옵션인지(스펙 2026-10-20-trainer-batch2-design.md 5.1절: 강제로 넣을 수 있다).
         public static bool SlotBlocked(ConfBattleSkillPrefixValueItem item, int index)
@@ -471,46 +471,31 @@ namespace MOD_sWP6UL
         // slotFrom: 자리 판정을 이 자리부터만 한다(대도까지 채우기: 옛 옵션은 자리 밖이어도 인정, 05 문서 83절).
         public static string OptionProblem(MartialType type, int baseId, int[] options, bool anySlot = false, int slotFrom = 0)
         {
-            if (options.Length > 11)
-            {
-                return "옵션은 11개까지입니다";
-            }
-            var valid = new List<ConfBattleSkillPrefixValueItem>();
+            // 게임 행을 PrefixRow로 바꾸고 판정은 MartialRules(순수. 문구는 그대로. 05 문서 93절).
+            return MartialRules.OptionProblem(options, RowsOf(type, baseId), anySlot, slotFrom);
+        }
+
+        // 그 기술의 옵션 행 전부를 순수 판정용 레코드로. 여러 조합을 판정할 때는 한 번만 만들어 MartialRules.OptionProblem에 넘긴다(최종 리뷰: 호출마다 만들면 O(N²)).
+        internal static List<PrefixRow> RowsOf(MartialType type, int baseId)
+        {
+            var rows = new List<PrefixRow>();
             var items = g.conf.battleSkillPrefixValue.GetItems((int)type, baseId);
             for (int i = 0; items != null && i < items.Count; i++)
             {
-                valid.Add(items[i]);
+                rows.Add(RowOf(items[i]));
             }
-            var numbers = new List<int>(options);
-            for (int i = 0; i < options.Length; i++)
+            return rows;
+        }
+
+        // 게임의 옵션 행을 순수 판정이 쓰는 레코드로.
+        internal static PrefixRow RowOf(ConfBattleSkillPrefixValueItem item)
+        {
+            var weights = new int[11];
+            for (int i = 0; i < 11; i++)
             {
-                int number = options[i];
-                ConfBattleSkillPrefixValueItem item = valid.Find(v => v.number == number);
-                if (item == null)
-                {
-                    return "이 기술에 없는 옵션입니다(" + number + ")";
-                }
-                if (!anySlot && i >= slotFrom && Weight(item, i) <= 0)
-                {
-                    return "옵션 " + (i + 1) + ": " + SlotReason;
-                }
-                if (numbers.FindAll(n => n == number).Count > item.multi)
-                {
-                    return "옵션 " + (i + 1) + ": 중복 한도 " + item.multi + "개 초과";
-                }
-                foreach (int require in Requires(item))
-                {
-                    if (require > 0 && !numbers.Contains(require))
-                    {
-                        return "옵션 " + number + "번에 필요한 " + require + "번 옵션이 없음";
-                    }
-                    if (require < 0 && numbers.Contains(-require))
-                    {
-                        return "옵션 " + number + "번과 " + (-require) + "번은 함께 둘 수 없음";
-                    }
-                }
+                weights[i] = Weight(item, i);
             }
-            return null;
+            return new PrefixRow { Number = item.number, Multi = item.multi, Weights = weights, Requires = Requires(item).ToArray() };
         }
 
         // 옵션을 지정해 공법을 만들어 배운 상태로 넣고, 옵션마다 게임이 허용하는 최고 품질로 맞춘다.

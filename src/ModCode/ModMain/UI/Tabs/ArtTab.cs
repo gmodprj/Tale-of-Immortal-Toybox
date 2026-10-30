@@ -17,6 +17,7 @@ namespace MOD_sWP6UL
         private int artKind;
         private string query = "";
         private HashSet<int> learnedNow = new HashSet<int>();   // 지금 분류의 배운 번호(그리기마다 새로. 묶음 3)
+        private readonly Dictionary<int, string> blockReasons = new Dictionary<int, string>();   // 서적마다 "배울 수 없는 까닭". Draw 시작에 비우고 다음 Draw까지 쓴다(늦게 그리는 줄도 같은 값. 13 문서 P3)
 
         public override string Title
         {
@@ -30,6 +31,7 @@ namespace MOD_sWP6UL
 
         protected override void Draw()
         {
+            blockReasons.Clear();
             for (int i = 0; i < ArtService.Kinds.Length; i++)
             {
                 int index = i;
@@ -77,7 +79,12 @@ namespace MOD_sWP6UL
             ArtService.Kind kind = ArtService.Kinds[artKind];
             bool learned = learnedNow.Contains(book.Id);
             // 배우지 않은 것은 지금 배울 수 있는지 게임에 물어 본다.
-            string blocked = learned ? null : ArtService.BlockReason(kind, book.Id);
+            string blocked = null;
+            if (!learned && !blockReasons.TryGetValue(book.Id, out blocked))
+            {
+                blocked = ArtService.BlockReason(kind, book.Id);
+                blockReasons[book.Id] = blocked;
+            }
             float h = row.sizeDelta.y;
             Ui.Label(row, book.Id.ToString(), ColId, 0, 100, h, 16);
             Ui.Wrapped(row, book.Name, ColName, 0, 305, h, 17);

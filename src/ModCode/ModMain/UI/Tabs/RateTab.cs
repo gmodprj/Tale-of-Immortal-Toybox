@@ -65,15 +65,21 @@ namespace MOD_sWP6UL
 
         private void DrawChips()
         {
-            float x = 16;
+            var labelsOf = new string[RateGroups.Count];
+            var widths = new float[RateGroups.Count];
+            for (int i = 0; i < RateGroups.Count; i++)
+            {
+                int on = RateGroups.OnCount(i, IsOn);
+                labelsOf[i] = RateGroups.NameOf(i) + (on > 0 ? " " + on : "");
+                widths[i] = 40 + labelsOf[i].Length * 17;
+            }
+            var xs = new float[widths.Length];
+            var ys = new float[widths.Length];
+            ChipBar.Layout(widths, 0, ChipH, 10, xs, ys);
             for (int i = 0; i < RateGroups.Count; i++)
             {
                 int index = i;
-                int on = RateGroups.OnCount(i, IsOn);
-                string label = RateGroups.NameOf(i) + (on > 0 ? " " + on : "");
-                float w = 40 + label.Length * 17;
-                Ui.Button("RateGroup" + i, content, label, x, ChipY, w, ChipH, new Action(() => { Chip = index; Redraw(); }), true, chip == i);
-                x += w + 10;
+                Ui.Button("RateGroup" + i, content, labelsOf[i], 16 + xs[i], ChipY, widths[i], ChipH, new Action(() => { Chip = index; Redraw(); }), true, chip == i);
             }
         }
 
@@ -150,13 +156,7 @@ namespace MOD_sWP6UL
         // 설명 글에는 이름을 붙인다(검증이 날짜 고정 중의 안내를 읽는다).
         private float Row(float y, string name, string label, string value, bool on, string note, Action onClick)
         {
-            Ui.Label(content, label, 16, y + 10, 220, 40, 19);
-            float h = RowH - 12;
-            Ui.Button(name, content, value, 240, y + 6, 150, h, onClick, true, on);
-            UnityEngine.UI.Text text = Ui.Wrapped(content, note, 410, y + 6, ContentW - 430, h, 15);
-            text.color = Ui.Dim;
-            text.gameObject.name = name.StartsWith("Rate") ? "RateNote" + name.Substring(4) : name + "Note";
-            return y + RowH;
+            return ToggleRow(y, RowH, name, label, value, on, note, onClick, name.StartsWith("Rate") ? "RateNote" + name.Substring(4) : name + "Note");
         }
     }
 }

@@ -2534,10 +2534,10 @@ switch ($Part) {
     Check 'stays when the editor is closed' ((Cmd 'uistate') -match 'status=\[무적 · 피해 x2 · 날짜 고정\] open=False ')
     Check 'the overlay does not take clicks' ((Rc 'hit 960 23' 200) -notmatch 'TlToybox')
     Shot 'status'
-    # 끈다. 배율은 x2 → x5 → x10 → x100 → x1로 돈다.
+    # 끈다. 배율은 x2 → x5 → x10 → x100 → 일격 → x1로 돈다(87절에 일격 단계가 더해져 다섯 번. 93절에서 고침).
     Cmd 'editor' | Out-Null
     Press 'Tab12' | Out-Null; Press 'God' | Out-Null
-    1..4 | ForEach-Object { Press 'Multiplier' | Out-Null }
+    1..5 | ForEach-Object { Press 'Multiplier' | Out-Null }
     Press 'Tab11' | Out-Null; Press 'Freeze' | Out-Null
     Press 'Close' | Out-Null
     Start-Sleep -Milliseconds 900

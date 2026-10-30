@@ -131,6 +131,10 @@ namespace MOD_sWP6UL
             // 화면의 배율에 따라 줄이 바뀌는 자리가 한두 글자 달라질 수 있어 조금 좁게 잰다.
             TextGenerationSettings settings = ruler.GetGenerationSettings(new Vector2(w - 6f, 0f));
             height = ruler.cachedTextGeneratorForLayout.GetPreferredHeight(value, settings) / ruler.pixelsPerUnit;
+            if (heights.Count >= 4096)
+            {
+                heights.Clear();   // 결과 문구마다 쌓이지 않게 상한(13 문서 P6)
+            }
             heights[key] = height;
             return height;
         }
