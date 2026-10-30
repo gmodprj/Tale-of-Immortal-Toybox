@@ -253,7 +253,7 @@ namespace MOD_sWP6UL
             RestoreMapSpeed();
             moveUnit = IntPtr.Zero;
             energyLast = int.MinValue;
-            cooldownUnit = IntPtr.Zero;
+            ForgetCooldown();
             skillUnit = IntPtr.Zero;
             skillValues.Clear();
         }
@@ -402,8 +402,7 @@ namespace MOD_sWP6UL
             {
                 return value;
             }
-            double scaled = Math.Round(value * (double)rate.Value);
-            int result = scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+            int result = RateGroups.ScaleValue(value, rate.Value);
 #if DEVTOOLS
             rate.Last = value + "->" + result;
 #endif
@@ -534,7 +533,7 @@ namespace MOD_sWP6UL
 
         private static int ScaleDay(int day)
         {
-            return day <= 0 ? day : (int)Math.Round(day * (double)ActionDay.Value, MidpointRounding.AwayFromZero);
+            return RateGroups.ScaleDay(day, ActionDay.Value);
         }
 
         // 지금 플레이어의 기술 행동이 Create 중인지. 그 안의 AddResidueDay만 곱한다.
@@ -760,19 +759,30 @@ namespace MOD_sWP6UL
             {
                 UnitCtrlPlayer ctrl = InBattle ? SceneType.battle.battleMap.playerUnitCtrl : null;
                 UnitDataBase data = ctrl == null ? null : ctrl.data;
-                if (!BattleMove.On || data == null)
+                if (data == null)
                 {
-                    DetachMove(data);
+                    // 전투 밖: 켜져 있으면 기억을 남긴다(같은 단위가 다시 보이면 붙어 있는지로 판정한다). 꺼져 있으면 잊는다(처리기는 단위와 함께 사라진다).
+                    if (!BattleMove.On)
+                    {
+                        ForgetMove();
+                    }
                     return;
                 }
-                if (moveUnit != data.Pointer)
+                // 붙어 있는지는 포인터가 아니라 DynInt의 처리기 목록(태그)으로 본다(13 문서 A2: 두 번 붙어 배율이 겹치지 않게. 스펙 2절).
+                bool attached = IsMoveAttached(data.moveSpeed);
+                if (RateUnitRules.MoveDetachNeeded(BattleMove.On, attached))
                 {
-                    // 새 전투: 지난 단위는 사라졌으므로 떼지 않고 잊는다.
-                    moveUnit = IntPtr.Zero;
-                    moveSpeedOf = null;
+                    data.moveSpeed.DelValue(moveHandler);
+                    ForgetMove();
+                    return;
+                }
+                if (!BattleMove.On)
+                {
+                    ForgetMove();
+                    return;
                 }
                 int want = (int)Math.Round(data.moveSpeed.baseValue * (BattleMove.Value - 1f));
-                if (moveUnit == IntPtr.Zero)
+                if (RateUnitRules.MoveAttachNeeded(BattleMove.On, attached))
                 {
                     if (moveHandler == null)
                     {
@@ -780,8 +790,6 @@ namespace MOD_sWP6UL
                     }
                     moveAdd = want;
                     data.moveSpeed.AddValue(moveHandler, MoveTag);
-                    moveUnit = data.Pointer;
-                    moveSpeedOf = data.moveSpeed;
 #if DEVTOOLS
                     BattleMove.Last = data.moveSpeed.baseValue + "->" + data.moveSpeed.value;
 #endif
@@ -790,6 +798,8 @@ namespace MOD_sWP6UL
                 {
                     moveAdd = want;
                 }
+                moveUnit = data.Pointer;
+                moveSpeedOf = data.moveSpeed;
             }
             catch (Exception e)
             {
@@ -797,17 +807,22 @@ namespace MOD_sWP6UL
             }
         }
 
-        // 걸어 둔 처리기를 뗀다. 지금 전투의 단위가 건 단위와 같을 때만 DelValue를 부른다.
-        private static void DetachMove(UnitDataBase data)
+        // 그 DynInt에 이 모드의 처리기(태그 MoveTag)가 붙어 있는지.
+        private static bool IsMoveAttached(DynInt speed)
         {
-            if (moveUnit == IntPtr.Zero)
+            var calls = speed == null ? null : speed.allAddCall;
+            for (int i = 0; calls != null && i < calls.Count; i++)
             {
-                return;
+                if (calls[i].t2 == MoveTag)
+                {
+                    return true;
+                }
             }
-            if (data != null && data.Pointer == moveUnit && moveSpeedOf != null)
-            {
-                moveSpeedOf.DelValue(moveHandler);
-            }
+            return false;
+        }
+
+        private static void ForgetMove()
+        {
             moveUnit = IntPtr.Zero;
             moveSpeedOf = null;
             moveAdd = 0;
@@ -882,6 +897,7 @@ namespace MOD_sWP6UL
         private static int cooldownItem;        // 원래 itemCDRate(전투 아이템 쿨타임 줄)
         private static bool skillApplied;       // 기술 쿨타임 줄이 이 단위의 skill·stepCDRate에 걸려 있다
         private static bool itemApplied;        // 전투 아이템 쿨타임 줄이 itemCDRate에 걸려 있다
+        private static int skillWritten, stepWritten, itemWritten;   // 마지막으로 쓴 값(같은 단위의 값이 바뀌었는지 보는 데 쓴다. 스펙 2절)
 
         // 전투 중인 플레이어의 쿨타임 속도를 맞춘다. 기술 쿨타임은 skillCDRate·stepCDRate, 전투 아이템 쿨타임은 itemCDRate.
         // 전투마다 원래 값을 떠 두고, 줄을 1배로 돌리면 그 비율을 원래 값으로 되돌린다.
@@ -894,51 +910,47 @@ namespace MOD_sWP6UL
             }
             try
             {
-                if (!InBattle)
+                bool inBattle = InBattle;
+                UnitCtrlPlayer unit = inBattle ? SceneType.battle.battleMap.playerUnitCtrl : null;
+                DynInt skill = unit == null ? null : unit.data.skillCDRate;
+                DynInt step = unit == null ? null : unit.data.stepCDRate;
+                DynInt item = unit == null ? null : unit.data.itemCDRate;
+                bool held = cooldownUnit != IntPtr.Zero;
+                bool applied = skillApplied || itemApplied;
+                bool same = unit != null && unit.Pointer == cooldownUnit;
+                bool intact = !applied || (same && skill.baseValue == skillWritten && step.baseValue == stepWritten && item.baseValue == itemWritten);
+                switch (RateUnitRules.Decide(inBattle, any, held, applied, same, intact))
                 {
-                    // 전투 단위가 보이지 않는다. 꺼져 있으면 되돌릴 것이 없으니 잊는다.
-                    // 켜져 있으면 떠 둔 값을 남긴다: 같은 단위가 다시 보였을 때(연출 등으로 잠깐 사라진 경우)
-                    // 이미 곱한 값을 원래 값으로 다시 뜨면 배율이 겹친다. 새 전투의 단위는 포인터가 달라 새로 뜬다.
-                    if (!any)
-                    {
-                        cooldownUnit = IntPtr.Zero;
-                    }
-                    return;
-                }
-                UnitCtrlPlayer unit = SceneType.battle.battleMap.playerUnitCtrl;
-                DynInt skill = unit.data.skillCDRate;
-                DynInt step = unit.data.stepCDRate;
-                DynInt item = unit.data.itemCDRate;
-                if (unit.Pointer != cooldownUnit)
-                {
-                    if (!any)
-                    {
-                        cooldownUnit = IntPtr.Zero;
+                    case RateUnitRules.Step.Skip:
                         return;
-                    }
-                    cooldownUnit = unit.Pointer;
-                    cooldownSkill = skill.baseValue;
-                    cooldownStep = step.baseValue;
-                    cooldownItem = item.baseValue;
-                    skillApplied = false;
-                    itemApplied = false;
+                    case RateUnitRules.Step.Forget:
+                        ForgetCooldown();
+                        return;
+                    case RateUnitRules.Step.Capture:
+                        cooldownUnit = unit.Pointer;
+                        cooldownSkill = skill.baseValue;
+                        cooldownStep = step.baseValue;
+                        cooldownItem = item.baseValue;
+                        skillApplied = false;
+                        itemApplied = false;
+                        break;
                 }
                 // 줄마다 켜져 있을 때와 되돌릴 때만 쓴다. 다른 줄만 켰을 때 꺼진 줄의 비율(게임 값)을 덮지 않는다(최종 리뷰).
                 if (RateGroups.WritesRate(Cooldown.On, skillApplied))
                 {
-                    ApplyCooldown(skill, cooldownSkill, Cooldown);
-                    ApplyCooldown(step, cooldownStep, Cooldown);
+                    skillWritten = ApplyCooldown(skill, cooldownSkill, Cooldown);
+                    stepWritten = ApplyCooldown(step, cooldownStep, Cooldown);
                     skillApplied = Cooldown.On;
                 }
                 if (RateGroups.WritesRate(ItemCooldown.On, itemApplied))
                 {
-                    ApplyCooldown(item, cooldownItem, ItemCooldown);
+                    itemWritten = ApplyCooldown(item, cooldownItem, ItemCooldown);
                     itemApplied = ItemCooldown.On;
                 }
                 if (!any)
                 {
                     // 모두 원래 값으로 되돌렸다.
-                    cooldownUnit = IntPtr.Zero;
+                    ForgetCooldown();
                 }
             }
             catch (Exception e)
@@ -947,12 +959,20 @@ namespace MOD_sWP6UL
             }
         }
 
+        private static void ForgetCooldown()
+        {
+            cooldownUnit = IntPtr.Zero;
+            skillApplied = false;
+            itemApplied = false;
+        }
+
         // 비율 하나를 그 줄의 배율에 맞춘다(꺼져 있으면 원래 값). 원래 값이 0 이하이면 건드리지 않는다.
-        private static void ApplyCooldown(DynInt value, int original, Rate rate)
+        // 돌려주는 값은 지금 그 비율의 baseValue(쓴 값 또는 건드리지 않은 값).
+        private static int ApplyCooldown(DynInt value, int original, Rate rate)
         {
             if (original <= 0)
             {
-                return;
+                return value.baseValue;
             }
             int want = original;
             if (rate.On)
@@ -964,13 +984,15 @@ namespace MOD_sWP6UL
             {
                 value.baseValue = want;
             }
+            return want;
         }
 
-        // 기술마다의 값(DynInt.baseValue) 하나와 그 원래 값.
+        // 기술마다의 값(DynInt.baseValue) 하나와 그 원래 값, 마지막으로 쓴 값.
         private sealed class SkillValue
         {
             public DynInt Value;
             public int Original;
+            public int Written;
             public Rate Rate;
         }
 
@@ -988,25 +1010,21 @@ namespace MOD_sWP6UL
             }
             try
             {
-                if (!InBattle)
+                bool inBattle = InBattle;
+                UnitCtrlPlayer unit = inBattle ? SceneType.battle.battleMap.playerUnitCtrl : null;
+                // 되돌린 항목은 지워지므로 항목이 남아 있다 = 쓴 값이 있다. 항목마다의 "그대로인지"는 아래에서 따로 본다.
+                switch (RateUnitRules.Decide(inBattle, any, skillUnit != IntPtr.Zero, skillValues.Count > 0, unit != null && unit.Pointer == skillUnit, true))
                 {
-                    // 같은 단위가 다시 보일 때 곱한 값을 원래 값으로 뜨지 않도록, 켜져 있으면 떠 둔 것을 남긴다.
-                    if (!any)
-                    {
+                    case RateUnitRules.Step.Skip:
+                        return;
+                    case RateUnitRules.Step.Forget:
                         skillValues.Clear();
                         skillUnit = IntPtr.Zero;
-                    }
-                    return;
-                }
-                UnitCtrlPlayer unit = SceneType.battle.battleMap.playerUnitCtrl;
-                if (unit.Pointer != skillUnit)
-                {
-                    skillValues.Clear();
-                    skillUnit = unit.Pointer;
-                    if (!any)
-                    {
                         return;
-                    }
+                    case RateUnitRules.Step.Capture:
+                        skillValues.Clear();
+                        skillUnit = unit.Pointer;
+                        break;
                 }
                 if (any)
                 {
@@ -1016,6 +1034,12 @@ namespace MOD_sWP6UL
                 foreach (var pair in skillValues)
                 {
                     SkillValue v = pair.Value;
+                    if (v.Value.baseValue != v.Written)
+                    {
+                        // 게임이 값을 바꿨거나 같은 주소에 새 값이 잡혔다(스펙 2절). 옛 원래 값을 쓰지 않고 이 항목을 잊는다.
+                        done.Add(pair.Key);
+                        continue;
+                    }
                     // 기술 쿨타임 줄(선법·영역의 cd)은 없음도 0이 아니라 하한(RateGroups.SkillCooldown)
                     int want = !v.Rate.On ? v.Original
                         : v.Rate == Cooldown ? RateGroups.SkillCooldown(v.Original, v.Rate.Value) : Scaled(v.Original, v.Rate.Value);
@@ -1023,6 +1047,7 @@ namespace MOD_sWP6UL
                     {
                         v.Value.baseValue = want;
                     }
+                    v.Written = want;
                     if (!v.Rate.On)
                     {
                         done.Add(pair.Key);
@@ -1089,28 +1114,19 @@ namespace MOD_sWP6UL
             {
                 return;
             }
-            skillValues[value.Pointer] = new SkillValue { Value = value, Original = value.baseValue, Rate = rate };
+            skillValues[value.Pointer] = new SkillValue { Value = value, Original = value.baseValue, Written = value.baseValue, Rate = rate };
         }
 
         // 0 이하는 곱하지 않는다. 반올림은 0.5를 올린다(25의 절반은 13).
         private static int Scaled(int original, float factor)
         {
-            if (original <= 0)
-            {
-                return original;
-            }
-            return (int)Math.Round(original * (double)factor, MidpointRounding.AwayFromZero);
+            return RateGroups.ScaleSkillValue(original, factor);
         }
 
         // 원래 값이 0 이하이면(게임이 쿨타임을 멈춘 상태) 건드리지 않는다.
         private static int CooldownTarget(int original, float factor)
         {
-            if (original <= 0)
-            {
-                return original;
-            }
-            double scaled = Math.Round(original * (double)factor);
-            return scaled > CooldownMax ? (int)CooldownMax : (int)scaled;
+            return RateGroups.CooldownRateValue(original, factor, CooldownMax);
         }
     }
 }

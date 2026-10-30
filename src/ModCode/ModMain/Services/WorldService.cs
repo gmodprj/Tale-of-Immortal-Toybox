@@ -225,8 +225,8 @@ namespace MOD_sWP6UL
                 else if (RateService.Taken.On && data.dynV.baseValue > 0)
                 {
                     int before = data.dynV.baseValue;
-                    // 배율로는 0이 되지 않게 한다(피해 1에 x0.5를 걸면 0이 되어 무적과 같아진다. 0은 무적의 몫이다).
-                    data.dynV.baseValue = Math.Max(1, (int)Math.Round(before * (double)RateService.Taken.Value));
+                    // 배율로는 0이 되지 않게 한다(피해 1에 x0.5를 걸면 0이 되어 무적과 같아진다. 0은 무적의 몫이다). 판정은 RateGroups.TakenDamage.
+                    data.dynV.baseValue = RateGroups.TakenDamage(before, RateService.Taken.Value);
 #if DEVTOOLS
                     DevTaken = "base " + before + "->" + data.dynV.baseValue;
 #endif
@@ -252,8 +252,8 @@ namespace MOD_sWP6UL
                 int devBase = data.dynV.baseValue;
                 int devValue = data.dynV.value;
 #endif
-                long scaled = (long)data.dynV.baseValue * Multiplier;
-                data.dynV.baseValue = scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+                // 0 이하는 건드리지 않고 넘치면 int 최댓값(13 문서 A5. 판정은 RateGroups.DealtDamage).
+                data.dynV.baseValue = RateGroups.DealtDamage(data.dynV.baseValue, Multiplier);
 #if DEVTOOLS
                 DevScaled++;
                 DevLast = "base " + devBase + "->" + data.dynV.baseValue + " value " + devValue + "->" + data.dynV.value;
