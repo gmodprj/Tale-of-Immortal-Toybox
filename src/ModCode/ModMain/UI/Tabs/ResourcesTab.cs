@@ -590,7 +590,7 @@ namespace MOD_sWP6UL
                 bool setPending = Confirm.IsPending(setKey) && pendingOwnedId == id;
                 InputField owned = null;
                 owned = NumberField.Build(row, "ResOwned" + id, ColOwned, (h - (RowH - 4)) / 2, OwnedW, RowH - 4,
-                    (setPending ? pendingOwnedValue : held).ToString(), null, new Action<int, bool>((v, enter) =>
+                    (setPending ? pendingOwnedValue : held).ToString(), null, new Func<int, bool, bool>((v, enter) =>
                     {
                         int now = Player.data.unitData.propData.GetPropsNum(id);
                         bool pending = Confirm.IsPending(setKey) && pendingOwnedId == id;
@@ -598,23 +598,23 @@ namespace MOD_sWP6UL
                         {
                             case NumberFieldRules.OwnedAction.Set:
                                 Say(BagService.SetCount(Player, id, v));
-                                return;
+                                return true;
                             case NumberFieldRules.OwnedAction.Ask:
                                 pendingOwnedId = id;
                                 pendingOwnedValue = v;
                                 Confirm.Ask(setKey, BagService.LowerQuestion(Player, id, v));
-                                return;
+                                return true;
                             case NumberFieldRules.OwnedAction.Confirm:
                                 Confirm.Clear();
                                 Say(BagService.SetCount(Player, id, v));
-                                return;
+                                return true;
                             default:
-                                // 같은 값이거나 떠나면서 줄이기: 아무것도 하지 않고 칸을 지금 수로 되돌린다.
+                                // 같은 값이거나 떠나면서 줄이기: 아무것도 하지 않고 칸을 지금 수로 되돌린다. 받아들이지 않았으므로 거짓.
                                 if (owned != null && owned.text != now.ToString())
                                 {
                                     owned.text = now.ToString();
                                 }
-                                return;
+                                return false;
                         }
                     }), true);
                 // 확인 문구는 누르는 순간의 가방으로 만든다(그린 뒤 가방이 바뀔 수 있다).

@@ -19,12 +19,13 @@ namespace MOD_sWP6UL
         public static InputField Build(Transform parent, string name, float x, float y, float w, float h, string text,
             Action<string> onChanged, Action<int> onSubmit, bool commitOnEndEdit)
         {
-            return Build(parent, name, x, y, w, h, text, onChanged, new Action<int, bool>((v, enter) => onSubmit(v)), commitOnEndEdit);
+            return Build(parent, name, x, y, w, h, text, onChanged, new Func<int, bool, bool>((v, enter) => { onSubmit(v); return true; }), commitOnEndEdit);
         }
 
-        // onSubmit의 둘째 인자는 Enter로 끝났는지(거짓이면 포커스를 잃어 끝남).
+        // onSubmit의 둘째 인자는 Enter로 끝났는지(거짓이면 포커스를 잃어 끝남). 돌려주는 값은 그 값을 받아들였는지 — 거짓이면
+        // 마지막으로 넘긴 글이 바뀌지 않아, 같은 값을 다시 쓰고 떠나도 콜백이 다시 불린다(NumberFieldRules.NextCommitted).
         public static InputField Build(Transform parent, string name, float x, float y, float w, float h, string text,
-            Action<string> onChanged, Action<int, bool> onSubmit, bool commitOnEndEdit)
+            Action<string> onChanged, Func<int, bool, bool> onSubmit, bool commitOnEndEdit)
         {
             InputField input = Ui.Input(name, parent, text, "", x, y, w, h, onChanged, true);
             string committed = text;
@@ -41,8 +42,7 @@ namespace MOD_sWP6UL
                         input.text = committed;
                         return;
                     case NumberFieldRules.Action.Submit:
-                        committed = v;
-                        onSubmit(value, enter);
+                        committed = NumberFieldRules.NextCommitted(committed, v, onSubmit(value, enter));
                         return;
                     default:
                         return;

@@ -2955,6 +2955,9 @@ switch ($Part) {
     # 줄이기(05 문서 89절): 떠나기로는 적용되지 않고 칸이 되돌아온다, 같은 값으로 떠나면 아무 말 없음, Enter는 먼저 묻고, 다른 단추를 누르면 대기가 풀린다.
     SetOwned 1011011 7
     Check 'lowering by leaving the cell does nothing' ((Held 1011011) -eq 25 -and (Cmd 'uitext ResOwned1011011') -match "text='25'") "held=$(Held 1011011) | $(Cmd 'uitext ResOwned1011011')"
+    # 다시 그리지 않고 같은 값으로 한 번 더 떠나기(최종 리뷰 Important 1: 받아들이지 않은 값이 committed가 되면 두 번째는 칸이 되돌아오지 않았다).
+    SetOwned 1011011 7
+    Check 'lowering by leaving twice without a redraw still reverts the cell' ((Held 1011011) -eq 25 -and (Cmd 'uitext ResOwned1011011') -match "text='25'") "held=$(Held 1011011) | $(Cmd 'uitext ResOwned1011011')"
     Press 'ResClear' | Out-Null; Show '1011011'
     SetOwned 1011011 25
     Check 'leaving with the same value says nothing' ((Said) -notmatch '이미 25개') (Said)

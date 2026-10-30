@@ -702,6 +702,10 @@ namespace MOD_sWP6UL
             Check("owned: lowering on enter with the same pending value confirms", NumberFieldRules.DecideOwned(7, 10, true, true, 7) == NumberFieldRules.OwnedAction.Confirm);
             Check("owned: lowering on enter with another pending value asks again", NumberFieldRules.DecideOwned(5, 10, true, true, 7) == NumberFieldRules.OwnedAction.Ask);
             Check("owned: zero on enter asks", NumberFieldRules.DecideOwned(0, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
+            // 최종 리뷰 Important 1: 콜백이 받아들이지 않은 값은 committed가 되지 않는다. 그래야 같은 값을 다시 쓰고 떠나도 콜백이 다시 불려 칸을 되돌린다.
+            Check("numberfield: a rejected submit keeps the old committed text", NumberFieldRules.NextCommitted("25", "7", false) == "25");
+            Check("numberfield: an accepted submit commits the new text", NumberFieldRules.NextCommitted("25", "30", true) == "30");
+            Check("numberfield: after a rejected blur the same value still submits", NumberFieldRules.Decide("7", NumberFieldRules.NextCommitted("25", "7", false), false, true, out v) == NumberFieldRules.Action.Submit);
         }
     }
 }

@@ -27,6 +27,13 @@ namespace MOD_sWP6UL
             return Action.Submit;
         }
 
+        // 제출 뒤의 "마지막으로 넘긴 글": 콜백이 받아들였을 때만 새 글이 된다. 받아들이지 않은 값이 남으면 같은 값을 다시 쓰고
+        // 떠났을 때 Decide가 Ignore를 내어 칸이 되돌아오지 않는다(최종 리뷰 Important 1).
+        public static string NextCommitted(string committed, string text, bool accepted)
+        {
+            return accepted ? text : committed;
+        }
+
         public enum OwnedAction { Ignore, Set, Ask, Confirm }
 
         // value: 쓴 수, held: 지금 가진 수, pending: 이 칸의 줄이기 확인이 대기 중인지, pendingValue: 그때 물은 수.
