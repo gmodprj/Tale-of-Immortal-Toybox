@@ -131,6 +131,16 @@ namespace MOD_sWP6UL
             return sum > int.MaxValue ? int.MaxValue : (int)Math.Max(1L, sum);
         }
 
+        // 게임 UnitType의 값(열거형은 게임 어셈블리에 있어 int로 받는다): Player=1, PlayerNPC=2(동료).
+        public const int UnitPlayer = 1;
+        public const int UnitPlayerNpc = 2;
+
+        // 일격을 걸 타격인지: 플레이어의 타격이고, 맞은 쪽이 플레이어·동료가 아닐 때만(13 문서 2.6절).
+        public static bool OneHitApplies(int attackerType, int targetType)
+        {
+            return attackerType == UnitPlayer && targetType != UnitPlayer && targetType != UnitPlayerNpc;
+        }
+
         // 법보 내구 소모 없음: 켜져 있고 플레이어 법보이며 줄어드는 쓰기일 때만 막는다(수리로 늘리는 것은 그대로).
         public static bool DurableBlocked(int now, int next, bool owned, bool on)
         {

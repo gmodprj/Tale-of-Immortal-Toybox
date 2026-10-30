@@ -279,6 +279,11 @@ namespace MOD_sWP6UL
             Check("one hit: hp plus max", RateGroups.OneHitDamage(29877, 29877) == 59754);
             Check("one hit: overflow is cut", RateGroups.OneHitDamage(int.MaxValue, 5) == int.MaxValue);
             Check("one hit: never zero", RateGroups.OneHitDamage(0, 0) == 1);
+            // 일격의 대상(13 문서 2.6절): 플레이어의 타격만, 플레이어·동료(PlayerNPC)를 맞힌 것은 제외.
+            Check("onehit: player hitting a monster applies", RateGroups.OneHitApplies(1, 3));
+            Check("onehit: player hitting an ally does not", !RateGroups.OneHitApplies(1, 2));
+            Check("onehit: player hitting the player does not", !RateGroups.OneHitApplies(1, 1));
+            Check("onehit: a monster hitting anything does not", !RateGroups.OneHitApplies(3, 3) && !RateGroups.OneHitApplies(4, 1));
             Check("durable: only a drop on an owned artifact is blocked", RateGroups.DurableBlocked(100, 98, true, true) && !RateGroups.DurableBlocked(100, 98, false, true) && !RateGroups.DurableBlocked(98, 100, true, true) && !RateGroups.DurableBlocked(100, 98, true, false));
             Check("cooldown rate: an off row that was never applied is not written", !RateGroups.WritesRate(false, false));
             Check("cooldown rate: an on row is written, and an off row once to restore", RateGroups.WritesRate(true, false) && RateGroups.WritesRate(true, true) && RateGroups.WritesRate(false, true));
