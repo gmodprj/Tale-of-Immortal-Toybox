@@ -4020,3 +4020,57 @@ Critical 없음, Important 셋, 사소 일곱.
 
 - 쓰기 도중 죽는 상황은 도구로 만들 수 없다(단위 시험으로 `.tmp`가 남지 않고 내용이 바뀌는 것만). `File.Replace`가 다른 프로세스의 잠금으로 던지면 호출부의 기존 `catch`(`TranslationService.Ensure`·`ConfigFile`·`FavoriteStore.Change`)가 로그로 받는다(코드로만).
 - A8(프리셋 폴더 접근 거부)·B22(치환이 던지는 경우)는 회차에서 만들 수 없어 코드로만.
+
+## 93. 리팩토링 2차 — 순수 판정 넷, 서비스 중복, UI 위젯·분할·되풀이 (2026-10-30 추가)
+
+13 문서 7절의 묶음 5(3절 R2·R3·R5·R6·R8·T2·T4·T5·T6, 4절 S1~S5·S7·P1~P6). 사용자 지시 "묶음 5 시작". 계획 `docs/superpowers/plans/2026-10-30-refactor-2.md`, 브랜치 `chore/refactor-2`. **동작 불변**(화면 요소 이름·문구·검사 기대값 그대로). 게임 설치는 하지 않았다.
+
+### 93.1 순수 판정 넷(단위 시험 22줄)
+
+게임 형식(`ConfBattleSkillPrefixValueItem` 등)에 묶여 시험이 없던 판정을 `PrefixRow`(번호·중복 한도·자리 가중치 11칸·선행/배타) 레코드로 떼어 냈다. 게임 행 → 레코드는 `MartialService.RowOf`.
+
+| 판정 | 전 | 후 | 시험 |
+|---|---|---|---|
+| 모드 공법 비급의 옵션 번호 치환(78절. T2·R3) | `SkillCatalog.RemapPrefixNumbers` 118줄(게임 행·`Il2CppStructArray`) | `ModSkillRules.RemapPrefixNumbers(int[] values, int end, List<PrefixRow>, Func<int,int> rng)` + `OptionEnd`. 무작위는 주입 | 모드 번호 유지·자리 가중치로 채움·안 쓴 첫 번호 대체·한도 안 되풀이·바꿀 것 없음 5줄 |
+| 옵션 목록 규칙(T4) | `MartialService.OptionProblem` | `MartialRules.OptionProblem(options, rows, anySlot, slotFrom)`. 문구 그대로(`SlotReason`도 여기) | 11개 초과·없는 번호·자리·anySlot·중복(목록 전체를 세어 첫 자리에서 걸림)·배타·slotFrom·정상 8줄 |
+| 프리셋의 같은 공법 고르기(T5) | `PresetService.Learned`·`SameOptions`·`Find` | `PresetRules.Learned`·`SameOptions`·`Find(learned, baseId, options, grade, matchSuit, suit)`. `PresetService`는 별칭으로 씀 | 장착 우선·낮은 경지 제외·심법 세트 일치·다른 옵션 4줄 |
+| 돌파 재료 고르기(T6) | `EditService.ParseIds`·`BreakthroughNeedItems`·`BreakthroughTreasures` | `BreakthroughRules.ParseIds`·`NeedItems(itemShowA, growItemNum)`·`Treasures(itemShowB, materialsNum)` | 0·글·중복 제외, 한 개면 마지막, 순환, 천재지보 4줄 |
+
+### 93.2 서비스 중복
+
+- R8 `PresetService.Entry`: 분류마다 `SkillCatalog.Find(kind, 번호 글)`(부분 문자열 검색) 뒤 거르던 것을 `SkillCatalog.Get(kind, baseId)`로.
+- R6 `ItemCatalog`: `CountByGroup`·`CountByKind`·`Counts` 세 훑기를 `Counts` 하나로(자원 탭·개발 명령 `rgroups`·`rperf`가 쓴다).
+- R5 수도 점수 올리기: `MasteryService.RaiseAbilityPoints(unit, extra, out before, out want, out now, out reply)` 한 벌을 프리셋 적용(`PresetService.Apply.RaisePoints`)과 대도까지 채우기가 함께 쓴다(문구·기록은 각자).
+- R2 `MasteryService.Remake`(160줄): 되돌리기(`RemakeRollback`)와 실패 문장(`RemakeFailText`)을 떼어 냈다. 코드 이동만.
+- **R4(백업 보일러플레이트 76곳)는 하지 않았다**: C#에서 "실패하면 return"은 호출부에 남아야 해 4줄이 3줄이 될 뿐이다.
+
+### 93.3 UI
+
+- S3 `EditorTab.ToggleRow(y, rowH, name, label, value, on, note, onClick, noteName)`: 배율·성공 탭의 같은 `Row`.
+- S4 `Widgets/ChipBar.Layout(widths, areaW, chipH, gap, xs, ys)`(순수. 줄바꿈 배치, `areaW` 0이면 한 줄. 시험 2줄)와 `Widgets/CountChip`(수가 적힌 글. 자원·도호 탭의 `CountLabel` 둘을 하나로): 자원 종류 칩·도호 분류 칩·배율 칩·기술 서적 칩이 쓴다. 폭 계산식은 각자 그대로.
+- S5 `Widgets/NumberChips.Draw(parent, prefix, from, to, x, y, w, step, h, selected, onPick, label, widthOf)`: `SkillGrade`·`ResGrade`·`ForgeStage`·`GiveStage`(`GiveGrade`는 0번이 "시작 경지"라 그대로).
+- S7 `EditorTab.MissingNote(text, y)`: "…를 찾지 못했습니다. 돌아가서…" 네 곳.
+- S1 `ResourcesTab.cs` 760줄 → 568 + `ResourcesTab.Favorites.cs` 150 + `ResourcesTab.Currency.cs` 58(+ `Books.cs`). S2 `MartialTab.cs` 649줄 → 288 + `MartialTab.Views.cs` 368(대도까지·전승·기술 추가·옵션 교체). 코드 이동만.
+- **S6(읽을 수 없는 파일 줄 두 벌)은 하지 않았다**: 목록 형식이 다르고 폭(16/158)도 달라 공통으로 묶으면 더 길어진다.
+- P1 즐겨찾기 줄을 그리기(검색)마다 한 번만 만든다(`favRowsNow`). P2 기술 서적 분류 수를 그리기마다 한 번(`bookKindCountsCache`). P3 기예 서적의 "배울 수 없는 까닭"을 그리기마다 서적당 한 번. P4 공법 탭의 선택 공법 조회 한 번. P5 프리셋 탭은 열 때·보일 때 목록을 비우기만 하고 그릴 때 읽는다(Insert마다 디스크를 읽던 것). P6 `Ui.TextHeight` 캐시가 4096개를 넘으면 비운다.
+
+### 93.4 검사
+
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(PrefixRules 14, PresetRules 4, BreakthroughRules 4, ChipBar 2 추가).
+- 회차 일곱(모두 고정본, 끝 `SAVE RESTORED AND IDENTICAL`). 검사 결과 FAIL 0: `rf2-a`(`-Exclude`) `ui-check base`·`tabs`·`people`·`confirm`·`wrap`·`fateguard`·`groups`·`favorites`·`books-ui`·`prefixforce`·`traits`·`success`·`history` / `rf2-b` `rates`·`bagcount`·`items`·`numbers`·`status` / `rf2-c`(만고신화 포함) `translation`·`mastery-check modname` / `rf2-d` `preset-check state`·`martial`·`files`·`grade` / `rf2-e` `preset-check ui` / `rf2-f` `mastery-check service`·`trainer3 suit-ui`·`appellation-ui`·`rates2`·`trainer4 ui`·`treasure-check service`·`ui`·`forge-ui`·`artifact-check ui`·`modbooks` / `rf2-g` `mastery-check ui`.
+- 처음 실패했다가 회차 조건을 맞춰 통과한 것(코드 문제 아님): `status`는 87절의 일격 단계로 주는 피해가 여섯 단계가 된 뒤 낡아 있던 검사(x2에서 4번 눌러 x1로 본 것) → 5번으로 고침. `modbooks`는 만고신화 회차에서 FAIL 6(`can=2` — 경지 표가 바뀌어 고정본 인물이 축기로 읽힘. 06 5절대로 `-Exclude` 회차에서), 또 preset `grade` 뒤에 FAIL 2(인물 경지가 10이 되어 기본 경지가 바뀜) → 깨끗한 회차 끝에서 FAIL 0. `preset ui`는 `grade` 뒤에 FAIL 3(4단계 잠김 전제) → 깨끗한 회차에서 FAIL 0. `preset ui`가 단계를 적용해 장착·게임 창을 바꾸므로 그 뒤의 검사(`mastery service` 등)는 멈추거나 실패한다 → `preset ui`는 회차의 마지막에. `mastery ui`는 같은 회차의 `mastery service`가 고정본 공법을 12/12로 채운 뒤라 FAIL → 단독 회차에서 FAIL 0.
+- 회차 조건 정리(06 5절에 더함): `preset-check ui`·`grade`는 그 회차의 마지막, `mastery-check`의 부분은 각각 깨끗한 회차, `modbooks`는 `-Exclude` 회차.
+
+### 93.5 최종 리뷰 뒤 고친 것
+
+읽기 전용 리뷰(opus): Critical 0, Important 1, Minor 7.
+
+- **Important 1 — `MartialService.OptionProblem`이 호출마다 그 기술의 옵션 행 전부를 `PrefixRow`로 바꾼다.** 대도까지 채우기의 후보 고르기(`MasteryService.Candidates`)는 후보 행마다 이것을 불러 행 수의 제곱으로 게임 값을 읽었다(옮기기 전에는 게임 행을 바로 보았으므로 리팩토링이 들여온 비용). 행 변환을 `MartialService.RowsOf(type, baseId)`로 떼어 `Candidates`가 한 번만 만들고 `MartialRules.OptionProblem(options, rows, …)`를 직접 부른다. 다른 호출부(만들기·끼워 넣기·프리셋)는 한 번 판정이라 그대로.
+- Minor: `RemakeRollback`이 `oldAction.data.soleID`를 다시 읽던 것을 `sole` 인자로(같은 값이지만 되돌리기가 옛 행에 기대지 않게). `RemapPrefixNumbers`의 무작위 가지(rng가 후보 수를 받고 마지막 자리를 골라도 되는지)와 0 칸·범위 밖 칸이 그대로인지 시험 1줄. `ChipBar` 시험 2줄을 `ChipBarTests`로 분리(돌파 재료 시험 안에 있었다). 람다 매개변수 `g`를 `grade`로(공법·자원 탭). `ArtTab.blockReasons` 주석에 "Draw 시작에 비우고 다음 Draw까지"를 적음.
+- 그대로 둔 것: `SlotReason` 별칭(`MartialService.SlotReason = MartialRules.SlotReason`. 호출부가 많아 이번엔 두 이름을 유지), `CountChip.Set`이 폭을 다시 재지 않는 것(폭 계산식은 탭마다 달라 호출부가 맡는다 — 93.3).
+- 재검: `rf2-h-1030`(`-Exclude`) `mastery-check service` FAILS=0, `rf2-i-1030` `mastery-check ui` FAILS=0(각각 깨끗한 회차). 둘 다 `SAVE RESTORED AND IDENTICAL`.
+
+### 93.6 확인하지 못한 것
+
+- 순수 판정의 결과가 옮기기 전과 같은지는 단위 시험(규칙표)과 회차의 기존 검사로만 봤다. 모드 공법 비급의 무작위 선택은 주입된 rng로 고정해 시험했다.
+- `TextHeight` 캐시 상한(P6)이 실제로 닿는지는 재지 않았다(결과 문구가 4천 가지를 넘어야 한다).
