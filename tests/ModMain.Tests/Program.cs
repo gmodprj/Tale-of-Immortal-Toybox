@@ -732,6 +732,12 @@ namespace MOD_sWP6UL
             Check("unit: same pointer, nothing on, written values apply (restore)", RateUnitRules.Decide(true, false, true, true, true, true) == RateUnitRules.Step.Apply);
             Check("move: attach only when on and not attached", RateUnitRules.MoveAttachNeeded(true, false) && !RateUnitRules.MoveAttachNeeded(true, true) && !RateUnitRules.MoveAttachNeeded(false, false));
             Check("move: detach only when off and attached", RateUnitRules.MoveDetachNeeded(false, true) && !RateUnitRules.MoveDetachNeeded(true, true) && !RateUnitRules.MoveDetachNeeded(false, false));
+            Check("unit: same pointer, held but nothing written yet applies", RateUnitRules.Decide(true, true, true, false, true, true) == RateUnitRules.Step.Apply);
+            // 줄 단위 원래 값(최종 리뷰 Important 1): 안 쓴 줄은 지금 값이 원래 값, 쓴 줄은 마지막으로 쓴 값 그대로면 원래 값 유지, 다르면 지금 값.
+            Check("row original: a row not written yet takes the current value", RateUnitRules.RowOriginal(false, 100, 250, 0) == 250);
+            Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
+            Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
+            Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
         }
     }
 }

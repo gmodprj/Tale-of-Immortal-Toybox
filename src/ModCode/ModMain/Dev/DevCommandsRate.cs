@@ -210,7 +210,7 @@ namespace MOD_sWP6UL
                 .Append(" lastActionDay=").Append(RateService.ActionDay.Last)
                 .Append(" lastStudyGain=").Append(RateService.StudyGain.Last)
                 .Append(" timeScale=").Append(UnityEngine.Time.timeScale.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                .Append(" inBattle=").Append(RateService.InBattle);
+                .Append(" inBattle=").Append(RateService.InBattle).Append(" rowChanged=").Append(RateService.DevRowChanged);
             return sb.ToString();
         }
 

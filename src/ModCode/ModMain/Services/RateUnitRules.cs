@@ -33,6 +33,20 @@ namespace MOD_sWP6UL
             return Step.Apply;
         }
 
+        // 줄 하나의 "원래 값"(최종 리뷰 Important 1: 한 줄만 바뀌어도 세 줄을 다시 뜨면 그대로였던 줄의 배율이 겹친다).
+        //   아직 쓰지 않은 줄: 지금 값이 게임의 원래 값이다(안 쓴 줄이 켜지는 순간에도 맞다).
+        //   쓴 줄: 마지막으로 쓴 값 그대로면 떠 둔 원래 값을 지키고, 다르면(게임이 바꿨거나 새 단위) 지금 값을 새 원래 값으로 본다.
+        public static int RowOriginal(bool applied, int original, int now, int written)
+        {
+            return !applied || now != written ? now : original;
+        }
+
+        // 그 줄이 "게임이 바꿨다"로 판정되는지(개발 확인값용).
+        public static bool RowChanged(bool applied, int now, int written)
+        {
+            return applied && now != written;
+        }
+
         // 전투 이동 속도 처리기: 켜져 있고 붙어 있지 않을 때만 붙인다(두 번 붙어 배율이 겹치지 않게, A2).
         public static bool MoveAttachNeeded(bool on, bool attached)
         {

@@ -24,7 +24,7 @@
 
 "마지막으로 쓴 것과 다름"의 판정은 값마다 `Written`(마지막으로 쓴 baseValue)을 두고 지금 `baseValue`와 비교한다. 아직 쓰지 않았으면(`applied` 거짓) 비교하지 않는다.
 
-- 쿨타임 비율: `cooldownUnit`에 `skillWritten`·`stepWritten`·`itemWritten`을 더한다. 셋 가운데 하나라도 다르면 `!intact`.
+- 쿨타임 비율: `cooldownUnit`에 `skillWritten`·`stepWritten`·`itemWritten`을 더한다. 단위 수준의 `intact`는 늘 참으로 두고, **줄마다** 원래 값을 정한다(`RowOriginal`: 안 쓴 줄은 지금 값, 쓴 줄은 마지막으로 쓴 값 그대로면 떠 둔 원래 값, 다르면 지금 값). 한 줄이 바뀌었다고 다른 줄을 다시 뜨지 않는다(최종 리뷰 뒤 고침. 처음 안 "하나라도 다르면 셋을 다시 뜬다"는 그대로였던 줄의 배율을 겹치게 했다).
 - 기술 값(`skillValues`): 항목마다 `Written`. 같은 단위에서 항목의 `baseValue != Written`이면 그 항목만 버린다(다른 항목은 그대로). `applied`는 `skillValues.Count > 0`(되돌린 항목은 지워진다).
 - 전투 이동 속도는 처리기(`AddValue`)라 값 비교 대신 **붙어 있는지**를 본다(A2): `data.moveSpeed.allAddCall`에 태그 `TlToybox.battleMove`가 있으면 붙어 있다. 켜져 있고 안 붙어 있으면 붙이고, 꺼져 있고 붙어 있으면 뗀다. 포인터는 "붙인 단위의 DynInt를 기억"하는 데만 쓴다. 전투 밖에서는 켜져 있으면 `Skip`, 꺼져 있으면 잊는다(처리기는 단위와 함께 사라진다).
 

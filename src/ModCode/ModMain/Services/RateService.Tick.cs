@@ -131,7 +131,6 @@ namespace MOD_sWP6UL
 
         // ---- 전투 이동 속도 ----
         private static IntPtr moveUnit;             // 처리기를 건 전투 단위(전투마다 새로 만들어진다)
-        private static DynInt moveSpeedOf;
         private static int moveAdd;
         private static DynInt.DynObjectAddHandler moveHandler;
         private const string MoveTag = "TlToybox.battleMove";
@@ -159,7 +158,10 @@ namespace MOD_sWP6UL
                 bool attached = IsMoveAttached(data.moveSpeed);
                 if (RateUnitRules.MoveDetachNeeded(BattleMove.On, attached))
                 {
-                    data.moveSpeed.DelValue(moveHandler);
+                    if (moveHandler != null)
+                    {
+                        data.moveSpeed.DelValue(moveHandler);
+                    }
                     ForgetMove();
                     return;
                 }
@@ -186,7 +188,6 @@ namespace MOD_sWP6UL
                     moveAdd = want;
                 }
                 moveUnit = data.Pointer;
-                moveSpeedOf = data.moveSpeed;
             }
             catch (Exception e)
             {
@@ -211,7 +212,6 @@ namespace MOD_sWP6UL
         private static void ForgetMove()
         {
             moveUnit = IntPtr.Zero;
-            moveSpeedOf = null;
             moveAdd = 0;
         }
 
@@ -284,7 +284,10 @@ namespace MOD_sWP6UL
         private static int cooldownItem;        // 원래 itemCDRate(전투 아이템 쿨타임 줄)
         private static bool skillApplied;       // 기술 쿨타임 줄이 이 단위의 skill·stepCDRate에 걸려 있다
         private static bool itemApplied;        // 전투 아이템 쿨타임 줄이 itemCDRate에 걸려 있다
-        private static int skillWritten, stepWritten, itemWritten;   // 마지막으로 쓴 값(같은 단위의 값이 바뀌었는지 보는 데 쓴다. 스펙 2절)
+        private static int skillWritten, stepWritten, itemWritten;
+#if DEVTOOLS
+        public static int DevRowChanged;   // 개발 확인값: 쓴 줄의 값이 마지막으로 쓴 것과 달랐던 프레임 수(게임이 비율을 스스로 바꾸는지 보는 데 쓴다)
+#endif   // 마지막으로 쓴 값(같은 단위의 값이 바뀌었는지 보는 데 쓴다. 스펙 2절)
 
         // 전투 중인 플레이어의 쿨타임 속도를 맞춘다. 기술 쿨타임은 skillCDRate·stepCDRate, 전투 아이템 쿨타임은 itemCDRate.
         // 전투마다 원래 값을 떠 두고, 줄을 1배로 돌리면 그 비율을 원래 값으로 되돌린다.
@@ -306,10 +309,9 @@ namespace MOD_sWP6UL
                 bool applied = skillApplied || itemApplied;
                 bool same = unit != null && unit.Pointer == cooldownUnit;
                 // 쓴 줄의 값만 비교한다. 안 쓴 줄(그 Written은 낡은 값)까지 비교하면 매 프레임 "바뀜"으로 보여 곱한 값을 원래 값으로 다시 뜬다(회차 rsc-a-1030에서 1e8까지 겹침).
-                bool intact = !applied || (same
-                    && (!skillApplied || (skill.baseValue == skillWritten && step.baseValue == stepWritten))
-                    && (!itemApplied || item.baseValue == itemWritten));
-                switch (RateUnitRules.Decide(inBattle, any, held, applied, same, intact))
+                // 단위 수준에서는 "그대로"로 두고(intact=true), 값이 바뀌었는지는 아래에서 줄마다 본다(최종 리뷰 Important 1:
+                // 한 줄만 바뀌어도 세 줄을 다시 뜨면 그대로였던 줄의 배율이 겹친다).
+                switch (RateUnitRules.Decide(inBattle, any, held, applied, same, true))
                 {
                     case RateUnitRules.Step.Skip:
                         return;
@@ -318,13 +320,21 @@ namespace MOD_sWP6UL
                         return;
                     case RateUnitRules.Step.Capture:
                         cooldownUnit = unit.Pointer;
-                        cooldownSkill = skill.baseValue;
-                        cooldownStep = step.baseValue;
-                        cooldownItem = item.baseValue;
                         skillApplied = false;
                         itemApplied = false;
                         break;
                 }
+                // 줄마다 원래 값을 정한다: 안 쓴 줄은 지금 값, 쓴 줄은 마지막으로 쓴 값 그대로면 떠 둔 원래 값, 다르면 지금 값(RateUnitRules.RowOriginal).
+#if DEVTOOLS
+                if (RateUnitRules.RowChanged(skillApplied, skill.baseValue, skillWritten) || RateUnitRules.RowChanged(skillApplied, step.baseValue, stepWritten)
+                    || RateUnitRules.RowChanged(itemApplied, item.baseValue, itemWritten))
+                {
+                    DevRowChanged++;
+                }
+#endif
+                cooldownSkill = RateUnitRules.RowOriginal(skillApplied, cooldownSkill, skill.baseValue, skillWritten);
+                cooldownStep = RateUnitRules.RowOriginal(skillApplied, cooldownStep, step.baseValue, stepWritten);
+                cooldownItem = RateUnitRules.RowOriginal(itemApplied, cooldownItem, item.baseValue, itemWritten);
                 // 줄마다 켜져 있을 때와 되돌릴 때만 쓴다. 다른 줄만 켰을 때 꺼진 줄의 비율(게임 값)을 덮지 않는다(최종 리뷰).
                 if (RateGroups.WritesRate(Cooldown.On, skillApplied))
                 {
