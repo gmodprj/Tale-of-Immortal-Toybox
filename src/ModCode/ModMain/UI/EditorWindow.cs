@@ -287,6 +287,21 @@ namespace MOD_sWP6UL
             get { return IsOpen && cameraMode && g.ui.GetLayerTopSort(UILayer.UI) > canvas.sortingOrder; }
         }
 
+        // 세이브를 떠날 때(ModMain.ResetState): 모든 탭의 하위 화면을 닫고 결과 문구와 확인 대기를 지운다(13 문서 B8). 창이 아직 없으면 할 일이 없다.
+        public static void ResetViews()
+        {
+            message = "";
+            Confirm.Clear();
+            if (tabs == null)
+            {
+                return;
+            }
+            for (int i = 0; i < tabs.Length; i++)
+            {
+                tabs[i].Leave();
+            }
+        }
+
         public static void SwitchTab(int index)
         {
             tabs[tab].Leave();
