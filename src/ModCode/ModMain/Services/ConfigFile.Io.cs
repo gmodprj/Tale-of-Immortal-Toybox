@@ -6,6 +6,7 @@ using MelonLoader;
 namespace MOD_sWP6UL
 {
     // config.txt 파일 입출력. 읽기·쓰기 실패는 로그만 남기고 동작은 이어 간다(설정은 없어도 기본값으로 돈다).
+    // 쓰기는 AtomicFile(임시 파일 뒤 바꿔치기. 13 문서 A7), 예외는 종류를 가리지 않고 받는다(A15: 경로 오류 같은 다른 예외가 EditorHost까지 올라가던 것).
     internal static partial class ConfigFile
     {
         public static string FilePath
@@ -23,13 +24,9 @@ namespace MOD_sWP6UL
                     return Parse(File.ReadAllLines(FilePath));
                 }
             }
-            catch (IOException e)
+            catch (Exception e)
             {
-                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 읽지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 읽지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 읽지 못했습니다: " + e.GetType().Name + ": " + e.Message);
             }
             return Parse(new string[0]);
         }
@@ -39,17 +36,18 @@ namespace MOD_sWP6UL
         {
             try
             {
-                Directory.CreateDirectory(ChangeLog.DataDir);
                 string[] lines = File.Exists(FilePath) ? File.ReadAllLines(FilePath) : new string[0];
-                File.WriteAllLines(FilePath, Replace(lines, values).ToArray());
+                // File.WriteAllLines와 같은 모양(줄마다 줄 끝, BOM 없는 UTF-8)으로 AtomicFile에 쓴다.
+                var sb = new System.Text.StringBuilder();
+                foreach (string line in Replace(lines, values))
+                {
+                    sb.Append(line).Append(Environment.NewLine);
+                }
+                AtomicFile.WriteAllText(FilePath, sb.ToString(), new System.Text.UTF8Encoding(false));
             }
-            catch (IOException e)
+            catch (Exception e)
             {
-                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 저장하지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 저장하지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 저장하지 못했습니다: " + e.GetType().Name + ": " + e.Message);
             }
         }
 
@@ -60,17 +58,12 @@ namespace MOD_sWP6UL
             {
                 if (!File.Exists(FilePath))
                 {
-                    Directory.CreateDirectory(ChangeLog.DataDir);
-                    File.WriteAllText(FilePath, text);
+                    AtomicFile.WriteAllText(FilePath, text, new System.Text.UTF8Encoding(false));
                 }
             }
-            catch (IOException e)
+            catch (Exception e)
             {
-                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 만들지 못했습니다: " + e.Message);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 만들지 못했습니다: " + e.Message);
+                MelonLogger.Msg("[TlToybox] " + KoreanText.Object(what) + " 만들지 못했습니다: " + e.GetType().Name + ": " + e.Message);
             }
         }
     }

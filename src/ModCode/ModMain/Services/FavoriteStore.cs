@@ -339,16 +339,7 @@ namespace MOD_sWP6UL
                 {
                     File.Copy(FilePath, FilePath + ".bak", true);
                 }
-                string tmp = FilePath + ".tmp";
-                File.WriteAllText(tmp, WriteLines(next), new UTF8Encoding(false));
-                if (File.Exists(FilePath))
-                {
-                    File.Replace(tmp, FilePath, null);
-                }
-                else
-                {
-                    File.Move(tmp, FilePath);
-                }
+                AtomicFile.WriteAllText(FilePath, WriteLines(next), new UTF8Encoding(false));
                 keepOriginal = false;
             }
             catch (Exception e)
