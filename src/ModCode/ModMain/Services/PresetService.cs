@@ -315,10 +315,7 @@ namespace MOD_sWP6UL
                     result.Add(Read(file));
                 }
             }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
+            catch (Exception)
             {
             }
             return result;

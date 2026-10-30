@@ -794,24 +794,26 @@ namespace MOD_sWP6UL
             foreach (var pair in unit.data.unitData.allActionMartial)
             {
                 // 깨진 공법(값이 비어 읽기만으로 예외)이 하나 있어도 전승 화면이 통째로 실패하지 않게 줄 단위로 건너뛴다(13 문서 A11).
-                DataProps.MartialData m;
                 int suit;
+                string name;
                 try
                 {
-                    m = pair.Value.data.To<DataProps.MartialData>();
+                    DataProps.MartialData m = pair.Value.data.To<DataProps.MartialData>();
                     if (m == null || m.martialType != MartialType.Ability)
                     {
                         continue;
                     }
                     suit = SuitOf(pair.Value.data);
+                    if (suit == 0)
+                    {
+                        continue;
+                    }
+                    // 깨진 공법에서 실제로 던지는 곳은 martialInfo 조회(Name 안)다(회차 fs-b-1030의 Player.log). 그것까지 try 안에서 읽는다.
+                    name = Name(m);
                 }
                 catch (Exception e)
                 {
                     BrokenSkipped("전승", e);
-                    continue;
-                }
-                if (suit == 0)
-                {
                     continue;
                 }
                 List<string> list;
@@ -820,7 +822,7 @@ namespace MOD_sWP6UL
                     list = new List<string>();
                     held[suit] = list;
                 }
-                list.Add(Name(m));
+                list.Add(name);
             }
             var all = g.conf.battleAbilitySuitBase._allConfList;
             for (int i = 0; i < all.Count; i++)

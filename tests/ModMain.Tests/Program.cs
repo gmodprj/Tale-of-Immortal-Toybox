@@ -733,6 +733,12 @@ namespace MOD_sWP6UL
             Check("unit: same pointer, nothing on, written values apply (restore)", RateUnitRules.Decide(true, false, true, true, true, true) == RateUnitRules.Step.Apply);
             Check("move: attach only when on and not attached", RateUnitRules.MoveAttachNeeded(true, false) && !RateUnitRules.MoveAttachNeeded(true, true) && !RateUnitRules.MoveAttachNeeded(false, false));
             Check("move: detach only when off and attached", RateUnitRules.MoveDetachNeeded(false, true) && !RateUnitRules.MoveDetachNeeded(true, true) && !RateUnitRules.MoveDetachNeeded(false, false));
+            Check("unit: same pointer, held but nothing written yet applies", RateUnitRules.Decide(true, true, true, false, true, true) == RateUnitRules.Step.Apply);
+            // 줄 단위 원래 값(최종 리뷰 Important 1): 안 쓴 줄은 지금 값이 원래 값, 쓴 줄은 마지막으로 쓴 값 그대로면 원래 값 유지, 다르면 지금 값.
+            Check("row original: a row not written yet takes the current value", RateUnitRules.RowOriginal(false, 100, 250, 0) == 250);
+            Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
+            Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
+            Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
         }
 
         // 임시 파일에 쓴 뒤 바꿔치기(13 문서 A7, 05 문서 92절). 번역표·config.txt 같은 사용자 파일이 쓰는 도중 사라지지 않게.
@@ -751,17 +757,29 @@ namespace MOD_sWP6UL
                 Check("atomic: no BOM", bytes.Length > 0 && bytes[0] != 0xEF);
                 AtomicFile.WriteAllText(path, "한글\n", utf8);
                 Check("atomic: utf-8 text round-trips", File.ReadAllText(path, utf8) == "한글\n");
+                // 실패 경로(최종 리뷰 Important 1·3): 대상이 읽기 전용이면 Replace가 던지고, 원본은 그대로, .tmp는 남지 않는다.
+                File.SetAttributes(path, FileAttributes.ReadOnly);
+                bool threw = false;
+                try { AtomicFile.WriteAllText(path, "three\n", utf8); } catch (Exception) { threw = true; }
+                File.SetAttributes(path, FileAttributes.Normal);
+                Check("atomic: a read-only target throws, keeps the original and leaves no tmp", threw && File.ReadAllText(path, utf8) == "한글\n" && !File.Exists(path + ".tmp"));
+                // 바꿔치기가 대상을 잃은 채 실패하면(ReplaceFile 1176) 임시 파일을 대상 이름으로 되살린다. 대상이 남아 있으면 임시 파일만 지운다.
+                string lost = Path.Combine(dir, "lost.txt");
+                File.WriteAllText(lost + ".tmp", "new\n", utf8);
+                AtomicFile.Recover(lost, lost + ".tmp");
+                Check("atomic: recover moves the tmp into place when the target is gone", File.Exists(lost) && File.ReadAllText(lost, utf8) == "new\n" && !File.Exists(lost + ".tmp"));
+                File.WriteAllText(lost + ".tmp", "newer\n", utf8);
+                AtomicFile.Recover(lost, lost + ".tmp");
+                Check("atomic: recover only drops the tmp when the target survived", File.ReadAllText(lost, utf8) == "new\n" && !File.Exists(lost + ".tmp"));
             }
             finally
             {
-                if (Directory.Exists(dir)) { Directory.Delete(dir, true); }
+                if (Directory.Exists(dir))
+                {
+                    foreach (string f in Directory.GetFiles(dir, "*", SearchOption.AllDirectories)) { File.SetAttributes(f, FileAttributes.Normal); }
+                    Directory.Delete(dir, true);
+                }
             }
-            Check("unit: same pointer, held but nothing written yet applies", RateUnitRules.Decide(true, true, true, false, true, true) == RateUnitRules.Step.Apply);
-            // 줄 단위 원래 값(최종 리뷰 Important 1): 안 쓴 줄은 지금 값이 원래 값, 쓴 줄은 마지막으로 쓴 값 그대로면 원래 값 유지, 다르면 지금 값.
-            Check("row original: a row not written yet takes the current value", RateUnitRules.RowOriginal(false, 100, 250, 0) == 250);
-            Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
-            Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
-            Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
         }
     }
 }
