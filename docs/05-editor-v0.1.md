@@ -3882,3 +3882,53 @@ Critical 없음, Important 하나, 사소 여섯.
 - A1·B8은 세이브 전환(주 화면으로 나가 다른 세이브 열기)을 회차 도구가 만들지 못해 코드로만 확인했다. 사용자 플레이에서: 성공·드롭 탭을 켠 채 다른 세이브를 열면 꺼져 있어야 하고, 하위 화면을 연 채 세이브를 바꾸면 탭의 첫 화면이 보여야 한다.
 - 일격의 동료 제외는 동료가 함께 싸우는 전투를 도구로 열 수 없어 단위 시험과 코드로만.
 - 보유 칸의 Enter는 `Key 0x0D`가 화면 밖 게임에서 빠질 때가 있어 검사가 한 번 더 보낸다(인계 6절). 실제 키보드에서는 해당 없음.
+
+## 90. 배율 서비스 다듬기 — 전투 단위 상태 규칙, 수치 함수, 파일 나누기 (2026-10-30 추가)
+
+13 문서 7절의 묶음 2. 사용자 지시 "묶음 2 시작". 스펙 `docs/superpowers/specs/2026-10-30-rate-service-cleanup-design.md`, 계획 `plans/2026-10-30-rate-service-cleanup.md`, 브랜치 `feat/rate-service-cleanup`, 회차 `rsc-a`~`d-1030`(모두 고정본, `-Exclude 2814696167`, 끝 `SAVE RESTORED AND IDENTICAL`). **동작 불변**(배율 수치·반올림·하한 그대로). 게임 설치는 하지 않았다.
+
+### 90.1 전투 단위 상태의 전환 규칙(`RateUnitRules`, 순수)
+
+`RateService`의 세 틱(쿨타임 비율·기술 값·전투 이동 속도)이 전투 플레이어 단위 하나에 떠 둔 원래 값을 어떻게 다룰지를 한 함수 `Decide(inBattle, anyOn, held, applied, same, intact)`가 정한다(단위 시험 13줄).
+
+| 상황 | 판정 |
+|---|---|
+| 전투 밖, 쓴 값이 남아 있음 | `Skip`(잊지 않는다. 같은 단위가 다시 보이면 되돌린다 — 13 문서 A4) |
+| 전투 밖, 쓴 값 없음(또는 떠 둔 것 없음) | `Forget`/`Skip` |
+| 전투 안, 떠 둔 단위 없음 | 켜진 줄이 있으면 `Capture`(원래 값 뜨기), 없으면 `Skip` |
+| 전투 안, 다른 포인터 | 켜진 줄이 있으면 `Capture`, 없으면 `Forget` |
+| 전투 안, 같은 포인터, 쓴 값이 마지막으로 쓴 것과 다름 | 켜진 줄이 있으면 `Capture`, 없으면 `Forget`(같은 주소에 새 단위가 잡혔거나 게임이 바꿈. 옛 원래 값을 쓰지 않는다 — 13 문서 2.6절) |
+| 전투 안, 같은 포인터, 그대로 | `Apply`(줄마다 `WritesRate`로 쓰고, 모두 꺼졌으면 되돌린 뒤 잊는다) |
+
+- 쿨타임 비율: `skillWritten`·`stepWritten`·`itemWritten`(마지막으로 쓴 값). 단위 수준의 "그대로"는 늘 참으로 두고 **줄마다** 원래 값을 정한다(`RowOriginal`: 안 쓴 줄은 지금 값, 쓴 줄은 마지막으로 쓴 값 그대로면 떠 둔 원래 값, 다르면 지금 값). 한 줄이 바뀌었다고 다른 줄을 다시 뜨지 않는다. 두 번 고쳤다: 처음 안은 안 쓴 줄의 낡은 Written까지 비교해 매 프레임 "바뀜"으로 보여 1e8까지 겹쳤고(회차 `rsc-a-1030`의 `combat`), 다음 안("쓴 줄 가운데 하나라도 다르면 셋을 다시 뜬다")은 최종 리뷰가 그대로였던 줄의 배율이 겹치는 길을 짚어 줄 단위로 바꿨다(90.6절).
+- 기술 값(`skillValues`): 항목마다 `Written`. 같은 단위에서 `baseValue != Written`인 항목은 되돌리지 않고 잊는다.
+- 전투 이동 속도(13 문서 A2): 처리기가 붙어 있는지를 포인터가 아니라 `moveSpeed.allAddCall`의 태그(`TlToybox.battleMove`)로 본다(`IsMoveAttached`). 켜져 있고 안 붙어 있으면 붙이고, 꺼져 있고 붙어 있으면 뗀다. 전투 밖에서는 켜져 있으면 상태를 남기고 꺼져 있으면 잊는다. 두 번 붙어 배율이 겹치는 길이 없어졌다.
+
+### 90.2 수치 함수(`RateGroups`, 단위 시험 6줄)
+
+`ScaleValue`(짝수 반올림·int 상한)·`ScaleDay`(0.5 올림)·`ScaleSkillValue`(0.5 올림)·`CooldownRateValue`(짝수 반올림·max 상한)·`TakenDamage`(최소 1)·`DealtDamage`(0 이하 그대로 — 13 문서 A5, 넘치면 int 최댓값). 반올림 방식이 함수마다 다른 것은 기존 동작이라 그대로 두고 시험에 적었다. `RateService`·`BattleService.OnHitCore`는 이 함수들을 부른다.
+
+### 90.3 리팩토링
+
+- `MartialService.IsPlainSuitRecord(string)`: 전승 기록 정규식 세 곳을 한 함수로(13 문서 R1).
+- `RateService.cs`(625줄: Rate 정의·단계·패치·접두)와 `RateService.Tick.cs`(519줄: 매 프레임 틱 다섯과 전투 단위 상태)로 나눔(13 문서 R7). 코드 이동만.
+
+### 90.4 검사
+
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(RateUnitRules 13, RateGroups 6 추가).
+- `rsc-a-1030`: `ui-check rates`·`rates-battle` FAIL 0, `combat` FAIL 4(위의 intact 결함. 고친 뒤) → `rsc-b-1030`: `combat`·`rates2-battle`·`mpnone` FAIL 0 → `rsc-c-1030`: `trainer4-check items`·`skills` FAIL 0(`durable`은 `items`가 남긴 법보가 `$sole`로 잡혀 FAIL 4 — 검사가 "깨끗한 회차" 전제라 순서 탓) → `rsc-d-1030`: `durable` FAIL 0.
+- 최종 리뷰 뒤(줄 단위 판정): `rsc-e-1030`: `combat`·`rates2-battle` FAIL 0, `rsc-f-1030`: `trainer4-check items`·`skills` FAIL 0. 개발 확인값 `rstate`의 `rowChanged`(쓴 줄의 값이 마지막으로 쓴 것과 달랐던 프레임 수)는 두 회차 모두 0 — 고정본 전투에서 게임이 `skillCDRate` 등을 스스로 바꾸는 일은 없었다.
+
+### 90.5 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 둘, 사소 여섯.
+- **Important 1** 같은 포인터에서 한 줄만 바뀌어도 세 줄을 모두 다시 떠 그대로였던 줄의 배율이 겹쳤다(스펙의 결함). 줄 단위 판정 `RateUnitRules.RowOriginal`로 고쳤다(90.1절). 시험 5줄(`RowOriginal`·`RowChanged`, `Decide`의 빠진 갈래).
+- **Important 2** 단위 시험이 배선(intact 계산·Capture 뒤 흐름)을 덮지 못했다 — 줄 판정을 순수 함수로 떼어 시험으로 고정했고, 틱 흐름은 회차 검사로 덮는다. 개발 확인값 `rowChanged`를 두어 "게임이 비율을 스스로 바꾸는가"를 실측할 수 있게 했다.
+- 사소 고침: `DelValue`에 `moveHandler != null` 가드, 안 쓰는 `moveSpeedOf` 제거, 스펙 문구.
+- 사소 남김: `TickSkillValues`는 바뀐 항목을 버린 **다음** 프레임에 다시 뜬다(게임이 매 프레임 덮는다면 한 프레임 걸러 걸림. `mpnone` FAIL 0) / `DealtDamage`가 0 이하를 건드리지 않는 것은 의도된 동작 변경(13 문서 A5. `DevScaled`는 음수 타격도 센다) / `CooldownRateValue`의 `(int)max`는 max가 int를 넘으면 넘침(호출은 1e8 하나).
+- 판정: 값이 바뀐 줄은 지금 값을 새 원래 값으로 본다(게임이 우리 값에 더했다면 그 줄 하나는 겹칠 수 있다). 다른 안(그 줄을 놓아 버림)은 그 전투에서 배율이 듣지 않고, 더하기 가정은 근거가 없다. `rowChanged`가 0이 아닌 회차가 보이면 다시 본다.
+
+### 90.6 확인하지 못한 것
+
+- 새 규칙이 실제로 다르게 행동하는 상황(한 전투 안에서 `playerUnitCtrl`이 잠깐 사라졌다 다시 보임, 같은 주소에 새 단위) 은 도구로 만들 수 없다. 단위 시험과 코드로만.
+- 게임이 전투 중 `skillCDRate.baseValue`를 스스로 바꾸는 경우(버프 등. 미확인)가 있다면 `!intact` → `Capture`로 곱한 값을 원래 값으로 뜰 수 있다(이전 코드는 원래 값을 유지하고 덮어쓰기만 했다). 고정본 전투 셋(`combat`)과 선법·아이템·내구 검사에서는 보이지 않았다.
