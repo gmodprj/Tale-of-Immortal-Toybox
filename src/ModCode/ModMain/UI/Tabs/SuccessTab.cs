@@ -33,7 +33,7 @@ namespace MOD_sWP6UL
             Row(y, "SuccessRealize", "참오 결과 최대", SuccessService.Realize ? "켜짐" : "꺼짐", SuccessService.Realize,
                 "게임의 참오 창에서 참오·다시 참오로 굴린 값이 그 기술의 최대 품질 맨 위가 됩니다. 비용은 그대로 듭니다.",
                 new Action(() => Say(SuccessService.SetRealize(!SuccessService.Realize))));
-            Ui.Label(content, "종문 초빙·호요 포획·도주는 판정 위치만 찾았고 아직 넣지 않았습니다(05 문서 67절).", 16, 60 + 4 * RowH + 30, ContentW - 32, 30, 15)
+            Ui.Label(content, "종문 초빙·호요 포획·도주는 판정 위치만 찾았고 아직 넣지 않았습니다.", 16, 60 + 4 * RowH + 30, ContentW - 32, 30, 15)
                 .gameObject.name = "SuccessLeftOut";
         }
 

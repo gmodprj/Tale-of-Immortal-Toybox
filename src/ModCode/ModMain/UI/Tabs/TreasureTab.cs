@@ -171,7 +171,9 @@ namespace MOD_sWP6UL
             string sole = t.SoleId;
             Ui.Label(content, "경지", 0, y, 80, 38, 18);
             Ui.Button("ForgeGradeUp", content, "경지 +1", 90, y, 130, 38, new Action(() => Say(TreasureService.GradeUp(Target, sole))), canUp);
-            Ui.Button("ForgeGradeMax", content, "경지 " + TreasureRules.MaxGrade + "까지", 230, y, 150, 38,
+            // 경지는 내리는 길이 없어 끝까지 올리기는 두 번 누른다(13 문서 B4).
+            Confirm.Button("ForgeGradeMax", content, "경지 " + TreasureRules.MaxGrade + "까지", "정말 올리기", 230, y, 150, 38, "forge-grade-max",
+                "경지를 " + TreasureRules.MaxGrade + "까지 올립니다. 내리는 길은 없습니다. 한 번 더 누르면 실행합니다.",
                 new Action(() => Say(TreasureService.GradeUpTo(Target, sole, TreasureRules.MaxGrade))), canUp);
             y += 50;
             Ui.Label(content, "단계", 0, y, 80, 38, 18);

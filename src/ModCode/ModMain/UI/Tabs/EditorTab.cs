@@ -54,14 +54,14 @@ namespace MOD_sWP6UL
             Redraw();
         }
 
-        // 한 단계 돌아간다.
+        // 한 단계 돌아간다. 하위 화면에서 마지막으로 한 동작의 결과 문구는 남긴다(13 문서 B9).
         protected void Pop()
         {
             if (views.Count > 0)
             {
                 views.RemoveAt(views.Count - 1);
             }
-            Redraw();
+            Refresh();
         }
 
         protected void CloseViews()

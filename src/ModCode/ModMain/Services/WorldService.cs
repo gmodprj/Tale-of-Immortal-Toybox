@@ -234,8 +234,9 @@ namespace MOD_sWP6UL
                 return;
             }
             UnitCtrlBase attacker = data.hitData == null ? null : data.hitData.attackUnit;
-            if (Multiplier == OneHit && attacker != null && attacker.data != null && attacker.data.unitType == UnitType.Player
-                && data.hitUnit != null && data.hitUnit.data != null)
+            // 일격: 플레이어의 타격만, 플레이어·동료(PlayerNPC)를 맞힌 것은 뺀다(13 문서 2.6절. 판정은 RateGroups.OneHitApplies).
+            if (Multiplier == OneHit && attacker != null && attacker.data != null && data.hitUnit != null && data.hitUnit.data != null
+                && RateGroups.OneHitApplies((int)attacker.data.unitType, (int)data.hitUnit.data.unitType))
             {
                 data.dynV.baseValue = RateGroups.OneHitDamage(data.hitUnit.data.hp, data.hitUnit.data.maxHP.value);
 #if DEVTOOLS

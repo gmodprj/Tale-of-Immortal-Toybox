@@ -35,7 +35,15 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] texts failed: " + e.GetType().Name + ": " + e.Message);
             }
-            BattleService.OnInit();
+            try
+            {
+                BattleService.OnInit();
+            }
+            catch (Exception e)
+            {
+                // 전투 사건 등록이 실패해도 뒤의 초기화는 돈다(13 문서 A3).
+                MelonLogger.Msg("[TlToybox] battle events failed: " + e.GetType().Name + ": " + e.Message);
+            }
             long dressStart = total.ElapsedMilliseconds;
             try
             {
@@ -80,7 +88,15 @@ namespace MOD_sWP6UL
             MelonLogger.Msg("[TlToybox] Destroy");
             EditorWindow.Close();
             ResetState();
-            BattleService.OnDestroy();
+            try
+            {
+                BattleService.OnDestroy();
+            }
+            catch (Exception e)
+            {
+                // 사건 해제가 던져도 뒤의 정리(배율·입력·포인터 되돌리기)는 돈다(13 문서 A3).
+                MelonLogger.Msg("[TlToybox] battle events failed: " + e.GetType().Name + ": " + e.Message);
+            }
             DressThumbService.Stop();
             RateService.OnDestroy();
             ArtifactKeyService.OnDestroy();
@@ -115,6 +131,24 @@ namespace MOD_sWP6UL
             catch (Exception e)
             {
                 MelonLogger.Msg("[TlToybox] 배율 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
+                // 성공·드롭 탭(훔치기·관계 발전·드롭 배수·참오 최대)도 다음 세이브로 넘기지 않는다(13 문서 A1).
+                SuccessService.Reset();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 성공·드롭 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
+                // 하위 화면(강화·기술 추가·대도까지·전승 등)과 결과 문구는 앞의 세이브를 보고 있으므로 닫는다(13 문서 B8).
+                EditorWindow.ResetViews();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 하위 화면 닫기 오류: " + e.GetType().Name + ": " + e.Message);
             }
         }
 

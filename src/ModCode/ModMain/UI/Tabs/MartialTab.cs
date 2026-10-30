@@ -202,7 +202,7 @@ namespace MOD_sWP6UL
             MasteryService.State mastery = MasteryService.Read(Target, martialId);
             bool blocked = mastery.Block != null && mastery.Options < MasteryRules.MaxOptions;
             bool full = mastery.Options >= MasteryRules.MaxOptions;
-            Text stageText = Ui.Wrapped(content, blocked ? "수련 " + mastery.Stages + "/12 · " + mastery.Block
+            Text stageText = Ui.Wrapped(content, blocked ? "수련 단계 " + mastery.Stages + "/12 · " + mastery.Block
                 : full ? "수련 단계 " + mastery.Stages + "/12 · 대도까지 있음" : "수련 단계 " + mastery.Stages + "/12",
                 340, box + 280 + grown, 160, 44, blocked || full ? 12 : 16);
             stageText.gameObject.name = "MasteryText";
@@ -534,7 +534,7 @@ namespace MOD_sWP6UL
             Confirm.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", "정말 모두 배우기", 580, y + 46, 240, 36, "skill-learn-all",
                 SkillCatalog.Kinds[skillKind].Tab + "의 배울 수 있는 기술을 모두 넣습니다(하나씩 망각해야 되돌립니다). 한 번 더 누르면 실행합니다.",
                 new Action(() => Say(SkillCatalog.LearnAll(Target, skillKind, skillGrade))));
-            Ui.Label(content, "선택한 경지에서 배울 수 있고 아직 익히지 않은 것만 넣습니다. 옵션은 게임의 뽑기로 정해집니다.", 834, y + 46, 470, 36, 13).color = Ui.Dim;
+            Ui.Wrapped(content, "선택한 경지에서 배울 수 있고 아직 익히지 않은 것만 넣습니다. 옵션은 게임의 뽑기로 정해집니다.", 834, y + 46, 470, 36, 13).color = Ui.Dim;
 
             learnedCounts = SkillCatalog.LearnedCounts(target, skillKind);
             float top = y + 92;

@@ -11,6 +11,9 @@ namespace MOD_sWP6UL
     internal sealed partial class ResourcesTab : EditorTab
     {
         private const string CurrencyKey = "Currency";  // 화폐 그룹: 영석과 재화(ItemCatalog.Currencies), 명성 줄. 05 문서 47절
+        // 보유 칸의 줄이기 확인(05 문서 89절): 어느 아이템의 몇 개로 줄이려는지. 확인 키는 "res-set-<번호>"(Confirm이 창 전체에 하나만 둔다).
+        private int pendingOwnedId;
+        private int pendingOwnedValue;
         private const float RowH = 32;
         private const float DetailH = 150;              // 표에 설명 열이 없어 설명은 이 칸에서 본다. 넘치면 칸 안에서 스크롤한다
         private const float TopH = 48;                  // 지급 수량과 가방 칸 한 줄(영석 줄은 화폐 그룹으로 갔다. 05 문서 47절)
@@ -366,7 +369,7 @@ namespace MOD_sWP6UL
             {
                 Confirm.Button("ResAllGive", content, "모두 지급", "정말 모두 지급", RightX, y, 170, 38, "res-all-give",
                     "보이는 즐겨찾기를 저장된 수량으로 모두 지급합니다. 한 번 더 누르면 실행합니다.", new Action(GiveAll));
-                Ui.Label(content, "수량 칸에 쓰고 Enter를 누르면 저장됩니다. ☆로 넣고 ★로 뺍니다.", RightX + 182, y, RightW - 182, 38, 16).color = Ui.Dim;
+                Ui.Label(content, "수량 칸에 쓰고 Enter를 누르거나 다른 곳을 누르면 저장됩니다. ☆로 넣고 ★로 뺍니다.", RightX + 182, y, RightW - 182, 38, 16).color = Ui.Dim;
                 return y + 44;
             }
             if (groupKey == ItemGroups.AllKey)
@@ -580,10 +583,40 @@ namespace MOD_sWP6UL
             }
             else
             {
-                // 보유 수량 지정·버리기(스펙 2026-10-20-trainer-batch1-design.md 5.3). 칸을 떠날 때도 저장한다.
+                // 보유 수량 지정·버리기(스펙 2026-10-20-trainer-batch1-design.md 5.3). 늘리기는 칸을 떠날 때도 적용한다.
+                // 줄이기는 Enter로만 묻고 같은 값의 Enter로 확인한다(사용자 결정 2026-10-30, 05 문서 89절). 판정은 NumberFieldRules.DecideOwned.
                 int held = Player.data.unitData.propData.GetPropsNum(id);
-                NumberField.Build(row, "ResOwned" + id, ColOwned, (h - (RowH - 4)) / 2, OwnedW, RowH - 4, held.ToString(), null,
-                    new Action<int>(v => Say(BagService.SetCount(Player, id, v))), true);
+                string setKey = "res-set-" + id;
+                bool setPending = Confirm.IsPending(setKey) && pendingOwnedId == id;
+                InputField owned = null;
+                owned = NumberField.Build(row, "ResOwned" + id, ColOwned, (h - (RowH - 4)) / 2, OwnedW, RowH - 4,
+                    (setPending ? pendingOwnedValue : held).ToString(), null, new Func<int, bool, bool>((v, enter) =>
+                    {
+                        int now = Player.data.unitData.propData.GetPropsNum(id);
+                        bool pending = Confirm.IsPending(setKey) && pendingOwnedId == id;
+                        switch (NumberFieldRules.DecideOwned(v, now, enter, pending, pendingOwnedValue))
+                        {
+                            case NumberFieldRules.OwnedAction.Set:
+                                Say(BagService.SetCount(Player, id, v));
+                                return true;
+                            case NumberFieldRules.OwnedAction.Ask:
+                                pendingOwnedId = id;
+                                pendingOwnedValue = v;
+                                Confirm.Ask(setKey, BagService.LowerQuestion(Player, id, v));
+                                return true;
+                            case NumberFieldRules.OwnedAction.Confirm:
+                                Confirm.Clear();
+                                Say(BagService.SetCount(Player, id, v));
+                                return true;
+                            default:
+                                // 같은 값이거나 떠나면서 줄이기: 아무것도 하지 않고 칸을 지금 수로 되돌린다. 받아들이지 않았으므로 거짓.
+                                if (owned != null && owned.text != now.ToString())
+                                {
+                                    owned.text = now.ToString();
+                                }
+                                return false;
+                        }
+                    }), true);
                 // 확인 문구는 누르는 순간의 가방으로 만든다(그린 뒤 가방이 바뀔 수 있다).
                 string dropKey = "res-drop-" + id;
                 bool waiting = Confirm.IsPending(dropKey);

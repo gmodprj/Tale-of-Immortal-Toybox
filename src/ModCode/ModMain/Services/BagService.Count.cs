@@ -76,6 +76,14 @@ namespace MOD_sWP6UL
             return name + " " + held + "개를 모두 버립니다" + (strong > 0 ? "(강화·옵션이 붙은 것 " + strong + "개 포함)" : "") + ". 한 번 더 누르면 버립니다.";
         }
 
+        // 보유 칸에 더 작은 수를 쓰고 Enter를 눌렀을 때 보이는 확인 문구(05 문서 89절. 같은 값에서 Enter를 한 번 더 누르면 줄인다).
+        public static string LowerQuestion(WorldUnitBase unit, int propsId, int n)
+        {
+            string name = EditService.ItemName(propsId) ?? propsId.ToString();
+            int held = unit.data.unitData.propData.GetPropsNum(propsId);
+            return name + ": " + held + "개에서 " + n + "개로 줄입니다(" + (held - n) + "개 버림). 같은 값에서 Enter를 한 번 더 누르세요.";
+        }
+
         // 그 번호의 가방 줄들. 장착 목록에는 장비와 전투 아이템 칸의 묶음이 함께 들어 있다(05 문서 65절).
         private static List<BagPlan.Stack> Stacks(WorldUnitBase unit, int propsId)
         {

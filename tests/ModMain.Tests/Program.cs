@@ -65,6 +65,7 @@ namespace MOD_sWP6UL
             MasteryRulesTests();
             KoreanTextTests();
             RateGroupsTests();
+            NumberFieldRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -278,6 +279,11 @@ namespace MOD_sWP6UL
             Check("one hit: hp plus max", RateGroups.OneHitDamage(29877, 29877) == 59754);
             Check("one hit: overflow is cut", RateGroups.OneHitDamage(int.MaxValue, 5) == int.MaxValue);
             Check("one hit: never zero", RateGroups.OneHitDamage(0, 0) == 1);
+            // 일격의 대상(13 문서 2.6절): 플레이어의 타격만, 플레이어·동료(PlayerNPC)를 맞힌 것은 제외.
+            Check("onehit: player hitting a monster applies", RateGroups.OneHitApplies(1, 3));
+            Check("onehit: player hitting an ally does not", !RateGroups.OneHitApplies(1, 2));
+            Check("onehit: player hitting the player does not", !RateGroups.OneHitApplies(1, 1));
+            Check("onehit: a monster hitting anything does not", !RateGroups.OneHitApplies(3, 3) && !RateGroups.OneHitApplies(4, 1));
             Check("durable: only a drop on an owned artifact is blocked", RateGroups.DurableBlocked(100, 98, true, true) && !RateGroups.DurableBlocked(100, 98, false, true) && !RateGroups.DurableBlocked(98, 100, true, true) && !RateGroups.DurableBlocked(100, 98, true, false));
             Check("cooldown rate: an off row that was never applied is not written", !RateGroups.WritesRate(false, false));
             Check("cooldown rate: an on row is written, and an off row once to restore", RateGroups.WritesRate(true, false) && RateGroups.WritesRate(true, true) && RateGroups.WritesRate(false, true));
@@ -674,6 +680,32 @@ namespace MOD_sWP6UL
             Check("treasure: grade steps 10->10", TreasureRules.GradeSteps(10, 10) == 0);
             Check("treasure: grade steps 14->10", TreasureRules.GradeSteps(14, 10) == 0);
             Check("treasure: grade steps 3->12 stops at 10", TreasureRules.GradeSteps(3, 12) == 7);
+        }
+
+        // 숫자 칸 제출 판정과 자원 탭 보유 칸의 줄이기 규칙(13 문서 B1·B2, 05 문서 89절).
+        private static void NumberFieldRulesTests()
+        {
+            int v;
+            Check("numberfield: blur on an enter-only field is ignored", NumberFieldRules.Decide("5", "3", false, false, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: enter with a number submits", NumberFieldRules.Decide("5", "3", true, false, out v) == NumberFieldRules.Action.Submit && v == 5);
+            Check("numberfield: enter with text rejects", NumberFieldRules.Decide("abc", "3", true, true, out v) == NumberFieldRules.Action.Reject);
+            Check("numberfield: blur with text reverts", NumberFieldRules.Decide("abc", "3", false, true, out v) == NumberFieldRules.Action.Revert);
+            Check("numberfield: blur with the same value is ignored", NumberFieldRules.Decide("3", "3", false, true, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: blur with the same value in other digits is ignored", NumberFieldRules.Decide("03", "3", false, true, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: blur with a new value submits", NumberFieldRules.Decide("4", "3", false, true, out v) == NumberFieldRules.Action.Submit && v == 4);
+            Check("numberfield: enter with the same value still submits", NumberFieldRules.Decide("3", "3", true, true, out v) == NumberFieldRules.Action.Submit);
+            Check("owned: same value is ignored", NumberFieldRules.DecideOwned(10, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ignore);
+            Check("owned: raising sets on blur", NumberFieldRules.DecideOwned(25, 10, false, false, 0) == NumberFieldRules.OwnedAction.Set);
+            Check("owned: raising sets on enter", NumberFieldRules.DecideOwned(25, 10, true, false, 0) == NumberFieldRules.OwnedAction.Set);
+            Check("owned: lowering on blur is ignored", NumberFieldRules.DecideOwned(7, 10, false, false, 0) == NumberFieldRules.OwnedAction.Ignore);
+            Check("owned: lowering on enter asks", NumberFieldRules.DecideOwned(7, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
+            Check("owned: lowering on enter with the same pending value confirms", NumberFieldRules.DecideOwned(7, 10, true, true, 7) == NumberFieldRules.OwnedAction.Confirm);
+            Check("owned: lowering on enter with another pending value asks again", NumberFieldRules.DecideOwned(5, 10, true, true, 7) == NumberFieldRules.OwnedAction.Ask);
+            Check("owned: zero on enter asks", NumberFieldRules.DecideOwned(0, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
+            // 최종 리뷰 Important 1: 콜백이 받아들이지 않은 값은 committed가 되지 않는다. 그래야 같은 값을 다시 쓰고 떠나도 콜백이 다시 불려 칸을 되돌린다.
+            Check("numberfield: a rejected submit keeps the old committed text", NumberFieldRules.NextCommitted("25", "7", false) == "25");
+            Check("numberfield: an accepted submit commits the new text", NumberFieldRules.NextCommitted("25", "30", true) == "30");
+            Check("numberfield: after a rejected blur the same value still submits", NumberFieldRules.Decide("7", NumberFieldRules.NextCommitted("25", "7", false), false, true, out v) == NumberFieldRules.Action.Submit);
         }
     }
 }

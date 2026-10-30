@@ -245,6 +245,9 @@ switch ($Part) {
     Press 'ForgeStage6' | Out-Null
     Check 'stage 6 from the screen' ((Art $sole) -match 'level=6 ' -and (Art $sole) -match 'rate=120/') (Art $sole)
     Check 'the stage 6 chip says the limit break' ((Cmd 'uitext ForgeStage6') -match '한계돌파') (Cmd 'uitext ForgeStage6')
+    # 끝까지 올리기는 두 번 누르기(05 문서 89절): 첫 누름은 묻기만 하고 단추 글이 바뀐다.
+    Press 'ForgeGradeMax' | Out-Null
+    Check 'grade to 10 asks first' ((Art $sole) -match "grade=$($g0 + 1) " -and (Cmd 'uitext ForgeGradeMax') -match '정말 올리기') "$(Art $sole) | $(Cmd 'uitext ForgeGradeMax')"
     Press 'ForgeGradeMax' | Out-Null
     Check 'grade to 10 from the screen' ((Art $sole) -match 'grade=10 ' -and (Art $sole) -match 'rate=120/') (Art $sole)
     Check 'grade buttons are off at 10' ((IsOff 'ForgeGradeUp') -and (IsOff 'ForgeGradeMax'))

@@ -242,7 +242,7 @@ namespace MOD_sWP6UL
             Ui.Label(content, "분류", ColClass, y, ClassW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "잃는 경지", ColLoss, y, LossW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "다른 보유자", ColHolder, y, HolderW, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "버튼", ColAct, y, ActW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+            Ui.Label(content, "동작", ColAct, y, ActW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
         }
 
         // 분류·가진 것만·초기화: 목록을 맨 위로, 아래 칸을 비우고 다시 그린다.
