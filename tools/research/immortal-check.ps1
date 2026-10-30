@@ -99,7 +99,7 @@ switch ($Part) {
     Cmd 'pgraise 44' 4000 | Out-Null
     for ($n = 0; $n -lt 5 -and (Cmd 'uilist' 200) -match 'DramaDialogue|GetImmortalSkill'; $n++) { Cmd 'uiclose DramaDialogue' 500 | Out-Null; Cmd 'uiclose GetImmortalSkill' 500 | Out-Null }
     $i = Cmd 'ilist' 200
-    Check 'raising the grade keeps the immortal power within the game limit' ([int](Fields $i).total -le 40) $i
+    Check 'raising the grade keeps the immortal power within the game limit' ([int](FieldsOf $i).total -le 40) $i
     Cmd 'ilearnall 1004 0' 2000 | Out-Null
     Cmd 'uiopen ImmortalSkill' 2000 | Out-Null
     Shot 'immortal-game'

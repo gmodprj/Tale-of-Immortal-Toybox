@@ -215,7 +215,7 @@ switch ($Part) {
     EnterBattleScene 20
     Start-Sleep -Seconds 2
     $o = Cmd 'pbattle' 200
-    $b = Fields $o
+    $b = FieldsOf $o
     Check 'the battle is entered' ($b.ContainsKey('wing')) $o
     Check 'the wingman is in the battle' ($b.wing -eq '1004' -and [int]$b.wingobjs -ge 1) $o
     Shot 'preset-extras-battle'
@@ -349,7 +349,7 @@ switch ($Part) {
     Check 'stage 3 would replace a fate' ((FieldsOf (Cmd "preplaces $file 3" 300)).replaces -eq 'yes') (Cmd "preplaces $file 3" 300)
     Check 'the full apply would replace fates too and says so' ((FieldsOf (Cmd "preplaces $file full" 300)).replaces -eq 'yes') (Cmd "preplaces $file full" 300)
     $r = Cmd "papply $file 3" 4000
-    $run = Fields $r
+    $run = FieldsOf $r
     $s = State
     Check 'nothing failed' ($run.failed -eq '0') $r
     Check 'four skills and seven abilities were made' ([int]$s.martials -eq [int]$s0.martials + 11) "martials $($s0.martials) -> $($s.martials)"
@@ -371,7 +371,7 @@ switch ($Part) {
 
     # 같은 단계를 다시: 공법이 늘지 않고 수도 점수도 다시 오르지 않는다.
     $r = Cmd "papply $file 3" 4000
-    $run = Fields $r
+    $run = FieldsOf $r
     $s2 = State
     Check 'applying again adds nothing' ($run.done -eq '0' -and $run.failed -eq '0' -and $s2.martials -eq $s.martials -and $s2.ap -eq $s.ap -and $s2.sprites -eq $s.sprites) $r
     Check 'there is nothing left to replace' ((FieldsOf (Cmd "preplaces $file 3" 300)).replaces -eq 'no')
@@ -388,7 +388,7 @@ switch ($Part) {
     # 틀린 줄이 섞인 프리셋: 그 줄만 못 넣고 나머지는 적용된다.
     WritePreset 'uicheck-mixed.json' '{ "format": 1, "kind": "preset", "name": "uicheck mixed", "skills": [ { "slot": "left", "baseId": 999999, "options": [] }, { "slot": "ultimate", "baseId": 34111, "options": [] } ] }'
     $r = Cmd 'papply uicheck-mixed.json 3' 3000
-    $run = Fields $r
+    $run = FieldsOf $r
     Check 'a bad line does not stop the rest' ($run.failed -eq '1' -and $run.done -eq '1' -and (State).ult -eq '34111' -and (State).left -eq '13111') $r
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
@@ -399,7 +399,7 @@ switch ($Part) {
     $s0 = State
     $copies0 = (Copies 13111).Count
     $r = Cmd "papply $file full" 9000
-    $run = Fields $r
+    $run = FieldsOf $r
     $s = State
     Check 'nothing failed' ($run.failed -eq '0') $r
     Check 'the grade is the last row' ($s.grade -eq '44' -and $s.major -eq '10') "grade=$($s.grade)"
@@ -425,7 +425,7 @@ switch ($Part) {
     EnterBattleScene 20
     Start-Sleep -Seconds 2
     $o = Cmd 'pbattle' 200
-    $b = Fields $o
+    $b = FieldsOf $o
     Check 'the battle is entered' ($b.ContainsKey('suits')) $o
     Check 'the six-piece suit is active' ($b.suits -match '(^|,)10016:6(,|$)') $o
     Check 'the wingman is in the battle' ($b.wing -eq '1004' -and [int]$b.wingobjs -ge 1) $o
@@ -545,7 +545,7 @@ switch ($Part) {
     $r = Cmd 'papply uicheck-g3.json 3' 2000
     Check 'a fate of group 1 is set at major grade 3' ((State).fates -eq '2:700016,3:700002' -and (Cmd 'phas 700002' 200) -match 'held=1 ') $r
     $r = Cmd 'papply uicheck-g2.json 2' 2000
-    Check 'another fate of the same group at another grade is refused' ((Fields $r).failed -eq '1' -and (State).fates -eq '2:700016,3:700002') $r
+    Check 'another fate of the same group at another grade is refused' ((FieldsOf $r).failed -eq '1' -and (State).fates -eq '2:700016,3:700002') $r
     Check 'the fate held before is still held' ((Cmd 'phas 700002,700016' 200) -match 'held=2 of=2')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
@@ -567,14 +567,14 @@ switch ($Part) {
     $picked = NewTestPreset
     $file = 'uicheck-preset.json'
     $r = Cmd "papply $file full" 9000
-    Check 'preset A is applied' ((Fields $r).failed -eq '0') $r
+    Check 'preset A is applied' ((FieldsOf $r).failed -eq '0') $r
     $a = [IO.File]::ReadAllText((Join-Path $presetDir $file))
     $nine = $picked.fates['9']; $ten = $picked.fates['10']
     $swapped = $a.Replace('"uicheck preset"', '"uicheck swapped"').Replace("{ `"grade`": 9, `"id`": $nine }", "{ `"grade`": 9, `"id`": $ten }").Replace("{ `"grade`": 10, `"id`": $ten }", "{ `"grade`": 10, `"id`": $nine }")
     WritePreset 'uicheck-swapped.json' $swapped
     Check 'the swapped preset reads without unusable lines' ((FieldsOf (Cmd 'pcheck uicheck-swapped.json' 600)).problems -eq '0') (Cmd 'pcheck uicheck-swapped.json' 600)
     $r = Cmd 'papply uicheck-swapped.json all' 6000
-    Check 'preset B is applied without a failed line' ((Fields $r).failed -eq '0') $r
+    Check 'preset B is applied without a failed line' ((FieldsOf $r).failed -eq '0') $r
     $want = ((2..8 | ForEach-Object { "$($_):$($picked.fates["$_"])" }) + "9:$ten", "10:$nine") -join ','
     Check 'the two fates are swapped in the records' ((State).fates -eq $want) (State).fates
     $ids = (2..10 | ForEach-Object { $picked.fates["$_"] }) -join ','
@@ -595,7 +595,7 @@ switch ($Part) {
     if ($Range -match '^(\d+)-(\d+)$') { $lo = [int]$Matches[1]; $hi = [int]$Matches[2] }
     foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike '*.meta.json' -and $skip -notcontains $_.Name -and [int]$_.Name.Substring(0, 2) -ge $lo -and [int]$_.Name.Substring(0, 2) -le $hi } | Sort-Object Name) {
       $r = Cmd "papply $($file.Name) full" 1000 30000   # 적용은 8~17초 걸린다(05 문서 70절)
-      $run = Fields $r
+      $run = FieldsOf $r
       Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
       # 로더가 고른 번호(줄의 "alt"를 쓴 경우 대체 번호, 05 문서 73절)를 pstrict의 "fate 단계:번호" 줄에서 읽는다.
       $ids = (([regex]::Matches((Cmd "pstrict $($file.Name)" 600), 'fate \d+:(\d+)') | ForEach-Object { $_.Groups[1].Value }) -join ',')

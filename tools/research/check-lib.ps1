@@ -78,7 +78,11 @@ function LeaveBattleScene([string]$shotName = 'leave-fail') {
   if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot $shotName }
   for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
   Rc 'click 959 831' 2000 | Out-Null
-  for ($i = 0; $i -lt 30 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) { Start-Sleep -Milliseconds 500 }
+  # 지도가 돌아올 때까지 최대 30초(첫 전투 뒤의 장면 적재는 15초를 넘길 때가 있다. 회차 ctc-d-1030). 결과 창이 아직 떠 있으면 확인을 다시 누른다.
+  for ($i = 0; $i -lt 60 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) {
+    if ($i % 10 -eq 9 -and (Cmd 'uilist' 100) -match 'BattleEnd' -and (Rc 'hit 959 831' 200) -match 'btnOK') { Rc 'click 959 831' 1000 | Out-Null }
+    Start-Sleep -Milliseconds 500
+  }
   Start-Sleep -Seconds 2
 }
 # 변경 이력(changes.log)의 마지막 40줄에 패턴이 있는지(검사마다 20·30·40으로 달랐다. 가장 큰 40).
