@@ -299,6 +299,40 @@ $b = NewBox
 [IO.Directory]::Delete("$($b.game)\ModExportData\Mod_sWP6UL", $true)
 $o = Run $b $none @{ Begin = 'x'; NoEditor = $true }
 Check 'Begin with NoEditor refuses when the editor folder is missing' ($o -match '^THROWN' -and -not (Test-Path "$($b.work)\session.name") -and -not (Test-Path "$($b.work)\save-backup-x")) $o
+# 46. config.txt가 회차 전에 없었으면 -End가 회차 중 생긴 파일을 지운다(13 문서 C4)
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x' }
+[IO.File]::WriteAllText("$($b.data)\config.txt", "x=1`n")
+$o = Run $b $none @{ End = 'x' }
+Check 'End removes a config.txt the session made' ($o -match 'CONFIG RESTORED \(there was no file\)' -and -not (Test-Path "$($b.data)\config.txt")) $o
+
+# 47. martial-grid.txt: -Begin이 보관하고 -End가 되돌린다(13 문서 C3 — 덮지 않던 갈래)
+$b = NewBox
+[IO.File]::WriteAllText("$($b.data)\martial-grid.txt", "grid=3`n")
+$o = Run $b $none @{ Begin = 'x' }
+[IO.File]::WriteAllText("$($b.data)\martial-grid.txt", "grid=9`n")
+$o = Run $b $none @{ End = 'x' }
+Check 'End restores martial-grid.txt' ($o -match 'MARTIAL GRID RESTORED' -and [IO.File]::ReadAllText("$($b.data)\martial-grid.txt") -eq "grid=3`n") $o
+
+# 48. -MakeFixture의 -From에 끝 역슬래시가 붙어도 고정본을 만들고 비교가 맞는다(13 문서 C6)
+$b = NewBox
+$o = Run $b $none @{ MakeFixture = 'f1'; From = "$($b.save)\" }
+Check 'MakeFixture accepts a trailing backslash' ($o -match 'FIXTURE MADE: f1' -and (Tree "$($b.work)\fixtures\f1") -eq (Tree $b.save)) $o
+
+# 49. 끝내지 않은 회차의 DLL 보관본이 남아 있으면 -Begin이 멈춘다(13 문서 C3 — 덮지 않던 갈래)
+$b = NewBox
+[IO.File]::WriteAllText("$($b.work)\session-installed.dll", 'old')
+$o = Run $b $none @{ Begin = 'x' }
+Check 'Begin refuses while an installed-dll copy is left over' ($o -match '^THROWN' -and -not (Test-Path "$($b.work)\save-backup-x") -and -not (Test-Path "$($b.work)\session.name")) $o
+
+# 50. -End가 복원 도중 실패하면(복사본 자리에 파일이 있어 robocopy가 실패) 회차 표식과 모드 파일이 남아 있어야 한다(13 문서 C5: 복원 전에 지우면 -Restart가 모드를 모른다)
+$b = NewBox
+$o = Run $b $none @{ Begin = 'x'; NoEditor = $true }
+[IO.Directory]::Delete("$($b.work)\save-backup-x", $true)
+[IO.File]::WriteAllText("$($b.work)\save-backup-x", 'not a folder')
+$o = Run $b $none @{ End = 'x' }
+Check 'End that fails while restoring keeps the session marker and mode file' ($o -match '^THROWN' -and (Test-Path "$($b.work)\session.name") -and (Test-Path "$($b.work)\session.mode")) $o
+
 foreach ($root in $boxes) {
   if ($root.StartsWith((Join-Path $env:TEMP 'tltoybox-session-tests-')) -and (Test-Path $root)) { [IO.Directory]::Delete($root, $true) }
 }
