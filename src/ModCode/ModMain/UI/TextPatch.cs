@@ -55,6 +55,8 @@ namespace MOD_sWP6UL
             return null;
         }
 
+        private static bool prefixWarned;
+
         public static void TextPrefix(ref string value)
         {
             Calls++;
@@ -67,18 +69,30 @@ namespace MOD_sWP6UL
             {
                 return;
             }
-            long start = Stopwatch.GetTimestamp();
-            bool changed;
-            string result = replacer.Replace(value, out changed);
-            Ticks += Stopwatch.GetTimestamp() - start;
-            if (changed)
+            // 게임의 Text.text 설정자 안에서 돈다. 치환이 던지면 원문을 그대로 두고 첫 번만 로그(13 문서 B22).
+            try
             {
-                Replaced++;
-                value = result;
+                long start = Stopwatch.GetTimestamp();
+                bool changed;
+                string result = replacer.Replace(value, out changed);
+                Ticks += Stopwatch.GetTimestamp() - start;
+                if (changed)
+                {
+                    Replaced++;
+                    value = result;
+                }
+                if (TextReplacer.HasChinese(result) && Leftover.Count < LeftoverMax && leftoverSeen.Add(result))
+                {
+                    Leftover.Add(result);
+                }
             }
-            if (TextReplacer.HasChinese(result) && Leftover.Count < LeftoverMax && leftoverSeen.Add(result))
+            catch (Exception e)
             {
-                Leftover.Add(result);
+                if (!prefixWarned)
+                {
+                    prefixWarned = true;
+                    MelonLogger.Msg("[TlToybox] 화면 글 치환 오류(원문 그대로 둠): " + e.GetType().Name + ": " + e.Message);
+                }
             }
         }
 

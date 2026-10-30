@@ -258,6 +258,17 @@ namespace MOD_sWP6UL
             return n;
         }
 
+        // 세이브를 떠날 때(ModMain.Destroy): 편집기가 준·뺀 번호의 "조용히 닫기" 표시와 보상 창 기억을 비운다.
+        // 남겨 두면 다른 세이브에서 게임이 정당하게 같은 도호를 줄 때 그 획득 창을 편집기가 닫아 버린다(13 문서 A10).
+        public static int ForgetQuiet()
+        {
+            int n = quiet.Count + quietLoss.Count + lossOf.Count;
+            quiet.Clear();
+            quietLoss.Clear();
+            lossOf.Clear();
+            return n;
+        }
+
         private static string MajorName(int grade)
         {
             string name;

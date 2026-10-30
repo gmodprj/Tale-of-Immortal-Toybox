@@ -1,4 +1,5 @@
 using System;
+using MelonLoader;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -154,9 +155,17 @@ namespace MOD_sWP6UL
             finally
             {
                 // 장착하지 못했으면(게임이 거부했거나 중간에 예외가 났으면) 비운 칸을 빈 채로 두지 않는다.
+                // 되돌리기가 던지면 원래 예외를 가리지 않게 로그만 남긴다(13 문서 A12). 심법의 원래 칸 번호 보존은 하지 않는다(Equip이 빈 첫 칸을 고른다).
                 if (other != null && !MartialService.IsEquipped(me, sole) && !MartialService.IsEquipped(me, other))
                 {
-                    MartialService.Equip(me, other);
+                    try
+                    {
+                        MartialService.Equip(me, other);
+                    }
+                    catch (Exception e)
+                    {
+                        MelonLogger.Msg("[TlToybox] 프리셋 되돌리기 실패(" + label + "): " + e.GetType().Name + ": " + e.Message);
+                    }
                 }
             }
             if (!MartialService.IsEquipped(me, sole))

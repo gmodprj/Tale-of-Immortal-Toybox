@@ -290,14 +290,26 @@ namespace MOD_sWP6UL
             MartialType type = Kinds[kindIndex].Type;
             foreach (var pair in unit.data.unitData.allActionMartial)
             {
-                DataProps.MartialData martial = pair.Value.data.To<DataProps.MartialData>();
-                if (martial == null || martial.martialType != type)
+                // 깨진 공법 하나가 모두 배우기를 통째로 막지 않게 줄 단위로 건너뛴다(13 문서 A11).
+                DataProps.MartialData martial;
+                int baseId;
+                try
                 {
+                    martial = pair.Value.data.To<DataProps.MartialData>();
+                    if (martial == null || martial.martialType != type)
+                    {
+                        continue;
+                    }
+                    baseId = martial.baseID;
+                }
+                catch (Exception e)
+                {
+                    MartialService.BrokenSkipped("배운 수", e);
                     continue;
                 }
                 int n;
-                counts.TryGetValue(martial.baseID, out n);
-                counts[martial.baseID] = n + 1;
+                counts.TryGetValue(baseId, out n);
+                counts[baseId] = n + 1;
             }
             return counts;
         }

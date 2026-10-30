@@ -762,6 +762,18 @@ namespace MOD_sWP6UL
             return string.IsNullOrEmpty(key) || key == "0" ? "" : CleanLine(key);
         }
 
+        // 깨진 공법을 건너뛴 첫 번만 로그(그 뒤는 조용히).
+        private static bool brokenWarned;
+        internal static void BrokenSkipped(string where, Exception e)
+        {
+            if (brokenWarned)
+            {
+                return;
+            }
+            brokenWarned = true;
+            MelonLogger.Msg("[TlToybox] 깨진 공법 건너뜀(" + where + "): " + e.GetType().Name + ": " + e.Message);
+        }
+
         // 그 심법의 기본 번호가 구성원(suitMember)에 든 세트. 심법이 아니면 빈 목록.
         public static List<SuitView> SuitsFor(WorldUnitBase unit, string soleId)
         {
@@ -781,12 +793,23 @@ namespace MOD_sWP6UL
             var held = new Dictionary<int, List<string>>();
             foreach (var pair in unit.data.unitData.allActionMartial)
             {
-                DataProps.MartialData m = pair.Value.data.To<DataProps.MartialData>();
-                if (m.martialType != MartialType.Ability)
+                // 깨진 공법(값이 비어 읽기만으로 예외)이 하나 있어도 전승 화면이 통째로 실패하지 않게 줄 단위로 건너뛴다(13 문서 A11).
+                DataProps.MartialData m;
+                int suit;
+                try
                 {
+                    m = pair.Value.data.To<DataProps.MartialData>();
+                    if (m == null || m.martialType != MartialType.Ability)
+                    {
+                        continue;
+                    }
+                    suit = SuitOf(pair.Value.data);
+                }
+                catch (Exception e)
+                {
+                    BrokenSkipped("전승", e);
                     continue;
                 }
-                int suit = SuitOf(pair.Value.data);
                 if (suit == 0)
                 {
                     continue;
