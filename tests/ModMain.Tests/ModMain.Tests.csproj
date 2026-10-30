@@ -35,5 +35,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\MasteryRules.cs" Link="Linked\MasteryRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\KoreanText.cs" Link="Linked\KoreanText.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\RateGroups.cs" Link="Linked\RateGroups.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\NumberFieldRules.cs" Link="Linked\NumberFieldRules.cs" />
   </ItemGroup>
 </Project>

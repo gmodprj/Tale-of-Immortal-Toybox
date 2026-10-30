@@ -65,6 +65,7 @@ namespace MOD_sWP6UL
             MasteryRulesTests();
             KoreanTextTests();
             RateGroupsTests();
+            NumberFieldRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -674,6 +675,28 @@ namespace MOD_sWP6UL
             Check("treasure: grade steps 10->10", TreasureRules.GradeSteps(10, 10) == 0);
             Check("treasure: grade steps 14->10", TreasureRules.GradeSteps(14, 10) == 0);
             Check("treasure: grade steps 3->12 stops at 10", TreasureRules.GradeSteps(3, 12) == 7);
+        }
+
+        // 숫자 칸 제출 판정과 자원 탭 보유 칸의 줄이기 규칙(13 문서 B1·B2, 05 문서 89절).
+        private static void NumberFieldRulesTests()
+        {
+            int v;
+            Check("numberfield: blur on an enter-only field is ignored", NumberFieldRules.Decide("5", "3", false, false, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: enter with a number submits", NumberFieldRules.Decide("5", "3", true, false, out v) == NumberFieldRules.Action.Submit && v == 5);
+            Check("numberfield: enter with text rejects", NumberFieldRules.Decide("abc", "3", true, true, out v) == NumberFieldRules.Action.Reject);
+            Check("numberfield: blur with text reverts", NumberFieldRules.Decide("abc", "3", false, true, out v) == NumberFieldRules.Action.Revert);
+            Check("numberfield: blur with the same value is ignored", NumberFieldRules.Decide("3", "3", false, true, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: blur with the same value in other digits is ignored", NumberFieldRules.Decide("03", "3", false, true, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: blur with a new value submits", NumberFieldRules.Decide("4", "3", false, true, out v) == NumberFieldRules.Action.Submit && v == 4);
+            Check("numberfield: enter with the same value still submits", NumberFieldRules.Decide("3", "3", true, true, out v) == NumberFieldRules.Action.Submit);
+            Check("owned: same value is ignored", NumberFieldRules.DecideOwned(10, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ignore);
+            Check("owned: raising sets on blur", NumberFieldRules.DecideOwned(25, 10, false, false, 0) == NumberFieldRules.OwnedAction.Set);
+            Check("owned: raising sets on enter", NumberFieldRules.DecideOwned(25, 10, true, false, 0) == NumberFieldRules.OwnedAction.Set);
+            Check("owned: lowering on blur is ignored", NumberFieldRules.DecideOwned(7, 10, false, false, 0) == NumberFieldRules.OwnedAction.Ignore);
+            Check("owned: lowering on enter asks", NumberFieldRules.DecideOwned(7, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
+            Check("owned: lowering on enter with the same pending value confirms", NumberFieldRules.DecideOwned(7, 10, true, true, 7) == NumberFieldRules.OwnedAction.Confirm);
+            Check("owned: lowering on enter with another pending value asks again", NumberFieldRules.DecideOwned(5, 10, true, true, 7) == NumberFieldRules.OwnedAction.Ask);
+            Check("owned: zero on enter asks", NumberFieldRules.DecideOwned(0, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
         }
     }
 }
