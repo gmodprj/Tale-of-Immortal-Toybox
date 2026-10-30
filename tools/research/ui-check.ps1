@@ -2148,33 +2148,31 @@ switch ($Part) {
   'rates2' {
     # 배율 탭 확장(05 문서 86절): 칩 다섯, 칩마다 줄, 새 줄 넷, 켜 둔 것, 모두 1배로. 개발 빌드는 처음에 모든 줄을 보이므로 칩 보기로 바꾼다.
     $traps = Traps
-    function Has([string]$n) { (Cmd "uitext $n" 200) -notmatch 'no element' }
-    function T([string]$n) { if ((Cmd "uitext $n" 200) -match "text='([^']*)'") { $Matches[1] } else { '' } }
     Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
     Cmd 'ratechip 0' | Out-Null
-    $names = 0..4 | ForEach-Object { T "RateGroup$_" }
+    $names = 0..4 | ForEach-Object { UiText "RateGroup$_" }
     Check 'five chips with their names' ($names[0] -eq '성장' -and $names[1] -eq '시간·속도' -and $names[2] -eq '전투' -and $names[3] -eq '관계·소모' -and $names[4] -eq '켜 둔 것') ($names -join ',')
-    Check 'growth chip shows its rows only' ((Has 'RateExp') -and (Has 'RateMartial') -and (Has 'RateStudyGain') -and -not (Has 'RateMapSpeed') -and -not (Has 'God'))
+    Check 'growth chip shows its rows only' ((UiHas 'RateExp') -and (UiHas 'RateMartial') -and (UiHas 'RateStudyGain') -and -not (UiHas 'RateMapSpeed') -and -not (UiHas 'God'))
     Press 'RateGroup1' | Out-Null
-    Check 'time chip shows map speed and battle speed' ((Has 'RateMapSpeed') -and (Has 'RateSpeed') -and (Has 'RateBattleMove') -and (Has 'RateMove') -and (Has 'RateActionDay') -and -not (Has 'RateExp'))
-    Check 'map speed starts at x1 with its note' ((T 'RateMapSpeed') -eq 'x1' -and (T 'RateNoteMapSpeed') -match '지도') "$(T 'RateMapSpeed') | $(T 'RateNoteMapSpeed')"
+    Check 'time chip shows map speed and battle speed' ((UiHas 'RateMapSpeed') -and (UiHas 'RateSpeed') -and (UiHas 'RateBattleMove') -and (UiHas 'RateMove') -and (UiHas 'RateActionDay') -and -not (UiHas 'RateExp'))
+    Check 'map speed starts at x1 with its note' ((UiText 'RateMapSpeed') -eq 'x1' -and (UiText 'RateNoteMapSpeed') -match '지도') "$(UiText 'RateMapSpeed') | $(UiText 'RateNoteMapSpeed')"
     # 전투 이동 속도는 트레이너 4차(05 문서 87절)에서 시간·속도 칩으로 옮겼다.
-    Check 'battle move steps up to x1.5' ((Press 'RateBattleMove') -and (T 'RateBattleMove') -eq 'x1.5') (T 'RateBattleMove')
+    Check 'battle move steps up to x1.5' ((Press 'RateBattleMove') -and (UiText 'RateBattleMove') -eq 'x1.5') (UiText 'RateBattleMove')
     Press 'RateGroup2' | Out-Null
-    Check 'battle chip shows eight rows' ((Has 'RateCooldown') -and (Has 'RateItemCooldown') -and (Has 'RateArtifactCooldown') -and (Has 'RateMpCost') -and (Has 'RateSpCost') -and (Has 'Multiplier') -and (Has 'RateTaken') -and (Has 'God') -and -not (Has 'RateBattleMove'))
+    Check 'battle chip shows eight rows' ((UiHas 'RateCooldown') -and (UiHas 'RateItemCooldown') -and (UiHas 'RateArtifactCooldown') -and (UiHas 'RateMpCost') -and (UiHas 'RateSpCost') -and (UiHas 'Multiplier') -and (UiHas 'RateTaken') -and (UiHas 'God') -and -not (UiHas 'RateBattleMove'))
     Press 'RateGroup3' | Out-Null
-    Check 'relation chip shows favor, energy and items' ((Has 'RateIntimGain') -and (Has 'RateEnergyCost') -and (Has 'RateItemUse'))
+    Check 'relation chip shows favor, energy and items' ((UiHas 'RateIntimGain') -and (UiHas 'RateEnergyCost') -and (UiHas 'RateItemUse'))
     Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null; Press 'RateEnergyCost' | Out-Null
-    Check 'energy cost reaches none' ((T 'RateEnergyCost') -eq '없음') (T 'RateEnergyCost')
-    Check 'chips count what is on' ((T 'RateGroup1') -eq '시간·속도 1' -and (T 'RateGroup3') -eq '관계·소모 1' -and (T 'RateGroup0') -eq '성장') "$(T 'RateGroup1') | $(T 'RateGroup3') | $(T 'RateGroup0')"
+    Check 'energy cost reaches none' ((UiText 'RateEnergyCost') -eq '없음') (UiText 'RateEnergyCost')
+    Check 'chips count what is on' ((UiText 'RateGroup1') -eq '시간·속도 1' -and (UiText 'RateGroup3') -eq '관계·소모 1' -and (UiText 'RateGroup0') -eq '성장') "$(UiText 'RateGroup1') | $(UiText 'RateGroup3') | $(UiText 'RateGroup0')"
     Press 'RateGroup4' | Out-Null
-    Check 'the on chip lists the two rows that are on' ((T 'RateGroup4') -eq '켜 둔 것 2' -and (Has 'RateBattleMove') -and (Has 'RateEnergyCost') -and -not (Has 'RateExp') -and -not (Has 'RateEmpty')) (T 'RateGroup4')
+    Check 'the on chip lists the two rows that are on' ((UiText 'RateGroup4') -eq '켜 둔 것 2' -and (UiHas 'RateBattleMove') -and (UiHas 'RateEnergyCost') -and -not (UiHas 'RateExp') -and -not (UiHas 'RateEmpty')) (UiText 'RateGroup4')
     Start-Sleep -Milliseconds 800
     Check 'the status line shows the new rows' ((Cmd 'uistate') -match 'status=\[[^\]]*이동 속도 x1.5[^\]]*정력 소모 없음') (Cmd 'uistate')
     Shot 'rates2-on'
     Press 'RateReset' | Out-Null
-    Check 'reset leaves the on chip empty' ((T 'RateGroup4') -eq '켜 둔 것' -and (Has 'RateEmpty') -and -not (Has 'RateBattleMove')) "$(T 'RateGroup4') | $(T 'RateEmpty')"
-    Check 'the chip is kept when the editor reopens' ((Cmd 'uitoggle' 300) -ne '' -and (Cmd 'editor' 300) -ne '' -and (Press 'Tab12') -and (Has 'RateEmpty')) (T 'RateGroup4')
+    Check 'reset leaves the on chip empty' ((UiText 'RateGroup4') -eq '켜 둔 것' -and (UiHas 'RateEmpty') -and -not (UiHas 'RateBattleMove')) "$(UiText 'RateGroup4') | $(UiText 'RateEmpty')"
+    Check 'the chip is kept when the editor reopens' ((Cmd 'uitoggle' 300) -ne '' -and (Cmd 'editor' 300) -ne '' -and (Press 'Tab12') -and (UiHas 'RateEmpty')) (UiText 'RateGroup4')
     Press 'RateGroup0' | Out-Null
     Shot 'rates2'
     Cmd 'ratechip all' | Out-Null
@@ -2183,23 +2181,7 @@ switch ($Part) {
   }
   'rates2-map' {
     # 지도 속도: x3에서 지도 이동이 빨라지고, 끄면 1. 게임 창이 떠 있지 않을 때.
-    # 전투를 끝내고 지도로 나온다. 들어간 직후의 bend는 게임 안에서 실패할 수 있어(회차 r2-a·rx-c) 몇 초 기다리고, 끝나지 않으면 다시 부른다.
-    function LeaveBattle {
-      Start-Sleep -Seconds 3
-      # 전투 전 화면의 '전투 개시'(btnStart)를 누르지 않으면 전투가 시작되지 않아 bend가 게임 안에서 실패한다(회차 rx-g-1027)
-      if ((Rc 'hit 956 749' 200) -match 'btnStart') { Rc 'click 956 749' 4000 | Out-Null }
-      for ($t = 0; $t -lt 3 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $t++) {
-        "INFO bend: $(Cmd 'bend' 3000)"
-        for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
-      }
-      if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot 'rates2-leave-fail' }
-      # 결과 창의 확인 단추는 창보다 늦게 뜬다(처음 몇 초는 창 바탕만 맞는다, 회차 rx-n-1027). 단추가 맞을 때까지 기다렸다가 누른다.
-      for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
-      Rc 'click 959 831' 2000 | Out-Null
-      # 지도 화면이 보여도 전투 장면이 아직 내려가는 중일 수 있다. inBattle=False까지 기다린다(다음 전투를 바로 열면 꼬인다).
-      for ($i = 0; $i -lt 30 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) { Start-Sleep -Milliseconds 500 }
-      Start-Sleep -Seconds 2
-    }
+    # 전투를 끝내고 지도로 나오는 것은 check-lib의 LeaveBattleScene(들어간 직후의 bend는 실패할 수 있어 몇 초 기다리고, 끝나지 않으면 다시 부른다. 회차 r2-a·rx-c).
     # 걷기·대화 뒤에 게임의 보상 창(GetReward)이나 이야기 창이 편집기를 가릴 수 있다. 닫고 연다.
     function OpenRates {
       for ($k = 0; $k -lt 8 -and (Cmd 'uilist' 200) -match 'GetReward|DramaDialogue|DramaSutraLetter|DramaFortuitous'; $k++) {
@@ -2245,7 +2227,7 @@ switch ($Part) {
     EnterBattle
     Start-Sleep -Milliseconds 800
     Check 'map speed is not applied in battle' ((Scale) -eq 1) (Cmd 'rstate')
-    LeaveBattle
+    LeaveBattleScene 'rates2-leave-fail'
     Start-Sleep -Milliseconds 800
     Check 'map speed comes back on the map' ((Scale) -eq 3) (Cmd 'rstate')
     OpenRates
@@ -2266,23 +2248,6 @@ switch ($Part) {
       Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null
     }
     function MoveNow { $r = Cmd 'rmove' 200; if ($r -match 'value=(\d+) base=(\d+) add=(-?\d+) attached=(\w+)') { @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3], $Matches[4]) } else { "INFO $r"; @(-1, -1, 0, 'False') } }
-    # (rates2-map과 같음) 전투를 끝내고 지도로 나온다. 들어간 직후의 bend는 게임 안에서 실패할 수 있어(회차 r2-a·rx-c) 몇 초 기다리고, 끝나지 않으면 다시 부른다.
-    function LeaveBattle {
-      Start-Sleep -Seconds 3
-      # 전투 전 화면의 '전투 개시'(btnStart)를 누르지 않으면 전투가 시작되지 않아 bend가 게임 안에서 실패한다(회차 rx-g-1027)
-      if ((Rc 'hit 956 749' 200) -match 'btnStart') { Rc 'click 956 749' 4000 | Out-Null }
-      for ($t = 0; $t -lt 3 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $t++) {
-        "INFO bend: $(Cmd 'bend' 3000)"
-        for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
-      }
-      if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot 'rates2-leave-fail' }
-      # 결과 창의 확인 단추는 창보다 늦게 뜬다(처음 몇 초는 창 바탕만 맞는다, 회차 rx-n-1027). 단추가 맞을 때까지 기다렸다가 누른다.
-      for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
-      Rc 'click 959 831' 2000 | Out-Null
-      # 지도 화면이 보여도 전투 장면이 아직 내려가는 중일 수 있다. inBattle=False까지 기다린다(다음 전투를 바로 열면 꼬인다).
-      for ($i = 0; $i -lt 30 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) { Start-Sleep -Milliseconds 500 }
-      Start-Sleep -Seconds 2
-    }
     OpenRates
     Press 'RateBattleMove' | Out-Null; Press 'RateBattleMove' | Out-Null
     Check 'battle move shows x2' ((Cmd 'uitext RateBattleMove') -match "text='x2'")
@@ -2291,7 +2256,7 @@ switch ($Part) {
     Start-Sleep -Milliseconds 800
     $m = MoveNow
     Check 'the player moves at twice its base in battle' ($m[3] -eq 'True' -and $m[1] -gt 0 -and $m[0] -eq $m[1] * 2) "value=$($m[0]) base=$($m[1]) add=$($m[2])"
-    LeaveBattle
+    LeaveBattleScene 'rates2-leave-fail'
     EnterBattle
     Start-Sleep -Milliseconds 800
     $m = MoveNow
@@ -2307,7 +2272,7 @@ switch ($Part) {
     $m = MoveNow
     Check 'turning it off gives the base back' ($m[3] -eq 'False' -and $m[0] -eq $m[1]) "value=$($m[0]) base=$($m[1]) attached=$($m[3])"
     Cmd 'uitoggle' | Out-Null
-    LeaveBattle
+    LeaveBattleScene 'rates2-leave-fail'
     Check 'back on the map' ((Cmd 'uilist' 100) -match 'MapMain')
     Check 'no warning from the mod' (-not (ModWarnings)) ((ModWarnings) -join ' | ')
   }
@@ -2470,18 +2435,7 @@ switch ($Part) {
     $traps = Traps
     function Dmg { Cmd 'bdmg' 200 }
     function Num([string]$text, [string]$pattern) { if ($text -match $pattern) { [double]$Matches[1] } else { throw "읽지 못했습니다: $pattern in $text" } }
-    function Into([int]$level) {
-      Cmd "fight 1011 $level" 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 4000 | Out-Null
-    }
-    function Leave {
-      Cmd 'bend' 500 | Out-Null
-      for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
-      Start-Sleep -Seconds 2
-      for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
-      Start-Sleep -Seconds 3
-    }
-    function Tab { Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null }
-    Tab
+    OpenEditorTab 12
     foreach ($b in 'RateCooldown', 'RateTaken') { Check "$b is drawn" (IsAt $b) }
     # 받는 피해만 켰다가 모두 1배로: 이벤트를 듣던 것도 풀린다.
     Press 'RateTaken' | Out-Null
@@ -2491,9 +2445,9 @@ switch ($Part) {
     Press 'Close' | Out-Null
 
     # 전투 1(약한 적): 받는 피해. 공격하지 않고 맞기만 한다.
-    Into 1
+    EnterBattleScene 1
     Check 'nothing is listening before a row is on' ((Dmg) -match 'subscribed=False')
-    Tab; Press 'RateTaken' | Out-Null
+    OpenEditorTab 12; Press 'RateTaken' | Out-Null
     Check 'taken shows x0.5' ((Cmd 'uitext RateTaken') -match "text='x0.5'")
     Press 'Close' | Out-Null
     for ($i = 0; $i -lt 40 -and (Dmg) -match 'taken=-'; $i++) { Start-Sleep -Milliseconds 500 }
@@ -2508,7 +2462,7 @@ switch ($Part) {
     $plainStep = Num (Cmd 'cdstat' 200) 'step cd=\d+/\d+ cdTime=([\d.]+)'
     Check 'the special skill has a cooldown' ($plain -gt 1) "cdTime=$plain"
     Check 'a second use is refused while cooling down' ((Cmd 'bcast 2' 400) -match 'True' -and (Cmd 'bcast 2' 400) -match 'False')
-    Tab; Press 'RateCooldown' | Out-Null
+    OpenEditorTab 12; Press 'RateCooldown' | Out-Null
     Check 'cooldown shows x0.5' ((Cmd 'uitext RateCooldown') -match "text='x0.5'")
     Start-Sleep -Milliseconds 500
     $c = Cmd 'cdstat' 200
@@ -2521,7 +2475,7 @@ switch ($Part) {
     Check 'the special skill is used four times in a row' ($ok -eq 4) "ok=$ok"
     Start-Sleep -Milliseconds 500
     Check 'cooldown is on the overlay' ((Cmd 'uistate') -match '쿨타임 없음')
-    Tab; Press 'RateCooldown' | Out-Null
+    OpenEditorTab 12; Press 'RateCooldown' | Out-Null
     Check 'cooldown wraps to x1' ((Cmd 'uitext RateCooldown') -match "text='x1'")
     Start-Sleep -Milliseconds 500
     $c = Cmd 'cdstat' 200
@@ -2531,12 +2485,12 @@ switch ($Part) {
     1..3 | ForEach-Object { Press 'Multiplier' | Out-Null }
     Check 'damage shows x10' ((Cmd 'uitext Multiplier') -match "text='x10'")
     Press 'Close' | Out-Null
-    Leave
+    LeaveBattleScene 'combat-leave-fail'
     Check 'back on the map' ((Cmd 'uilist' 100) -match 'MapMain')
 
     # 전투 2(수준 20의 적, 한 방이 수십): 켜 둔 쿨타임이 새 전투에도 걸리고, 받는 피해가 x0.1로 줄어든다.
     # 수준 30부터는 한 방이 수천이라 고정본 인물이 쓰러진다(쓰러지면 대화 사건이 떠 뒤의 검사가 꼬인다).
-    Into 20
+    EnterBattleScene 20
     Start-Sleep -Milliseconds 500
     $c = Cmd 'cdstat' 200
     Check 'the kept cooldown applies in the next battle' ([math]::Abs((Num $c 'skill1 cd=\d+/\d+ cdTime=([\d.]+)') - $plain / 2) -lt 0.02) $c
@@ -2544,18 +2498,17 @@ switch ($Part) {
     $s = Dmg
     Check 'a hit on the player is cut to a tenth' ($s -match 'taken=base (\d+)->(\d+)' -and [int]$Matches[1] -ge 10 -and [math]::Abs([int]$Matches[2] - [int]$Matches[1] * 0.1) -le 0.51) $s
     Check 'the player is alive' ((Cmd 'battle stat' 100) -match 'playerHp=[1-9]\d*/')
-    Leave
-
+    LeaveBattleScene 'combat-leave-fail'
     # 전투 3(수준 60의 적, 체력 수만): 주는 피해가 곱해지고 적의 체력이 그만큼 깎인다. 한 방에 쓰러지지 않게 무적을 켠다.
-    Tab; Press 'God' | Out-Null; Press 'Close' | Out-Null
-    Into 60
+    OpenEditorTab 12; Press 'God' | Out-Null; Press 'Close' | Out-Null
+    EnterBattleScene 60
     for ($i = 0; $i -lt 60 -and (Dmg) -notmatch 'drop=prevValue'; $i++) { Cmd 'bcast 1' 350 | Out-Null }
     $s = Dmg
     Check 'a hit is scaled by 10' ($s -match 'last=base (\d+)->(\d+) ' -and [int]$Matches[2] -eq [int]$Matches[1] * 10) $s
     Check 'the enemy loses the scaled amount' ($s -match 'drop=prevValue=(\d+) hp (\d+)->(\d+) ' -and [int]$Matches[2] - [int]$Matches[3] -ge [int]$Matches[1]) $s
     Check 'taken x0.1 is still on' ((Cmd 'rstate' 200) -match 'taken=0.1 ')
-    Leave
-    Tab; Press 'RateReset' | Out-Null
+    LeaveBattleScene 'combat-leave-fail'
+    OpenEditorTab 12; Press 'RateReset' | Out-Null
     $s = Cmd 'rstate' 200
     # 줄 순서(RateService.All)에 묶지 않고 키마다 본다(트레이너 4차에서 줄이 끼어들었다).
     $back = @('cooldown', 'itemCooldown', 'artifactCooldown', 'mpCost', 'spCost', 'studyGain', 'itemUse', 'taken', 'artifactDurable') | Where-Object { $s -notmatch " $_=1(\(patched\))? " }
@@ -3063,9 +3016,8 @@ switch ($Part) {
         else { Start-Sleep -Milliseconds 800 }
       }
     }
-    function Tab { Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null }
     function SetRate([string]$name, [string]$want) {
-      Tab
+      OpenEditorTab 12
       for ($i = 0; $i -lt 6 -and (Cmd "uitext $name") -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press $name | Out-Null }
       $ok = (Cmd "uitext $name") -match "text='$([regex]::Escape($want))'"
       Cmd 'uitoggle' | Out-Null
@@ -3074,7 +3026,7 @@ switch ($Part) {
     function Learned { if ((Cmd 'mgrid' 300) -match '무예/영술:(\d+)/') { [int]$Matches[1] } else { -1 } }
     function Used([string]$out) { $out -match 'num (\d+) -> (\d+)' | Out-Null; "$($Matches[1])->$($Matches[2])" }
 
-    Tab
+    OpenEditorTab 12
     Check 'the item use row is drawn at x1' ((IsAt 'RateItemUse') -and (Cmd 'uitext RateItemUse') -match "text='x1'") (Cmd 'uitext RateItemUse')
     Check 'the last rate row still fits in the content area' (IsAt 'God') (Cmd 'uipos God')
     Cmd 'uitoggle' | Out-Null
@@ -3148,16 +3100,15 @@ switch ($Part) {
     # 영력·집중력 소모 "없음"이 전투 중 플레이어의 모든 감소를 막는지(스펙 2026-10-20-trainer-batch1-design.md 5.4·6절, 05 문서 65·66절).
     # 다른 단계(x0.5)는 지금처럼 기술 소모만 곱한다. 전투를 하나 연다.
     $traps = Traps
-    function Tab { Cmd 'editor' | Out-Null; Press 'Tab12' | Out-Null }
     function SetRate([string]$name, [string]$want) {
-      Tab
+      OpenEditorTab 12
       for ($i = 0; $i -lt 6 -and (Cmd "uitext $name") -notmatch "text='$([regex]::Escape($want))'"; $i++) { Press $name | Out-Null }
       $ok = (Cmd "uitext $name") -match "text='$([regex]::Escape($want))'"
       Cmd 'uitoggle' | Out-Null
       $ok
     }
     function MpSp { if ((Cmd 'tbmp' 300) -match 'mp=(\d+)/\d+ sp=(\d+)/') { @{ mp = [int]$Matches[1]; sp = [int]$Matches[2] } } else { $null } }
-    Tab
+    OpenEditorTab 12
     Check 'the mp note mentions all drains' ((Cmd 'uitext RateNoteMpCost') -match '영력이 줄지 않습니다') (Cmd 'uitext RateNoteMpCost')
     # 적이 영력을 깎는 경우는 재지 않았다(05 문서 66절). 화면 글이 약속하지 않는다.
     Check 'the mp note promises only what was measured' ((Cmd 'uitext RateNoteMpCost') -notmatch '적의') (Cmd 'uitext RateNoteMpCost')
@@ -3221,13 +3172,12 @@ switch ($Part) {
     # 훔치기·관계는 실험 명령(tb2steal·tb2rel)으로 게임 행동을 만들고 결과 창을 넘긴다. 드롭은 개발 계수(sstate)로 적 하나당 보상 번호 수를 본다.
     $traps = Traps
     function Slots { if ((Cmd 'cmbag 0' 300) -match 'slots=(\d+)') { [int]$Matches[1] } else { -1 } }
-    function Tab { Cmd 'editor' | Out-Null; Press 'Tab17' | Out-Null }
     function Close { Cmd 'uitoggle' | Out-Null }
     function PassDrama { for ($i = 0; $i -lt 8 -and (Cmd 'uilist' 200) -match 'DramaDialogue'; $i++) { Rc 'click 960 540' 2000 | Out-Null } }
     function WaitCourse { for ($i = 0; $i -lt 20 -and (Cmd 'uilist' 200) -notmatch 'ActionCourseInfo'; $i++) { Start-Sleep -Milliseconds 500 }; Start-Sleep -Seconds 4 }
     function Drops { if ((Cmd 'sstate' 300) -match 'dropCalls=(\d+) dropIds=(\d+) dropRaw=(\d+)') { @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3]) } else { @(-1, -1, -1) } }
     Cmd 'uitarget player' | Out-Null
-    Tab
+    OpenEditorTab 17
     foreach ($b in 'SuccessSteal', 'SuccessRelation', 'SuccessDrop', 'SuccessReset') { Check "$b is drawn" (IsAt $b) }
     Check 'the steal row starts off' ((Cmd 'uitext SuccessSteal') -match "text='꺼짐'") (Cmd 'uitext SuccessSteal')
     Check 'the drop row starts at x1' ((Cmd 'uitext SuccessDrop') -match "text='x1'") (Cmd 'uitext SuccessDrop')
@@ -3248,7 +3198,7 @@ switch ($Part) {
     Check 'the bag got the stolen item' ((Slots) -gt $s0) "$s0 -> $(Slots)"
 
     # 관계 발전(의형제, 관계 표 3번)
-    Tab; Press 'SuccessRelation' | Out-Null; Close
+    OpenEditorTab 17; Press 'SuccessRelation' | Out-Null; Close
     Cmd 'tb2rel 2 3' 3000 | Out-Null; PassDrama; WaitCourse
     Shot 'success-relation'
     Rc 'click 958 714' 2500 | Out-Null
@@ -3268,7 +3218,7 @@ switch ($Part) {
     Cmd 'fight 1011 1' 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null
     for ($i = 0; $i -lt 20 -and (Cmd 'tbmp' 300) -match 'not in battle'; $i++) { Start-Sleep -Milliseconds 500 }
     Rc 'click 956 749' 3000 | Out-Null
-    Tab; Press 'SuccessDrop' | Out-Null; Press 'SuccessDrop' | Out-Null
+    OpenEditorTab 17; Press 'SuccessDrop' | Out-Null; Press 'SuccessDrop' | Out-Null
     Check 'drop goes to x3' ((Cmd 'uitext SuccessDrop') -match "text='x3'") (Cmd 'uitext SuccessDrop')
     Close
     $d1 = Drops
@@ -3284,7 +3234,7 @@ switch ($Part) {
     Start-Sleep -Seconds 3
 
     # 모두 끄기
-    Tab; Press 'SuccessReset' | Out-Null
+    OpenEditorTab 17; Press 'SuccessReset' | Out-Null
     Check 'reset turns all off' ((Cmd 'sstate' 300) -match 'steal=False relation=False drop=1 ') (Cmd 'sstate')
     # 응답이 예외로 끝나 표시가 남아도, 꺼져 있으면 설정 값이 원래대로 읽혀야 한다(최종 리뷰 Important 1)
     Cmd 'sstick' 300 | Out-Null
