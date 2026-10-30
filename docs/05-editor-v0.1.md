@@ -3979,3 +3979,44 @@ Critical 없음, Important 둘, 사소 열.
 - **Important 2** 판정이 넓어진 부분이 회차에서 돌지 않았다 → 위의 `ctc-h-1030`.
 - 사소 고침: `LeaveBattleScene`은 확인 단추가 실제로 맞을 때만 누른다(이미 지도면 그 자리를 누르지 않음), `repair-restart`의 안 쓰는 `$traps`, 시험 46이 `.absent` 표식 삭제도 봄, 주석 둘.
 - 사소 남김: 옛 꼴의 전투 종료(확인 단추를 맞는지 안 보고 연타)가 인라인으로 남은 곳 — `artifact-check` slot-clicks, `ui-check`의 itemuse·mpnone·success(3085·3135·3230 부근), `mastery-check battle`(C1 범위 밖. 다음에 전투 코드를 손댈 때 `LeaveBattleScene`으로) / `FieldsOf`는 쌍 안 줄바꿈을 값에 담는다(옛 정규식판은 그 쌍을 버림. 여러 줄 출력을 내는 명령이 있는지 미확인) / `EnterBattleScene`은 전투 개시를 조건 없이 누른다(옛 `Into`와 같음) / `TrimEnd('\\')`는 `C:\`를 `C:`로 만든다(드문 입력) / config 복원 두 갈래는 하나로 합칠 수 있다.
+
+## 92. 파일 안전과 예외 경로 — AtomicFile, 깨진 공법 건너뛰기, 도호 표시 비우기 (2026-10-30 추가)
+
+13 문서 7절의 묶음 4(3절 A7·A8·A10·A11·A12·A15, 4절 B22). 사용자 지시 "묶음 4 시작". 계획 `docs/superpowers/plans/2026-10-30-file-safety.md`, 브랜치 `fix/file-safety`. 동작은 바뀌지 않고 실패 경로만 닫았다. 게임 설치는 하지 않았다.
+
+### 92.1 `AtomicFile`(A7)
+
+사용자가 손으로 고치는 파일을 쓰는 도중 게임이 죽으면 파일이 통째로 사라질 수 있었다(`File.WriteAllText`가 먼저 비우고 쓴다). `AtomicFile.WriteAllText(path, text, encoding)`은 `<path>.tmp`에 다 쓴 뒤 `File.Replace`(대상이 있으면)/`File.Move`(없으면)로 바꿔치기한다(`FavoriteStore.Change`가 쓰던 꼴을 한 곳으로). 쓰는 곳: 번역표 셋(`translations\mods.txt`·`texts.txt`·`tables.txt`의 풀기·덧붙이기, `untranslated.txt`), `config.txt`(쓰기·만들기), `martial-grid.txt`, `favorites.txt`. 단위 시험 4줄(새 파일·덮어쓰기·BOM 없음·`.tmp` 없음). `ConfigFile.Write`는 `File.WriteAllLines`와 같은 모양(줄마다 CRLF, BOM 없음)을 유지한다. 프리셋 파일 쓰기와 내보내기(`ExportFiles.Write`)는 덮어쓰지 않거나 사용자가 고치는 파일이 아니라 그대로 두었다.
+
+### 92.2 예외 경로
+
+- **A15** `ConfigFile` 읽기·쓰기·만들기의 `catch`가 `IOException`·`UnauthorizedAccessException`만 받던 것을 `Exception`으로. 경로 오류 같은 다른 예외가 `EditorHost` 초기화까지 올라가지 않는다.
+- **A8** `PresetService.FolderStamp`(프리셋 폴더 표지)가 던지면 `"ERR:" + ticks`(매번 다른 표지)를 돌려줘 `List()`(예외를 삼킨다)가 다시 읽게 한다. 전에는 프리셋 탭 그리기까지 올라갔다.
+- **A11** `MartialService.SuitsFor`(전승 화면)와 `SkillCatalog.LearnedCounts`(기술 추가의 배운 수)가 공법 목록을 돌 때 줄 단위 `try`로 깨진 공법을 건너뛴다(`CharacterExportService.Import`의 꼴). 첫 번만 로그 `깨진 공법 건너뜀(전승|배운 수)`.
+- **A12** 프리셋 `PutSkill`의 `finally` 되돌리기(`Equip(other)`)가 던지면 원래 예외를 가리지 않게 로그만 남긴다. 심법의 원래 칸 번호 보존은 하지 않았다(`Equip`이 빈 첫 칸을 고른다. 남김).
+- **B22** `TextPatch.TextPrefix`(게임 `Text.text` 설정자의 Harmony 앞붙임)를 `try`로 감싸 치환이 던지면 원문을 그대로 두고 첫 번만 로그.
+- **A10** `AppellationService.ForgetQuiet()`: 편집기가 준·뺀 도호 번호의 "조용히 닫기" 표시(`quiet`·`quietLoss`)와 보상 창 기억(`lossOf`)을 `ModMain.Destroy`에서 비운다. 남겨 두면 다른 세이브에서 게임이 같은 도호를 정당하게 줄 때 그 획득 창을 편집기가 닫았다.
+
+### 92.3 검사
+
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(AtomicFile 4줄 추가).
+- 회차 `fs-a-1030`(만고신화 포함): `ui-check translation`(번역 파일 수정·BOM·삭제·주석만·미번역 내보내기) → `favstore` → `-Restart` → `favstore-restart` → `move` → `-Restart` → `move-restart` 모두 FAIL 0. 끝에 데이터 폴더에 `*.tmp` 없음.
+- 회차 `fs-b-1030`: `mbreak`로 깨진 공법을 만들어 둔 채 `trainer3-check suit-ui`를 돌리자 전승 화면은 정상으로 그려졌지만(캡처 `.devremote\check-fs-hang.png`), 몇 초 뒤 게임 자체의 주기 작업(`GMFunc.xiufuNPCmijicitiao` → `MartialInfoData..ctor`에서 `NullReferenceException`, `Player.log`)이 그 공법을 읽다 죽어 게임의 `TimerMgr` 코루틴이 멈췄고, 그 위에서 도는 개발 명령 폴링(`g.timer.Frame`)도 함께 멈췄다(게임 프로세스는 살아 있음, `-End` 정상). **깨진 공법을 오래 살려 두는 검증은 하지 않는다**(기존 `actions` 검사처럼 만들자마자 지운다). 로그에 "깨진 공법 건너뜀"이 없으므로 A11의 가드는 그 공법에서는 불리지 않았다(`To<MartialData>()`와 `martialType`·`valuesStr` 읽기는 던지지 않고, 던지는 것은 `martialInfo` 조회였다 — `SuitsFor`도 세트가 붙은 심법의 이름을 읽을 때(`Name(m)`) 그 조회를 쓴다. 최종 리뷰가 짚어 그 호출도 try 안에 넣었다, 92.5절). 가드는 안전장치로 남는다.
+- 회차 `fs-c-1030`: `trainer3-check suit-ui`, `ui-check tabs`·`actions`(mbreak → 깨진 줄 그리기 → 삭제), `preset-check ui` FAIL 0. 회차 `fs-d-1030`: `ui-check appellation-ui` FAIL 0.
+- `ui-check grid`는 깨끗한 회차 첫 검사인데도 FAIL 1 — 사용자 데이터 폴더의 `martial-grid.txt`가 2026-10-19부터 50이라(플레이 중 올린 값. 변경 이력에 매 실행 "+50 -> +10") 검사의 전제(상한 0)가 그때부터 깨져 있었다. 회차 `fs-e-1030`에서 `mgridset 0` 뒤 돌리면 FAIL 0(파일은 `AtomicFile`로 쓰이고 `.tmp` 없음), `-End`가 50으로 되돌린다(`MARTIAL GRID RESTORED`). 앞으로 `grid`는 회차 안에서 `mgridset 0` 뒤에 돌린다.
+- 다섯 회차 모두 `SAVE RESTORED AND IDENTICAL`.
+
+### 92.4 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 셋, 사소 일곱.
+- **Important 1** `AtomicFile`이 `File.Replace` 실패 뒤 `.tmp`를 무조건 지웠다. `ReplaceFile`이 대상을 잃은 채 실패하는 경우(오류 1176: 백신·색인기가 임시 파일을 잡은 순간)에는 `.tmp`가 새 내용의 유일한 사본이라 원본과 새 내용을 함께 잃을 수 있었다(옛 `FavoriteStore.Change`는 `.tmp`를 남겨 손으로 살릴 수 있었다). `Recover(path, tmp)`: 대상이 사라졌고 임시 파일이 있으면 대상 이름으로 옮기고, 대상이 남아 있을 때만 임시 파일을 지운다. 시험 3줄(읽기 전용 대상 → 던지고 원본 그대로·`.tmp` 없음, 대상이 사라진 복구, 대상이 남은 복구).
+- **Important 2** `SuitsFor`의 `Name(m)`(실측된 예외 지점 `martialInfo`를 읽는다)이 줄 단위 try 밖에 있어 세트가 붙은 깨진 심법이 있으면 전승 화면이 통째로 실패했다 → try 안으로.
+- **Important 3** 실패 경로 시험이 없었다 → 위 3줄.
+- 사소 고침: 시험 6줄(RateUnitRules)이 `AtomicFileTests`에 잘못 붙어 있던 것, 프리셋 되돌리기의 조건식(`IsEquipped`)도 try 안으로, `PresetService.List`의 catch를 `FolderStamp`와 같은 범위(`Exception`)로.
+- 사소 남김: `ReplaceFile`은 대상의 공유 삭제 권한이 필요해 옛 `WriteAllText`가 되던 드문 경우(다른 프로세스가 공유 쓰기만 허용한 채 열어 둠)에 실패할 수 있다(로그만) / 임시 파일을 `Flush(true)` 없이 바꿔치기해 전원 차단은 보호하지 못한다(목표는 게임이 죽는 경우) / `brokenWarned`가 프로세스 전체에서 한 번이고 전승·배운 수 두 지점이 공유 / B22 로그 문구 "원문 그대로 둠"은 `Leftover` 기록에서 던진 경우에는 맞지 않는다(던질 일이 없다).
+- 고친 뒤 회차 `fs-f-1030`(만고신화 포함): `ui-check translation`·`favstore`, `trainer3-check suit-ui` FAIL 0, 데이터 폴더에 `.tmp` 없음, `SAVE RESTORED AND IDENTICAL`. 단위 시험 FAILS=0(atomic 7줄).
+
+### 92.5 확인하지 못한 것
+
+- 쓰기 도중 죽는 상황은 도구로 만들 수 없다(단위 시험으로 `.tmp`가 남지 않고 내용이 바뀌는 것만). `File.Replace`가 다른 프로세스의 잠금으로 던지면 호출부의 기존 `catch`(`TranslationService.Ensure`·`ConfigFile`·`FavoriteStore.Change`)가 로그로 받는다(코드로만).
+- A8(프리셋 폴더 접근 거부)·B22(치환이 던지는 경우)는 회차에서 만들 수 없어 코드로만.

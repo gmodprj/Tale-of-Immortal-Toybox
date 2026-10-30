@@ -67,6 +67,7 @@ namespace MOD_sWP6UL
             RateGroupsTests();
             NumberFieldRulesTests();
             RateUnitRulesTests();
+            AtomicFileTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -738,6 +739,47 @@ namespace MOD_sWP6UL
             Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
             Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
             Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
+        }
+
+        // 임시 파일에 쓴 뒤 바꿔치기(13 문서 A7, 05 문서 92절). 번역표·config.txt 같은 사용자 파일이 쓰는 도중 사라지지 않게.
+        private static void AtomicFileTests()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "tlt-atomic-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string path = Path.Combine(dir, "sub", "a.txt");
+                var utf8 = new System.Text.UTF8Encoding(false);
+                AtomicFile.WriteAllText(path, "one\n", utf8);
+                Check("atomic: writes a new file and creates the folder", File.Exists(path) && File.ReadAllText(path, utf8) == "one\n" && !File.Exists(path + ".tmp"));
+                AtomicFile.WriteAllText(path, "two\n", utf8);
+                Check("atomic: overwrites and leaves no tmp", File.ReadAllText(path, utf8) == "two\n" && !File.Exists(path + ".tmp"));
+                byte[] bytes = File.ReadAllBytes(path);
+                Check("atomic: no BOM", bytes.Length > 0 && bytes[0] != 0xEF);
+                AtomicFile.WriteAllText(path, "한글\n", utf8);
+                Check("atomic: utf-8 text round-trips", File.ReadAllText(path, utf8) == "한글\n");
+                // 실패 경로(최종 리뷰 Important 1·3): 대상이 읽기 전용이면 Replace가 던지고, 원본은 그대로, .tmp는 남지 않는다.
+                File.SetAttributes(path, FileAttributes.ReadOnly);
+                bool threw = false;
+                try { AtomicFile.WriteAllText(path, "three\n", utf8); } catch (Exception) { threw = true; }
+                File.SetAttributes(path, FileAttributes.Normal);
+                Check("atomic: a read-only target throws, keeps the original and leaves no tmp", threw && File.ReadAllText(path, utf8) == "한글\n" && !File.Exists(path + ".tmp"));
+                // 바꿔치기가 대상을 잃은 채 실패하면(ReplaceFile 1176) 임시 파일을 대상 이름으로 되살린다. 대상이 남아 있으면 임시 파일만 지운다.
+                string lost = Path.Combine(dir, "lost.txt");
+                File.WriteAllText(lost + ".tmp", "new\n", utf8);
+                AtomicFile.Recover(lost, lost + ".tmp");
+                Check("atomic: recover moves the tmp into place when the target is gone", File.Exists(lost) && File.ReadAllText(lost, utf8) == "new\n" && !File.Exists(lost + ".tmp"));
+                File.WriteAllText(lost + ".tmp", "newer\n", utf8);
+                AtomicFile.Recover(lost, lost + ".tmp");
+                Check("atomic: recover only drops the tmp when the target survived", File.ReadAllText(lost, utf8) == "new\n" && !File.Exists(lost + ".tmp"));
+            }
+            finally
+            {
+                if (Directory.Exists(dir))
+                {
+                    foreach (string f in Directory.GetFiles(dir, "*", SearchOption.AllDirectories)) { File.SetAttributes(f, FileAttributes.Normal); }
+                    Directory.Delete(dir, true);
+                }
+            }
         }
     }
 }

@@ -182,8 +182,7 @@ namespace MOD_sWP6UL
         {
             try
             {
-                Directory.CreateDirectory(ChangeLog.DataDir);
-                File.WriteAllText(FilePath, bonus.ToString(), Encoding.UTF8);
+                AtomicFile.WriteAllText(FilePath, bonus.ToString(), Encoding.UTF8);
                 return null;
             }
             catch (IOException e)

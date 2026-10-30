@@ -242,7 +242,15 @@ namespace MOD_sWP6UL
         private static string FolderStamp()
         {
             // .defaults(풀어 놓은 기본 파일 기록)도 표지에 넣는다. 밖에서 지우거나 고치면 다음에 다시 읽는다(05 문서 85절).
-            return FileStamp.Of(Dir, "*.json") + "#" + FileStamp.Of(Dir, PresetDefaults.RecordName);
+            // 폴더에 접근하지 못하면 매번 다른 표지를 돌려줘 List()(예외를 삼킨다)가 다시 읽게 한다(13 문서 A8: 예외가 프리셋 탭 그리기까지 올라가던 것).
+            try
+            {
+                return FileStamp.Of(Dir, "*.json") + "#" + FileStamp.Of(Dir, PresetDefaults.RecordName);
+            }
+            catch (Exception)
+            {
+                return "ERR:" + DateTime.UtcNow.Ticks;
+            }
         }
 
         public static List<Preset> ListCached()
@@ -307,10 +315,7 @@ namespace MOD_sWP6UL
                     result.Add(Read(file));
                 }
             }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
+            catch (Exception)
             {
             }
             return result;
