@@ -3,6 +3,7 @@ using MelonLoader;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Learned = MOD_sWP6UL.PresetRules.Learned;
 using Outcome = MOD_sWP6UL.ApplyOutcome;
 using Put = MOD_sWP6UL.ApplyPut;
 using Tally = MOD_sWP6UL.ApplyTally;

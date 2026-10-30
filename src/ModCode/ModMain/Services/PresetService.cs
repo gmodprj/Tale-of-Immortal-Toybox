@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Learned = MOD_sWP6UL.PresetRules.Learned;
 
 namespace MOD_sWP6UL
 {
@@ -851,16 +852,6 @@ namespace MOD_sWP6UL
 
         // ---- 상태 ----
 
-        public class Learned
-        {
-            public string Sole;
-            public int BaseId;
-            public int Grade;
-            public int[] Options;
-            public int Suit;
-            public bool Equipped;
-        }
-
         // 익힌 공법의 사본. 상태를 여러 번 물을 때 게임 객체를 다시 읽지 않도록 한 번 떠 둔다.
         public static List<Learned> Snapshot()
         {
@@ -890,42 +881,11 @@ namespace MOD_sWP6UL
             return result;
         }
 
-        private static bool SameOptions(int[] a, int[] b)
-        {
-            if (a.Length != b.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < a.Length; i++)
-            {
-                if (a[i] != b[i])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
         // 그 줄과 같은 공법: 같은 기술과 옵션, 그 경지 이상, 심법이면 세트 번호도 같다. 장착한 것을 먼저 고른다. 없으면 null.
+        // 판정은 PresetRules.Find(순수. 05 문서 93절).
         public static Learned Find(List<Learned> learned, SkillLine line, int grade)
         {
-            Learned found = null;
-            foreach (Learned each in learned)
-            {
-                if (each.BaseId != line.BaseId || each.Grade < grade || !SameOptions(each.Options, line.Options))
-                {
-                    continue;
-                }
-                if (line.Type == MartialType.Ability && each.Suit != line.Suit)
-                {
-                    continue;
-                }
-                if (found == null || (each.Equipped && !found.Equipped))
-                {
-                    found = each;
-                }
-            }
-            return found;
+            return PresetRules.Find(learned, line.BaseId, line.Options, grade, line.Type == MartialType.Ability, line.Suit);
         }
 
         // 그 대경지의 역천개명 기록. 없으면 0.

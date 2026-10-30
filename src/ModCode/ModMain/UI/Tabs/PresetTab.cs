@@ -17,7 +17,7 @@ namespace MOD_sWP6UL
         private readonly ListView<PresetService.Preset> list = new ListView<PresetService.Preset>("PresetList", 44);
         private readonly ListView<PresetService.Stage> stages = new ListView<PresetService.Stage>("PresetStages", 44);
         private List<PresetService.Preset> presets;         // null이면 폴더를 다시 읽는다
-        private List<PresetService.Learned> learned;        // 한 번 그리는 동안 쓰는 익힌 공법의 사본
+        private List<PresetRules.Learned> learned;        // 한 번 그리는 동안 쓰는 익힌 공법의 사본
         private PresetService.Facts facts;                  // 한 번 그리는 동안 쓰는 게임 상태의 답(묶음 3)
         private PresetService.Preset opened;
 
