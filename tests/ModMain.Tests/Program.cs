@@ -71,6 +71,7 @@ namespace MOD_sWP6UL
             PrefixRulesTests();
             PresetRulesTests();
             BreakthroughRulesTests();
+            ChipBarTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -768,6 +769,11 @@ namespace MOD_sWP6UL
             int[] v3 = { 9, 9, 1, 2, -1 };
             changed = ModSkillRules.RemapPrefixNumbers(v3, 4, new List<PrefixRow>(), n => 0);
             Check("remap: nothing to pick leaves values alone", changed == 0 && v3[2] == 1 && v3[3] == 2);
+            // 무작위는 후보 수를 받아 그 범위의 자리를 고른다(최종 리뷰 Minor 2): 자리 1(가중치 첫 칸)에 맞는 번호는 101·103, rng가 마지막을 고르면 103. 0 칸과 범위 밖은 그대로.
+            int[] v4 = { 7, 8, 1, 0, -1, 55 };
+            int seen = -1;
+            changed = ModSkillRules.RemapPrefixNumbers(v4, 4, rows, n => { seen = n; return n - 1; });
+            Check("remap: the rng gets the fit count and the last pick is used; zero and out-of-range cells stay", changed == 1 && seen == 2 && v4[2] == 103 && v4[3] == 0 && v4[0] == 7 && v4[1] == 8 && v4[5] == 55, string.Join(",", v4) + " seen=" + seen);
             // OptionProblem: 문구는 MartialService의 것과 글자까지 같다.
             var prs = new List<PrefixRow> { Row(1, 1, new[] { 5, 5, 5 }), Row(2, 2, new[] { 0, 5, 5 }, 1), Row(3, 1, new[] { 5, 5, 5 }, -1) };
             Check("option problem: more than eleven", MartialRules.OptionProblem(new int[12], prs, false, 0) == "옵션은 11개까지입니다");
@@ -801,7 +807,11 @@ namespace MOD_sWP6UL
             Check("breakthrough: one needed takes the last kind", string.Join(",", BreakthroughRules.NeedItems("1_2_3", 1)) == "3");
             Check("breakthrough: several needed cycle from the front", string.Join(",", BreakthroughRules.NeedItems("1_2", 3)) == "1,2,1" && BreakthroughRules.NeedItems("1_2", 0).Count == 0 && BreakthroughRules.NeedItems("", 2).Count == 0);
             Check("breakthrough: treasures cycle the candidates", string.Join(",", BreakthroughRules.Treasures("7_8", 3)) == "7,8,7" && BreakthroughRules.Treasures("", 2).Count == 0);
-            // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.
+        }
+
+        // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.
+        private static void ChipBarTests()
+        {
             float[] xs = new float[3], ys = new float[3];
             float h = ChipBar.Layout(new float[] { 100, 100, 100 }, 250, 34, 6, xs, ys);
             Check("chip bar: wraps at the area width", xs[0] == 0 && xs[1] == 106 && xs[2] == 0 && ys[2] == 40 && h == 74, string.Join(",", xs) + "/" + string.Join(",", ys) + "/" + h);

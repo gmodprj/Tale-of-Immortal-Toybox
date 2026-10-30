@@ -17,7 +17,7 @@ namespace MOD_sWP6UL
         private int artKind;
         private string query = "";
         private HashSet<int> learnedNow = new HashSet<int>();   // 지금 분류의 배운 번호(그리기마다 새로. 묶음 3)
-        private readonly Dictionary<int, string> blockReasons = new Dictionary<int, string>();   // 그리기 한 번 동안 서적마다 "배울 수 없는 까닭"(13 문서 P3)
+        private readonly Dictionary<int, string> blockReasons = new Dictionary<int, string>();   // 서적마다 "배울 수 없는 까닭". Draw 시작에 비우고 다음 Draw까지 쓴다(늦게 그리는 줄도 같은 값. 13 문서 P3)
 
         public override string Title
         {

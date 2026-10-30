@@ -104,6 +104,8 @@ namespace MOD_sWP6UL
             }
             now.AddRange(pending);
             int oldCount = now.Count - pending.Count;
+            // 옵션 행의 레코드는 한 번만 만들어 후보마다의 판정에 함께 쓴다(최종 리뷰 Important 1: 후보마다 만들면 행 수의 제곱으로 게임 값을 읽는다).
+            List<PrefixRow> rows = MartialService.RowsOf(martial.martialType, martial.baseID);
             foreach (ConfBattleSkillPrefixValueItem item in MartialService.ValidItems(martial))
             {
                 if (MartialService.Weight(item, slot) <= 0)
@@ -111,7 +113,7 @@ namespace MOD_sWP6UL
                     continue;
                 }
                 var trial = new List<int>(now) { item.number };
-                if (MartialService.OptionProblem(martial.martialType, martial.baseID, trial.ToArray(), false, oldCount) == null)
+                if (MartialRules.OptionProblem(trial.ToArray(), rows, false, oldCount) == null)
                 {
                     result.Add(item);
                 }
@@ -364,7 +366,7 @@ namespace MOD_sWP6UL
                 }
                 if (error != null)
                 {
-                    RemakeRollback(unit, action, made, slot);
+                    RemakeRollback(unit, action, sole, made, slot);
                     tried = made;
                 }
             }
@@ -399,7 +401,7 @@ namespace MOD_sWP6UL
         }
 
         // 다시 만들기 실패: 새 것을 지우고 옛 것을 원래 칸에 되돌린다. 예외는 삼킨다(이미 실패한 길이다. RemakeFailText가 결과를 확인한다).
-        private static void RemakeRollback(WorldUnitBase unit, DataUnit.ActionMartialData oldAction, string made, int slot)
+        private static void RemakeRollback(WorldUnitBase unit, DataUnit.ActionMartialData oldAction, string sole, string made, int slot)
         {
             try
             {
@@ -409,7 +411,7 @@ namespace MOD_sWP6UL
                     unit.CreateAction(new UnitActionMartialUnequip(data.GetActionMartial(made)), false);
                 }
                 data.DelActionMartial(made);
-                if (slot >= 0 && !MartialService.IsEquipped(unit, oldAction.data.soleID))
+                if (slot >= 0 && !MartialService.IsEquipped(unit, sole))
                 {
                     unit.CreateAction(new UnitActionMartialEquip(oldAction, slot), false);
                 }

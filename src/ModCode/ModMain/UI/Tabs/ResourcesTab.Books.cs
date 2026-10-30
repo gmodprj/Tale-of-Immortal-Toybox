@@ -170,7 +170,7 @@ namespace MOD_sWP6UL
             Ui.Button("ResClear", content, "초기화", RightX + 502, y, 100, 38, new Action(ClearFilters));
             float y2 = y + 44;
             Ui.Label(content, "경지", RightX, y2, 50, 38, 18);
-            NumberChips.Draw(content, "ResGrade", 1, 10, RightX + 50, y2, 38, 42, 38, BookGrade, g => { bookGrade = g; Changed(); });
+            NumberChips.Draw(content, "ResGrade", 1, 10, RightX + 50, y2, 38, 42, 38, BookGrade, grade => { bookGrade = grade; Changed(); });
             Ui.Label(content, "최소 품질", RightX + 486, y2, 90, 38, 18);
             for (int q = 1; q <= 6; q++)
             {

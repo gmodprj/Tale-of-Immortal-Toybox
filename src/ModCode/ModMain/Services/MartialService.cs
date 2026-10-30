@@ -472,13 +472,19 @@ namespace MOD_sWP6UL
         public static string OptionProblem(MartialType type, int baseId, int[] options, bool anySlot = false, int slotFrom = 0)
         {
             // 게임 행을 PrefixRow로 바꾸고 판정은 MartialRules(순수. 문구는 그대로. 05 문서 93절).
+            return MartialRules.OptionProblem(options, RowsOf(type, baseId), anySlot, slotFrom);
+        }
+
+        // 그 기술의 옵션 행 전부를 순수 판정용 레코드로. 여러 조합을 판정할 때는 한 번만 만들어 MartialRules.OptionProblem에 넘긴다(최종 리뷰: 호출마다 만들면 O(N²)).
+        internal static List<PrefixRow> RowsOf(MartialType type, int baseId)
+        {
             var rows = new List<PrefixRow>();
             var items = g.conf.battleSkillPrefixValue.GetItems((int)type, baseId);
             for (int i = 0; items != null && i < items.Count; i++)
             {
                 rows.Add(RowOf(items[i]));
             }
-            return MartialRules.OptionProblem(options, rows, anySlot, slotFrom);
+            return rows;
         }
 
         // 게임의 옵션 행을 순수 판정이 쓰는 레코드로.

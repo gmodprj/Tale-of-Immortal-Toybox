@@ -248,7 +248,7 @@ namespace MOD_sWP6UL
                 skillGrade = Math.Max(1, FateService.CurrentGrade(target));
             }
             Ui.Label(content, "경지", 0, y + 46, 60, 36, 18).color = Ui.Dim;
-            NumberChips.Draw(content, "SkillGrade", 1, 10, 60, y + 46, 46, 50, 36, skillGrade, g => { skillGrade = g; Redraw(); });
+            NumberChips.Draw(content, "SkillGrade", 1, 10, 60, y + 46, 46, 50, 36, skillGrade, grade => { skillGrade = grade; Redraw(); });
             // 수십 개를 한 번에 넣고 하나씩 망각해야 되돌린다. 두 번 눌러 확인한다(리뷰 U2).
             Confirm.Button("SkillLearnAll", content, SkillCatalog.Kinds[skillKind].Tab + " 모두 배우기", "정말 모두 배우기", 580, y + 46, 240, 36, "skill-learn-all",
                 SkillCatalog.Kinds[skillKind].Tab + "의 배울 수 있는 기술을 모두 넣습니다(하나씩 망각해야 되돌립니다). 한 번 더 누르면 실행합니다.",
