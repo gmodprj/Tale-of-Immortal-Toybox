@@ -2937,6 +2937,12 @@ switch ($Part) {
     function Equips { ((Cmd 'tbequips' 300) -replace '^tbequips -> ', '').Trim() }
     # 칸에 쓰고 다른 칸으로 포커스를 옮겨 저장한다(Enter 키는 화면 밖에서 빠질 때가 있다. 인계 6절).
     function SetOwned([int]$id, [int]$n) { Cmd "uifocus ResOwned$id" | Out-Null; Cmd "ui set ResOwned$id $n" | Out-Null; Cmd 'uifocus ItemQuery' | Out-Null; Start-Sleep -Milliseconds 400 }
+    # 줄이기는 Enter로 묻고 같은 값의 Enter로 확인한다(05 문서 89절). Enter 키가 화면 밖에서 빠지면 한 번 더 보낸다. 물은 뒤 칸에는 그 값이 미리 들어 있다.
+    function LowerOwned([int]$id, [int]$n) {
+      Cmd "uifocus ResOwned$id" | Out-Null; Cmd "ui set ResOwned$id $n" | Out-Null; Key 0x0D
+      if ((Said) -notmatch '개로 줄입니다') { Cmd "uifocus ResOwned$id" | Out-Null; Cmd "ui set ResOwned$id $n" | Out-Null; Key 0x0D }
+      Cmd "uifocus ResOwned$id" | Out-Null; Key 0x0D; Start-Sleep -Milliseconds 400
+    }
     function Show([string]$q) { Cmd "ui set ItemQuery $q" | Out-Null; Start-Sleep -Milliseconds 300 }
     function Said { Cmd 'uistate' 200 }
     $logged = BagLines
@@ -2946,9 +2952,21 @@ switch ($Part) {
     Check 'the owned cell is a number field with the count' ((Cmd 'uitext ResOwned1011011') -match "text='10'") (Cmd 'uitext ResOwned1011011')
     SetOwned 1011011 25
     Check 'raising the count gives the difference' ((Held 1011011) -eq 25) "held=$(Held 1011011)"
+    # 줄이기(05 문서 89절): 떠나기로는 적용되지 않고 칸이 되돌아온다, 같은 값으로 떠나면 아무 말 없음, Enter는 먼저 묻고, 다른 단추를 누르면 대기가 풀린다.
     SetOwned 1011011 7
+    Check 'lowering by leaving the cell does nothing' ((Held 1011011) -eq 25 -and (Cmd 'uitext ResOwned1011011') -match "text='25'") "held=$(Held 1011011) | $(Cmd 'uitext ResOwned1011011')"
+    Press 'ResClear' | Out-Null; Show '1011011'
+    SetOwned 1011011 25
+    Check 'leaving with the same value says nothing' ((Said) -notmatch '이미 25개') (Said)
+    Cmd 'uifocus ResOwned1011011' | Out-Null; Cmd 'ui set ResOwned1011011 7' | Out-Null; Key 0x0D
+    if ((Said) -notmatch '개로 줄입니다') { Cmd 'uifocus ResOwned1011011' | Out-Null; Cmd 'ui set ResOwned1011011 7' | Out-Null; Key 0x0D }
+    Check 'the first enter on a lower value only asks' ((Held 1011011) -eq 25 -and (Said) -match '7개로 줄입니다') "held=$(Held 1011011) | $(Said)"
+    Check 'the asked value is left in the cell' ((Cmd 'uitext ResOwned1011011') -match "text='7'") (Cmd 'uitext ResOwned1011011')
+    Press 'ResClear' | Out-Null; Show '1011011'
+    Check 'another button clears the pending lowering' ((Held 1011011) -eq 25 -and (Cmd 'uitext ResOwned1011011') -match "text='25'") (Cmd 'uitext ResOwned1011011')
+    LowerOwned 1011011 7
     Check 'lowering the count removes the difference' ((Held 1011011) -eq 7) "held=$(Held 1011011)"
-    SetOwned 1011011 0
+    LowerOwned 1011011 0
     Check 'zero removes all of it' ((Held 1011011) -eq 0) "held=$(Held 1011011)"
     SetOwned 1011011 3
     Check 'it can be put back from zero' ((Held 1011011) -eq 3) "held=$(Held 1011011)"
@@ -2958,9 +2976,9 @@ switch ($Part) {
     $e0 = Equips
     Show '1011052'
     Check 'a slotted stack shows its count' ((Cmd 'uitext ResOwned1011052') -match "text='7'") (Cmd 'uitext ResOwned1011052')
-    SetOwned 1011052 3
+    LowerOwned 1011052 3
     Check 'a slotted stack can be lowered' ((Held 1011052) -eq 3 -and (Equips) -eq $e0) "held=$(Held 1011052) equips=$(Equips)"
-    SetOwned 1011052 0
+    LowerOwned 1011052 0
     Check 'a slotted stack keeps one and says so' ((Held 1011052) -eq 1 -and (Equips) -eq $e0 -and (Said) -match '장착 중인 1개는 그대로') "held=$(Held 1011052) | $(Said)"
 
     # 법보 셋, 하나 장착: 버리기는 두 번 누르기이고 장착한 것은 남는다.
@@ -2987,7 +3005,7 @@ switch ($Part) {
     Show '3031101'
     Press 'ResDrop3031101' | Out-Null
     Check 'the drop question counts the raised one' ((Said) -match '강화·옵션이 붙은 것 1개 포함') (Said)
-    SetOwned 3031101 2
+    LowerOwned 3031101 2
     $left = @([regex]::Matches((Cmd 'tbbag 3031101' 500), 'sole=(\w+)') | ForEach-Object { $_.Groups[1].Value })
     Check 'lowering removes the weaker one first' ($left.Count -eq 2 -and $left -contains $new[0] -and $left -contains $soles[0] -and $left -notcontains $new[1]) "left=$($left -join ',') raised=$($new[0]) plain=$($new[1])"
     Check 'no callback exception in the log' ((Traps) -eq $traps)
