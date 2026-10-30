@@ -3841,3 +3841,37 @@ Critical·Important 없음. 사소한 것 일곱 가운데 하나를 효과로 �
 - 일격의 동료 대상(87.5절): `UnitType`에 `PlayerNPC = 2`가 있다. `BattleService.OnHitCore`의 일격 분기는 맞는 쪽의 `unitType`을 보지 않는다. `hitUnit.data.unitType`이 `Player`·`PlayerNPC`이면 걸지 않는 가드 한 줄이 안전장치가 된다(묶음 1).
 - 전투 단위를 포인터로만 구분(86.4절): `UnitDataBase`에 고유 번호를 `types.txt`에서 찾지 못했다. 전투마다 상태를 비우는 쪽으로(13 문서 7절 묶음 2, A2·A4와 함께).
 - 하지 않은 것: 편집기를 뺀 회차의 빈 선택지 대화(84.4절. 무작위 사건), 넘친 가방에서 아이템 얻기(84.4절. `-NoEditor`에는 개발 명령이 없다), 옵션 행 없는 기술의 `대도까지…` 화면(83.5절. 보일 길이 없다), 83.6절의 고치기 전 실패 확인(고친 뒤 검사가 통과한다).
+
+## 89. 작은 수정 2차 — 보유 칸·세이브 전환·문구 (2026-10-30 추가)
+
+13 문서 7절의 묶음 1. 사용자 지시 "묶음 1 시작"(B2는 "보유 칸의 줄이기는 Enter + 확인"). 계획 `docs/superpowers/plans/2026-10-30-small-fixes-2.md`, 브랜치 `fix/small-fixes-2`, 회차 `sf2-a`·`b`·`c-1030`(모두 고정본, `-Exclude 2814696167`, 끝 `SAVE RESTORED AND IDENTICAL`). 게임 설치는 하지 않았다.
+
+### 89.1 고친 것
+
+- **A1** 세이브를 떠날 때(`ModMain.ResetState`) 성공·드롭 탭의 훔치기·관계 발전·드롭 배수·참오 최대도 끈다(`SuccessService.Reset`). 전에는 배율·무적·날짜 고정만 껐다.
+- **A3** `Init`·`Destroy`의 `BattleService.OnInit/OnDestroy`를 try로 감싸, 던져도 뒤의 초기화·정리가 돈다.
+- **B1·B2 보유 칸**(자원 탭 `ResOwned<번호>`): 판정을 순수 함수 `NumberFieldRules`(단위 시험 16줄)로 뗐다.
+  - `NumberField`: 칸을 떠날 때 마지막으로 넘긴 값과 같은 수면 넘기지 않는다(전에는 눌렀다 떠나기만 해도 "이미 n개입니다"와 함께 탭이 다시 그려졌다). Enter의 같은 값은 그대로 넘긴다. 새 오버로드 `Build(…, Action<int, bool> onSubmit, bool commitOnEndEdit)`의 둘째 인자가 Enter 여부.
+  - 보유 칸 규칙(`DecideOwned`): 같은 수 → 아무것도 안 함. 늘리기 → Enter·떠나기 모두 적용. 줄이기 → 떠나기는 무시하고 칸을 지금 수로 되돌림, Enter는 먼저 묻고(`BagService.LowerQuestion`: "<이름>: n개에서 m개로 줄입니다(k개 버림). 같은 값에서 Enter를 한 번 더 누르세요.") 칸에 그 값을 남긴 채 다시 그림, 같은 값의 Enter로 실행. 다른 단추를 누르면 대기가 풀린다(`Confirm` 키 `res-set-<번호>`).
+- **B8** `EditorWindow.ResetViews`: 세이브를 떠날 때 모든 탭의 하위 화면(강화·기술 추가·대도까지·전승·제작 재료·세부)을 닫고 결과 문구·확인 대기를 지운다.
+- **B9** 하위 화면의 `돌아가기`(`EditorTab.Pop`)가 결과 문구를 지우지 않는다(`Refresh`).
+- **B3** 기술 추가 화면의 안내 글을 `Ui.Wrapped` 두 줄로(창 밖으로 넘치던 것).
+- **B4** 법보 강화 화면의 `경지 10까지`는 두 번 누르기(`정말 올리기`. 경지는 내리는 길이 없다).
+- **B5·B11** 즐겨찾기 비급 수량 칸도 떠날 때 저장. 안내 "수량 칸에 쓰고 Enter를 누르거나 다른 곳을 누르면 저장됩니다."
+- **일격 대상**(13 문서 2.6절) `RateGroups.OneHitApplies(공격자, 대상)`: 플레이어의 타격이고 맞은 쪽이 플레이어(1)·동료(`PlayerNPC`=2)가 아닐 때만. 단위 시험 4줄.
+- 문구: 성공·드롭 탭 안내에서 내부 문서 번호 제거(B13), 공법 탭 막힌 수련 글 "수련 단계 n/12 · 까닭"(B16), 도호 표 머리글 "버튼" → "동작"(B20).
+
+### 89.2 검사
+
+- `ui-check bagcount`: 줄이기를 `LowerOwned`(Enter → 확인 문구 → 같은 값 Enter)로 바꾸고, 떠나며 줄이기 무시·같은 값으로 떠나기 조용·첫 Enter는 묻기만·대기 값이 칸에 남음·다른 단추로 대기 해제 다섯 줄을 더했다. **깨끗한 회차의 첫 검사로**(고정본 1011011 x10 전제. `favorites`·`items` 뒤에 돌리면 수가 달라 실패한다).
+- `treasure-check forge-ui`: `grade to 10 asks first`(첫 누름은 묻기만, 단추 글 `정말 올리기`) 추가.
+- 회차 `sf2-a-1030`: `ui-check` `base`·`tabs`·`confirm`·`favorites`·`books-ui` FAIL 0(`bagcount`는 앞 검사 때문에 FAIL 6 → `sf2-b`에서 다시). 손 검증: 비급 수량 칸을 떠나면 2 → 4 저장·`지급 x4`·같은 값은 조용(B5), 기술 추가 화면 캡처 `.devremote\check-skill-add-wrap.png`(B3), 하위 화면에서 `모두 배우기`를 한 번 눌러 생긴 문구가 `돌아가기` 뒤에도 남음(B9).
+- 회차 `sf2-b-1030`: `bagcount` FAIL 0, `treasure-check forge-ui` FAIL 0, `mastery-check ui` FAIL 0, `trainer4-check ui`·`onehit` FAIL 0, `ui-check success` FAIL 0. `treasure-check service`는 `bagcount`가 남긴 법보 때문에 고정본 전제가 깨져 FAIL 2(이 묶음은 `TreasureService`를 고치지 않아 다시 돌리지 않음).
+- 회차 `sf2-c-1030`: `artifact-check hud-battle-slots` FAIL 0, 경고 없음 — 13 문서 2.5절의 `artifact hud drift (전투 화면, mask=5)`는 깨끗한 회차에서 재현되지 않았다(어제는 같은 회차에서 전투를 두 번 다녀온 뒤에 났다). 미확인으로 둔다.
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(NumberFieldRules 16, OneHitApplies 4 추가).
+
+### 89.3 확인하지 못한 것
+
+- A1·B8은 세이브 전환(주 화면으로 나가 다른 세이브 열기)을 회차 도구가 만들지 못해 코드로만 확인했다. 사용자 플레이에서: 성공·드롭 탭을 켠 채 다른 세이브를 열면 꺼져 있어야 하고, 하위 화면을 연 채 세이브를 바꾸면 탭의 첫 화면이 보여야 한다.
+- 일격의 동료 제외는 동료가 함께 싸우는 전투를 도구로 열 수 없어 단위 시험과 코드로만.
+- 보유 칸의 Enter는 `Key 0x0D`가 화면 밖 게임에서 빠질 때가 있어 검사가 한 번 더 보낸다(인계 6절). 실제 키보드에서는 해당 없음.
