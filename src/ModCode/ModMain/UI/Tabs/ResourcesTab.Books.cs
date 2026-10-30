@@ -214,12 +214,13 @@ namespace MOD_sWP6UL
             Ui.Wrapped(row, "비급·" + SkillCatalog.Kinds[kindIndex].Tab, ColKind, 0, KindW, h, 16);
             Ui.Label(row, minLevel + "+", ColLevel, 0, 44, h, 16);
             Ui.Label(row, skill == null ? "-" : BagBooks(baseId).ToString(), ColOwned, 0, 60, h, 16);
+            // 아이템 수량 칸처럼 칸을 떠날 때도 저장한다(13 문서 B5. 같은 값으로 떠나면 NumberField가 넘기지 않는다).
             NumberField.Build(row, "FavBookAmount" + tail, ColAmount, (h - (RowH - 4)) / 2, AmountW, RowH - 4, f.Amount.ToString(), null, new Action<int>(v =>
             {
                 string text;
                 FavoriteStore.SetBookAmount(baseId, grade, minLevel, v, out text);
                 Say(text);
-            }));
+            }), true);
             Ui.Button("FavBookGive" + tail, row, "지급 x" + f.Amount, ColGive, 2, GiveW, RowH - 4,
                 new Action(() => GiveBook(kindIndex, skill, grade, minLevel, FavoriteStore.BookAmountOf(baseId, grade, minLevel))), skill != null);
         }
