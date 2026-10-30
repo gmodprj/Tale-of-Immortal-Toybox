@@ -329,7 +329,9 @@ namespace MOD_sWP6UL
 
         private void DrawGroups(HashSet<int> owned)
         {
-            Dictionary<string, int> counts = ItemCatalog.CountByGroup(filter, owned);
+            Dictionary<string, int> counts;
+            int[] unusedKinds;
+            ItemCatalog.Counts(filter, owned, null, out counts, out unusedKinds);
             float y = TopH + 8;
             GroupButton(ItemGroups.FavKey, "★ 즐겨찾기", FavCount(owned), y);
             y += GroupStep;
@@ -380,12 +382,14 @@ namespace MOD_sWP6UL
                 return y + 44;
             }
             ItemGroups.Group group = ItemGroups.ByKey(groupKey);
-            int[] counts = ItemCatalog.CountByKind(group, filter, owned);
+            Dictionary<string, int> unusedGroups;
+            int[] counts;
+            ItemCatalog.Counts(filter, owned, group, out unusedGroups, out counts);
             // 칩의 폭은 거르기 전의 수로 잰다. 거르기가 비어 보유·가방과 무관하므로 그룹마다 한 번만 센다(묶음 3)
             int[] widest;
             if (!widestByGroup.TryGetValue(group.Key, out widest))
             {
-                widest = ItemCatalog.CountByKind(group, new ItemCatalog.Filter(), owned);
+                ItemCatalog.Counts(new ItemCatalog.Filter(), owned, group, out unusedGroups, out widest);
                 widestByGroup[group.Key] = widest;
             }
             var names = new List<string> { "전체" };

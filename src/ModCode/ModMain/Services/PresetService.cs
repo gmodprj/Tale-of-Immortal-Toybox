@@ -338,18 +338,12 @@ namespace MOD_sWP6UL
         // 그 종류의 기술 목록에서 번호로 찾는다. 없으면 null.
         private static SkillCatalog.Entry Entry(MartialType type, int baseId)
         {
+            // 번호로 바로 찾는다(13 문서 R8: 부분 문자열 검색 뒤 거르던 것).
             for (int kind = 0; kind < SkillCatalog.Kinds.Length; kind++)
             {
-                if (SkillCatalog.Kinds[kind].Type != type)
+                if (SkillCatalog.Kinds[kind].Type == type)
                 {
-                    continue;
-                }
-                foreach (SkillCatalog.Entry entry in SkillCatalog.Find(kind, baseId.ToString()))
-                {
-                    if (entry.BaseId == baseId)
-                    {
-                        return entry;
-                    }
+                    return SkillCatalog.Get(kind, baseId);
                 }
             }
             return null;

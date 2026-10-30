@@ -81,22 +81,19 @@ namespace MOD_sWP6UL
         // 이 심법을 장착하기에 수도 점수가 모자라면 모자라지 않을 만큼만 올린다(게임의 거부 코드 61).
         private static void RaisePoints(WorldUnitBase me, string sole, Points points)
         {
-            AttributeDef def = AttributeCatalog.All.Find(d => d.Key == "abilityPoint");
-            var saved = me.data.unitData.propertyData;
+            // 올리기 자체는 MasteryService.RaiseAbilityPoints(한 벌. 13 문서 R5). 여기서는 처음 값과 마지막 값만 적는다.
             int cost = MartialService.Martial(me, sole).martialInfo.abilityPoint;
-            int used = me.data.dynUnitData.GetCurUseAbilityPoint();
-            int total = def.DynValue(me.data.dynUnitData);
-            if (used + cost <= total)
+            int before, want, now;
+            string reply;
+            if (!MasteryService.RaiseAbilityPoints(me, cost, out before, out want, out now, out reply))
             {
                 return;
             }
-            int before = def.Get(saved);
-            EditService.SetAttribute(me, def, before + (used + cost - total));
             if (points.Before < 0)
             {
                 points.Before = before;
             }
-            points.After = def.Get(saved);
+            points.After = now;
         }
 
         // 공법·심법 한 줄: 같은 것이 없으면 그 경지로 만들고, 칸을 비운 뒤 장착한다.

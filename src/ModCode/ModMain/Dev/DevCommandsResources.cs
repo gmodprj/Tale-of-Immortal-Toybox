@@ -89,7 +89,9 @@ namespace MOD_sWP6UL
 
         private static string Groups()
         {
-            Dictionary<string, int> counts = ItemCatalog.CountByGroup(new ItemCatalog.Filter(), null);
+            Dictionary<string, int> counts;
+            int[] unusedKinds;
+            ItemCatalog.Counts(new ItemCatalog.Filter(), null, null, out counts, out unusedKinds);
             int sum = 0;
             var sb = new StringBuilder();
             foreach (ItemGroups.Group group in ItemGroups.Groups)

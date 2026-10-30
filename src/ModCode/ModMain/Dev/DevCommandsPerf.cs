@@ -155,7 +155,9 @@ namespace MOD_sWP6UL
             t.Stop("grade", grade);
 
             t.Start();
-            Dictionary<string, int> groups = ItemCatalog.CountByGroup(new ItemCatalog.Filter(), owned);
+            Dictionary<string, int> groups;
+            int[] unusedKinds;
+            ItemCatalog.Counts(new ItemCatalog.Filter(), owned, null, out groups, out unusedKinds);
             t.Stop("groups", groups[ItemGroups.AllKey]);
 
             // 자원 탭 "전체" 그룹의 Measure: 줄마다 이름(380, 19)과 종류(160, 16)의 높이.
