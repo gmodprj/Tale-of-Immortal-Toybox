@@ -590,6 +590,12 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 비급 값 문자열이 세트 번호만 든 기록({"suitID":번호})인지(13 문서 R1: 세 곳이 같은 정규식을 쓰던 것).
+        private static bool IsPlainSuitRecord(string values)
+        {
+            return Regex.IsMatch(values, "^\\{\"suitID\":\\d+\\}$");
+        }
+
         // 심법 비급에 세트 번호를 쓴다. 실측: 세트 번호는 값 배열이 아니라 valuesStr의 JSON {"suitID":번호}에 있고,
         // 장착한 심법의 종류가 아니라 이 번호로 세트가 켜진다(프리셋 스펙 3절). 다른 글이 적혀 있으면 건드리지 않는다.
         public static bool SetSuit(DataProps.PropsData props, int suitId)
@@ -606,7 +612,7 @@ namespace MOD_sWP6UL
                 return false;
             }
             string now = props.valuesStr ?? "";
-            if (now.Length > 0 && !Regex.IsMatch(now, "^\\{\"suitID\":\\d+\\}$"))
+            if (now.Length > 0 && !IsPlainSuitRecord(now))
             {
                 return false;
             }
@@ -860,7 +866,7 @@ namespace MOD_sWP6UL
                 return backupError + " 변경을 중단했습니다.";
             }
             string oldValues = action.data.valuesStr ?? "";
-            if (oldValues.Length > 0 && !Regex.IsMatch(oldValues, "^\\{\"suitID\":\\d+\\}$"))
+            if (oldValues.Length > 0 && !IsPlainSuitRecord(oldValues))
             {
                 return name + ": 다른 정보가 적힌 비급이라 전승을 쓰지 않았습니다.";
             }
@@ -894,7 +900,7 @@ namespace MOD_sWP6UL
             {
                 return name + ": 전승이 없습니다.";
             }
-            if (!Regex.IsMatch(now, "^\\{\"suitID\":\\d+\\}$"))
+            if (!IsPlainSuitRecord(now))
             {
                 return name + ": 다른 정보가 적힌 비급이라 전승을 떼지 않았습니다.";
             }

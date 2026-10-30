@@ -66,6 +66,7 @@ namespace MOD_sWP6UL
             KoreanTextTests();
             RateGroupsTests();
             NumberFieldRulesTests();
+            RateUnitRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -284,6 +285,13 @@ namespace MOD_sWP6UL
             Check("onehit: player hitting an ally does not", !RateGroups.OneHitApplies(1, 2));
             Check("onehit: player hitting the player does not", !RateGroups.OneHitApplies(1, 1));
             Check("onehit: a monster hitting anything does not", !RateGroups.OneHitApplies(3, 3) && !RateGroups.OneHitApplies(4, 1));
+            // 배율 수치 함수(스펙 2026-10-30-rate-service-cleanup 3절). 반올림 방식이 함수마다 다른 것은 기존 동작 그대로다.
+            Check("scale value: banker's rounding and cap", RateGroups.ScaleValue(5, 0.5f) == 2 && RateGroups.ScaleValue(7, 0.5f) == 4 && RateGroups.ScaleValue(int.MaxValue, 2f) == int.MaxValue && RateGroups.ScaleValue(0, 2f) == 0 && RateGroups.ScaleValue(-3, 2f) == -3);
+            Check("scale day: half rounds away from zero", RateGroups.ScaleDay(5, 0.5f) == 3 && RateGroups.ScaleDay(1, 0.25f) == 0 && RateGroups.ScaleDay(0, 0.5f) == 0);
+            Check("scale skill value: 25 at half is 13", RateGroups.ScaleSkillValue(25, 0.5f) == 13 && RateGroups.ScaleSkillValue(-1, 0.5f) == -1);
+            Check("cooldown rate value: capped at max", RateGroups.CooldownRateValue(100, 10000f, 100000000) == 1000000 && RateGroups.CooldownRateValue(100, 2000000f, 100000000) == 100000000 && RateGroups.CooldownRateValue(0, 2f, 100) == 0);
+            Check("taken damage: never below 1", RateGroups.TakenDamage(1, 0.5f) == 1 && RateGroups.TakenDamage(10, 0.25f) == 2 && RateGroups.TakenDamage(0, 0.5f) == 0);
+            Check("dealt damage: negative untouched, overflow capped", RateGroups.DealtDamage(-5, 100) == -5 && RateGroups.DealtDamage(0, 100) == 0 && RateGroups.DealtDamage(30, 10) == 300 && RateGroups.DealtDamage(int.MaxValue, 2) == int.MaxValue);
             Check("durable: only a drop on an owned artifact is blocked", RateGroups.DurableBlocked(100, 98, true, true) && !RateGroups.DurableBlocked(100, 98, false, true) && !RateGroups.DurableBlocked(98, 100, true, true) && !RateGroups.DurableBlocked(100, 98, true, false));
             Check("cooldown rate: an off row that was never applied is not written", !RateGroups.WritesRate(false, false));
             Check("cooldown rate: an on row is written, and an off row once to restore", RateGroups.WritesRate(true, false) && RateGroups.WritesRate(true, true) && RateGroups.WritesRate(false, true));
@@ -706,6 +714,30 @@ namespace MOD_sWP6UL
             Check("numberfield: a rejected submit keeps the old committed text", NumberFieldRules.NextCommitted("25", "7", false) == "25");
             Check("numberfield: an accepted submit commits the new text", NumberFieldRules.NextCommitted("25", "30", true) == "30");
             Check("numberfield: after a rejected blur the same value still submits", NumberFieldRules.Decide("7", NumberFieldRules.NextCommitted("25", "7", false), false, true, out v) == NumberFieldRules.Action.Submit);
+        }
+
+        // 전투 단위 상태의 전환 규칙(스펙 2026-10-30-rate-service-cleanup 2절, 13 문서 A2·A4·2.6절).
+        private static void RateUnitRulesTests()
+        {
+            Check("unit: out of battle with written values holds", RateUnitRules.Decide(false, false, true, true, false, true) == RateUnitRules.Step.Skip);
+            Check("unit: out of battle without written values forgets", RateUnitRules.Decide(false, true, true, false, false, true) == RateUnitRules.Step.Forget);
+            Check("unit: out of battle with nothing held skips", RateUnitRules.Decide(false, true, false, false, false, true) == RateUnitRules.Step.Skip);
+            Check("unit: first sight with a row on captures", RateUnitRules.Decide(true, true, false, false, false, true) == RateUnitRules.Step.Capture);
+            Check("unit: first sight with nothing on skips", RateUnitRules.Decide(true, false, false, false, false, true) == RateUnitRules.Step.Skip);
+            Check("unit: another pointer with a row on captures", RateUnitRules.Decide(true, true, true, true, false, true) == RateUnitRules.Step.Capture);
+            Check("unit: another pointer with nothing on forgets", RateUnitRules.Decide(true, false, true, true, false, true) == RateUnitRules.Step.Forget);
+            Check("unit: same pointer but changed values captures again", RateUnitRules.Decide(true, true, true, true, true, false) == RateUnitRules.Step.Capture);
+            Check("unit: same pointer but changed values with nothing on forgets", RateUnitRules.Decide(true, false, true, true, true, false) == RateUnitRules.Step.Forget);
+            Check("unit: same pointer intact applies", RateUnitRules.Decide(true, true, true, true, true, true) == RateUnitRules.Step.Apply);
+            Check("unit: same pointer, nothing on, written values apply (restore)", RateUnitRules.Decide(true, false, true, true, true, true) == RateUnitRules.Step.Apply);
+            Check("move: attach only when on and not attached", RateUnitRules.MoveAttachNeeded(true, false) && !RateUnitRules.MoveAttachNeeded(true, true) && !RateUnitRules.MoveAttachNeeded(false, false));
+            Check("move: detach only when off and attached", RateUnitRules.MoveDetachNeeded(false, true) && !RateUnitRules.MoveDetachNeeded(true, true) && !RateUnitRules.MoveDetachNeeded(false, false));
+            Check("unit: same pointer, held but nothing written yet applies", RateUnitRules.Decide(true, true, true, false, true, true) == RateUnitRules.Step.Apply);
+            // 줄 단위 원래 값(최종 리뷰 Important 1): 안 쓴 줄은 지금 값이 원래 값, 쓴 줄은 마지막으로 쓴 값 그대로면 원래 값 유지, 다르면 지금 값.
+            Check("row original: a row not written yet takes the current value", RateUnitRules.RowOriginal(false, 100, 250, 0) == 250);
+            Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
+            Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
+            Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
         }
     }
 }
