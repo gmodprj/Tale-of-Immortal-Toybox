@@ -305,7 +305,10 @@ namespace MOD_sWP6UL
                 bool held = cooldownUnit != IntPtr.Zero;
                 bool applied = skillApplied || itemApplied;
                 bool same = unit != null && unit.Pointer == cooldownUnit;
-                bool intact = !applied || (same && skill.baseValue == skillWritten && step.baseValue == stepWritten && item.baseValue == itemWritten);
+                // 쓴 줄의 값만 비교한다. 안 쓴 줄(그 Written은 낡은 값)까지 비교하면 매 프레임 "바뀜"으로 보여 곱한 값을 원래 값으로 다시 뜬다(회차 rsc-a-1030에서 1e8까지 겹침).
+                bool intact = !applied || (same
+                    && (!skillApplied || (skill.baseValue == skillWritten && step.baseValue == stepWritten))
+                    && (!itemApplied || item.baseValue == itemWritten));
                 switch (RateUnitRules.Decide(inBattle, any, held, applied, same, intact))
                 {
                     case RateUnitRules.Step.Skip:
