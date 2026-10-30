@@ -801,6 +801,12 @@ namespace MOD_sWP6UL
             Check("breakthrough: one needed takes the last kind", string.Join(",", BreakthroughRules.NeedItems("1_2_3", 1)) == "3");
             Check("breakthrough: several needed cycle from the front", string.Join(",", BreakthroughRules.NeedItems("1_2", 3)) == "1,2,1" && BreakthroughRules.NeedItems("1_2", 0).Count == 0 && BreakthroughRules.NeedItems("", 2).Count == 0);
             Check("breakthrough: treasures cycle the candidates", string.Join(",", BreakthroughRules.Treasures("7_8", 3)) == "7,8,7" && BreakthroughRules.Treasures("", 2).Count == 0);
+            // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.
+            float[] xs = new float[3], ys = new float[3];
+            float h = ChipBar.Layout(new float[] { 100, 100, 100 }, 250, 34, 6, xs, ys);
+            Check("chip bar: wraps at the area width", xs[0] == 0 && xs[1] == 106 && xs[2] == 0 && ys[2] == 40 && h == 74, string.Join(",", xs) + "/" + string.Join(",", ys) + "/" + h);
+            h = ChipBar.Layout(new float[] { 100, 100, 100 }, 0, 34, 6, xs, ys);
+            Check("chip bar: one line when the area is unbounded", xs[2] == 212 && ys[2] == 0 && h == 34);
         }
 
         // 임시 파일에 쓴 뒤 바꿔치기(13 문서 A7, 05 문서 92절). 번역표·config.txt 같은 사용자 파일이 쓰는 도중 사라지지 않게.

@@ -28,14 +28,15 @@ namespace MOD_sWP6UL
 
         // 탭에 들어올 때와 편집기를 열 때 폴더를 다시 본다. 폴더의 표지가 같으면 지난 목록을 그대로 쓰고(묶음 3),
         // 밖에서 파일을 넣거나 고치거나 지웠으면 다시 읽는다.
+        // 열 때·보일 때는 목록을 비우기만 하고 실제로 그릴 때 읽는다(Draw의 presets == null. 13 문서 P5: Insert마다 디스크를 읽던 것).
         public override void OnShow()
         {
-            LoadPresets();
+            presets = null;
         }
 
         public override void OnOpen()
         {
-            LoadPresets();
+            presets = null;
         }
 
         private void LoadPresets()

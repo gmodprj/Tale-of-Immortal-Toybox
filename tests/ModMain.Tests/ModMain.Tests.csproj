@@ -42,5 +42,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\MartialRules.cs" Link="Linked\MartialRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\PresetRules.cs" Link="Linked\PresetRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\BreakthroughRules.cs" Link="Linked\BreakthroughRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\UI\Widgets\ChipBar.cs" Link="Linked\ChipBar.cs" />
   </ItemGroup>
 </Project>
