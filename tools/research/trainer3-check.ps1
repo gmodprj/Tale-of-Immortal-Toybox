@@ -3,15 +3,14 @@
 # 고정본 플레이어의 심법: 81001~86001 여섯, 세트 없음.
 #   -Part suit      전승 서비스(msole·msuits·msuit·msuitstate·mvalues): 붙이기·떼기·구성원 아님 거부·다른 글 거부·NPC 대상.
 #   -Part suit-ui   공법 탭의 전승 글·전승… 하위 화면(붙이기·떼기), 무예에는 단추 없음. 캡처 check-suit.png.
+#   -Part persist → session.ps1 -Restart → -Part persist-restart   전승·참오 결과가 저장 후에도 남는지.
 #   -Part realize   성공·드롭 탭의 참오 결과 최대: 꺼짐이면 게임 굴림 그대로, 켬이면 최대 품질 3·5·6 기술 모두 맨 위 값으로 확정, 공법 탭 품질 단추는 그대로, 모두 끄기.
 param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
-function LogHas([string]$word) { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 30 -Encoding UTF8 | Where-Object { $_ -match $word }).Count -gt 0 }
 function SoleOf([int]$base, [string]$who = 'me') { (Cmd "msole $base $who" 300) -replace '^msole .*? -> ', '' }
 function State([string]$sole, [string]$who = 'me') { Cmd "msuitstate $sole $who" 300 }
 # 그 이름의 버튼이 꺼져 있는지(누르면 "not interactable").
-function IsOffBtn([string]$name) { $p = Pos $name; (Rc "click $($p.x) $($p.y)" 300) -match 'not interactable' }
 
 switch ($Part) {
   'suit' {
@@ -59,7 +58,7 @@ switch ($Part) {
     } else {
       "INFO npc $npc has no ability with a suit: $abil"
     }
-    Check 'the change log has suit lines' (LogHas '전승')
+    Check 'the change log has suit lines' (LogHasLine '전승')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'suit-ui' {
@@ -75,10 +74,10 @@ switch ($Part) {
     $id = if ((Cmd "msuits $s85" 300) -match '-> (\d+):') { $Matches[1] } else { '0' }
     Press 'MartialSuitOpen' | Out-Null
     Check 'the suit screen lists the first suit' ((IsAt "SuitPick$id") -and (Cmd "uitext SuitRow$id") -match "\[$id\]") (Cmd "uitext SuitRow$id")
-    Check 'remove is off without a suit' ((Cmd 'uitext SuitRemove') -match "text=" -and (IsOffBtn 'SuitRemove'))
+    Check 'remove is off without a suit' ((Cmd 'uitext SuitRemove') -match "text=" -and (ButtonIsOff 'SuitRemove'))
     Press "SuitPick$id" | Out-Null
     Check 'pick from the screen applies the suit' ((State $s85) -match "suit=$id isSuit=true") (State $s85)
-    Check 'the current suit is off' (IsOffBtn "SuitPick$id")
+    Check 'the current suit is off' (ButtonIsOff "SuitPick$id")
     Shot 'suit'
     Press 'SuitRemove' | Out-Null
     Check 'remove from the screen' ((State $s85) -match 'suit=0 ') (State $s85)
@@ -156,7 +155,7 @@ switch ($Part) {
     Shot 'realize-off'
     Cmd 'realok' 2500 | Out-Null; Cmd 'uiclose MartialRealize' 500 | Out-Null
     Check 'no game window is left over' ((Cmd 'uilist' 300) -notmatch 'MartialRealize|Mask ') (Cmd 'uilist' 300)
-    Check 'the change log has realize lines' (LogHas '참오 결과 최대')
+    Check 'the change log has realize lines' (LogHasLine '참오 결과 최대')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'persist' {

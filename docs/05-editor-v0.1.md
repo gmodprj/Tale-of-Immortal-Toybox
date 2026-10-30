@@ -3932,3 +3932,50 @@ Critical 없음, Important 둘, 사소 여섯.
 
 - 새 규칙이 실제로 다르게 행동하는 상황(한 전투 안에서 `playerUnitCtrl`이 잠깐 사라졌다 다시 보임, 같은 주소에 새 단위) 은 도구로 만들 수 없다. 단위 시험과 코드로만.
 - 게임이 전투 중 `skillCDRate.baseValue`를 스스로 바꾸는 경우(버프 등. 미확인)가 있다면 `!intact` → `Capture`로 곱한 값을 원래 값으로 뜰 수 있다(이전 코드는 원래 값을 유지하고 덮어쓰기만 했다). 고정본 전투 셋(`combat`)과 선법·아이템·내구 검사에서는 보이지 않았다.
+
+## 91. 검사 도구 정리 — 공통 도우미, session.ps1 복원 빈틈, 시험 다섯 (2026-10-30 추가)
+
+13 문서 7절의 묶음 3(5.1절 C1~C6·C8~C11). 사용자 지시 "묶음 3 시작". 계획 `docs/superpowers/plans/2026-10-30-check-tools-cleanup.md`, 브랜치 `chore/check-tools-cleanup`. 검사의 판정은 바꾸지 않았다. 배포 코드는 바뀌지 않았다.
+
+### 91.1 `check-lib.ps1`의 공통 도우미(13 문서 C1·C8)
+
+검사 아홉에 복붙돼 있던 함수를 한 곳으로 모았다. 뜻이 다른 사본(`ui-check` combat의 `Num`은 못 읽으면 throw, `Has($cmd,$pattern)`, `artifact-check` costs의 `Num`은 기본 −999)은 각 검사에 남겼다.
+
+| 함수 | 뜻 | 대신한 사본 |
+|---|---|---|
+| `EnterBattleScene [수준=20] [-NoStart]` | `fight 1011` → 전투 진입(960,684) → 전투 개시(956,749. `-NoStart`면 안 누름) | trainer4·preset·ui-check combat의 `Into`, artifact의 `IntoBattle` 4벌(무적 `bgod on`은 호출부에 남김) |
+| `LeaveBattleScene [캡처 이름]` | 06 문서 8.0절의 규칙: 개시를 안 눌렀으면 누르고, `bend` 최대 3번, 결과 창의 확인 단추가 **맞을 때까지** 기다렸다 누르고, `MapMain`과 `inBattle=False`까지 기다림 | trainer4·preset·ui-check combat·artifact 3벌의 옛 `Leave`/`LeaveBattle`(확인 단추를 맞는지 안 보고 10번 누르고 `inBattle`을 안 기다리던 것), ui-check rates2-map·rates2-battle의 새 판 2벌 |
+| `LogHasLine <패턴>` | `changes.log` 마지막 40줄에 패턴 | `LogHas` 4벌(`-Tail` 20·30·40이 제각각 → 40) |
+| `ButtonIsOff <이름>` | 누르면 `not interactable`(켜져 있으면 실제로 눌림) | `IsOff`·`IsOffBtn` 4벌 |
+| `UiText <이름>`, `UiHas <이름>` | 글 요소의 글 / 있는지 | `T`·`Has`·`Text` 3벌 |
+| `NumIn <글> <패턴> [기본=-1]` | 첫 그룹을 수로 | trainer4의 `Num` |
+| `FieldsOf <글>` | `k=v` 쌍을 표로(값에 `=`가 들어도 됨 — preset-check 판) | `Fields` 3벌 |
+| `OpenEditorTab <번호>` | `editor` 뒤 `Tab<번호>` | `Tab` 5벌(ui-check itemuse·mpnone·success·combat, trainer4) |
+
+### 91.2 `session.ps1`(13 문서 C4·C5·C6)과 시험(C3)
+
+- `config.txt`가 회차 전에 없었으면 `-End`가 회차 중 생긴 파일을 지운다(`KeepFile/RestoreFile`, `CONFIG RESTORED (there was no file)`). 전에는 `.absent` 표식이 없어 남았다.
+- `-End`는 회차 표식(`park.flag`·`session.mode`)을 **복원이 끝난 뒤** 지운다. 전에는 복원 전에 지워, 복원 도중 멈춘 뒤 `-Restart`하면 `noeditor`·`release` 모드를 잃었다.
+- `-MakeFixture -From "…\"`처럼 끝 역슬래시가 붙어도 `Snapshot`의 상대경로가 어긋나지 않는다(`TrimEnd`).
+- `session.tests.ps1` 45 → 50: config 없던 회차(46), `martial-grid.txt` 복원(47), `-From` 끝 역슬래시(48), DLL 보관본 잔존 시 `-Begin` 거부(49), 복원 도중 실패 시 표식 유지(50. 복사본 자리에 파일을 둬 robocopy가 16으로 실패하게 함). 고치기 전 옛 `session.ps1`로 46·48·50이 FAIL, 고친 뒤 50/50 PASS. 47·49는 이미 되던 동작을 처음 덮었다.
+
+### 91.3 그 밖의 고침
+
+- `treasure-check`: 트램펄린 예외를 절대값(`-eq 0`)이 아니라 부분 시작 때 뜬 수와의 차이로 본다(C2. 다른 검사와 같은 꼴. `artifact`·`immortal`·`preset`은 "부분마다 깨끗한 회차" 전제라 그대로 둠).
+- `mastery-check persist`: sole을 `$env:TEMP`가 아니라 `.devremote\mastery-persist.txt`에 쓰고, 시작 때 앞 실행의 파일을 지운다(C10).
+- `trainer4-check`: 예열 명령 `ping`(없는 명령) → `uistate`(C11. 89절에서 함께 고침). 머리 주석 갱신: mastery(부분 여섯), trainer3(persist), treasure(give·forge-ui), check-lib(검사 아홉), trainer4(C9).
+
+### 91.4 회차 검증
+
+- 회차 `ctc-a-1030`: `trainer4-check ui`·`items`, `ui-check combat`(전투 셋) FAIL 0. `ctc-b`: `trainer4-check onehit`(전투 둘), `treasure-check service`·`forge-ui`(Traps 차이 판정) FAIL 0. `ctc-c`: `mastery-check persist` → `-Restart` → `persist-restart`(sole 파일이 `.devremote`에), `trainer3-check suit-ui` FAIL 0. `ctc-d`: `artifact-check hud-battle`이 전투 뒤 지도 복귀를 15초 안에 못 봐 FAIL 2(첫 전투 뒤 장면 적재가 길었다) → `LeaveBattleScene`이 30초까지 기다리고 결과 창이 남아 있으면 확인을 다시 누르게 고침. `ctc-e`: `hud-battle-slots` FAIL 0; `preset-check extras-battle`이 `Fields $x` 꼴 호출(11개)이 치환에서 빠져 멈춤 → 고침. `ctc-f`: `hud-one`·`hud-battle` FAIL 0(`hud`는 신기 셋이 켜진 세이브를 전제하는 부분이라 고정본 그대로는 FAIL 5 — 바뀐 코드 없음, 전제 위반). `ctc-g`: `preset-check extras`·`extras-battle`, `immortal-check catalog` FAIL 0. 일곱 회차 모두 `SAVE RESTORED AND IDENTICAL`.
+- `artifact-check costs`(06 5절 목록에 없던 부분)는 FAIL 3: 검사의 기대값(호천안 기술 영력 30 → 15)이 고정본 실측(393 → 197)과 다르다. 반감(393→197, 25000→12500, 12→6, 50→25)과 x1 복원은 맞게 보여 낡은 기대값으로 본다. 이 묶음 밖(남은 일).
+- `pwsh tools/DevRemote/session.tests.ps1` 51/51 PASS.
+- 최종 리뷰 뒤 회차 `ctc-h-1030`: 판정이 넓어진 부분 — `mastery-check ui`(`UiText`가 `text='…'` 안쪽만 돌려줌), `treasure-check ui`·`repair` → `-Restart` → `repair-restart`(Traps 차이, `LogHasLine` 40줄), `trainer4-check items`(확인 단추 조건부 누름) 모두 FAIL 0.
+
+### 91.5 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 둘, 사소 열.
+- **Important 1** `-End`의 표식 삭제를 뒤로 옮기면서 `park.flag`(상주 DLL `TlToyboxDevRemote.dll`이 게임 창을 1920x1080 화면 밖에 두는 표식)까지 늦게 지워져, 복원 도중 멈춘 뒤 사용자가 게임을 켜면 창이 보이지 않을 수 있었다(계획과 13 문서 C5 문구의 결함). `park.flag`는 게임을 끈 즉시 지우고 `session.mode`만 복원 뒤에 지운다. 시험 51(`-DryRun`은 flag를 만들지 않아 손으로 둔다) RED → GREEN.
+- **Important 2** 판정이 넓어진 부분이 회차에서 돌지 않았다 → 위의 `ctc-h-1030`.
+- 사소 고침: `LeaveBattleScene`은 확인 단추가 실제로 맞을 때만 누른다(이미 지도면 그 자리를 누르지 않음), `repair-restart`의 안 쓰는 `$traps`, 시험 46이 `.absent` 표식 삭제도 봄, 주석 둘.
+- 사소 남김: 옛 꼴의 전투 종료(확인 단추를 맞는지 안 보고 연타)가 인라인으로 남은 곳 — `artifact-check` slot-clicks, `ui-check`의 itemuse·mpnone·success(3085·3135·3230 부근), `mastery-check battle`(C1 범위 밖. 다음에 전투 코드를 손댈 때 `LeaveBattleScene`으로) / `FieldsOf`는 쌍 안 줄바꿈을 값에 담는다(옛 정규식판은 그 쌍을 버림. 여러 줄 출력을 내는 명령이 있는지 미확인) / `EnterBattleScene`은 전투 개시를 조건 없이 누른다(옛 `Into`와 같음) / `TrimEnd('\\')`는 `C:\`를 `C:`로 만든다(드문 입력) / config 복원 두 갈래는 하나로 합칠 수 있다.

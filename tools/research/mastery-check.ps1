@@ -2,10 +2,13 @@
 # tools\DevRemote\session.ps1 -Begin <이름> -Fixture base -Exclude 2814696167로 게임이 떠서 세계에 들어가 있어야 한다.
 # 고정본 플레이어: 현화술 tIjlr1(옵션 0), 역 궁 청풍검 fY5GR9(장착, 옵션 7, 숙련 3570), 한공결 Grf9Gt(심법 장착, 4), 건강약 cR6Nyn(신법 3), 강 궁 노혈참 4Dc8Cu(절기 6).
 #   -Part service   서비스(mf*): 끼워 넣기·다시 만들기·후보·거부·자리 밖 옛 옵션·만들기 실패·NPC.
+#   -Part ui        공법 탭의 대도까지… 화면(무작위·직접 고르기·끼워 넣기·다시 만들기·11줄 그리기). 캡처 check-mastery*.png.
+#   -Part persist → session.ps1 -Restart → -Part persist-restart   저장 후 유지(sole은 .devremote\mastery-persist.txt로 넘긴다).
+#   -Part battle    전투에서 쓰기와 정보 창 11/11 캡처. persist와 한 회차.
+#   -Part modname   모드 기술 이름의 색 태그 제거(83.7절. 만고신화가 실린 회차, -Exclude 없이).
 param([Parameter(Mandatory)][string]$Part)
 . (Join-Path $PSScriptRoot 'check-lib.ps1')
 
-function LogHas([string]$word) { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 40 -Encoding UTF8 | Where-Object { $_ -match $word }).Count -gt 0 }
 function St([string]$sole, [string]$who = 'me') { Cmd "mfstate $sole $who" 300 }
 function Vals([string]$sole, [string]$who = 'me') { Cmd "mfvals $sole $who" 300 }
 function Count { if ((Cmd 'pstate' 300) -match 'martials=(\d+)') { [int]$Matches[1] } else { -1 } }
@@ -95,7 +98,7 @@ switch ($Part) {
       Check 'npc target: the npc ability is filled' ((St $nsole $npc) -match 'stages=12 ') "$r | $(St $nsole $npc)"
       Check 'npc target: the player is unchanged' ((Cmd 'pstate' 500) -eq $mine)
     } else { "INFO npc $npc has no fillable ability" }
-    Check 'the change log has mastery lines' (LogHas '수련 단계')
+    Check 'the change log has mastery lines' (LogHasLine '수련 단계')
     Check 'no callback exception in the log' ((Traps) -eq $traps)
   }
   'ui' {
@@ -103,32 +106,29 @@ switch ($Part) {
     Cmd 'mfstate tIjlr1' 300 | Out-Null
     $traps = Traps
     function Pick([string]$sole) { Cmd "tb2pick $sole" 1500 | Out-Null }
-    function Text([string]$name) { Cmd "uitext $name" 300 }
-    function Has([string]$name) { (Text $name) -notmatch 'no element' }
-    function IsOffBtn([string]$name) { $p = Pos $name; (Rc "click $($p.x) $($p.y)" 300) -match 'not interactable' }
     Cmd 'uitarget player' | Out-Null
     Cmd 'editor' | Out-Null; Press 'Tab5' | Out-Null
     Pick 'tIjlr1'
-    Check 'the stage text shows 1/12' ((Text 'MasteryText') -match '1/12') (Text 'MasteryText')
+    Check 'the stage text shows 1/12' ((UiText 'MasteryText') -match '1/12') (UiText 'MasteryText')
     Press 'MasteryOpen' | Out-Null
-    Check 'the screen shows its info' ((Text 'MasteryInfo') -match '옵션 0/11') (Text 'MasteryInfo')
-    Check 'random mode rolls eleven rows' ((Has 'MasteryRow0') -and (Has 'MasteryRow10')) (Text 'MasteryRow10')
+    Check 'the screen shows its info' ((UiText 'MasteryInfo') -match '옵션 0/11') (UiText 'MasteryInfo')
+    Check 'random mode rolls eleven rows' ((UiHas 'MasteryRow0') -and (UiHas 'MasteryRow10')) (UiText 'MasteryRow10')
     Press 'MasteryReroll' | Out-Null
-    Check 'reroll keeps eleven rows' (Has 'MasteryRow10')
+    Check 'reroll keeps eleven rows' (UiHas 'MasteryRow10')
     Press 'MasteryInsert' | Out-Null
     Check 'the first insert press only asks' ((St 'tIjlr1') -match 'opts=0 ') (St 'tIjlr1')
     Press 'MasteryInsert' | Out-Null
     Check 'insert from the screen' ((St 'tIjlr1') -match 'opts=11 stages=12 ') (St 'tIjlr1')
-    Check 'the old list is gone after insert' (-not (Has 'MasteryRow11') -and -not (Has 'MasteryRow0')) (Text 'MasteryRow11')
+    Check 'the old list is gone after insert' (-not (UiHas 'MasteryRow11') -and -not (UiHas 'MasteryRow0')) (UiText 'MasteryRow11')
     Shot 'mastery'
     Press 'Back' | Out-Null
     Pick 'tIjlr1'
-    Check 'the stage text shows 12/12 and the button is off' ((Text 'MasteryText') -match '12/12' -and (IsOffBtn 'MasteryOpen')) (Text 'MasteryText')
-    Check 'the stage text says it reaches the last stage' ((Text 'MasteryText') -match '대도까지 있음') (Text 'MasteryText')
+    Check 'the stage text shows 12/12 and the button is off' ((UiText 'MasteryText') -match '12/12' -and (ButtonIsOff 'MasteryOpen')) (UiText 'MasteryText')
+    Check 'the stage text says it reaches the last stage' ((UiText 'MasteryText') -match '대도까지 있음') (UiText 'MasteryText')
     Check 'the stage text fits its box' ((Cmd 'ifit MasteryText' 300) -match '(^|\D)0(\D|$)') (Cmd 'ifit MasteryText' 300)
     Shot 'mastery-stage'
     # 옵션 11개가 모두 그려진다(사용자 보고 2026-10-23: 6개까지만 보임)
-    Check 'all eleven option rows are drawn' ((Has 'OptionText10') -and (Has 'QualityMax10') -and (IsAt 'MartialEquip')) (Text 'OptionText10')
+    Check 'all eleven option rows are drawn' ((UiHas 'OptionText10') -and (UiHas 'QualityMax10') -and (IsAt 'MartialEquip')) (UiText 'OptionText10')
     Shot 'mastery-options'
     # 직접 고르기 + 다시 만들기(건강약, 신법 3개)
     Pick 'cR6Nyn'
@@ -140,9 +140,9 @@ switch ($Part) {
     $c2 = Cmd "mfcand cR6Nyn $n1" 500
     $n2 = if ($c2 -match 'slot=4 (\d+):') { $Matches[1] } else { '' }
     Press "MasteryPick$n2" | Out-Null
-    Check 'two picked rows' ((Has 'MasteryRow3') -and (Has 'MasteryRow4') -and -not (Has 'MasteryRow5')) "$n1 $n2"
+    Check 'two picked rows' ((UiHas 'MasteryRow3') -and (UiHas 'MasteryRow4') -and -not (UiHas 'MasteryRow5')) "$n1 $n2"
     Press 'MasteryUndo' | Out-Null
-    Check 'undo removes the last row' ((Has 'MasteryRow3') -and -not (Has 'MasteryRow4'))
+    Check 'undo removes the last row' ((UiHas 'MasteryRow3') -and -not (UiHas 'MasteryRow4'))
     $n0 = if ((Cmd 'pstate' 300) -match 'martials=(\d+)') { $Matches[1] } else { '' }
     Press 'MasteryRemake' | Out-Null; Press 'MasteryRemake' | Out-Null
     Check 'remake from the screen' ((St 'cR6Nyn') -match 'block=공법을 찾지' -and (Cmd 'pstate' 300) -match "martials=$n0 ") (Cmd 'msole 510011' 300)
@@ -154,24 +154,26 @@ switch ($Part) {
     $fish = (Cmd 'msole 700117' 300) -replace '^msole .*? -> ',''
     if ($fish -match '^\w{6}$') {
       Pick $fish
-      Check 'no option rows: the button is off with a reason' ((IsOffBtn 'MasteryOpen') -and (Text 'MasteryText') -match '옵션이 없') (Text 'MasteryText')
+      Check 'no option rows: the button is off with a reason' ((ButtonIsOff 'MasteryOpen') -and (UiText 'MasteryText') -match '옵션이 없') (UiText 'MasteryText')
     } else { "INFO could not learn 700117: $r" }
     Check 'no callback exception in the log' ((Traps) -eq $traps)
     Cmd 'uitoggle' | Out-Null
   }
   'persist' {
+    # 앞 실행이 남긴 sole 파일을 먼저 지운다(중간에 실패하면 persist-restart가 옛 sole을 읽지 않게. 13 문서 C10).
+    if (Test-Path -LiteralPath (Join-Path $work 'mastery-persist.txt')) { Remove-Item -LiteralPath (Join-Path $work 'mastery-persist.txt') }
     # 끼워 넣기(장착 무예 청풍검)와 다시 만들기(장착 절기 광혈참 bUvsGP, 숙련 1138) 뒤 저장. 다음은 session.ps1 -Restart → persist-restart.
     Cmd 'mfstate fY5GR9' 300 | Out-Null
     $r1 = Cmd 'mfinsert fY5GR9 roll' 1500
     $r2 = Cmd 'mfremake bUvsGP roll' 3000
     $new = if ($r2 -match 'new=(\w{6})') { $Matches[1] } else { '' }
     Check 'both done before saving' ((St 'fY5GR9') -match 'opts=11 ' -and (St $new) -match 'opts=11 ') "$r1 | $r2"
-    Set-Content -LiteralPath (Join-Path $env:TEMP 'mastery-persist.txt') -Value $new
+    Set-Content -LiteralPath (Join-Path $work 'mastery-persist.txt') -Value $new
     $r = Cmd 'save' 3000
     Check 'saved' ($r -notmatch 'ERR') $r
   }
   'persist-restart' {
-    $new = (Get-Content -LiteralPath (Join-Path $env:TEMP 'mastery-persist.txt')).Trim()
+    $new = (Get-Content -LiteralPath (Join-Path $work 'mastery-persist.txt')).Trim()
     Cmd 'mfstate fY5GR9' 300 | Out-Null
     Check 'the inserted skill keeps 11 options, the slot and the exp' ((St 'fY5GR9') -match 'opts=11 stages=12 ' -and (Vals 'fY5GR9') -match 'equip=1 exp=3570 ') "$(St 'fY5GR9') | $(Vals 'fY5GR9')"
     Check 'the remade skill keeps 11 options and the slot' ((St $new) -match 'opts=11 stages=12 ' -and (Vals $new) -match 'equip=1 exp=1138 ') "$(St $new) | $(Vals $new)"

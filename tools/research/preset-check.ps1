@@ -7,30 +7,8 @@ param([Parameter(Mandatory)][string]$Part, [string]$Range = '')
 
 $presetDir = Join-Path $data 'presets'
 
-# "이름=값 이름=값 …" 한 줄을 표로 바꾼다. 명령의 머리("명령 -> ")와 " | " 뒤의 문장은 뗀다.
-function Fields([string]$text) {
-  $body = ($text -replace '^[^>]*-> ', '') -replace ' \| .*$', ''
-  $map = @{}
-  foreach ($pair in ($body -split ' ')) {
-    $at = $pair.IndexOf('=')
-    if ($at -gt 0) { $map[$pair.Substring(0, $at)] = $pair.Substring($at + 1) }
-  }
-  $map
-}
-function State { Fields (Cmd 'pstate' 150) }
-function Soles { @((Fields (Cmd 'psoles' 150)).soles -split ',' | Where-Object { $_ }) }
-# 전투에 들어간다(ui-check.ps1의 combat 부분과 같은 순서: 진입 확인 → 전투 개시).
-function Into([int]$level) {
-  Cmd "fight 1011 $level" 6000 | Out-Null; Rc 'click 960 684' 12000 | Out-Null; Rc 'click 956 749' 4000 | Out-Null
-}
-# 전투를 끝내고 지도로 나온다. 결과 창이 뜬 뒤 확인을 누르고, 지도가 돌아온 뒤 몇 초 기다린다(서두르면 화면이 빈다).
-function Leave {
-  Cmd 'bend' 500 | Out-Null
-  for ($i = 0; $i -lt 30 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
-  Start-Sleep -Seconds 2
-  for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'MapMain'; $i++) { Rc 'click 959 831' 2500 | Out-Null }
-  Start-Sleep -Seconds 3
-}
+function State { FieldsOf (Cmd 'pstate' 150) }
+function Soles { @((FieldsOf (Cmd 'psoles' 150)).soles -split ',' | Where-Object { $_ }) }
 
 function WritePreset([string]$fileName, [string]$json) {
   [void][IO.Directory]::CreateDirectory($presetDir)
@@ -60,7 +38,7 @@ function MissingModPresets {
 }
 function ExpectedProblems {
   $sum = 0
-  foreach ($f in @(MissingModPresets)) { $sum += [int](Fields (Cmd "pcheck $f" 600)).problems }
+  foreach ($f in @(MissingModPresets)) { $sum += [int](FieldsOf (Cmd "pcheck $f" 600)).problems }
   $sum
 }
 # 프리셋 목록(ListView)은 화면에 걸친 줄만 만든다. 기본 프리셋이 열 개를 넘어 한 화면을 넘으므로(05 문서 70절),
@@ -85,16 +63,16 @@ function LoadPicked { Get-Content -LiteralPath $pickedFile -Raw | ConvertFrom-Js
 function NewTestPreset {
   $picked = @{ opts = @{}; fates = @{}; born = '0' }
   foreach ($id in 13111, 23116, 510021, 35111, 81001, 83001, 84001, 86002, 87002, 88002, 82001) {
-    $picked.opts["$id"] = (Fields (Cmd "poptpick $id 3" 200)).opts
+    $picked.opts["$id"] = (FieldsOf (Cmd "poptpick $id 3" 200)).opts
   }
   $taken = @()
   foreach ($major in 2..10) {
-    $fate = (Fields (Cmd "pfatepick $major $($taken -join ',')" 200)).id
+    $fate = (FieldsOf (Cmd "pfatepick $major $($taken -join ',')" 200)).id
     if (-not $fate -or $fate -eq '0') { throw "대경지 $major 의 역천개명 후보를 찾지 못했습니다" }
     $picked.fates["$major"] = $fate
     $taken += $fate
   }
-  $picked.born = (Fields (Cmd 'pbornpick' 200)).id
+  $picked.born = (FieldsOf (Cmd 'pbornpick' 200)).id
   if (-not $picked.born -or $picked.born -eq '0') { throw '선천운명 후보를 찾지 못했습니다' }
   $skills = @(
     ('{{ "slot": "left", "baseId": 13111, "options": [{0}] }}' -f $picked.opts['13111']),
@@ -129,9 +107,9 @@ switch ($Part) {
   }
   'grade' {
     $s0 = State
-    Check 'the path from 9 to 27 takes the best quality rows' ((Fields (Cmd 'pgpath 27' 150)).path -eq '10,11,16,17,18,19,20,21,24,25,26,27') (Cmd 'pgpath 27' 150)
-    Check 'there is no path to the same or a lower row' ((Fields (Cmd 'pgpath 9' 150)).path -eq '' -and (Fields (Cmd 'pgpath 4' 150)).path -eq '')
-    $want = Fields (Cmd 'pgsum 27' 150)
+    Check 'the path from 9 to 27 takes the best quality rows' ((FieldsOf (Cmd 'pgpath 27' 150)).path -eq '10,11,16,17,18,19,20,21,24,25,26,27') (Cmd 'pgpath 27' 150)
+    Check 'there is no path to the same or a lower row' ((FieldsOf (Cmd 'pgpath 9' 150)).path -eq '' -and (FieldsOf (Cmd 'pgpath 4' 150)).path -eq '')
+    $want = FieldsOf (Cmd 'pgsum 27' 150)
     $r = Cmd 'pgraise 27' 500
     $s1 = State
     Check 'the grade is 27, major grade 7' ($s1.grade -eq '27' -and $s1.major -eq '7') $r
@@ -155,23 +133,23 @@ switch ($Part) {
   }
   'martial' {
     $n0 = [int](State).martials
-    $pick = Fields (Cmd 'poptpick 13111 4' 200)
+    $pick = FieldsOf (Cmd 'poptpick 13111 4' 200)
     Check 'four options are picked for 13111' (@($pick.opts -split ',').Count -eq 4 -and $pick.gmin -eq '1' -and $pick.gmax -eq '10') "opts=$($pick.opts)"
-    $m = Fields (Cmd "pmake 13111 3 $($pick.opts)" 500)
+    $m = FieldsOf (Cmd "pmake 13111 3 $($pick.opts)" 500)
     Check 'the skill is made' ($m.result -eq 'ok' -and [int](State).martials -eq $n0 + 1) "result=$($m.result)"
     $made = @((Cmd 'pmartial 13111' 200) -split ' \| ' | Where-Object { $_ -match "sole=$($m.sole) " })
     Check 'it has the options asked for, in order' ($made.Count -eq 1 -and $made[0] -match " nums=$([regex]::Escape($pick.opts)) ") ($made -join '')
     Check 'every option is at its max quality' ($made[0] -match 'atmax=True')
     Check 'it is grade 3 and not equipped' ($made[0] -match ' g=3 eq=False ')
-    $m10 = Fields (Cmd "pmake 13111 10 $($pick.opts)" 500)
+    $m10 = FieldsOf (Cmd "pmake 13111 10 $($pick.opts)" 500)
     Check 'a grade 10 copy is made' ($m10.result -eq 'ok' -and (Cmd 'pmartial 13111' 200) -match "sole=$($m10.sole) g=10 ")
-    $m0 = Fields (Cmd 'pmake 13111 3 -' 500)
+    $m0 = FieldsOf (Cmd 'pmake 13111 3 -' 500)
     Check 'a skill without options is made' ($m0.result -eq 'ok' -and (Cmd 'pmartial 13111' 200) -match "sole=$($m0.sole) g=3 eq=False suit=0 lv=\d+ cost=0 nums= ")
     $n1 = [int](State).martials
-    Check 'an option the skill does not have is refused' ((Fields (Cmd 'pmake 13111 3 99' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
-    Check 'twelve options are refused' ((Fields (Cmd 'pmake 13111 3 1,2,3,4,5,6,7,8,9,10,11,12' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
-    Check 'an unknown skill is refused' ((Fields (Cmd 'pmake 999999 3 -' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
-    Check 'a grade outside the range of the skill is refused' ((Fields (Cmd 'pmake 23116 1 -' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'an option the skill does not have is refused' ((FieldsOf (Cmd 'pmake 13111 3 99' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'twelve options are refused' ((FieldsOf (Cmd 'pmake 13111 3 1,2,3,4,5,6,7,8,9,10,11,12' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'an unknown skill is refused' ((FieldsOf (Cmd 'pmake 999999 3 -' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
+    Check 'a grade outside the range of the skill is refused' ((FieldsOf (Cmd 'pmake 23116 1 -' 500)).result -eq 'fail' -and [int](State).martials -eq $n1)
     Check 'the suit number is written and read back' ((Cmd 'psuit 81001 10006' 200) -match 'ok=True suit=10006')
     Check 'the state shows the suit' ((State).abilities -match '81001:10006')
     Check 'the suit number is not written on a skill that is not an ability' ((Cmd 'psuit 14111 10006' 200) -match 'ok=False')
@@ -234,44 +212,44 @@ switch ($Part) {
   }
   'extras-battle' {
     # extras 바로 뒤에 돌린다. 명우가 전투에 나오는지 본다. 법보는 도구 칸의 아이콘이라 캡처로 본다.
-    Into 20
+    EnterBattleScene 20
     Start-Sleep -Seconds 2
     $o = Cmd 'pbattle' 200
-    $b = Fields $o
+    $b = FieldsOf $o
     Check 'the battle is entered' ($b.ContainsKey('wing')) $o
     Check 'the wingman is in the battle' ($b.wing -eq '1004' -and [int]$b.wingobjs -ge 1) $o
     Shot 'preset-extras-battle'
-    Leave
+    LeaveBattleScene
     Check 'back on the map' ((Cmd 'uilist' 200) -match 'MapMain')
   }
   'files' {
     if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
-    $n = [int](Fields (Cmd 'pdefaults' 200)).embedded
+    $n = [int](FieldsOf (Cmd 'pdefaults' 200)).embedded
     Check 'the mod carries default presets' ($n -ge 1) "embedded=$n"
-    $l = Fields (Cmd 'plist' 400)
+    $l = FieldsOf (Cmd 'plist' 400)
     $onDisk = @(Get-ChildItem -LiteralPath $presetDir -Filter *.json -ErrorAction SilentlyContinue)
     Check 'the folder is made with the defaults in it' ($onDisk.Count -eq $n) "files=$($onDisk.Count)"
     Check 'the list has one readable line per default' ([int]$l.count -eq $n -and $l.unreadable -eq '0') "count=$($l.count) unreadable=$($l.unreadable)"
-    Check 'the defaults have no unusable line' ([int](Fields (Cmd 'pcheck' 600)).problems -eq (ExpectedProblems)) "$(Cmd 'pcheck' 600) | missing-mod presets: $(@(MissingModPresets) -join ',')"
+    Check 'the defaults have no unusable line' ([int](FieldsOf (Cmd 'pcheck' 600)).problems -eq (ExpectedProblems)) "$(Cmd 'pcheck' 600) | missing-mod presets: $(@(MissingModPresets) -join ',')"
     Check 'the name search finds a skill by its shown name' ((Cmd 'pfind 13111' 300) -match '\[0 13111 \S+ g1-10\]') (Cmd 'pfind 13111' 300)
     Check 'the option list of a skill is printed' ((Cmd 'popts 13111' 300) -match '#1 multi=\d+ require=\S* slots=[\d,]+ ') (Cmd 'popts 13111' 300)
     Check 'an ability is shown with its number' ((Cmd "pstage $(($onDisk | Sort-Object Name | Select-Object -First 1).Name) 3" 400) -match '\(81001\)') (Cmd "pstage $(($onDisk | Sort-Object Name | Select-Object -First 1).Name) 3" 400)
-    Check 'nothing is reported as changed' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0')
+    Check 'nothing is reported as changed' ((FieldsOf (Cmd 'pdefaults' 200)).changed -eq '0')
 
     # 기본 파일을 고치면 알리고, 되돌리기가 돌려놓는다. 사용자가 넣은 파일은 그대로다.
     $first = $onDisk | Sort-Object Name | Select-Object -First 1
     $original = [IO.File]::ReadAllText($first.FullName)
     WritePreset $first.Name '{ "format": 1, "kind": "preset", "name": "uicheck changed" }'
     WritePreset 'uicheck-user.json' '{ "format": 1, "kind": "preset", "name": "uicheck user", "skills": [ { "slot": "left", "baseId": 13111, "options": [] } ] }'
-    Check 'a changed default is counted' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
-    Check 'the user file is listed' ([int](Fields (Cmd 'plist' 400)).count -eq $n + 1 -and (PresetIndex 'uicheck-user.json') -ge 0)
+    Check 'a changed default is counted' ((FieldsOf (Cmd 'pdefaults' 200)).changed -eq '1')
+    Check 'the user file is listed' ([int](FieldsOf (Cmd 'plist' 400)).count -eq $n + 1 -and (PresetIndex 'uicheck-user.json') -ge 0)
     Cmd 'prestore' 400 | Out-Null
-    Check 'restore writes the default back' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0' -and [IO.File]::ReadAllText($first.FullName).Replace("`r", '').Trim() -eq $original.Replace("`r", '').Trim())
+    Check 'restore writes the default back' ((FieldsOf (Cmd 'pdefaults' 200)).changed -eq '0' -and [IO.File]::ReadAllText($first.FullName).Replace("`r", '').Trim() -eq $original.Replace("`r", '').Trim())
     Check 'restore leaves the user file alone' (Test-Path -LiteralPath (Join-Path $presetDir 'uicheck-user.json'))
     # 폴더가 이미 있으면 지워진 기본 파일을 다시 풀지 않는다(사용자가 지운 것일 수 있다). 대신 알린다.
     [IO.File]::Delete($first.FullName)
-    Check 'a deleted default is not written again by listing' ([int](Fields (Cmd 'plist' 400)).count -eq $n -and -not (Test-Path -LiteralPath $first.FullName))
-    Check 'a deleted default is counted' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
+    Check 'a deleted default is not written again by listing' ([int](FieldsOf (Cmd 'plist' 400)).count -eq $n -and -not (Test-Path -LiteralPath $first.FullName))
+    Check 'a deleted default is counted' ((FieldsOf (Cmd 'pdefaults' 200)).changed -eq '1')
     Cmd 'prestore' 400 | Out-Null
     # .defaults도 폴더 표지에 든다(05 문서 85절): 탭의 목록(ListCached)을 읽어 둔 뒤 밖에서 .defaults를 지우면 다음 읽기가 다시 만든다.
     Cmd 'rperf preset' 300 20000 | Out-Null
@@ -283,11 +261,11 @@ switch ($Part) {
     WritePreset 'uicheck-broken.json' '{ "format": 1, "kind": "preset", '
     WritePreset 'uicheck-bag.json' '{ "format": 1, "kind": "bag", "name": "x", "items": [] }'
     WritePreset 'uicheck-format.json' '{ "format": 2, "kind": "preset", "name": "x" }'
-    $l = Fields (Cmd 'plist' 400)
+    $l = FieldsOf (Cmd 'plist' 400)
     Check 'three unreadable files are listed as unreadable' ([int]$l.count -eq $n + 4 -and $l.unreadable -eq '3') "count=$($l.count) unreadable=$($l.unreadable)"
     # 프리셋 옆의 메타 파일(*.meta.json, 검증 등급·출처)은 프리셋 목록에 넣지 않는다(05 문서 69절)
     WritePreset 'uicheck-lines.meta.json' '{ "format": 1, "kind": "preset-meta", "preset": "uicheck-lines.json" }'
-    $l = Fields (Cmd 'plist' 400)
+    $l = FieldsOf (Cmd 'plist' 400)
     Check 'a meta file is not listed as a preset' ([int]$l.count -eq $n + 4 -and $l.unreadable -eq '3') "count=$($l.count) unreadable=$($l.unreadable)"
     [IO.File]::Delete((Join-Path $presetDir 'uicheck-lines.meta.json'))
 
@@ -336,15 +314,15 @@ switch ($Part) {
   "wingman": { "id": 1004, "effects": [100101], "prefixes": [100101] }
 }
 '@
-    $c = Fields (Cmd 'pcheck uicheck-lines.json' 600)
+    $c = FieldsOf (Cmd 'pcheck uicheck-lines.json' 600)
     Check 'thirteen bad lines are found and two lines stay usable' ($c.problems -eq '13' -and $c.usable -eq '2') (Cmd 'pcheck uicheck-lines.json' 600)
 
     # 단계: 결정 초기(대경지 3)에서 1~3은 열려 있고 4부터는 경지 미달이다. 23116은 경지 3부터의 기술이라 단계 1·2에는 없다.
     WritePreset 'uicheck-stages.json' '{ "format": 1, "kind": "preset", "name": "uicheck stages", "skills": [ { "slot": "left", "baseId": 14111, "options": [] }, { "slot": "right", "baseId": 23116, "options": [] } ], "elder": { "id": 1 }, "wingman": { "id": 1004, "effects": [], "prefixes": [] } }'
-    $st1 = Fields (Cmd 'pstage uicheck-stages.json 1' 400)
-    $st3 = Fields (Cmd 'pstage uicheck-stages.json 3' 400)
-    $st4 = Fields (Cmd 'pstage uicheck-stages.json 4' 400)
-    $st9 = Fields (Cmd 'pstage uicheck-stages.json 9' 400)
+    $st1 = FieldsOf (Cmd 'pstage uicheck-stages.json 1' 400)
+    $st3 = FieldsOf (Cmd 'pstage uicheck-stages.json 3' 400)
+    $st4 = FieldsOf (Cmd 'pstage uicheck-stages.json 4' 400)
+    $st9 = FieldsOf (Cmd 'pstage uicheck-stages.json 9' 400)
     Check 'stage 1 has one line, the skill that exists at grade 1' ($st1.total -eq '1' -and $st1.state -eq 'None') "state=$($st1.state) total=$($st1.total)"
     Check 'stage 3 has both skills' ($st3.total -eq '2' -and $st3.state -eq 'None') "state=$($st3.state) total=$($st3.total)"
     Check 'stage 4 is locked' ($st4.state -eq 'Locked')
@@ -358,7 +336,7 @@ switch ($Part) {
     $picked = NewTestPreset
     SavePicked $picked
     $file = 'uicheck-preset.json'
-    Check 'the test preset has no unusable line' ((Fields (Cmd "pcheck $file" 600)).problems -eq '0') (Cmd "pcheck $file" 600)
+    Check 'the test preset has no unusable line' ((FieldsOf (Cmd "pcheck $file" 600)).problems -eq '0') (Cmd "pcheck $file" 600)
     $s0 = State
     $soles0 = Soles
     $money0 = if ((Cmd 'read' 150) -match 'money=(\d+)') { $Matches[1] } else { throw 'read의 출력에서 money를 찾지 못했습니다' }
@@ -368,10 +346,10 @@ switch ($Part) {
     Check 'a locked stage is refused' ($r -match 'refused=True' -and (State).martials -eq $s0.martials) $r
 
     # 단계 3: 고정본의 역천개명 3(700040)을 바꾸게 되므로 미리 알린다.
-    Check 'stage 3 would replace a fate' ((Fields (Cmd "preplaces $file 3" 300)).replaces -eq 'yes') (Cmd "preplaces $file 3" 300)
-    Check 'the full apply would replace fates too and says so' ((Fields (Cmd "preplaces $file full" 300)).replaces -eq 'yes') (Cmd "preplaces $file full" 300)
+    Check 'stage 3 would replace a fate' ((FieldsOf (Cmd "preplaces $file 3" 300)).replaces -eq 'yes') (Cmd "preplaces $file 3" 300)
+    Check 'the full apply would replace fates too and says so' ((FieldsOf (Cmd "preplaces $file full" 300)).replaces -eq 'yes') (Cmd "preplaces $file full" 300)
     $r = Cmd "papply $file 3" 4000
-    $run = Fields $r
+    $run = FieldsOf $r
     $s = State
     Check 'nothing failed' ($run.failed -eq '0') $r
     Check 'four skills and seven abilities were made' ([int]$s.martials -eq [int]$s0.martials + 11) "martials $($s0.martials) -> $($s.martials)"
@@ -387,16 +365,16 @@ switch ($Part) {
     Check 'the artifact and sprite are applied from stage 2 up' ($s.artifact -eq '3031101' -and $s.sprite -eq '1002' -and $s.talents -eq '49/49') "artifact=$($s.artifact) sprite=$($s.sprite) talents=$($s.talents)"
     Check 'the elder and wingman of later stages are not applied' ($s.elder -eq '0' -and $s.wing -eq '0')
     Check 'money is unchanged' ((Cmd 'read' 150) -match "money=$money0\b")
-    Check 'stage 3 reads as applied' ((Fields (Cmd "pstage $file 3" 400)).state -eq 'Applied') (Cmd "pstage $file 3" 400)
+    Check 'stage 3 reads as applied' ((FieldsOf (Cmd "pstage $file 3" 400)).state -eq 'Applied') (Cmd "pstage $file 3" 400)
     $history = Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 1 -Encoding UTF8
     Check 'the change log has the preset line' ($history -match 'uicheck preset') $history
 
     # 같은 단계를 다시: 공법이 늘지 않고 수도 점수도 다시 오르지 않는다.
     $r = Cmd "papply $file 3" 4000
-    $run = Fields $r
+    $run = FieldsOf $r
     $s2 = State
     Check 'applying again adds nothing' ($run.done -eq '0' -and $run.failed -eq '0' -and $s2.martials -eq $s.martials -and $s2.ap -eq $s.ap -and $s2.sprites -eq $s.sprites) $r
-    Check 'there is nothing left to replace' ((Fields (Cmd "preplaces $file 3" 300)).replaces -eq 'no')
+    Check 'there is nothing left to replace' ((FieldsOf (Cmd "preplaces $file 3" 300)).replaces -eq 'no')
 
     # 단계 1: 선천운명. 공법은 이미 있다(경지 3은 1 이상). 23116은 경지 3부터의 기술이라 이 단계에는 없다.
     $r = Cmd "papply $file 1" 3000
@@ -410,7 +388,7 @@ switch ($Part) {
     # 틀린 줄이 섞인 프리셋: 그 줄만 못 넣고 나머지는 적용된다.
     WritePreset 'uicheck-mixed.json' '{ "format": 1, "kind": "preset", "name": "uicheck mixed", "skills": [ { "slot": "left", "baseId": 999999, "options": [] }, { "slot": "ultimate", "baseId": 34111, "options": [] } ] }'
     $r = Cmd 'papply uicheck-mixed.json 3' 3000
-    $run = Fields $r
+    $run = FieldsOf $r
     Check 'a bad line does not stop the rest' ($run.failed -eq '1' -and $run.done -eq '1' -and (State).ult -eq '34111' -and (State).left -eq '13111') $r
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
@@ -421,7 +399,7 @@ switch ($Part) {
     $s0 = State
     $copies0 = (Copies 13111).Count
     $r = Cmd "papply $file full" 9000
-    $run = Fields $r
+    $run = FieldsOf $r
     $s = State
     Check 'nothing failed' ($run.failed -eq '0') $r
     Check 'the grade is the last row' ($s.grade -eq '44' -and $s.major -eq '10') "grade=$($s.grade)"
@@ -429,7 +407,7 @@ switch ($Part) {
     $wantFates = (2..10 | ForEach-Object { "$($_):$($picked.fates["$_"])" }) -join ','
     Check 'the fates of every major grade are the preset ones' ($s.fates -eq $wantFates) $s.fates
     # 기록만이 아니라 운명의 효과가 실제로 붙어 있는지 본다(경지를 올린 뒤의 역천개명 적용이 앞 대경지의 것을 지우지 않는가).
-    $held = Fields (Cmd "phas $((2..10 | ForEach-Object { $picked.fates["$_"] }) -join ',')" 300)
+    $held = FieldsOf (Cmd "phas $((2..10 | ForEach-Object { $picked.fates["$_"] }) -join ',')" 300)
     Check 'every fate luck is actually held' ($held.held -eq '9' -and $held.of -eq '9') "held=$($held.held) of=$($held.of)"
     Check 'the elder is at its top level for major grade 10' ($s.elder -eq '1' -and $s.elderlv -eq '9') "elder=$($s.elder) lv=$($s.elderlv)"
     Check 'the wingman and its lists are the preset ones' ($s.wing -eq '1004' -and $s.effects -eq '100101,100102' -and $s.prefixes -eq '100401,100402') "wing=$($s.wing) $($s.effects) $($s.prefixes)"
@@ -437,27 +415,27 @@ switch ($Part) {
     Check 'one grade 10 copy was made, not one per stage' ($copies.Count -eq $copies0 + 1 -and @($copies | Where-Object { $_ -match ' g=10 eq=True ' }).Count -eq 1) ($copies -join ' ; ')
     Check 'the slots hold the preset skills' ($s.left -eq '13111' -and $s.right -eq '23116' -and $s.step -eq '510021' -and $s.ult -eq '35111') "$($s.left) $($s.right) $($s.step) $($s.ult)"
     Check 'ability points cover what is in use' ([int]$s.used -le [int]$s.ap) "used=$($s.used) ap=$($s.ap)"
-    Check 'stage 10 reads as applied' ((Fields (Cmd "pstage $file 10" 400)).state -eq 'Applied') (Cmd "pstage $file 10" 400)
+    Check 'stage 10 reads as applied' ((FieldsOf (Cmd "pstage $file 10" 400)).state -eq 'Applied') (Cmd "pstage $file 10" 400)
     Cmd 'save' 2500 | Out-Null
     [IO.File]::WriteAllText($stateFile, (Cmd 'pstate' 200))
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
   'apply-battle' {
     # apply-full 뒤에 돌린다. 세트와 명우가 전투에서 실제로 켜지는지 본다. 법보는 도구 칸의 아이콘이라 캡처로 본다.
-    Into 20
+    EnterBattleScene 20
     Start-Sleep -Seconds 2
     $o = Cmd 'pbattle' 200
-    $b = Fields $o
+    $b = FieldsOf $o
     Check 'the battle is entered' ($b.ContainsKey('suits')) $o
     Check 'the six-piece suit is active' ($b.suits -match '(^|,)10016:6(,|$)') $o
     Check 'the wingman is in the battle' ($b.wing -eq '1004' -and [int]$b.wingobjs -ge 1) $o
     Shot 'preset-apply-battle'
-    Leave
+    LeaveBattleScene
     Check 'back on the map' ((Cmd 'uilist' 200) -match 'MapMain')
   }
   'apply-restart' {
     # apply-full(끝에서 저장한다) 뒤에 session.ps1 -Restart를 하고 돌린다.
-    $before = Fields ([IO.File]::ReadAllText($stateFile))
+    $before = FieldsOf ([IO.File]::ReadAllText($stateFile))
     $s = State
     foreach ($k in 'grade', 'attack', 'ap', 'left', 'right', 'step', 'ult', 'artifact', 'sprite', 'talents', 'elder', 'elderlv', 'wing', 'effects', 'prefixes', 'fates') {
       Check "$k is kept after a restart" ($s[$k] -eq $before[$k]) "have $($s[$k]) want $($before[$k])"
@@ -465,7 +443,7 @@ switch ($Part) {
     $now = (@($s.abilities -split ',') | Sort-Object) -join ','
     $then = (@($before.abilities -split ',') | Sort-Object) -join ','
     Check 'the abilities and their suit numbers are kept' ($now -eq $then) "have $now want $then"
-    $i = Fields (Cmd 'imm' 200)
+    $i = FieldsOf (Cmd 'imm' 200)
     Check 'the immortal power and the first immortal art are kept after a restart' ($i.immortalPoint -eq '6' -and $i.cards -eq '5') (Cmd 'imm' 200)
   }
   'ui' {
@@ -473,7 +451,7 @@ switch ($Part) {
     if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
     Cmd 'plist' 400 | Out-Null          # 폴더를 만들고 기본 프리셋을 풀게 한다(검사 파일을 먼저 쓰면 풀지 않는다)
     $picked = NewTestPreset
-    $n = [int](Fields (Cmd 'pdefaults' 200)).embedded
+    $n = [int](FieldsOf (Cmd 'pdefaults' 200)).embedded
     Check 'editor opens' ((Cmd 'editor') -match 'open=True')
     Press 'Tab14' | Out-Null
     Check 'the safety view opens from the title bar' (IsAt 'BackupNow')
@@ -498,9 +476,9 @@ switch ($Part) {
     Press 'Tab14' | Out-Null; Press 'Tab13' | Out-Null
     Check 'the note reports one changed default' ((Cmd 'uitext PresetNote' 150) -match "text='[^']*1[^']*'") (Cmd 'uitext PresetNote' 150)
     Press 'PresetRestore' | Out-Null
-    Check 'restore asks first' ((Fields (Cmd 'pdefaults' 200)).changed -eq '1')
+    Check 'restore asks first' ((FieldsOf (Cmd 'pdefaults' 200)).changed -eq '1')
     Press 'PresetRestore' | Out-Null
-    Check 'the second press restores' ((Fields (Cmd 'pdefaults' 200)).changed -eq '0')
+    Check 'the second press restores' ((FieldsOf (Cmd 'pdefaults' 200)).changed -eq '0')
 
     # 상세보기: 결정 초기(대경지 3)에서 단계 1~3은 적용, 4는 경지 올리기.
     $idx = PresetIndex 'uicheck-preset.json'
@@ -521,7 +499,7 @@ switch ($Part) {
     Press 'StageApply3' 4000 | Out-Null
     $s = State
     Check 'the second press applies the stage' ([int]$s.martials -eq [int]$m0 + 11 -and $s.fates -eq "2:700016,3:$($picked.fates['3'])" -and $s.left -eq '13111') "martials=$($s.martials) fates=$($s.fates)"
-    Check 'stage 3 reads as applied' ((Fields (Cmd 'pstage uicheck-preset.json 3' 400)).state -eq 'Applied')
+    Check 'stage 3 reads as applied' ((FieldsOf (Cmd 'pstage uicheck-preset.json 3' 400)).state -eq 'Applied')
     # 단계 1은 바꿀 것이 없으므로 한 번에 적용된다.
     $born0 = [int]$s.born
     Press 'StageApply1' 3000 | Out-Null
@@ -560,14 +538,14 @@ switch ($Part) {
     # 700001과 700002는 계열 1이다(설정 표 FateFeature). 고정본의 기록은 2:700016(계열 없음), 3:700040(계열 9).
     if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
     WritePreset 'uicheck-group.json' '{ "format": 1, "kind": "preset", "name": "uicheck group", "fates": [ { "grade": 2, "id": 700001 }, { "grade": 3, "id": 700002 } ] }'
-    $c = Fields (Cmd 'pcheck uicheck-group.json' 600)
+    $c = FieldsOf (Cmd 'pcheck uicheck-group.json' 600)
     Check 'two fates of one group in a file: the second is unusable' ($c.problems -eq '1' -and $c.usable -eq '1') (Cmd 'pcheck uicheck-group.json' 600)
     WritePreset 'uicheck-g3.json' '{ "format": 1, "kind": "preset", "name": "uicheck g3", "fates": [ { "grade": 3, "id": 700002 } ] }'
     WritePreset 'uicheck-g2.json' '{ "format": 1, "kind": "preset", "name": "uicheck g2", "fates": [ { "grade": 2, "id": 700001 } ] }'
     $r = Cmd 'papply uicheck-g3.json 3' 2000
     Check 'a fate of group 1 is set at major grade 3' ((State).fates -eq '2:700016,3:700002' -and (Cmd 'phas 700002' 200) -match 'held=1 ') $r
     $r = Cmd 'papply uicheck-g2.json 2' 2000
-    Check 'another fate of the same group at another grade is refused' ((Fields $r).failed -eq '1' -and (State).fates -eq '2:700016,3:700002') $r
+    Check 'another fate of the same group at another grade is refused' ((FieldsOf $r).failed -eq '1' -and (State).fates -eq '2:700016,3:700002') $r
     Check 'the fate held before is still held' ((Cmd 'phas 700002,700016' 200) -match 'held=2 of=2')
     Check 'no callback exception in the log' ((Traps) -eq 0)
   }
@@ -589,14 +567,14 @@ switch ($Part) {
     $picked = NewTestPreset
     $file = 'uicheck-preset.json'
     $r = Cmd "papply $file full" 9000
-    Check 'preset A is applied' ((Fields $r).failed -eq '0') $r
+    Check 'preset A is applied' ((FieldsOf $r).failed -eq '0') $r
     $a = [IO.File]::ReadAllText((Join-Path $presetDir $file))
     $nine = $picked.fates['9']; $ten = $picked.fates['10']
     $swapped = $a.Replace('"uicheck preset"', '"uicheck swapped"').Replace("{ `"grade`": 9, `"id`": $nine }", "{ `"grade`": 9, `"id`": $ten }").Replace("{ `"grade`": 10, `"id`": $ten }", "{ `"grade`": 10, `"id`": $nine }")
     WritePreset 'uicheck-swapped.json' $swapped
-    Check 'the swapped preset reads without unusable lines' ((Fields (Cmd 'pcheck uicheck-swapped.json' 600)).problems -eq '0') (Cmd 'pcheck uicheck-swapped.json' 600)
+    Check 'the swapped preset reads without unusable lines' ((FieldsOf (Cmd 'pcheck uicheck-swapped.json' 600)).problems -eq '0') (Cmd 'pcheck uicheck-swapped.json' 600)
     $r = Cmd 'papply uicheck-swapped.json all' 6000
-    Check 'preset B is applied without a failed line' ((Fields $r).failed -eq '0') $r
+    Check 'preset B is applied without a failed line' ((FieldsOf $r).failed -eq '0') $r
     $want = ((2..8 | ForEach-Object { "$($_):$($picked.fates["$_"])" }) + "9:$ten", "10:$nine") -join ','
     Check 'the two fates are swapped in the records' ((State).fates -eq $want) (State).fates
     $ids = (2..10 | ForEach-Object { $picked.fates["$_"] }) -join ','
@@ -607,8 +585,8 @@ switch ($Part) {
     # 기본 프리셋 10개를 차례로 최종 단계까지 적용한다. 프리셋마다 못 넣음이 없고, 마지막 단계가 "적용됨"이어야 한다.
     # 앞 프리셋의 역천개명·신혼·명우를 다음 프리셋이 바꾼다(프리셋에서 프리셋으로 갈아타기).
     if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
-    $c = Fields (Cmd 'pcheck' 900)
-    $embedded = (Fields (Cmd 'pdefaults' 200)).embedded
+    $c = FieldsOf (Cmd 'pcheck' 900)
+    $embedded = (FieldsOf (Cmd 'pdefaults' 200)).embedded
     Check 'every default preset is listed and readable' ([int]$embedded -ge 10 -and $c.presets -eq $embedded -and $c.unreadable -eq '0') "embedded=$embedded presets=$($c.presets)"
     $skip = @(MissingModPresets)
     if ($skip.Count -gt 0) { "INFO skipped (mod not loaded): $($skip -join ', ')" }
@@ -617,12 +595,12 @@ switch ($Part) {
     if ($Range -match '^(\d+)-(\d+)$') { $lo = [int]$Matches[1]; $hi = [int]$Matches[2] }
     foreach ($file in Get-ChildItem -LiteralPath $presetDir -Filter *.json | Where-Object { $_.Name -notlike '*.meta.json' -and $skip -notcontains $_.Name -and [int]$_.Name.Substring(0, 2) -ge $lo -and [int]$_.Name.Substring(0, 2) -le $hi } | Sort-Object Name) {
       $r = Cmd "papply $($file.Name) full" 1000 30000   # 적용은 8~17초 걸린다(05 문서 70절)
-      $run = Fields $r
+      $run = FieldsOf $r
       Check "$($file.BaseName.Substring(0, 2)): nothing failed" ($run.failed -eq '0') $r
       # 로더가 고른 번호(줄의 "alt"를 쓴 경우 대체 번호, 05 문서 73절)를 pstrict의 "fate 단계:번호" 줄에서 읽는다.
       $ids = (([regex]::Matches((Cmd "pstrict $($file.Name)" 600), 'fate \d+:(\d+)') | ForEach-Object { $_.Groups[1].Value }) -join ',')
       Check "$($file.BaseName.Substring(0, 2)): every fate luck of the preset is actually held" ((Cmd "phas $ids" 300) -match 'held=9 of=9') (Cmd "phas $ids" 300)
-      $st = Fields (Cmd "pstage $($file.Name) 10" 500)
+      $st = FieldsOf (Cmd "pstage $($file.Name) 10" 500)
       Check "$($file.BaseName.Substring(0, 2)): the last stage reads as applied" ($st.state -eq 'Applied') (Cmd "pstage $($file.Name) 10" 500)
       Check "$($file.BaseName.Substring(0, 2)): ability points cover what is in use" ([int](State).used -le [int](State).ap) "used=$((State).used) ap=$((State).ap)"
     }
@@ -632,7 +610,7 @@ switch ($Part) {
     # 한 프리셋에 같은 번호의 역천개명이 두 대경지에 있으면 둘째 줄은 쓸 수 없다(적용하면 두 칸이 서로를 비운다).
     if (Test-Path -LiteralPath $presetDir) { [IO.Directory]::Delete($presetDir, $true) }
     WritePreset 'uicheck-dupe.json' '{ "format": 1, "kind": "preset", "name": "uicheck dupe", "fates": [ { "grade": 2, "id": 700044 }, { "grade": 3, "id": 700044 } ] }'
-    $c = Fields (Cmd 'pcheck uicheck-dupe.json' 600)
+    $c = FieldsOf (Cmd 'pcheck uicheck-dupe.json' 600)
     Check 'the same fate at two grades: the second line is unusable' ($c.problems -eq '1' -and $c.usable -eq '1') (Cmd 'pcheck uicheck-dupe.json' 600)
     # 선천운명으로 붙이는 길도 계열을 본다. 고정본의 3:700040(귀일결)과 700058(귀일진결)은 계열 9다.
     $r = Cmd 'pborn 700058' 800
@@ -664,7 +642,7 @@ switch ($Part) {
     # 등선 중기·후기의 선력(3+3), 등선 진입의 선법(금홍파효 카드 5장)과 숨은 운명 10001, 돌파 임무(1111007 금단경 돌파)의 정리,
     # 경지에 묶인 칭호(2001 영단도인은 구령경에서 잃는다)의 정리, 현재 체력·영력·집중력을 최대로.
     $r = Cmd 'pgraise 44' 4000
-    $i = Fields (Cmd 'imm' 200)
+    $i = FieldsOf (Cmd 'imm' 200)
     Check 'the immortal power of the last two steps is given' ($i.immortalPoint -eq '6') "imm: $(Cmd 'imm' 200)"
     Check 'the first immortal art is given' ($i.cards -eq '5') "imm: $(Cmd 'imm' 200)"
     Check 'the hidden luck of the last realm is held' ((Cmd 'phas 10001' 200) -match 'held=1 ') (Cmd 'phas 10001' 200)
@@ -681,13 +659,13 @@ switch ($Part) {
   'grade-settle' {
     # 예전 판으로 올려 둔 인물(경지 번호만 등선 후기이고 선력·선법이 없다)을 경지 올리기와 최종 단계 적용이 채운다.
     Cmd 'setgrade 44' 500 | Out-Null
-    Check 'the character starts without immortal power' ((Fields (Cmd 'imm' 200)).immortalPoint -eq '0') (Cmd 'imm' 200)
+    Check 'the character starts without immortal power' ((FieldsOf (Cmd 'imm' 200)).immortalPoint -eq '0') (Cmd 'imm' 200)
     $r = Cmd 'pgraise 44' 3000
-    $i = Fields (Cmd 'imm' 200)
+    $i = FieldsOf (Cmd 'imm' 200)
     Check 'raising to the same step fills the immortal power and the first art' ($i.immortalPoint -eq '6' -and $i.cards -eq '5') "$r | imm: $(Cmd 'imm' 200)"
     Check 'the hidden luck of the last realm is held' ((Cmd 'phas 10001' 200) -match 'held=1 ') (Cmd 'phas 10001' 200)
     $r = Cmd 'pgraise 44' 3000
-    $i = Fields (Cmd 'imm' 200)
+    $i = FieldsOf (Cmd 'imm' 200)
     Check 'doing it again adds nothing' ($i.immortalPoint -eq '6' -and $i.cards -eq '5') "imm: $(Cmd 'imm' 200)"
     Cmd 'uiclose GetImmortalSkill' 500 | Out-Null
     Check 'no callback exception in the log' ((Traps) -eq 0)
@@ -695,9 +673,9 @@ switch ($Part) {
   'immortal-attr' {
     # 능력치 탭의 "본원 선력" 줄: 선법의 선력 총량(unitData.immortalCard.immortalPoint)을 게임의 상한(0~40) 안에서 정한다.
     $r = Cmd 'cattr immortalPoint 12' 800
-    Check 'the immortal power total is set' ((Fields (Cmd 'imm' 200)).immortalPoint -eq '12') "$r | $(Cmd 'imm' 200)"
+    Check 'the immortal power total is set' ((FieldsOf (Cmd 'imm' 200)).immortalPoint -eq '12') "$r | $(Cmd 'imm' 200)"
     $r = Cmd 'cattr immortalPoint 41' 800
-    Check 'a value over the game limit is refused' ((Fields (Cmd 'imm' 200)).immortalPoint -eq '12') "$r | $(Cmd 'imm' 200)"
+    Check 'a value over the game limit is refused' ((FieldsOf (Cmd 'imm' 200)).immortalPoint -eq '12') "$r | $(Cmd 'imm' 200)"
     Check 'the editor draws the row in the combat category' ((Cmd 'editor') -match 'open=True')
     Press 'Tab0' | Out-Null
     Press 'AttrCat1' | Out-Null
