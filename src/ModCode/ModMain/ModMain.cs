@@ -66,6 +66,15 @@ namespace MOD_sWP6UL
                 MelonLogger.Msg("[TlToybox] martial grid failed: " + e.GetType().Name + ": " + e.Message);
             }
             long gridMs = total.ElapsedMilliseconds - gridStart;
+            try
+            {
+                // 극 대화 창의 빠진 배경 그림을 흰 판 대신 검은 바탕으로(05 문서 95절).
+                DramaBackgroundService.Ensure();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] drama background failed: " + e.GetType().Name + ": " + e.Message);
+            }
             // 단계별 시간(성능 1 스펙 4.5의 1). 번역 두 단계의 시간은 translations:·texts: 줄에 있다.
             MelonLogger.Msg("[TlToybox] init ms=" + total.ElapsedMilliseconds + " dress=" + dressMs + " grid=" + gridMs + " patch=" + patchMs);
 #if DEVTOOLS
@@ -105,6 +114,7 @@ namespace MOD_sWP6UL
             TextPatch.ResetStats();
             AppellationService.ForgetNames();
             AppellationService.ForgetQuiet();
+            DramaBackgroundService.Forget();
 #if DEVTOOLS
             StopDevPoll();
 #endif
