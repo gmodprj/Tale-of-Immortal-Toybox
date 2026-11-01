@@ -4204,3 +4204,18 @@ Critical 없음, Important 셋, 사소 일곱.
 
 - 창작마당 모드를 어느 쪽에서 실을지: (가) 설치본(`ModExportData`, 검증한 판과 고른 사본)을 쓰고 Steam 구독 40개를 해제, (나) Steam 구독을 쓰고 `ModExportData`에는 편집기만. 지금은 둘 다 있어 두 벌 실린다.
 - 세계 진입 멈춤의 원인(DLC·언어)과 회차의 클라우드 대책.
+
+### 97.6 Steam 구독만 쓰기로 (사용자 결정, 2026-11-01)
+
+- 사용자 선택 "Steam 구독만 쓰기". `ModExportData`의 창작마당 사본 40개를 `.devremote\modexport-archive-1101`(git 제외)로 옮겼다. 40개 모두 구독 중인 것을 확인했다. 이제 `ModExportData`에는 편집기 `Mod_sWP6UL`만 있고, 창작마당 모드는 게임이 `E:\SteamLibrary\steamapps\workshop\content\1468810`에서 싣는다(`加载模组` 42줄 = 구독 41 + 편집기).
+- 그래서 `tools/workshop.ps1 -Install`(설치본에 복사)은 쓰지 않는다. 모드를 더하고 빼는 것은 Steam 구독으로 한다. `session.ps1 -Exclude`는 `ModExportData`의 폴더만 옮기므로 구독본에는 듣지 않는다.
+- 구독본의 2819617569는 강화판과 옛 원판 사본이 둘 다 실린다(97.3절).
+
+### 97.7 세계 진입 멈춤의 원인 — DLC
+
+- 사용자 세이브로도 같은 자리에서 멈췄다(회차 `gd-e-1101`, 고정본 없이). 그러니 지금은 사용자도 세이브를 이어 할 수 없다.
+- 개발 명령 `rpower`(`Dev/DevCommandsPower.cs`, 개발 빌드만): 인물 1,738명 가운데 90명의 `TotalPower`가 실패하고, 실패하는 기술은 절기(SkillRight) 24117·24118, 신통(Ultimate) 34114, 신법(Step) 510162뿐이다(회차 `gd-f-1101`).
+- `rpower dlc`(회차 `gd-h-1101`): `SteamManager.Initialized=True`. Steam이 아는 DLC는 셋 — 2408730 不归玄境, 3294480 화집, 3326620 Five Blooms — 이고 넷(OST 포함) 모두 `BIsSubscribedApp=False`(이 계정에 없다). 실패하는 기술은 옵션 행(`battleSkillPrefixValue`)은 있지만 기술 본표(`battleSkillAttack`·`battleStepBase`)의 행이 없다: 24117·24118·34113·34114·510162 `base=none`. 같은 계열의 본편 기술 24116·510151·510161은 본표에 있다(`mod=False`). 
+- 해석: 이 기술들은 DLC가 있어야 본표에 실린다. 옛 설치본은 에뮬레이터(`tenoke.ini`)가 DLC 넷을 모두 열어 주어, 그동안 세계의 인물들이 이 기술을 배웠다. 정품 Steam에서는 본표가 비어 전투력 계산(`GetMartialLevel`)이 null로 터지고, 세계 진입 콜백(`WorldSpecialAppellationGrant.OnGrant`)이 끊겨 불러오기 화면에 멈춘다. 어느 DLC의 기술인지는 미확인(이름 칸도 본표에 있어 읽을 수 없었다).
+- 클라우드: 회차 `gd-e`~`h`(사용자 세이브) 뒤에도 마지막 업로드는 13:15 그대로다.
+- 고칠 길(사용자 결정): (가) 그 DLC를 Steam에서 갖추기, (나) 편집기에 보호를 넣기 — 본표 없는 기술의 전투력 계산을 0으로 넘기거나, 세이브를 불러올 때 그 기술을 인물들에게서 빼기, (다) 새 세이브.
