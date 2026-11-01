@@ -4219,3 +4219,11 @@ Critical 없음, Important 셋, 사소 일곱.
 - 해석: 이 기술들은 DLC가 있어야 본표에 실린다. 옛 설치본은 에뮬레이터(`tenoke.ini`)가 DLC 넷을 모두 열어 주어, 그동안 세계의 인물들이 이 기술을 배웠다. 정품 Steam에서는 본표가 비어 전투력 계산(`GetMartialLevel`)이 null로 터지고, 세계 진입 콜백(`WorldSpecialAppellationGrant.OnGrant`)이 끊겨 불러오기 화면에 멈춘다. 어느 DLC의 기술인지는 미확인(이름 칸도 본표에 있어 읽을 수 없었다).
 - 클라우드: 회차 `gd-e`~`h`(사용자 세이브) 뒤에도 마지막 업로드는 13:15 그대로다.
 - 고칠 길(사용자 결정): (가) 그 DLC를 Steam에서 갖추기, (나) 편집기에 보호를 넣기 — 본표 없는 기술의 전투력 계산을 0으로 넘기거나, 세이브를 불러올 때 그 기술을 인물들에게서 빼기, (다) 새 세이브.
+
+### 97.8 편집기 보호 — 본표 없는 기술 (사용자 선택 "편집기에 보호 넣기", 2026-11-01)
+
+- `Services/MissingSkillGuard.cs`(`Init`에서 `Ensure`)와 판정 `Services/KnownSkillIds.cs`(단위 시험 5줄): `FormulaTool.UnitPower.GetMartialLevel` 앞붙임이 기술 본표(공격 기술 `battleSkillAttack`·신법 `battleStepBase`·심법 `battleAbilityBase`)에 그 번호가 없으면 원래 코드를 건너뛰고 0을 돌려준다(본표가 비었으면 막지 않는다. 행 수가 바뀌면 번호를 다시 모은다). `SkillPower`에는 finalizer를 달아 원래 계산이 예외로 끝나면 0을 돌려준다(본표 행을 다시 읽어 같은 예외가 났다). 세이브의 기술은 건드리지 않는다.
+- 회차 `gd-i`·`gd-j-1101`(사용자 세이브): 로그 `skill guard: no base row for Step 510162 / SkillRight 24117 / SkillRight 24118`, `rpower` → `guarded=90 powerZeroed=90 units=1738 failed=0`. `GetMartialLevel`·`SkillPower`의 null 예외는 0이 됐다.
+- **그래도 세계 진입은 끝나지 않는다.** 불러오기 화면이 남고, 그다음 오류가 둘이다: `EventsMgr.Init` 안의 null 예외와 극 함수 `DramaFunction.OptionsFunction`의 null 예외. 개발 빌드의 탐침(`DevCommandsPower.HookProbes`, 회차 `gd-k-1101`): `EventsMgr.Init`은 넘겨받은 Action을 부르기만 하고(32바이트), 터지는 Action은 `MapWorldMgr+<>c.<Init>b__76_0`(지도 세계 초기화의 다음 단계)이다. 극 함수는 `callDrama_1137355225|addGridArrtRange_6_1_0_400|addGridArrtRange_8_1_0_400`에서 터진다(지도가 덜 만들어진 채 열린 극으로 본다).
+- `xrefl`로 `MapWorldMgr+<>c.<Init>b__76_0`을 해독하면 호출 대상 대부분이 이름 없는 주소이거나 무관한 이름(`DynamicBoneColliderBase.Collide`, `Color.Lerp`)으로 나와 읽을 수 없었다. 지도 초기화가 무엇을 못 찾는지는 미확인이다. DLC 쪽 자료로 짐작하지만 확인하지 못했다.
+- 클라우드: 회차 `gd-i`~`k` 뒤에도 마지막 업로드 13:15. 설치본 DLL은 `-End`가 3d7725c로 되돌렸다(보호는 아직 설치하지 않았다).

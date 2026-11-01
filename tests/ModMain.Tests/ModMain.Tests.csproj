@@ -43,5 +43,6 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\PresetRules.cs" Link="Linked\PresetRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\BreakthroughRules.cs" Link="Linked\BreakthroughRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\UI\Widgets\ChipBar.cs" Link="Linked\ChipBar.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\KnownSkillIds.cs" Link="Linked\KnownSkillIds.cs" />
   </ItemGroup>
 </Project>

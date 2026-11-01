@@ -72,6 +72,7 @@ namespace MOD_sWP6UL
             PresetRulesTests();
             BreakthroughRulesTests();
             ChipBarTests();
+            KnownSkillIdsTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -807,6 +808,19 @@ namespace MOD_sWP6UL
             Check("breakthrough: one needed takes the last kind", string.Join(",", BreakthroughRules.NeedItems("1_2_3", 1)) == "3");
             Check("breakthrough: several needed cycle from the front", string.Join(",", BreakthroughRules.NeedItems("1_2", 3)) == "1,2,1" && BreakthroughRules.NeedItems("1_2", 0).Count == 0 && BreakthroughRules.NeedItems("", 2).Count == 0);
             Check("breakthrough: treasures cycle the candidates", string.Join(",", BreakthroughRules.Treasures("7_8", 3)) == "7,8,7" && BreakthroughRules.Treasures("", 2).Count == 0);
+        }
+
+        // 기술 본표 번호(05 문서 97.8절): 본표에 없는 기술만 막고, 본표가 비었거나 다른 표의 번호는 막지 않는다.
+        private static void KnownSkillIdsTests()
+        {
+            var known = new KnownSkillIds();
+            Check("skill ids: an empty table blocks nothing", !known.Missing(KnownSkillIds.Attack, 24118) && known.Stale(KnownSkillIds.Attack, 0));
+            known.Fill(KnownSkillIds.Attack, new[] { 24116, 34111 }, 2);
+            Check("skill ids: a missing id is blocked, a present one is not", known.Missing(KnownSkillIds.Attack, 24118) && !known.Missing(KnownSkillIds.Attack, 24116));
+            Check("skill ids: tables are separate", !known.Missing(KnownSkillIds.Step, 24118));
+            Check("skill ids: stale only when the row count changes", !known.Stale(KnownSkillIds.Attack, 2) && known.Stale(KnownSkillIds.Attack, 3));
+            known.Fill(KnownSkillIds.Attack, new[] { 24116, 24118, 34111 }, 3);
+            Check("skill ids: refilling picks up new rows", !known.Missing(KnownSkillIds.Attack, 24118) && !known.Stale(KnownSkillIds.Attack, 3));
         }
 
         // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.

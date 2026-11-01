@@ -78,6 +78,7 @@ namespace MOD_sWP6UL
                 }
             }
             var sb = new StringBuilder();
+            sb.Append(MissingSkillGuard.LastNote).Append(" guarded=").Append(MissingSkillGuard.Guarded).Append(" powerZeroed=").Append(MissingSkillGuard.PowerZeroed).Append(' ');
             sb.Append("units=").Append(units.Count).Append(" failed=").Append(failed).Append(" firstFailed=").Append(failedUnits);
             foreach (var pair in bad.OrderByDescending(x => x.Value).Take(20))
             {
@@ -164,6 +165,60 @@ namespace MOD_sWP6UL
                 }
             }
             return "none";
+        }
+
+        // 세계 진입이 EventsMgr.Init의 다음 단계와 극 함수에서 null 예외로 끊기는 자리 찾기(97.8절).
+        // EventsMgr.Init은 넘겨받은 Action을 부르기만 하므로 그 Action의 대상 메서드 이름을, OptionsFunction은 함수 문자열을 남긴다.
+        private static HarmonyLib.Harmony probes;
+
+        public static void HookProbes()
+        {
+            if (probes != null)
+            {
+                return;
+            }
+            probes = new HarmonyLib.Harmony("TlToybox.powerprobe");
+            try
+            {
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public;
+                probes.Patch(typeof(EventsMgr).GetMethod("Init", flags), prefix: new HarmonyLib.HarmonyMethod(typeof(DevCommandsPower).GetMethod(nameof(EventsInitPrefix))));
+                probes.Patch(typeof(DramaFunction).GetMethod("OptionsFunction", flags), prefix: new HarmonyLib.HarmonyMethod(typeof(DevCommandsPower).GetMethod(nameof(OptionsPrefix))),
+                    finalizer: new HarmonyLib.HarmonyMethod(typeof(DevCommandsPower).GetMethod(nameof(OptionsFinalizer))));
+                MelonLoader.MelonLogger.Msg("[TlToybox][probe97] hooked");
+            }
+            catch (Exception e)
+            {
+                MelonLoader.MelonLogger.Msg("[TlToybox][probe97] hook failed " + e.GetType().Name + ": " + e.Message);
+            }
+        }
+
+        public static void EventsInitPrefix(Il2CppSystem.Action call)
+        {
+            try
+            {
+                var m = call == null ? null : call.Method;
+                MelonLoader.MelonLogger.Msg("[TlToybox][probe97] EventsMgr.Init call=" + (m == null ? "null" : m.DeclaringType.FullName + "." + m.Name));
+            }
+            catch (Exception e)
+            {
+                MelonLoader.MelonLogger.Msg("[TlToybox][probe97] EventsMgr.Init call=? " + e.GetType().Name);
+            }
+        }
+
+        private static string lastFunction = "";
+
+        public static void OptionsPrefix(string function)
+        {
+            lastFunction = function ?? "null";
+        }
+
+        public static Exception OptionsFinalizer(Exception __exception)
+        {
+            if (__exception != null)
+            {
+                MelonLoader.MelonLogger.Msg("[TlToybox][probe97] OptionsFunction failed function=" + lastFunction);
+            }
+            return __exception;
         }
 
         private static void Count(Dictionary<string, int> map, string key)
