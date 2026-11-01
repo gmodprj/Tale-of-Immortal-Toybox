@@ -222,7 +222,7 @@ namespace MOD_sWP6UL
             return SlotBlocked(item, index) ? SlotReason : RuleBlockReason(martial, index, item);
         }
 
-        public const string SlotReason = "이 자리에는 나올 수 없는 옵션";
+        public const string SlotReason = MartialRules.SlotReason;
 
         // 그 자리의 가중치가 0이라 게임이 그 자리에 만들지 않는 옵션인지(스펙 2026-10-20-trainer-batch2-design.md 5.1절: 강제로 넣을 수 있다).
         public static bool SlotBlocked(ConfBattleSkillPrefixValueItem item, int index)
@@ -471,46 +471,31 @@ namespace MOD_sWP6UL
         // slotFrom: 자리 판정을 이 자리부터만 한다(대도까지 채우기: 옛 옵션은 자리 밖이어도 인정, 05 문서 83절).
         public static string OptionProblem(MartialType type, int baseId, int[] options, bool anySlot = false, int slotFrom = 0)
         {
-            if (options.Length > 11)
-            {
-                return "옵션은 11개까지입니다";
-            }
-            var valid = new List<ConfBattleSkillPrefixValueItem>();
+            // 게임 행을 PrefixRow로 바꾸고 판정은 MartialRules(순수. 문구는 그대로. 05 문서 93절).
+            return MartialRules.OptionProblem(options, RowsOf(type, baseId), anySlot, slotFrom);
+        }
+
+        // 그 기술의 옵션 행 전부를 순수 판정용 레코드로. 여러 조합을 판정할 때는 한 번만 만들어 MartialRules.OptionProblem에 넘긴다(최종 리뷰: 호출마다 만들면 O(N²)).
+        internal static List<PrefixRow> RowsOf(MartialType type, int baseId)
+        {
+            var rows = new List<PrefixRow>();
             var items = g.conf.battleSkillPrefixValue.GetItems((int)type, baseId);
             for (int i = 0; items != null && i < items.Count; i++)
             {
-                valid.Add(items[i]);
+                rows.Add(RowOf(items[i]));
             }
-            var numbers = new List<int>(options);
-            for (int i = 0; i < options.Length; i++)
+            return rows;
+        }
+
+        // 게임의 옵션 행을 순수 판정이 쓰는 레코드로.
+        internal static PrefixRow RowOf(ConfBattleSkillPrefixValueItem item)
+        {
+            var weights = new int[11];
+            for (int i = 0; i < 11; i++)
             {
-                int number = options[i];
-                ConfBattleSkillPrefixValueItem item = valid.Find(v => v.number == number);
-                if (item == null)
-                {
-                    return "이 기술에 없는 옵션입니다(" + number + ")";
-                }
-                if (!anySlot && i >= slotFrom && Weight(item, i) <= 0)
-                {
-                    return "옵션 " + (i + 1) + ": " + SlotReason;
-                }
-                if (numbers.FindAll(n => n == number).Count > item.multi)
-                {
-                    return "옵션 " + (i + 1) + ": 중복 한도 " + item.multi + "개 초과";
-                }
-                foreach (int require in Requires(item))
-                {
-                    if (require > 0 && !numbers.Contains(require))
-                    {
-                        return "옵션 " + number + "번에 필요한 " + require + "번 옵션이 없음";
-                    }
-                    if (require < 0 && numbers.Contains(-require))
-                    {
-                        return "옵션 " + number + "번과 " + (-require) + "번은 함께 둘 수 없음";
-                    }
-                }
+                weights[i] = Weight(item, i);
             }
-            return null;
+            return new PrefixRow { Number = item.number, Multi = item.multi, Weights = weights, Requires = Requires(item).ToArray() };
         }
 
         // 옵션을 지정해 공법을 만들어 배운 상태로 넣고, 옵션마다 게임이 허용하는 최고 품질로 맞춘다.
@@ -590,6 +575,12 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 비급 값 문자열이 세트 번호만 든 기록({"suitID":번호})인지(13 문서 R1: 세 곳이 같은 정규식을 쓰던 것).
+        private static bool IsPlainSuitRecord(string values)
+        {
+            return Regex.IsMatch(values, "^\\{\"suitID\":\\d+\\}$");
+        }
+
         // 심법 비급에 세트 번호를 쓴다. 실측: 세트 번호는 값 배열이 아니라 valuesStr의 JSON {"suitID":번호}에 있고,
         // 장착한 심법의 종류가 아니라 이 번호로 세트가 켜진다(프리셋 스펙 3절). 다른 글이 적혀 있으면 건드리지 않는다.
         public static bool SetSuit(DataProps.PropsData props, int suitId)
@@ -606,7 +597,7 @@ namespace MOD_sWP6UL
                 return false;
             }
             string now = props.valuesStr ?? "";
-            if (now.Length > 0 && !Regex.IsMatch(now, "^\\{\"suitID\":\\d+\\}$"))
+            if (now.Length > 0 && !IsPlainSuitRecord(now))
             {
                 return false;
             }
@@ -756,6 +747,18 @@ namespace MOD_sWP6UL
             return string.IsNullOrEmpty(key) || key == "0" ? "" : CleanLine(key);
         }
 
+        // 깨진 공법을 건너뛴 첫 번만 로그(그 뒤는 조용히).
+        private static bool brokenWarned;
+        internal static void BrokenSkipped(string where, Exception e)
+        {
+            if (brokenWarned)
+            {
+                return;
+            }
+            brokenWarned = true;
+            MelonLogger.Msg("[TlToybox] 깨진 공법 건너뜀(" + where + "): " + e.GetType().Name + ": " + e.Message);
+        }
+
         // 그 심법의 기본 번호가 구성원(suitMember)에 든 세트. 심법이 아니면 빈 목록.
         public static List<SuitView> SuitsFor(WorldUnitBase unit, string soleId)
         {
@@ -775,14 +778,27 @@ namespace MOD_sWP6UL
             var held = new Dictionary<int, List<string>>();
             foreach (var pair in unit.data.unitData.allActionMartial)
             {
-                DataProps.MartialData m = pair.Value.data.To<DataProps.MartialData>();
-                if (m.martialType != MartialType.Ability)
+                // 깨진 공법(값이 비어 읽기만으로 예외)이 하나 있어도 전승 화면이 통째로 실패하지 않게 줄 단위로 건너뛴다(13 문서 A11).
+                int suit;
+                string name;
+                try
                 {
-                    continue;
+                    DataProps.MartialData m = pair.Value.data.To<DataProps.MartialData>();
+                    if (m == null || m.martialType != MartialType.Ability)
+                    {
+                        continue;
+                    }
+                    suit = SuitOf(pair.Value.data);
+                    if (suit == 0)
+                    {
+                        continue;
+                    }
+                    // 깨진 공법에서 실제로 던지는 곳은 martialInfo 조회(Name 안)다(회차 fs-b-1030의 Player.log). 그것까지 try 안에서 읽는다.
+                    name = Name(m);
                 }
-                int suit = SuitOf(pair.Value.data);
-                if (suit == 0)
+                catch (Exception e)
                 {
+                    BrokenSkipped("전승", e);
                     continue;
                 }
                 List<string> list;
@@ -791,7 +807,7 @@ namespace MOD_sWP6UL
                     list = new List<string>();
                     held[suit] = list;
                 }
-                list.Add(Name(m));
+                list.Add(name);
             }
             var all = g.conf.battleAbilitySuitBase._allConfList;
             for (int i = 0; i < all.Count; i++)
@@ -860,7 +876,7 @@ namespace MOD_sWP6UL
                 return backupError + " 변경을 중단했습니다.";
             }
             string oldValues = action.data.valuesStr ?? "";
-            if (oldValues.Length > 0 && !Regex.IsMatch(oldValues, "^\\{\"suitID\":\\d+\\}$"))
+            if (oldValues.Length > 0 && !IsPlainSuitRecord(oldValues))
             {
                 return name + ": 다른 정보가 적힌 비급이라 전승을 쓰지 않았습니다.";
             }
@@ -894,7 +910,7 @@ namespace MOD_sWP6UL
             {
                 return name + ": 전승이 없습니다.";
             }
-            if (!Regex.IsMatch(now, "^\\{\"suitID\":\\d+\\}$"))
+            if (!IsPlainSuitRecord(now))
             {
                 return name + ": 다른 정보가 적힌 비급이라 전승을 떼지 않았습니다.";
             }

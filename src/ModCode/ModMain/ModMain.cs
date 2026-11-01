@@ -35,7 +35,15 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] texts failed: " + e.GetType().Name + ": " + e.Message);
             }
-            BattleService.OnInit();
+            try
+            {
+                BattleService.OnInit();
+            }
+            catch (Exception e)
+            {
+                // 전투 사건 등록이 실패해도 뒤의 초기화는 돈다(13 문서 A3).
+                MelonLogger.Msg("[TlToybox] battle events failed: " + e.GetType().Name + ": " + e.Message);
+            }
             long dressStart = total.ElapsedMilliseconds;
             try
             {
@@ -58,6 +66,15 @@ namespace MOD_sWP6UL
                 MelonLogger.Msg("[TlToybox] martial grid failed: " + e.GetType().Name + ": " + e.Message);
             }
             long gridMs = total.ElapsedMilliseconds - gridStart;
+            try
+            {
+                // 극 대화 창의 빠진 배경 그림을 흰 판 대신 검은 바탕으로(05 문서 95절).
+                DramaBackgroundService.Ensure();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] drama background failed: " + e.GetType().Name + ": " + e.Message);
+            }
             // 단계별 시간(성능 1 스펙 4.5의 1). 번역 두 단계의 시간은 translations:·texts: 줄에 있다.
             MelonLogger.Msg("[TlToybox] init ms=" + total.ElapsedMilliseconds + " dress=" + dressMs + " grid=" + gridMs + " patch=" + patchMs);
 #if DEVTOOLS
@@ -80,7 +97,15 @@ namespace MOD_sWP6UL
             MelonLogger.Msg("[TlToybox] Destroy");
             EditorWindow.Close();
             ResetState();
-            BattleService.OnDestroy();
+            try
+            {
+                BattleService.OnDestroy();
+            }
+            catch (Exception e)
+            {
+                // 사건 해제가 던져도 뒤의 정리(배율·입력·포인터 되돌리기)는 돈다(13 문서 A3).
+                MelonLogger.Msg("[TlToybox] battle events failed: " + e.GetType().Name + ": " + e.Message);
+            }
             DressThumbService.Stop();
             RateService.OnDestroy();
             ArtifactKeyService.OnDestroy();
@@ -88,6 +113,8 @@ namespace MOD_sWP6UL
             PointerGuard.Release();
             TextPatch.ResetStats();
             AppellationService.ForgetNames();
+            AppellationService.ForgetQuiet();
+            DramaBackgroundService.Forget();
 #if DEVTOOLS
             StopDevPoll();
 #endif
@@ -115,6 +142,24 @@ namespace MOD_sWP6UL
             catch (Exception e)
             {
                 MelonLogger.Msg("[TlToybox] 배율 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
+                // 성공·드롭 탭(훔치기·관계 발전·드롭 배수·참오 최대)도 다음 세이브로 넘기지 않는다(13 문서 A1).
+                SuccessService.Reset();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 성공·드롭 되돌리기 오류: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
+                // 하위 화면(강화·기술 추가·대도까지·전승 등)과 결과 문구는 앞의 세이브를 보고 있으므로 닫는다(13 문서 B8).
+                EditorWindow.ResetViews();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] 하위 화면 닫기 오류: " + e.GetType().Name + ": " + e.Message);
             }
         }
 

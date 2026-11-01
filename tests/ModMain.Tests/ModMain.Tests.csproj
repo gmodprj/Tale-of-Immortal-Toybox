@@ -35,5 +35,13 @@
     <Compile Include="..\..\src\ModCode\ModMain\Services\MasteryRules.cs" Link="Linked\MasteryRules.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\KoreanText.cs" Link="Linked\KoreanText.cs" />
     <Compile Include="..\..\src\ModCode\ModMain\Services\RateGroups.cs" Link="Linked\RateGroups.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\NumberFieldRules.cs" Link="Linked\NumberFieldRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\RateUnitRules.cs" Link="Linked\RateUnitRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\AtomicFile.cs" Link="Linked\AtomicFile.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\PrefixRow.cs" Link="Linked\PrefixRow.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\MartialRules.cs" Link="Linked\MartialRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\PresetRules.cs" Link="Linked\PresetRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\Services\BreakthroughRules.cs" Link="Linked\BreakthroughRules.cs" />
+    <Compile Include="..\..\src\ModCode\ModMain\UI\Widgets\ChipBar.cs" Link="Linked\ChipBar.cs" />
   </ItemGroup>
 </Project>

@@ -54,14 +54,14 @@ namespace MOD_sWP6UL
             Redraw();
         }
 
-        // 한 단계 돌아간다.
+        // 한 단계 돌아간다. 하위 화면에서 마지막으로 한 동작의 결과 문구는 남긴다(13 문서 B9).
         protected void Pop()
         {
             if (views.Count > 0)
             {
                 views.RemoveAt(views.Count - 1);
             }
-            Redraw();
+            Refresh();
         }
 
         protected void CloseViews()
@@ -131,6 +131,24 @@ namespace MOD_sWP6UL
         {
             EditorWindow.ClearMessage();
             EditorWindow.Refresh();
+        }
+
+        // 토글 줄(배율·성공 탭. 13 문서 S3): 이름 글, 값 단추, 설명. noteName은 설명 요소의 이름(검사가 읽는다). 다음 줄의 y를 돌려준다.
+        protected float ToggleRow(float y, float rowH, string name, string label, string value, bool on, string note, Action onClick, string noteName)
+        {
+            Ui.Label(content, label, 16, y + 10, 220, 40, 19);
+            float h = rowH - 12;
+            Ui.Button(name, content, value, 240, y + 6, 150, h, onClick, true, on);
+            UnityEngine.UI.Text text = Ui.Wrapped(content, note, 410, y + 6, ContentW - 430, h, 15);
+            text.color = Ui.Dim;
+            text.gameObject.name = noteName;
+            return y + rowH;
+        }
+
+        // 하위 화면이 보던 것이 사라졌을 때의 안내(13 문서 S7).
+        protected void MissingNote(string text, float y)
+        {
+            Ui.Label(content, text, 0, y, 800, 36).color = Ui.Warn;
         }
 
         // 줄의 높이: 가장 높은 글에 위아래 여백을 더한 값. 글이 한 줄이면 min 그대로다.

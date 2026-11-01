@@ -1,18 +1,21 @@
-# 06. 작업 인계 (2026-10-29 기준)
+# 06. 작업 인계 (2026-11-01 기준)
 
 다음 세션이 이 문서만 읽고 이어서 일할 수 있도록 현재 상태, 일하는 방법, 남은 일을 정리한다.
-세부 실험 기록은 `docs/05-editor-v0.1.md`(1~87절)에 있고, 이 문서는 그 길잡이다.
+세부 실험 기록은 `docs/05-editor-v0.1.md`(1~96절)에 있고, 이 문서는 그 길잡이다.
 
 **이어받는 순서**: 아래 "지금 한 줄 요약"을 읽고 → 8.0절(다음에 할 일)을 읽고 → 일을 시작할 때 5절(검증 방법)과 6절(함정)을 본다. 1절의 날짜별 줄은 필요할 때만.
 
-**지금 한 줄 요약(2026-10-29)**:
+**지금 한 줄 요약(2026-11-01)**:
+- **네 번째 릴리스와 GitHub 공개(2026-11-01)**: 사용자 지시("전체 작업 정리 - 문서작성 - develop 커밋 - main 로컬 머지 - 브랜치 정리 - GitHub 푸시")로 이 문서 정리까지를 `develop`에 병합하고, `develop`을 `main`에 `--no-ff`로 병합한 뒤 `main`·`develop`을 원격 `origin`(https://github.com/gmodprj/Tale-of-Immortal-Toybox.git, 공개 저장소)에 처음 올렸다. 이제 `main` = `develop` = 설치본(3d7725c) 뒤의 문서 변경까지. 병합을 마친 작업·문서 브랜치는 지웠고(8.7절), 실험 브랜치 스물은 로컬에만 남겼다(원격에 올리지 않음).
+- **2026-10-29~11-01에 한 것**: 리뷰(13 문서)와 그 개선 묶음 1~5(05 문서 89~93절: 작은 수정 2차, 배율 서비스 다듬기, 검사 도구 정리, 파일 안전, 리팩토링 2차), 극 창의 흰 배경 조사(94절)와 빠진 배경을 검은 바탕으로(95절), 빠진 그림을 채울 곳 조사(96절: [蛋]음양쌍수의 배경 62장은 제작자가 창작마당에서 뺀 것. 공개된 사본은 못 찾음, 제작자 QQ 그룹만 남음). 설치본은 3d7725c(2026-11-01 07:32).
+- 남은 일은 8.0절: 사용자 확인(검은 바탕, 묶음 2·4·5의 동작 불변, 그 앞의 확인들), 음양쌍수 그림(사용자가 QQ 그룹에서 구하면 대조·설치), 13 문서 7절의 6·7.
 - **세 번째 릴리스(2026-10-29)**: 사용자 지시("전 작업 문서 정리 - 인계문서 작성 - develop 커밋 - main 로컬 머지 - 브랜치 정리")로 이 문서 정리까지를 `develop`에 병합하고 `develop`을 `main`에 `--no-ff`로 병합했다. 이제 `main` = `develop` = 설치본(f2d064a)과 같은 코드다(설치본 뒤의 변경은 문서뿐). 병합을 마친 `feat/trainer4-battle`·`docs/install-1028b`·`docs/release-1029`는 지웠다(8.7절). 실험 브랜치는 남겼다.
 - **2026-10-28 트레이너 4차 — 전투 묶음(05 문서 87절, f2d064a, 2026-10-28 19:22에 설치)**: 사용자 지시 "트레이너 기능 추가"(질문 없이 "진행")로 12 문서 5절 가운데 셋을 골랐다. 배율 탭의 기술 쿨타임이 선법·영역 기술까지(명우 기술은 원래 걸려 있었음), 새 줄 전투 아이템 쿨타임(단약 칸·법보 발동)과 법보 내구 소모(없음), 주는 피해의 `일격` 단계. 전투 이동 속도는 시간·속도 칩으로 옮겼다(전투 칩 8줄). 검사 `trainer4-check.ps1` 다섯 부분과 기존 배율 검사 모두 FAIL 0.
 - **2026-10-27에 끝낸 것(셋, 모두 develop에 병합, 2026-10-28 06:58에 설치)**: 모드를 뺀 뒤의 세이브 동작 확인(05 문서 84절, `session.ps1 -NoEditor`), 미룬 사소한 것 묶음(85절), 배율 탭 확장 — 분류 칩 다섯과 지도 속도·전투 이동 속도·호감 변화·정력 소모(86절).
 - **두 번째 릴리스(2026-10-28)**: 사용자 지시로 `develop`을 `main`에 `--no-ff`로 병합했다(그때 설치본 0402190).
 - 남은 일은 8.0절: 사용자 확인(트레이너 4차를 실제 플레이에서, 전투 이동 속도의 실제 걷는 빠르기, 배율 탭 칩의 쓰임새, 일격·선법 연사의 체감 등), 12 문서 5절의 남은 트레이너 기능 열셋(사용자가 원할 때).
 - **첫 릴리스**: 2026-10-24에 `develop`을 `main`에 `--no-ff`로 병합했다(사용자 지시 "develop to main", dd8be98). 그 전까지 `main`은 초기 커밋 그대로였다.
-- 게임 설치본은 f2d064a(2026-10-28 19:22. 1절 "지금 게임에 설치된 것").
+- 게임 설치본은 3d7725c(2026-11-01 07:32. 1절 "지금 게임에 설치된 것"). 2026-10-29의 요약은 아래 줄들(그때 설치본 f2d064a).
 - 2026-10-23에 끝낸 것: 12 문서의 묶음 1~5(05 문서 77~81절), 묶음 6 트레이너 3차 (가)(82절), 수련 단계 대도까지 채우기(83절), 사용자 보고 둘(공법 탭 옵션 11줄 표시 83.6절, 모드 기술 이름의 색 태그 83.7절). 12 문서 7절의 계획 1~6이 2026-10-27로 모두 끝났다.
 - 일하는 방식(2026-10-23에 굳어진 것): 묶음마다 brainstorming → 설계 전 실험(실험 브랜치 `feat/*-research`, 회차) → 스펙(`docs/superpowers/specs/`) → 검토자 서브에이전트의 질문 → 계획(`docs/superpowers/plans/`) → 이 세션에서 직접 실행(executing-plans, 진행 기록은 `.superpowers/sdd/<계획>/progress.md`, 끝나면 지움) → 브랜치 전체를 opus 검토자 한 번 → Critical·Important만 시험부터 고치고 문서 → 사용자 확인 뒤 `--no-ff` 병합과 브랜치 삭제. 설치 기록은 `docs/install-*` 문서 브랜치로 남긴다. 사용자 보고 같은 작은 고침은 `fix/*` 브랜치에서 검사 줄을 먼저 더하고 고친다.
 - 사용자에게 보이는 글은 모두 한국어로. 2026-10-27 세션에서도 네 번 영어로 샜다(영어 검사 출력이나 서브에이전트 보고를 읽은 직후의 한 줄 진행 문장). 도구 호출에 붙이는 한 줄까지 보내기 전에 본다.
@@ -22,10 +25,12 @@
 
 - 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
-- 저장소 `E:\TlToybox`, 로컬 git만 사용(원격 없음). 통합 브랜치 `develop`이 최신이다. `main`은 2026-10-24에 `develop`을 처음 병합했고(첫 릴리스), 2026-10-28에 두 번째, 2026-10-29에 세 번째로 병합했다(요약 참고). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 스물(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리, 2026-10-22에 `feat/perf-research`·`feat/mastery-research`, 2026-10-23에 `feat/trainer3-research`·`feat/mastery2-research`, 2026-10-27에 `feat/rate2-research`, 2026-10-28에 `feat/trainer4-research` 추가. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
-- **지금 게임에 설치된 것**(2026-10-28 19:22 기준. 앞 설치본의 기록은 8.8절):
+- 저장소 `E:\TlToybox`. 원격 `origin` = https://github.com/gmodprj/Tale-of-Immortal-Toybox.git(GitHub 공개 저장소, 2026-11-01에 `main`·`develop`을 처음 올림. 실험 브랜치는 올리지 않는다). 통합 브랜치 `develop`이 최신이다. `main`은 2026-10-24에 `develop`을 처음 병합했고(첫 릴리스), 2026-10-28에 두 번째, 2026-10-29에 세 번째, 2026-11-01에 네 번째로 병합했다(요약 참고). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 스물(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리, 2026-10-22에 `feat/perf-research`·`feat/mastery-research`, 2026-10-23에 `feat/trainer3-research`·`feat/mastery2-research`, 2026-10-27에 `feat/rate2-research`, 2026-10-28에 `feat/trainer4-research` 추가. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
+- **지금 게임에 설치된 것**(2026-11-01 07:32 기준. 앞 설치본의 기록은 8.8절):
+  - **2026-11-01 07:32 갱신(94·95절)**: 편집기 DLL을 `develop` 3d7725c로 바꿨다 — 사용자 지시("설치")·게임 꺼짐 확인 뒤 `tools/install.ps1`, `installed build: 3d7725c`(3,036,672바이트). 바로 앞 설치본은 bb122e1(2026-10-30 21:34, 아래 줄). 들어간 것: 극 창(기연·큰 그림 대화)의 빠진 배경 그림을 흰 판 대신 검은 바탕으로(95절). 94절의 `rdrama`는 개발 명령이라 배포본에 없다. 설치 뒤 배포 구성 회차 `dbg-rel-1101`(`-ReleaseBuild`, 고정본)에서 `Init build=3d7725c`와 배경 패치 실패 줄이 없는 것을 확인했다(검은 바탕 자체는 개발 빌드 회차 `dbg-e-1031`에서 확인).
+  - **2026-10-30 21:34 갱신(90~93절)**: 편집기 DLL을 `develop` bb122e1로 바꿨다 — 사용자 지시("설치")·게임 꺼짐 확인 뒤 `tools/install.ps1`, `installed build: bb122e1`(3,035,136바이트). 바로 앞 설치본은 dd355aa(10:56, 아래 줄). 들어간 것: 13 문서 7절의 묶음 2·4·5 — 배율 서비스 다듬기(90절), 파일 안전과 예외 경로(92절: 번역표·설정·학습 상한·즐겨찾기 파일을 임시 파일 뒤 바꿔치기로 씀, 예외 경로 로그), 리팩토링 2차(93절). 모두 동작 불변이 목표라 사용자가 보기에 달라지는 것은 없어야 한다. 설치 뒤 배포 구성 회차 `rf2-j-1030`(`-ReleaseBuild`, 고정본)에서 `Init build=bb122e1`로 뜨는 것만 확인했다(회차는 설치본을 보관했다가 되돌리므로 설치본 그대로).
+  - **2026-10-30 10:56 갱신(89절)**: 편집기 DLL을 `develop` dd355aa로 바꿨다 — 사용자 지시("설치")·게임 꺼짐 확인 뒤 `tools/install.ps1`, `installed build: dd355aa`(3,031,040바이트). 바로 앞 설치본은 f2d064a(2026-10-28 19:22, 아래 줄). 들어간 것: 작은 수정 2차(89절: 자원 탭 보유 칸 규칙 — 같은 값·떠나며 줄이기 무시, 줄이기는 Enter + 같은 값 Enter; 세이브를 떠날 때 성공·드롭 상태와 하위 화면 닫기; 돌아가기가 결과 유지; 기술 추가 안내 두 줄; 법보 `경지 10까지` 두 번 누르기; 비급 수량 칸 떠날 때 저장; 일격의 동료 제외; 문구 넷). 확인은 회차(고정본)에서만 했다. 사용자가 봐 줄 것은 89.3절(8.0절 0번).
   - **2026-10-28 19:22 갱신(87절)**: 편집기 DLL을 `develop` f2d064a로 바꿨다 — 사용자 지시("병합하고 설치")·게임 꺼짐 확인 뒤 `tools/install.ps1`, `installed build: f2d064a`(3,028,480바이트). 바로 앞 설치본은 0402190(2026-10-28 06:58, 아래 줄). 들어간 것: 트레이너 4차 전투 묶음(선법·영역까지 넓힌 기술 쿨타임, 전투 아이템 쿨타임, 주는 피해 일격, 법보 내구 소모 없음, 전투 이동 속도의 칩 이동). 확인은 회차(고정본)에서만 했다.
-  - **2026-10-28 06:58 갱신(84~86절)**: 편집기 DLL을 `develop` 0402190으로 바꿨다 — 사용자 지시("설치")·게임 꺼짐 확인 뒤 `tools/install.ps1`, `installed build: 0402190`(3,025,408바이트). 바로 앞 설치본은 022d832(2026-10-23 22:18). 들어간 것: 미룬 사소한 것 묶음(85절: 모드 비급 경지 표기, 공법 탭 `대도까지 있음`, 법보·전승·대도 채우기의 되돌리기와 문구 등), 배율 탭 확장(86절: 분류 칩 다섯, 지도 속도·전투 이동 속도·호감 변화·정력 소모). 84절은 도구(`session.ps1 -NoEditor`)라 설치본과 상관없다. 게임에서 사용자가 쓰기 전의 확인은 회차(고정본)에서만 했다.
   - 조작 도구: `Mods\TlToyboxDevRemote.dll`(개발용. 회차와 검사가 쓴다. 지우면 원상태).
   - 창작마당 모드 40개: `ModExportData\<창작마당ID>\`. 목록 `tools/workshop/mods.txt`(설치 40·보류 4·제외 1), 이력 `history.txt`, 등록부 `docs/09-workshop-mods.md`, Steam 컬렉션 3820620999(40개, 설명 `collection-desc`). 마지막에 넣은 것은 만고신화 2814696167(`dH6k0J`, 71절. 새 게임용으로 설치한 채 둔다, 73절). 만고신화는 경지 표(`RoleGrade`)를 바꿔, 바닐라 세이브의 경지가 한 단계 낮게 읽힌다(72절).
   - 게임의 모드 순서(레지스트리 PlayerPrefs `HKCU\Software\guigugame\guigubahuang`의 `Mod_LoadData`): 41개(편집기 + 창작마당 40) 모두 `isLoad:true`. 만고신화를 41번째로 켰다(앞 값 `.devremote\playerprefs-Mod_LoadData-before-wangu-1020.bin`). **새 창작마당 모드를 설치하면 모드 창에서 저장하거나 이 값을 다시 써야 Fatury가 그 모드의 그림을 싣는다**(52절). 동적 입화 설정 `GameSetting_dynPortraitEnabled2_h171193457`=1(74절에서 잠시 0으로 시험하고 되돌림).
@@ -58,7 +63,15 @@
 - **2026-10-27**: 모드를 뺀 뒤의 세이브 동작 확인(05 문서 84절, 브랜치 `feat/session-noeditor`, 회차 `noed-a-1027`~`d`). `session.ps1 -NoEditor`. 게임 설치는 하지 않았다(도구와 문서뿐).
 - **2026-10-28**: 0402190 설치(1절), 문서 정리와 두 번째 릴리스(`develop` → `main`), 브랜치 정리(병합된 작업 브랜치는 없음. 실험 브랜치 열아홉은 남김, 8.7절).
 - **2026-10-28 (2)**: 트레이너 4차 전투 묶음(05 문서 87절, 스펙·계획 `2026-10-28-trainer4-battle*`, 브랜치 `feat/trainer4-battle`, 실험 `feat/trainer4-research`·회차 `t4-a`~`d-1028`, 검증 `t4-i`~`q-1028`). 병합·설치 전.
-- **다음에 할 일(2026-10-28)**: 8.0절. 그 아래 줄은 2026-10-18까지의 목록이다.
+- **2026-10-29 (2)**: 리뷰와 미확인 항목 확인(13 문서 `docs/13-review-2026-10-29.md`, 05 문서 88절, 브랜치 `chore/review-1029`, 회차 `rv-a-1029`). 8.0절 3번 가운데 전투 장면 적재 중 지도 속도·선법 `coolTime`·전투 불러오기 멈춤·괴수 전투의 NPC 법보를 닫았고, 읽기 전용 리뷰 세 갈래(서비스·UI·도구와 문서)의 지적과 개선 묶음 1~7을 13 문서에 정리했다. 탐침 명령 `tswatch`·`iwatch`·`npcart`(개발 빌드만). 06 문서 5절의 검사 부분 표 27줄과 README 빌드 명령을 코드에 맞췄다. 배포 코드는 바뀌지 않았고 게임 설치도 하지 않았다.
+- **2026-10-30**: 작은 수정 2차(05 문서 89절, 13 문서 7절 묶음 1. 계획 `2026-10-30-small-fixes-2.md`, 브랜치 `fix/small-fixes-2`, 회차 `sf2-a`~`c-1030`): 자원 탭 보유 칸(같은 값·떠나며 줄이기 무시, 줄이기는 Enter + 확인), 세이브를 떠날 때 성공·드롭 상태와 하위 화면 닫기, 돌아가기가 결과 유지, 기술 추가 안내 두 줄, `경지 10까지` 두 번 누르기, 비급 수량 칸 떠날 때 저장, 일격의 동료 제외, 문구 넷. 게임 설치는 하지 않았다.
+- **2026-10-30 (2)**: 배율 서비스 다듬기(05 문서 90절, 13 문서 7절 묶음 2. 스펙·계획 `2026-10-30-rate-service-cleanup*`, 브랜치 `feat/rate-service-cleanup`, 회차 `rsc-a`~`d-1030`): 전투 단위 상태 전환을 `RateUnitRules`로, 이동 처리기는 붙어 있는지로, 수치 함수 여섯을 `RateGroups`로, `RateService`를 두 파일로. 동작 불변. 2026-10-30 21:34 bb122e1로 설치됨(1절).
+- **2026-10-30 (3)**: 검사 도구 정리(05 문서 91절, 13 문서 7절 묶음 3. 계획 `2026-10-30-check-tools-cleanup.md`, 브랜치 `chore/check-tools-cleanup`, 회차 `ctc-a`~`d-1030`): 검사 아홉의 복붙 도우미를 `check-lib.ps1`로(전투 진입·종료는 8.0절 규칙판 하나), `session.ps1` 복원 빈틈 셋, `session.tests` 45 → 51. 배포 코드는 바뀌지 않았다.
+- **2026-10-30 (4)**: 파일 안전과 예외 경로(05 문서 92절, 13 문서 7절 묶음 4. 계획 `2026-10-30-file-safety.md`, 브랜치 `fix/file-safety`, 회차 `fs-a`·`b-1030`): `AtomicFile`(번역표 셋·`config.txt`·`martial-grid.txt`·즐겨찾기를 임시 파일 뒤 바꿔치기로), `ConfigFile` 모든 예외 로그, 프리셋 표지·전승/배운 수의 깨진 공법·프리셋 되돌리기·화면 글 치환의 예외 경로, 도호 조용 표시를 세이브 떠날 때 비움. 2026-10-30 21:34 bb122e1로 설치됨(1절).
+- **2026-10-30 (5)**: 리팩토링 2차(05 문서 93절, 13 문서 7절 묶음 5. 계획 `2026-10-30-refactor-2.md`, 브랜치 `chore/refactor-2`, 회차 `rf2-a`~`-1030`): 순수 판정 넷(`PrefixRow`·`ModSkillRules.RemapPrefixNumbers`·`MartialRules`·`PresetRules`·`BreakthroughRules`, 시험 22줄), 서비스 중복(R2·R5·R6·R8), UI 위젯(`ChipBar`·`CountChip`·`NumberChips`·`ToggleRow`·`MissingNote`), 자원·공법 탭 partial, 그리기 되풀이 정리. 동작 불변. 2026-10-30 21:34 bb122e1로 설치됨(1절).
+- **2026-10-31**: 극 대화 창의 흰 배경 조사(05 문서 94절, 브랜치 `chore/drama-bg-probe`, 회차 `drama-a`~`c-1031`): [蛋]음양쌍수(3426669627)의 패키지에 대화 배경 그림 62가지(대화 96줄)가 없어 흰 판이 나온다(원본 패키지부터 없음). 개발 명령 `rdrama` 추가. 이어서 사용자 지시("검게 바꿔 줘")로 빠진 배경을 검은 바탕으로 두게 고쳤다(05 문서 95절, `DramaBackgroundService`, 브랜치 `fix/drama-blank-bg`, 검사 `drama-bg-check.ps1` 회차 `dbg-e-1031` FAIL 0). 2026-11-01 07:32 3d7725c로 설치됨(1절).
+- **2026-11-01**: 빠진 그림을 채울 곳 조사(05 문서 96절, 브랜치 `docs/missing-art-sources`·`docs/offsite-art*`·`docs/ws-latest-*`): 음양쌍수의 배경 62장은 제작자가 "창작마당 판은 모두 흰 그림"이라 밝힌 것이고, 游侠网 사본(252MB)은 받기 링크가 모두 막혀 있으며, 창작마당 최신판(2026-02-01)은 SteamCmd가 옛 판을 내줘 받을 수 없다. 남은 길은 제작자 QQ 그룹(사용자 몫). 이어서 네 번째 릴리스와 GitHub 공개(머리 요약).
+- **다음에 할 일(2026-11-01)**: 8.0절. 13 문서 7절의 묶음 1~5는 모두 끝났고 설치됐다(3d7725c). 남은 것은 8.0절(사용자 확인·결정)과 13 문서 7절의 6(문서 남은 것)·7(새 기능. 사용자가 고를 때). 그 아래 줄은 2026-10-18까지의 목록이다.
 - (2026-10-18까지의 목록) **다음에 할 일**: (000) 코드 리뷰 `docs/10-review-2026-10-18.md`(2026-10-18) 5절의 묶음 가운데 사용자가 고른 것 — 작은 수정 묶음은 끝남(58절, 12:18 설치. 그 검증에서 나온 명령 채널 경합은 59절에서 고침, 목록 휠 실패는 재현 안 됨) / 리팩토링 1차(R1~R5·R7) / 측정 뒤 결정(08의 10·11). (00) 4차 모드의 실제 동작 확인(8.5절 마지막 줄). (0) 설치는 끝났다(6c12d31, 2026-10-17 16:40. 2026-10-18에 8500271로 갱신). 사용자 확인 목록은 8.5절의 마지막 묶음("2026-10-17 설치본"). (1) 사용자 확인(8.5절): 새 모드 8개의 실제 효과와 한국어 글(종족 선택·요도희·절색방·BGM), 새 탭 줄·화폐 그룹·안전 단추의 쓰임새. (2) 리뷰에서 남긴 것(48·49절 끝): 12(내보내기 format 2)·10·11·15·T2~T5·낮음 21~49. (3) 열린 일: 이동 배율 x0.25의 이른 월말 보고(8.3a절). (4) 게임의 `Mods\TlToyboxDevRemote.dll`(2026-10-12 빌드)도 환경 변수를 읽는 새 빌드로 바꾸려면 사용자 확인(기본 경로는 같아 회차에는 영향 없음). (5) X 후보: 이름 키가 없는 모드 기술 168개의 "이름 없음(번호)" 표시(50절 검토). (6) 입화(52절, 해결): 2815562168 `Body\149` 폴더를 뺄지(사용자 결정)와 `workshop.ps1 -Install` 뒤 모드 순서(`Mod_LoadData`) 갱신 단계를 41절 절차에 넣을지. 10:04 세션이 24개를 읽은 까닭은 미확인으로 둔다. (7) 중국어가 또 보이면 회차에서 `rzhleft`로 그 글의 원문을 받아 `Translations/texts.txt`에 줄을 더한다(54절. 부분 치환은 조각이 하나라도 빠지면 글 전체가 중국어로 남는다. 시작 화면 패치 노트와 모드 목록 창은 일부러 둔다). (8) 전투 불러오기 멈춤(55절, 한 번): 다시 나면 그 순서(편집기 열린 채 `numbers` 검사 뒤 `awset 1,3` → `fight 1011 20` → 전투 확인)로 재현한다. (9) 법보 탭 후속 후보(56절, 사용자가 원하면): 법보의 경지·강화·접두 옵션, 기령의 친밀도·장비.
 - 사용자의 세이브: 1번 슬롯(인물 "신환", 결정 초기). 사용자는 설치본으로 직접 플레이하며 편집기를 쓴다(2026-10-12 밤, 2026-10-13 13:50~14:02와 21:04~21:06. `changes.log`에 남아 있다). 사용자가 계속 플레이하므로 세이브의 날짜는 수시로 바뀐다(2026-10-16 오전 캡처: 2년 7월 8일, 결정 초기). 고정본(5절)은 영향을 받지 않는다.
 - **검증은 사용자의 세이브가 아니라 고정본 세이브에서 한다**(5절). 회차가 끝나면 사용자의 세이브는 회차 전과 같게 되돌려진다.
@@ -70,7 +83,7 @@
 | 탭 | 기능 | 코드 | 실험 기록(05 문서) |
 |---|---|---|---|
 | 능력치 | 게임 인물 화면의 다섯 분류(개인·전투·공법 자질·영근 자질·기예)로 저장값 편집(값 칸에 쓰고 Enter), 증감 단위, 자원 회복. 전투 속성 끝에 선법의 본원 선력(0~40). 여섯째 분류 `성격`(내재 1·외재 2를 칩으로, 편집 대상 기준, 66절) | `AttributeCatalog`, `EditService.SetAttribute`·`SetTrait`, `TraitRules` | 5, 14, 15, 27, 35, 66절 |
-| 자원 | 지급 수량, 가방 칸(±10, 직접 지정), 화폐 그룹(영석과 재화 8종: 종문 공헌, 생기, 사기, 정도의 기, 마도의 기, 성주령, 전공, 선우. 명성 줄. 47절), 용도 그룹 10개(9개와 기타. 왼쪽 목록, 개수는 거르기를 반영)와 종류 칩, 이름·품질·보유 중만 거르기, 아이템 표(☆·이름·종류·품질·보유·지급. 설명은 아래 칸. 보유는 숫자 칸이라 수를 바로 정하고, `버리기`는 두 번 누르기. 장착품은 지우지 않는다, 66절), 즐겨찾기(아이템+수량, 비급+권수, 모두 지급), 기술 서적(비급) 지급: 경지·최소 품질, 한 번에 20권 | `ItemGroups`, `ItemCatalog`, `FavoriteStore`, `MartialBookService`, `EditService.GiveItem`·`TryGiveItem`, `BagService`(`BagService.Count.cs`의 수량 지정), `BagPlan` | 14, 15, 25, 27, 31, 38, 39, 66절 |
+| 자원 | 지급 수량, 가방 칸(±10, 직접 지정), 화폐 그룹(영석과 재화 8종: 종문 공헌, 생기, 사기, 정도의 기, 마도의 기, 성주령, 전공, 선우. 명성 줄. 47절), 용도 그룹 10개(9개와 기타. 왼쪽 목록, 개수는 거르기를 반영)와 종류 칩, 이름·품질·보유 중만 거르기, 아이템 표(☆·이름·종류·품질·보유·지급. 설명은 아래 칸. 보유는 숫자 칸(늘리기는 Enter·떠나기 모두, 줄이기는 Enter로 묻고 같은 값의 Enter로 확인. 89절), `버리기`는 두 번 누르기. 장착품은 지우지 않는다, 66절), 즐겨찾기(아이템+수량, 비급+권수, 모두 지급), 기술 서적(비급) 지급: 경지·최소 품질, 한 번에 20권 | `ItemGroups`, `ItemCatalog`, `FavoriteStore`, `MartialBookService`, `EditService.GiveItem`·`TryGiveItem`, `BagService`(`BagService.Count.cs`의 수량 지정), `BagPlan` | 14, 15, 25, 27, 31, 38, 39, 66절 |
 | 보관함 | `가방`: 현재 가방(아이템, 장착 중인 것, 영석과 화폐)을 이름을 붙여 JSON 파일로 내보내기, 목록·세부, 하나씩 또는 모두 가져오기(칸이 모자라면 늘릴지 묻는다), 삭제. `캐릭터`: 플레이어의 능력치·경지·공법·기예·운명·역천개명을 내보내고 전부·구역별·줄 하나씩 가져오기 | `BagExportService`, `CharacterExportService`(+`.Import`), `ExportFiles`, `Json`, `UI/Tabs/VaultTab`(+`.Character`) | 28, 30, 31절 |
 | 경지 | 수련치 채우기, 소경지 돌파, 대경지는 재료·천재지보 지급 후 게임의 돌파 화면 열기 | `EditService`(Breakthrough, GiveBreakthroughMaterials) | 8, 9, 20, 21절 |
 | 공법 | 익힌 공법 목록, 옵션 품질·교체(자리 밖 옵션은 `강제` 두 번 누르기, 68절), 숙련 경험치, 장착·해제·망각, 심법 전승(`전승…`: 그 심법이 구성원인 세트 붙이기·떼기, 82절), 수련 단계 대도까지 채우기(`대도까지…`: 옵션을 11개까지 무작위 또는 직접 골라 끼워 넣기·다시 만들기, 83절), 기술 추가(다섯 분류·경지·이름, 모두 배우기, 강제 추가), 학습 상한(게임의 기술 칸 수에 더함. NPC에게도 걸림, 데이터 폴더 `martial-grid.txt`에 남음, 60절) | `MartialService`, `MasteryService`, `MasteryRules`, `SkillCatalog`, `MartialGridService` | 7, 22, 23, 24, 60, 68, 82, 83절 |
@@ -80,11 +93,11 @@
 | 기예 | 연단·연기·부적·풍수·약재·광재의 서적 배우기·잊기·모두 배우기·강제 추가. 하위 화면 `제작 재료…`: 연단·연기·부적 처방을 고르면 한 벌(묶음 1·5·10)의 재료를 가방에 넣는다(62절) | `ArtService`, `CraftMaterialService`, `CraftPlan`, `UI/Tabs/ArtTab.Materials` | 22, 23, 24, 61, 62절 |
 | NPC | 가까운 NPC 목록·이름 검색, 호감도, 편집 대상으로 지정 | `EditService`(SetIntimBoth) | 5, 27절 |
 | 세계 | 순간 이동, 날짜(고정, +1·+5·+10일, 다음 달 1일로, 연·월·일 직접 지정) | `WorldService`, `TimeService` | 13, 25절 |
-| 배율 | 분류 칩 다섯(성장·시간·속도·전투·관계·소모·켜 둔 것, 칩마다 켜 둔 줄 수. 86절)으로 20줄: 수련치 획득, 전투 중 공법 숙련, 비급 학습 진도(64절) / 지도 속도(전투 밖 게임 속도, 86절), 전투 속도, 이동의 날짜 소모, 수련·학습의 날짜 소모(63절) / 기술 쿨타임(없음까지. 선법·영역 cd도, 87절), 전투 아이템 쿨타임(단약 칸·법보 발동, 87절), 신기 쿨타임, 영력 소모, 집중력 소모(없음이면 전투 중 모든 감소를 막음, 66절), 주는 피해(x100 다음 `일격`, 87절), 받는 피해, 무적 / 호감 변화(오를 때 양쪽, 86절), 정력 소모(없음까지, 86절), 아이템 소모(없음이면 쓰는 아이템이 줄지 않음, 66절), 법보 내구 소모(없음이면 플레이어 법보 내구가 줄지 않음, 87절). 전투 이동 속도(86절)는 시간·속도 칩(87절에서 옮김). 모두 1배로. 개발 빌드는 처음에 모든 줄을 한 화면에(`ratechip`) | `RateService`, `RateGuards`, `RateGroups`, `BattleService`(`WorldService.cs` 안), `UI/Tabs/RateTab` | 13, 32, 33, 37, 66, 86, 87절 |
+| 배율 | 분류 칩 다섯(성장·시간·속도·전투·관계·소모·켜 둔 것, 칩마다 켜 둔 줄 수. 86절)으로 20줄: 수련치 획득, 전투 중 공법 숙련, 비급 학습 진도(64절) / 지도 속도(전투 밖 게임 속도, 86절), 전투 속도, 이동의 날짜 소모, 수련·학습의 날짜 소모(63절) / 기술 쿨타임(없음까지. 선법·영역 cd도, 87절. 전투 단위 상태의 전환 규칙은 90절), 전투 아이템 쿨타임(단약 칸·법보 발동, 87절), 신기 쿨타임, 영력 소모, 집중력 소모(없음이면 전투 중 모든 감소를 막음, 66절), 주는 피해(x100 다음 `일격`, 87절), 받는 피해, 무적 / 호감 변화(오를 때 양쪽, 86절), 정력 소모(없음까지, 86절), 아이템 소모(없음이면 쓰는 아이템이 줄지 않음, 66절), 법보 내구 소모(없음이면 플레이어 법보 내구가 줄지 않음, 87절). 전투 이동 속도(86절)는 시간·속도 칩(87절에서 옮김). 모두 1배로. 개발 빌드는 처음에 모든 줄을 한 화면에(`ratechip`) | `RateService`, `RateGuards`, `RateGroups`, `BattleService`(`WorldService.cs` 안), `UI/Tabs/RateTab` | 13, 32, 33, 37, 66, 86, 87절 |
 | 프리셋 | 빌드 프리셋(JSON 파일. 기본 17개: 01~16과 만고신화용 21번 만고검결) 목록: `적용`(지금 대경지까지), `최종 단계까지`(경지를 등선 후기까지 올리고 전부), `상세보기`(대경지 단계마다의 구성·상태·적용, 경지 올리기), `기본 프리셋 되돌리기`. 공법 넷·심법과 세트·역천개명·선천운명·법보와 기령·신혼·명우를 넣는다. 이미 있는 프리셋 폴더에는 새로 생긴 기본값만 푼다(`.defaults` 기록, 70절). 역천개명 줄의 대체 번호 `alt`는 원래 번호를 그 경지에서 쓸 수 없을 때만 쓴다(73절) | `PresetService`(+`.Apply`), `PresetDefaults`, `FateAlt`, `SpriteService`, `ElderService`, `WingmanService`, `GradeService`, `Presets/*.json`, `UI/Tabs/PresetTab` | 34, 69, 70, 73절 |
 | 안전(제목 줄 단추) | 세이브 백업, 변경 이력(지난 실행 포함, 검색) | `Safety/SaveBackup`, `Safety/ChangeLog` | 3, 27절 |
 | 도호 | 플레이어의 도호(칭호) 100개: 장착 칸, 분류 칩, 검색·가진 것만, 주기·빼기(두 번)·장착, 다른 인물이 가진 '제일' 도호 가져오기(두 번), 잃는 경지 경고, 이야기 도호 안내. 편집기가 준 도호의 "도호 획득" 창과 편집기가 뺀 도호의 "도호 상실" 창은 편집기가 확인을 누른다 | `AppellationService`, `UI/Tabs/AppellationTab` | 40절 |
-| 법보 | 편집 대상이 가진 법보(장착·해제, 수리·모두 수리, 든 기령 빼기)와 기령(재능 모두 켜기, 레벨 올리기, 장착한 빈 법보에 넣기, 지우기(두 번)), 기령 친밀도 최대, 법보 줄의 `강화…`(경지 올리기 10까지·단계 1~6, 6은 한계돌파 비율 120, 집중력 비율은 100까지), 하위 화면 기령 만들기(32종, 검색)·법보 지급(열 종, 경지·단계 칩. 기본 단계 5) | `TreasureService`, `TreasureRules`, `SpriteService`(보이는 재능 표), `UI/Tabs/TreasureTab` | 56, 60, 82절 |
+| 법보 | 편집 대상이 가진 법보(장착·해제, 수리·모두 수리, 든 기령 빼기)와 기령(재능 모두 켜기, 레벨 올리기, 장착한 빈 법보에 넣기, 지우기(두 번)), 기령 친밀도 최대, 법보 줄의 `강화…`(경지 올리기 10까지 — `경지 10까지`는 두 번 누르기(89절)·단계 1~6, 6은 한계돌파 비율 120, 집중력 비율은 100까지), 하위 화면 기령 만들기(32종, 검색)·법보 지급(열 종, 경지·단계 칩. 기본 단계 5) | `TreasureService`, `TreasureRules`, `SpriteService`(보이는 재능 표), `UI/Tabs/TreasureTab` | 56, 60, 82절 |
 | 성공·드롭 | 훔치기 성공, 관계 발전 성공(플레이어가 청한 관계를 NPC가 받아들임), 전투 드롭 배수(x1·2·3·5), 참오 결과 최대(게임 참오 창의 굴림을 최대 품질 맨 위로, 82절), 모두 끄기. 저장하지 않음 | `SuccessService`, `SuccessTab` | 67, 68, 82절 |
 
 공통 규칙:
@@ -105,7 +118,7 @@
 |---|---|
 | `docs/00-design-brief.md` | 기획서(기준 문서) |
 | `docs/01-game-structure.md`, `02-mod-dev-research.md`, `02a-workshop-survey.md`, `04-ingame-state-analysis.md` | 사전 조사 |
-| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~75절). 기능을 바꾸면 절을 추가한다 |
+| `docs/05-editor-v0.1.md` | 편집기의 범위·규칙·실험 기록(1~88절). 기능을 바꾸면 절을 추가한다 |
 | `docs/06-handoff.md` | 이 문서 |
 | `docs/07-divine-artifacts.md` | 시작 신기 셋(쌍어패·호천안·연요호)과 특수 선천운명 셋(식혼검·음양안·연화검의)의 조사. 게임 확인(7절), 편집기 후보(8절), 미확인(9절) |
 | `docs/08-review-2026-10-16.md`, `docs/10-review-2026-10-18.md` | 편집기 전체 리뷰(2026-10-16), 코드 리뷰와 리팩토링 검토(2026-10-18). 남은 항목은 1절 끝 "2026-10-18까지의 목록"과 8.6절 |
@@ -113,10 +126,10 @@
 | `docs/12-review-2026-10-22.md` | 코드 리뷰·성능 측정과 개선 계획(2026-10-22): 탭 여는 시간, 자원 탭 첫 열기 4초의 원인, 모드 공법 비급 실패 522개의 분류, 트레이너 미반영 24개, 묶음 순서(7절) |
 | `docs/superpowers/specs/`, `plans/` | 작업 단위의 설계 스펙과 구현 계획: 사전 조사, 묶음 A(`2026-10-12-date-bag*`), B(`2026-10-13-ui-rework*`), C(`2026-10-13-bag-export*`), D(`2026-10-13-character-export*`), F1(`2026-10-13-rate-tab*`), F2(`2026-10-14-preset-tab*`, 프리셋 열 개의 근거는 `specs/2026-10-14-preset-builds.md`), 선법 탭(`2026-10-14-immortal-tab*`), 신기 탭(`2026-10-14-artifact-tab*`), 도호(`2026-10-15-appellation*`), 비급(`2026-10-15-martial-books*`), 자원 탭(`2026-10-15-resources-tab*`), 창작마당 설치(`2026-10-15-workshop-install*`), 한글화(`2026-10-16-mod-korean*`), 모드 공법의 비급(`2026-10-16-mod-skill-books*`), 창작마당 확장(`2026-10-16-workshop-expand*`), 새 모드 한글화(`2026-10-16-mod-korean-2*`), 리뷰 수정(`2026-10-16-review-fixes*`), 리뷰 도구 묶음(`2026-10-16-review-tools*`), LocalText 밖 글 한글화(`2026-10-17-zh-text-korean*`), 법보 탭(`2026-10-17-treasure-tab*`), 기예 제작 재료(`2026-10-18-craft-materials*`), 트레이너 비교 1·2묶음(`2026-10-20-trainer-batch1*`, `2026-10-20-trainer-batch2*`), 기본 프리셋 11~16(`2026-10-20-preset-drafts*`, 작업 기록 `specs/2026-10-20-preset-drafts-builds.md`) |
 | `src/ModCode/ModMain/ModMain.cs` | 진입점(`Init`, `Destroy`) |
-| `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리), 한글화의 `TranslationService.cs`·`TranslationTable.cs`(LocalText 키 번역표)·`TextTranslationService.cs`·`TextReplacer.cs`(원문 기반 번역표, 54절), 법보·기령의 `SpriteService.cs`(프리셋)·`TreasureService.cs`(법보 탭)도 여기 있다. 2026-10-18 뒤에 생긴 것: `CraftMaterialService.cs`·`CraftPlan.cs`(기예 제작 재료, 62절), `MartialGridService.cs`(기술 학습 상한, 60절), `BagPlan.cs`·`BagService.Count.cs`(가방 수량 지정, 65·66절), `TraitRules.cs`(성격, 66절), `SuccessService.cs`(성공·드롭 탭, 67·68절), `PresetDefaults.cs`(새 기본 프리셋만 풀기, 70절), `TextTags.cs`(모드 글의 서식 태그 지우기, 72절), `FateAlt.cs`(역천개명 대체 번호, 73절), `DressThumbService.cs`(캐릭터 만들기 의복 빈 썸네일, 74절), `LocalTextIndex.cs`·`LocalTextRules.cs`(LocalText 한 번 훑기와 번역 판정, 77절), `ModSkillRules.cs`(모드 공법 이름·숨김·비급 경지 판정, 78절), `FileStamp.cs`·`StampCache.cs`(폴더 표지와 표지 캐시, 79절), `GiveBudget.cs`(비급 지급 시간 상한, 80절), `ApplyTally.cs`·`ConfigFile.cs`(+`.Io.cs`)·`FavoriteStore.Lines.cs`(81절). 게임 형식을 쓰지 않는 `CraftPlan`·`BagPlan`·`TraitRules`·`PresetDefaults`·`TextTags`·`FateAlt`·`LocalTextRules`·`ModSkillRules`·`FileStamp`·`StampCache`·`GiveBudget`·`ApplyTally`·`ConfigFile`·`FavoriteStore.Lines`는 `tests/ModMain.Tests`가 시험한다 |
+| `src/ModCode/ModMain/Services/` | 게임 값의 읽기·쓰기. 화면을 모르고 결과를 문장으로 돌려준다. `AtomicFile.cs`(사용자 파일의 임시 파일 뒤 바꿔치기 쓰기, 92절), 순수 판정 `PrefixRow`·`MartialRules`·`PresetRules`·`BreakthroughRules`·`RateUnitRules`·`NumberFieldRules`(93·90·89절), `Json.cs`(작은 JSON 읽기), `ExportFiles.cs`(내보내기 파일의 공통 처리), 한글화의 `TranslationService.cs`·`TranslationTable.cs`(LocalText 키 번역표)·`TextTranslationService.cs`·`TextReplacer.cs`(원문 기반 번역표, 54절), 법보·기령의 `SpriteService.cs`(프리셋)·`TreasureService.cs`(법보 탭)도 여기 있다. 2026-10-18 뒤에 생긴 것: `CraftMaterialService.cs`·`CraftPlan.cs`(기예 제작 재료, 62절), `MartialGridService.cs`(기술 학습 상한, 60절), `BagPlan.cs`·`BagService.Count.cs`(가방 수량 지정, 65·66절), `TraitRules.cs`(성격, 66절), `SuccessService.cs`(성공·드롭 탭, 67·68절), `PresetDefaults.cs`(새 기본 프리셋만 풀기, 70절), `TextTags.cs`(모드 글의 서식 태그 지우기, 72절), `FateAlt.cs`(역천개명 대체 번호, 73절), `DressThumbService.cs`(캐릭터 만들기 의복 빈 썸네일, 74절), `LocalTextIndex.cs`·`LocalTextRules.cs`(LocalText 한 번 훑기와 번역 판정, 77절), `ModSkillRules.cs`(모드 공법 이름·숨김·비급 경지 판정, 78절), `FileStamp.cs`·`StampCache.cs`(폴더 표지와 표지 캐시, 79절), `GiveBudget.cs`(비급 지급 시간 상한, 80절), `ApplyTally.cs`·`ConfigFile.cs`(+`.Io.cs`)·`FavoriteStore.Lines.cs`(81절). 게임 형식을 쓰지 않는 `CraftPlan`·`BagPlan`·`TraitRules`·`PresetDefaults`·`TextTags`·`FateAlt`·`LocalTextRules`·`ModSkillRules`·`FileStamp`·`StampCache`·`GiveBudget`·`ApplyTally`·`ConfigFile`·`FavoriteStore.Lines`는 `tests/ModMain.Tests`가 시험한다 |
 | `src/ModCode/ModMain/Translations/` | DLL에 내장되는 번역표 셋: `mods.txt`(LocalText 키<TAB>한국어, 16,184행. 43·46·50·57·72절), `texts.txt`(원문<TAB>한국어, 245줄. 화면 글 치환, 54절), `tables.txt`(표 칸 전용 원문<TAB>한국어, 3,271줄. 글 전체가 같을 때만 바꿈, 74절). 설치 뒤 첫 실행 때 데이터 폴더 `translations\`로 풀린다. 묶음을 합치는 스크립트는 `tools/research/merge-mods-translations.py`(mods)·`merge-table-texts.py`(tables) |
 | `src/ModCode/ModMain/Presets/` | 기본 프리셋 17개(01~16, 21. JSON)와 파일마다의 검증 기록 `*.meta.json`(검증 등급·출처·모드 의존성. DLL에 넣지 않는다, 69절). JSON만 DLL에 EmbeddedResource로 들어간다. 손으로 고치지 않고 `tools/research/preset-build.ps1`의 표를 고쳐 다시 만든다(만고신화 설치본의 덤프로 전체를 다시 만들면 역천개명 이름이 바뀌므로 `-Only <번호>`로 고칠 것만, 73절) |
-| `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미, 글 높이 재기), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀), `StatusOverlay.cs`(켜 둔 기능 표시), `InputGuard.cs`(편집기 입력 칸에 글을 치는 동안 게임 단축키를 막음), `PointerGuard.cs`(창 위 입력이 지도에 새지 않게 하는 Harmony 패치, 51절), `TextPatch.cs`(화면 글의 한자 치환 Harmony 패치, 54절), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(`ListView`, `SearchBox`, `DetailPane`, `Confirm`, `NumberField`, `AmountBar`) |
+| `src/ModCode/ModMain/UI/` | `Ui.cs`(uGUI 도우미, 글 높이 재기), `EditorHost.cs`(단축키, 매 프레임 처리), `EditorWindow.cs`(창의 틀), `StatusOverlay.cs`(켜 둔 기능 표시), `InputGuard.cs`(편집기 입력 칸에 글을 치는 동안 게임 단축키를 막음), `PointerGuard.cs`(창 위 입력이 지도에 새지 않게 하는 Harmony 패치, 51절), `TextPatch.cs`(화면 글의 한자 치환 Harmony 패치, 54절), `Tabs/`(탭마다 한 파일, `EditorTab` 상속), `Widgets/`(`ListView`, `SearchBox`, `DetailPane`, `Confirm`, `NumberField`, `AmountBar`, `ChipBar`·`CountChip`·`NumberChips`(93절)) |
 | `src/ModCode/ModMain/Safety/` | 백업, 변경 이력 |
 | `src/ModCode/ModMain/Dev/` | 개발 빌드 전용 명령(배포 빌드에서 제외) |
 | `tools/install.ps1` | 배포 빌드를 만들어 게임에 설치 |
@@ -124,7 +137,7 @@
 | `docs/09-workshop-mods.md` | 창작마당 모드 등록부. `tools/workshop.ps1 -Doc`이 만든다(손으로 고치지 않는다) |
 | `tools/DevRemote/` | 게임을 화면 밖에서 조작하는 도구(MelonMod + 스크립트). `session.ps1`이 검증 한 회차를 묶고, `session.tests.ps1`이 그 안전 규칙을 시험한다(45개). 명령 채널의 공용 함수 `channel.ps1`(경합 셋을 막음, 59절. 시험 `channel.tests.ps1` 7개), `.devremote` 경로의 기준 `devremote-dir.ps1`(시험 12개, 49절) |
 | `tools/build-tag.tests.ps1` | 배포 빌드에 커밋 표지(`<짧은 커밋>[-dirty]`)가 들어가는지 시험한다(4개, 49절) |
-| `tools/research/` | 게임 어셈블리 조사 스크립트, 게임 내 자동 검증(`ui-check.ps1`, `datebag-check.ps1`, `preset-check.ps1`, `immortal-check.ps1`, `artifact-check.ps1`, `treasure-check.ps1`, `trainer3-check.ps1`, `mastery-check.ps1`, `major-breakthrough-check.ps1`. 공통 함수는 `check-lib.ps1`), 기본 프리셋을 만드는 `preset-build.ps1`, Python 조사 스크립트 `fatury-scan.py`·`fatury-log.py`(52절)·`check-texts.py`(54절), 번역 묶음을 번역표에 합치는 `merge-mods-translations.py`(43절의 절차)·`merge-table-texts.py`(74절). Python은 `py -3 -I -X utf8`로 돌린다 |
+| `tools/research/` | 게임 어셈블리 조사 스크립트, 게임 내 자동 검증(`ui-check.ps1`, `datebag-check.ps1`, `preset-check.ps1`, `immortal-check.ps1`, `artifact-check.ps1`, `treasure-check.ps1`, `trainer3-check.ps1`, `trainer4-check.ps1`, `mastery-check.ps1`, `major-breakthrough-check.ps1`. 공통 함수는 `check-lib.ps1`), 기본 프리셋을 만드는 `preset-build.ps1`, Python 조사 스크립트 `fatury-scan.py`·`fatury-log.py`(52절)·`check-texts.py`(54절), 번역 묶음을 번역표에 합치는 `merge-mods-translations.py`(43절의 절차)·`merge-table-texts.py`(74절). Python은 `py -3 -I -X utf8`로 돌린다 |
 | `ModProject_sWP6UL/`, `.devremote/`, `.superpowers/` | git 제외. 모드 에디터 프로젝트, 조작 도구의 작업 폴더(세이브 복사본, 고정본 `fixtures\`), 계획 실행 중의 임시 기록 |
 
 `src/ModCode/ModMain/Adapters`, `Features`, `Resolvers`는 처음 뼈대만 만들고 쓰지 않았다(`.gitkeep`만 있음). `tests/ModMain.Tests`는 게임 없이 도는 시험 프로젝트다(49절. `dotnet run --project tests/ModMain.Tests -c Release`).
@@ -162,7 +175,7 @@
 - `-Begin`은 "WORLD READY", `-End`는 "SAVE RESTORED AND IDENTICAL"이 나와야 성공이다. `-Begin <이름> -ReleaseBuild`는 배포 구성으로 설치해 띄운다(개발 명령이 없으므로 30초를 기다리기만 한다).
 - **회차 이름은 한 번 쓴 것을 다시 쓰지 않는다.** 같은 이름의 복사본(`.devremote\save-backup-<이름>`)이 남아 있으면 `-Begin`이 열리지 않는다.
 - 회차는 한 번에 하나다. `-Begin`이 표식(`.devremote\session.name`)을 남기고, `-End`는 열린 회차와 이름이 같을 때만 세이브를 되돌린다. 시험 전 복사본은 `save-backup-<이름>`에, 되돌리기 직전의 세이브는 `save-before-restore-<이름>`에 남는다.
-- `-End`가 되돌리는 것: 세이브, `bag-slots.txt`, `favorites.txt`와 `.bak`(`.tmp`는 지운다), `config.txt`(창 위치), 프리셋 폴더(`presets\`. 없었으면 없는 상태로), 번역 폴더(`translations\`. 프리셋과 같은 규칙. 검사 `translation`이 파일을 바꾸고 지운다), 설치돼 있던 DLL. 끝내지 못한 회차의 프리셋·번역 보관본(`.devremote\session-presets`, `session-translations`)이 남아 있으면 `-Begin`이 멈춘다(사용자의 파일의 유일한 사본일 수 있다). 정리하는 것: 회차 동안 모드가 만든 자동 백업(회차 전부터 있던 것은 남긴다), 최근 다섯 회차보다 오래된 세이브 복사본. 회차 중 `ModExportData\`에 생긴 폴더(창작마당 모드)는 지운다(`WORKSHOP FOLDERS REMOVED: n`. `Mod_sWP6UL`은 지우지 않는다).
+- `-End`가 되돌리는 것: 세이브, `bag-slots.txt`, `martial-grid.txt`(기술 학습 상한, 60절), `favorites.txt`와 `.bak`(`.tmp`는 지운다), `config.txt`(창 위치. 회차 전에 없었으면 지우지 않는다 — 13 문서 C4), 프리셋 폴더(`presets\`. 없었으면 없는 상태로), 번역 폴더(`translations\`. 프리셋과 같은 규칙. 검사 `translation`이 파일을 바꾸고 지운다), 설치돼 있던 DLL. 끝내지 못한 회차의 프리셋·번역 보관본(`.devremote\session-presets`, `session-translations`)이 남아 있으면 `-Begin`이 멈춘다(사용자의 파일의 유일한 사본일 수 있다). 정리하는 것: 회차 동안 모드가 만든 자동 백업(회차 전부터 있던 것은 남긴다), 최근 다섯 회차보다 오래된 세이브 복사본. 회차 중 `ModExportData\`에 생긴 폴더(창작마당 모드)는 지운다(`WORKSHOP FOLDERS REMOVED: n`. `Mod_sWP6UL`은 지우지 않는다).
 - `-End`가 되돌리지 않는 것: `changes.log`(검사의 기록이 남는다), 내보내기 폴더(검사가 자기 파일 `uicheck-*`를 지운다).
 - 자기가 띄우지 않은 게임은 닫지 않고, 그런 게임이 실행 중이면 띄우지도 되돌리지도 않는다. 게임은 창 닫기 요청으로 끈다(`Stop-Process`는 권한 검사에 막힌다).
 - 게임은 달이 넘어갈 때 자동 저장한다. 저장 명령을 쓰지 않은 회차도 반드시 `-End`로 끝낸다.
@@ -194,7 +207,7 @@
 | `vault` → `-Restart` → `vault-restart` | 보관함의 가방 쪽 | 이 순서로 |
 | `charvault` → `-Restart` → `charvault-restart` | 보관함의 캐릭터 쪽 | 이 순서로 |
 | `rates` | 배율 탭: 수련치와 이동, 되돌리기, 표시와 이력 | 깨끗한 회차의 첫 검사로(패치가 걸려 있지 않은 것을 본다) |
-| `bagcount` | 자원 탭의 보유 수량 지정·버리기: 늘리기·줄이기·0, 전투 아이템 칸 묶음(1개 남김), 장착 법보 보호, 두 번 누르기, 이력(66절) | 아무 때나(법보를 지급한다) |
+| `bagcount` | 자원 탭의 보유 수량 지정·버리기: 늘리기·줄이기(Enter 두 번. 떠나며 줄이기 무시, 같은 값 조용, 첫 Enter는 묻기만, 다른 단추로 대기 해제. 89절)·0, 전투 아이템 칸 묶음(1개 남김), 장착 법보 보호, 두 번 누르기, 이력(66절) | **깨끗한 회차의 첫 검사로**(고정본 1011011 x10 전제. `favorites`·`items` 뒤면 실패). 법보를 지급한다 |
 | `traits` | 능력치 탭 성격: 칩 31개, 같은 외재 칩 꺼짐, 쓰기·이력, NPC 대상(66절) | 아무 때나 |
 | `itemuse` | 배율 탭 아이템 소모 없음: 단약·보상자·지도 부적·비급 완료·대경지 돌파 재료·전투 단약은 남고, 영석·연기 재료는 줄고, 끄면 다시 준다(66절) | 달과 전투를 쓴다. 회차의 뒤쪽에 |
 | `prefixforce` | 공법 탭 옵션 자리 강제: 자리 밖 줄의 강제 단추, 두 번 누르기 문구, 중복 한도 줄은 그대로 막힘, 이력(68절) | 아무 때나 |
@@ -202,6 +215,9 @@
 | `mpnone` | 배율 탭 영력·집중력 없음: 전투에서 기술·전투 단약 뒤 영력·집중력 그대로, x0.5에서는 다시 준다(66절) | 전투를 연다 |
 | `rates-battle` | 배율 탭: 전투 중 공법 숙련과 전투 속도. 전투에 들어갔다가 끝내고 지도로 나온다 | 게임 창이 떠 있지 않을 때 |
 | `combat` | 배율 탭의 전투 줄: 받는 피해, 기술 쿨타임, 주는 피해와 적의 체력 감소. 전투 셋을 차례로 연다 | 게임 창이 떠 있지 않을 때. 5분쯤 걸린다 |
+| `confirm2`, `errors`, `backup`, `import-settle` | 48절의 두 번 누르기 넷(선천운명 교체·역천개명 정하기·기술/기예 모두 배우기), 단추·탭 예외가 결과 칸에 보임(`DevThrow`·`uifail`), 백업 없이 쓰던 세 곳의 쓰기 전 백업(`bkreset`), 캐릭터 가져오기 뒤 경지에 따른 보충 | 아무 때나(`backup`은 백업 폴더를 만든다) |
+| `grid`, `materials`, `actionday`, `studygain` | 기술 학습 상한(60절. 고정본은 무예 8/8), 기예 제작 재료 지급(62절), 수련·학습의 날짜 소모 배율(63절. `adtrain`·`adstudy`), 비급 학습 진도 배율(64절) | `studygain`은 달을 쓰고 이야기 창이 떠 회차의 마지막에 |
+| `rates2` → `rates2-map` → `rates2-battle` → `rates2-life` | 배율 탭 확장(86절): 칩 다섯과 칩별 줄·새 줄 넷·모두 1배로 / 지도 속도 x3과 끄기 / 전투 이동 속도(새 전투에서 다시 걸림, 끄면 원래 값) / 호감 변화·정력 소모(가까운 NPC와 대화) | `rates2-map`·`rates2-battle`은 게임 창이 떠 있지 않을 때. 걷기·대화 뒤 보상 창이 편집기를 가릴 수 있다(8.0절) |
 | (트레이너 4차) `trainer4-check.ps1`의 `ui`, `items`, `skills`, `onehit`, `durable` | 칩별 줄·새 줄·일격 단계·켜 둔 것 / 전투 아이템 쿨타임(같은 단약 거부 → 없음에서 단약·법보 연달아, x1이면 `itemCDRate` 100) / 등선 40·선법 장착·영역 넣기 뒤 선법·영역 cd 하한 100과 연달아 발동, x1·x0.5 / 수준 60 적 일격, 무적 없이 맞아도 생존 / 법보 내구 그대로·x1이면 98·수리 | `ui`·`items`는 한 회차, 나머지는 부분마다 깨끗한 회차. 05 문서 87절 |
 | `battle`, `status-battle` | 전투 중의 편집기 | 전투에 들어간 채로 끝난다. 회차의 마지막에 돌리고 바로 `-End`(이어서 다른 검사를 하려면 `bend`와 결과 창의 확인으로 나온다). `datebag-check.ps1`의 `freeze`와 같은 회차에 두지 않는다 |
 
@@ -212,17 +228,21 @@
 | 부분 | 보는 것 | 돌리는 조건 |
 |---|---|---|
 | `state`, `martial`, `files`, `grade` | 상태 읽기, 옵션을 지정한 공법 만들기와 세트 번호, 프리셋 파일 읽기와 기본 프리셋, 경지 올리기 | 깨끗한 회차에서 이 순서로 |
+| `grade-full`, `grade-settle`, `immortal-attr` | 경지 올리기가 정식 돌파와 같은 것을 남기는지(등선 선력·금홍파효 카드·숨은 운명·돌파 임무 정리), 예전 판으로 올린 인물의 보충, 능력치 탭 "본원 선력"(0~40) | `grade` 뒤 같은 회차 |
 | `extras` → `extras-battle` | 법보·기령·신혼·명우 쓰기, 전투에서 명우 | 깨끗한 회차에서. `extras-battle`은 명우가 있어야 통과한다 |
 | `fate-set`, `fate-groups`, `apply-switch` | 역천개명의 계열 보호(운명 탭의 길, 프리셋의 길), 프리셋에서 프리셋으로 갈아타기 | `fate-set`은 깨끗한 회차의 첫 검사로(고정본의 기록에서 시작한다) |
 | (선법) `immortal-check.ps1`의 `catalog`, `learn` → `-Restart` → `restart`, `learn-all`, `ui`, `game` | 선법 목록·익히기·모두 익히기·저장 후 유지, 선법 탭 화면, 게임 선법 창 | 깨끗한 회차에서 이 순서로. `learn`은 고정본에 선법이 없는 것에서 시작한다 |
 | (법보) `treasure-check.ps1`의 `service`, `ui` | 법보 탭 서비스(지급·장착·기령 만들기·넣기·재능·레벨·빼기·지우기·해제)와 탭 화면(단추로 같은 흐름, 캡처 `check-treasure.png`) | 깨끗한 회차에서 `service` 뒤에 `ui`(다른 번호의 법보·기령을 쓴다). 개발 명령은 05 문서 56절 |
 | (법보 3차) `treasure-check.ps1`의 `forge`, `give`, `forge-ui` | 경지 올리기·10에서 멈춤·비율 유지, 단계 1~6, 친밀도 최대, NPC 대상 / 지급의 비율 100·경지·단계, 공용 지급 길, 기존 법보 비율 그대로 / 탭의 강화 화면·지급 칩·친밀 최대(캡처 `check-treasure-forge.png`) | `service` 뒤 아무 때나(새 sole을 번호로 찾는다). 05 문서 82절 |
+| (법보 수리) `treasure-check.ps1`의 `repair` → `-Restart` → `repair-restart` | `trdur`로 내구를 낮추고 `trrepair`·탭의 수리·모두 수리로 채움(60절), 저장 후 유지 | `repair`가 끝에서 저장한다 |
 | (대도까지 채우기) `mastery-check.ps1`의 `service`, `ui`, `persist` → `-Restart` → `persist-restart` → `battle` | 끼워 넣기·다시 만들기·후보·거부·자리 밖 옛 옵션·만들기와 장착 실패 되돌리기·장착 심법 수도 점수·NPC / 공법 탭 화면 / 저장 후 유지 / 전투에서 쓰기와 정보 창 11/11 캡처 | 부분마다 깨끗한 회차(`persist`·`battle`은 한 회차). 05 문서 83절 |
+| (모드 기술 이름) `mastery-check.ps1`의 `modname` | 모드 기술 이름의 색 태그 제거(83.7절): 원문에는 태그가 있고 편집기 이름에는 `COLOR`가 없음, 캡처 `check-modname.png` | 만고신화가 실린 회차(`-Exclude` 없이) |
 | (트레이너 3차) `trainer3-check.ps1`의 `suit`, `suit-ui`, `realize`, `persist` → `-Restart` → `persist-restart` | 전승 서비스·NPC·다른 글 거부 / 공법 탭 전승 화면 / 참오 결과 최대(최대 품질 3·5·6 기술, 끄면 원래 굴림, 품질 단추 영향 없음) / 저장 후 유지 | `realize`는 숙련·재료를 채우고 게임 참오 창을 연다. 05 문서 82절 |
 | (신기) `artifact-check.ps1`의 `list`·`godeye`·`potmon` / `ui`·`game` / `persist` → `-Restart` → `restart` | 서비스(목록, 점수, 손상, 해금·장착, 호요), 신기 탭 화면, 게임 화면 캡처, 저장 후 유지와 지도 버튼 | `/`마다 깨끗한 회차. 부분마다 고정본 상태(쌍어패만, 호요 0)를 가정한다. 개발 명령은 05 문서 37절 |
+| (신기 화면·키) `artifact-check.ps1`의 `hud-one`·`hud`·`hud-battle`·`hud-battle-slots` / `keys`·`keys-ui` → `-Restart` → `keys-restart` / `slot-clicks`·`typing` | 지도 HUD의 신기 단추 자리(쌍어패만 −240,−93), 호천안 화면 닫기, 전투를 다녀온 뒤 다시 나란히, 전투 화면의 신기 칸(둘 이상이면 위로 60씩, 55절) / 신기별 단축키와 게임 신기 키 끄기, 저장 후 유지 / 전투 칸의 실제 클릭 경로(`brclick`), 입력 칸에 글자를 치는 동안 게임 단축키(B)가 반응하지 않음 | 부분마다 고정본 상태. 키는 화면 밖 게임에 전달될 때만 판정(안 되면 INFO). `keys-restart`는 `keys` 바로 뒤(8.0절) |
 | `fate-dupe`, `import-swap` | 같은 역천개명 두 줄, 선천운명의 계열, 캐릭터 가져오기의 역천개명 맞바꿈 | `fate-dupe`는 깨끗한 회차의 첫 검사로. `import-swap`은 기록을 바꾸므로 그 회차의 마지막에 |
 | `apply` → `apply-full` → `apply-battle` → `-Restart` → `apply-restart` | 단계 적용, 최종 단계까지, 전투에서 세트와 명우, 저장 후 유지 | 깨끗한 회차에서 이 순서로 |
-| `ui` | 프리셋 탭의 화면(목록, 상세보기, 확인 문구, 쓸 수 없는 줄) | 깨끗한 회차에서 |
+| `ui` | 프리셋 탭의 화면(목록, 상세보기, 확인 문구, 쓸 수 없는 줄) | 깨끗한 회차에서, **그 회차의 마지막에**(4단계 잠김은 고정본 경지를 전제하고, 단계를 실제로 적용해 장착·게임 창이 바뀐다. 93절) |
 | `preset-all` | 기본 프리셋(2026-10-20부터 17개: 01~16과 21)을 차례로 최종 단계까지 적용(못 넣음 0, 마지막 단계가 적용됨). 메타 `requires`의 모드가 실리지 않았으면 그 프리셋은 건너뛴다(INFO) | 깨끗한 회차에서. 하나에 8~17초라 `-Range 1-9`·`-Range 10-21`로 나눠 돌린다(각 4분쯤, 70·73절). 끝에 인물이 등선이라 선술 얻기 창이 뜰 수 있어 그 회차에서 다른 화면 검사를 잇지 않는다 |
 
 한 번에 다 돌리면 10분을 넘는다. 회차를 나눈다(예: 보관함 계열 / 그 밖의 화면 / 날짜·전투 / 프리셋은 위 표의 줄마다 한 회차).
@@ -236,6 +256,7 @@
   - 값: `read`, `count <아이템 번호>`, `stats`, `luck`, `cstate`(경지·수련치·능력치·공법 수 등을 한 줄에), `cmartial <기술 번호>`, `cfatelog`.
   - 일부러 바꾸기: `setgrade <번호>`, `addexp`, `cattr <key> <값>`, `mdel <공법 고유 번호>`, `cartdel <서적 번호>`, `cborndel <운명 번호>`, `luckdel`, `cfatealt <대경지>`, `cluck3`, `gridfill`, `bag <증감>`, `save`.
   - 배율·전투: `rstate`(배율의 값과 패치 여부, `Time.timeScale`), `rnpc`, `rneg`, `bcast <1|2|3>`(전투에서 무예·절기·신법 발동), `rmart`(장착 기술의 숙련), `bend [lose]`(전투를 승리나 패배로 끝냄. 결과 창은 따로 닫는다), `rpath <dx> <dy>`(게임의 경로 이동으로 여러 칸), `rpause on|off`, `bdmg`(피해 배율이 실제 타격에 걸렸는지, 적의 체력 감소, 받는 피해), `cdstat`(쿨타임 속도와 기술별 쿨타임). 트레이너 4차(87절): `cdall`(선법·영역·전투 아이템 칸·명우까지), `icast <i>`·`fcast`(선법·영역 발동), `iequip <카드> <칸>`·`fieldset <main1> <dp>`(검사 준비), `bhp`(일격 대상의 죽음, 적 수, 플레이어 hp), `artdur`(법보 내구와 막은 수). `fight <부본> <수준>`의 수준은 고정본 인물에게 20까지가 안전하다(30부터는 쓰러진다).
+  - 리뷰 탐침(13 문서 2절, 2026-10-29. 개발 빌드만): `tswatch start|read|stop`(매 프레임 `Time.timeScale`과 `SceneType.battle`·`battleMap`·`playerUnitCtrl`·`SceneType.map`의 유무를 보고 바뀐 프레임만 적는다. `loadingFrames`는 battle은 있고 playerUnitCtrl은 없는 프레임 수), `iwatch <i>|read|stop`(선법 i의 `cdTime`·`coolTime`·`cool`·`cast`·`isUse`·`energy`·`useCount`와 `IsCreate(false)`를 매 프레임 보고 바뀐 프레임만), `npcart`(전투의 플레이어 아닌 단위마다 종류·hp·법보 sole·내구. 내구 접두가 플레이어 것이 아닌 법보의 줄어드는 쓰기를 본 수 `otherDecrease`와 마지막 값). `Dev/DevCommandsProbe1029.cs`.
   - 선법: `ilist`, `icount <선인> <종류> [검색어]`, `ilearn <카드>`, `ilearnall <선인> <종류>`, `ihas <카드>`, `inoname`, `ifit <요소 이름 앞머리>`(칸보다 높아 잘리는 글의 수). 실험용 `snap <이름>`(인물 데이터를 통째로 파일에), `imm`, `immset <값>`, `upreal`(재료를 넣은 정식 돌파).
   - 법보(56절): `tr`(법보·기령 상태 한 줄), `trgive <아이템>`, `trequip <sole>`, `trunequip [sole]`, `trmake <기령 번호>`, `trput <법보 sole> <기령 sole>`, `trpull <법보 sole>`, `trlight`·`trlevel`·`trdel <기령 sole>`. 기령의 `sole`은 음수일 수 있다.
   - 신기: `aw`, `awset <번호,…>`, `awbtn`, `aon`·`aoff <번호>`, `apoint <값>`, `gedmg`, `gestate`, `gerepair`, `gecat`, `geunlock <요수>`, `geunlockall`, `geboss <요수>`, `geequip <기술>`, `ddmg <0|1|2|3>`, `ddstate`, `ddrepair`, `potlist`, `potadd <종류> <단계>`, `potfill <soleId>`(05 문서 37절). 설정 표를 번호로 찾는 `confname <번호>`는 실험 브랜치 `feat/artifact-research`에만 있다.
@@ -249,9 +270,9 @@
 - `rc.ps1 -Cmd "click x y" -NoShot` / `"hit x y"` / `"scroll x y delta"` — 게임 좌표(1920x1080)의 UI 요소를 누르거나 이름을 확인한다.
 - `win.ps1 -Do shot -Out <파일> -Scale 0.6` — 창 캡처. 캡처 좌표에서 게임 좌표로: `(x / Scale - 8, y / Scale - 31)`.
 - `win.ps1 -Do key -Vk 0x2D` — Insert 키. `-Do move -X -Y`·`-Do wheel -X -Y -Delta`(WM_MOUSEMOVE·WM_MOUSEWHEEL)도 있으나 Unity의 `Input`에는 닿지 않는다(51절 실측). 마우스는 개발 명령의 가상 입력(`uipointer`·`uiwheel`·`uikey`)으로 한다. 모드의 단축키는 전달되지만 게임 자체의 단축키(ESC, 달 넘기기 `Z`)는 전달되지 않았다. 입력 칸을 골라 입력 상태로 만든 뒤에는 글자 키(`0x41` 등)와 Enter(`0x0D`)가 그 칸에 들어간다.
-- 검증 스크립트 안에서는 `check-lib.ps1`의 `Cmd`, `Rc`, `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지), `Pos`, `Check`, `Shot`, `Traps`, `ModWarnings`를 쓴다. 편집기의 버튼은 좌표가 아니라 이름으로 찾는다.
+- 검증 스크립트 안에서는 `check-lib.ps1`의 `Cmd`, `Rc`, `Press <이름>`(찾아서 누름), `IsAt <이름>`(그 자리의 클릭이 그 요소로 가는지), `Pos`, `Check`, `Shot`, `Traps`, `ModWarnings`를 쓴다. 2026-10-30(05 문서 91절)부터 공통 도우미가 더 있다: `EnterBattleScene [수준] [-NoStart]`·`LeaveBattleScene [캡처 이름]`(전투 진입·종료. 아래 8.0절의 규칙이 들어 있다 — 검사에 전투 코드를 새로 복붙하지 않는다), `LogHasLine <패턴>`(변경 이력 마지막 40줄), `ButtonIsOff <이름>`, `UiText`·`UiHas <이름>`, `NumIn <글> <패턴>`, `FieldsOf <글>`(`k=v` 표), `OpenEditorTab <번호>`. 편집기의 버튼은 좌표가 아니라 이름으로 찾는다.
 - `.devremote`(회차 표식·세이브 사본·캡처·명령 채널)는 어느 체크아웃에서 열어도 한 곳이다: 환경 변수 `TLTOYBOX_DEVREMOTE`(절대 경로)가 있으면 그 폴더, 없으면 `E:\TlToybox\.devremote`(49절, `tools/DevRemote/devremote-dir.ps1`). 워크트리에서 회차를 열어도 같은 곳을 쓰고, 두 체크아웃이 동시에 열면 표식이 막는다. 설치본의 `Init` 줄 `build=<커밋>`으로 어느 코드가 설치됐는지 안다.
-- 게임 없이 도는 시험(2026-10-21에 센 수): `pwsh tools/DevRemote/session.tests.ps1`(45, 2026-10-27), `pwsh tools/workshop.tests.ps1`(81), `pwsh tools/DevRemote/channel.tests.ps1`(7), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(2026-10-27에 `KoreanText` 6줄 더함). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
+- 게임 없이 도는 시험(2026-10-21에 센 수): `pwsh tools/DevRemote/session.tests.ps1`(51, 2026-10-30), `pwsh tools/workshop.tests.ps1`(81), `pwsh tools/DevRemote/channel.tests.ps1`(7), `pwsh tools/DevRemote/devremote-dir.tests.ps1`(12), `pwsh tools/build-tag.tests.ps1`(4, 배포 빌드 두 번), `dotnet run --project tests/ModMain.Tests -c Release`(2026-10-27에 `KoreanText` 6줄 더함). 스크립트나 순수 논리를 고치면 해당 시험을 다시 돌린다.
 
 게임 화면의 자주 쓰는 좌표: HUD의 날짜 버튼(달 넘기기) `(400, 1000)`, 확인 창의 예 `(884, 531)`·아니오 `(1037, 531)`, 월말 기록 창의 다음 `(959, 629)`, 가방 버튼 `(120, 860)`, 인물 화면 닫기 `(1722, 160)`, 게임 메뉴의 돌아가기 `(959, 391)`, 전투 개시 `(956, 749)`, 전투 결과 창의 확인 `(959, 831)`. 편집기가 기본 위치(60,60)일 때 탭 줄은 x=151, `Tab0`이 y=144이고 탭마다 46씩 내려간다(`Tab15` y=742. 2는 비었다). 안전 단추 `Tab14`는 제목 줄 (1312,86). 편집기의 단추는 좌표가 아니라 이름으로 찾는다(47절).
 
@@ -392,17 +413,18 @@ PowerShell과 도구:
 
 ### 8.0 2026-10-29에 남은 일
 
-12 문서 7절의 계획(묶음 1~6)과 2026-10-24의 남은 일 셋(배율 탭 확장, 미룬 사소한 것, 모드를 뺀 뒤의 세이브 동작)은 모두 끝났다(05 문서 77~86절). 2026-10-28에 트레이너 4차 전투 묶음(87절)을 끝내 설치했고, 2026-10-29에 세 번째 릴리스로 `main`에 넣었다. 남은 것은 사용자가 고르거나 확인할 것뿐이다.
+12 문서 7절의 계획(묶음 1~6)과 2026-10-24의 남은 일 셋(배율 탭 확장, 미룬 사소한 것, 모드를 뺀 뒤의 세이브 동작)은 모두 끝났다(05 문서 77~86절). 2026-10-28에 트레이너 4차 전투 묶음(87절)을 끝내 설치했고, 2026-10-29에 세 번째 릴리스로 `main`에 넣었다. 같은 날 오후에 코드·UI·도구 리뷰와 미확인 항목 확인을 했다(13 문서, 9번). 남은 것은 사용자가 고르거나 확인할 것과 13 문서 7절의 개선 묶음이다.
 
-0. **사용자 확인(실제 플레이에서, 설치본 f2d064a)**: 트레이너 4차 — 일격(특히 보스·피해 상한이 있는 적), 전투 아이템 쿨타임, 법보 내구 없음, 선법·영역을 실제 단축키로 연달아 썼을 때(87.4절).
+0. **사용자 확인(실제 플레이에서)**: 극의 빠진 배경이 검은 바탕으로 나오는지(95절, 설치본 3d7725c). 설치본 bb122e1의 묶음 2·4·5(90·92·93절)는 동작 불변이 목표 — 배율 탭·프리셋·파일 저장(번역표·설정·즐겨찾기)·공법 탭 대도까지가 전처럼 되는지. 그 앞: 작은 수정 2차(89.3절: 성공·드롭 탭을 켠 채 다른 세이브를 열면 꺼져 있는지, 하위 화면을 연 채 세이브를 바꾸면 탭 첫 화면이 보이는지, 보유 칸 줄이기의 Enter 확인 체감). 그 앞: 트레이너 4차 — 일격(특히 보스·피해 상한이 있는 적), 전투 아이템 쿨타임, 법보 내구 없음, 선법·영역을 실제 단축키로 연달아 썼을 때(87.4절).
 1. **그 앞의 사용자 확인(0402190부터 들어 있는 것)**: 배율 탭의 칩 짜임과 86절의 새 줄 넷, 특히 전투 이동 속도의 실제 걷는 빠르기(도구로는 값만 확인, 86.5절). 그 앞의 것: 법보 강화·지급 경지/단계·친밀 최대·전승·참오 결과 최대(82절), 대도까지 채우기(83절), 설치본 134197d 확인 목록(캐릭터 만들기 의복 썸네일, 만고신화 선천 이름·대사 한국어, 프리셋 21번. 73·74절)과 8.5절.
 2. **새 기능 후보(사용자가 원할 때)**: 12 문서 5절의 남은 트레이너 기능 열셋 — 백그라운드 실행, 도주·호요 포획·종문 초빙 성공(67절에 판정 위치만), 호천안 비용·호계약 무제한, 도심 견고·응결치, 지도 밝히기, 마을 창고, NPC 가방, 전체 인물 검색·양방향 호감, 종문 탭, 화신 이후 돌파. 배율 탭은 칩마다 여유가 있다(줄 높이 64, 칩당 최대 8줄).
-3. **남은 확인거리(미확인으로 적어 둔 것)**: 편집기를 뺀 회차의 빈 선택지 대화(84.4절), 넘친 가방(90/64)에서 아이템을 얻을 때(84.4절), 옵션 행 없는 기술의 `대도까지…` 화면(83.5절), 공법 탭 옵션 11줄 고침의 고치기 전 실패 확인(83.6절), 배율 탭 확장의 남긴 것(86.4절: 전투 장면을 싣는 동안의 지도 속도, 전투 단위를 포인터로만 구분), 트레이너 4차의 남긴 것(87.4·87.5절: 선법 `coolTime`의 뜻, NPC 법보 내구, 일격의 동료 대상·피해 0 타격).
-4. **게임 설치**: f2d064a(2026-10-28 19:22)가 설치돼 있다(1절). 다음 설치는 게임을 끈 뒤 `tools/install.ps1`, 기록은 1절 "지금 게임에 설치된 것"과 8.8절.
+3. **남은 확인거리(미확인으로 적어 둔 것)**: 2026-10-29에 13 문서 2절(05 문서 88절)에서 넷을 닫았다 — 전투 장면 적재 중 지도 속도는 걸리지 않음(장면 객체 셋이 같은 프레임에 생기고 그 프레임에 이미 `timeScale=1`), 선법 `coolTime`(5.00)은 줄지 않는 고정값이고 쿨타임 없음에서 남는 시간은 사용 중(`isUse` 약 4초)과 기력 1 채우기, 전투 불러오기 멈춤은 같은 순서로 재현 안 됨(두 번째), 괴수 전투의 단위에는 법보가 없음. 남은 것: 편집기를 뺀 회차의 빈 선택지 대화(84.4절. 다시 보이면 편집기 있는 회차에서 그 사건의 선택지 글을 비교), 넘친 가방(90/64)에서 아이템을 얻을 때(84.4절. `-NoEditor` 회차에는 개발 명령이 없어 사용자 플레이에서), 인간 NPC 전투의 법보 내구(87.4절. 지도에서 NPC를 공격하는 도구가 필요), 일격의 동료 대상(87.5절. `UnitType.PlayerNPC` 가드 한 줄은 13 문서 7절 묶음 1), 신기 둘 이상의 전투 HUD 자리 경고 `artifact hud drift (전투 화면, mask=5)`(13 문서 2.5절. `artifact-check hud-battle`로). 옵션 행 없는 기술의 `대도까지…` 화면(83.5절)과 83.6절의 고치기 전 실패 확인은 하지 않기로 했다(13 문서 2.7절).
+4. **게임 설치**: 3d7725c(2026-11-01 07:32)가 설치돼 있다(1절). 다음 설치는 게임을 끈 뒤 `tools/install.ps1`, 기록은 1절 "지금 게임에 설치된 것"과 8.8절.
 5. 의복 목록(75절): 299번 뒤에 고를 새 의상은 없다(빈 자리 57줄). 남은 것은 [剑来] 235~237번이 화집 해금 줄(`flag=xianlingbiyu`) 때문에 숨는지 확인하는 일(사용자가 원하면)과, 남성 목록 대조(미확인).
 6. 사용자 결정: 같은 dressID 두 칸(217, 221~234, 238~243)과 [剑来]의 같은 그림 14장(267·310~322)을 그대로 둘지(74절). 03묶음 2304~2393의 비하 욕설 표현을 유지할지, `E:\c` 폴더를 지울지. 실험 브랜치 스물을 계속 남길지(8.7절).
 7. 만고신화로 새 게임을 시작하면: 기본 프리셋의 역천개명 `alt`가 실제로 고르는지(`pstrict`), 경지 표가 바뀐 상태의 경지 탭·경지 올리기(73절).
-8. 리뷰가 남긴 사소한 것: 73·74·85·86·87절 끝, 그리고 1절 끝 "2026-10-18까지의 목록"의 남은 줄.
+8. 리뷰가 남긴 사소한 것: 13 문서 6절에 현황을 모았다(73·74·85·86·87절 끝과 1절 끝 "2026-10-18까지의 목록"의 남은 줄).
+9. **다음 작업 후보(2026-10-29 리뷰, 13 문서 7절)**: 묶음 1은 끝남(2026-10-30, 05 문서 89절. 남은 확인은 89.3절 — 세이브 전환 뒤 성공·드롭 꺼짐과 하위 화면 닫힘은 사용자 플레이에서). 묶음 2도 끝남(2026-10-30, 90절. 설치 전). 묶음 3도 끝남(2026-10-30, 91절. 도구와 검사뿐). 묶음 4도 끝남(2026-10-30, 92절. 설치 전 — 묶음 2와 함께 설치할 것). 묶음 5도 끝남(2026-10-30, 93절. 설치 전). **묶음 1~5 모두 끝남.** 원래 목록: 묶음 1 작은 수정 2차(성공·드롭 상태가 다음 세이브로 넘어감 A1, 자원 탭 `보유` 칸의 떠날 때 쓰기와 확인 없는 버리기 B1·B2, 하위 화면이 세이브를 넘어 남음 B8, 기술 추가 안내 글 넘침 B3, 일격 동료 가드) → 2 배율 서비스 다듬기(이동 처리기 중복 A2, 쿨타임 단위 A4, 순수 판정 떼어 시험) → 3 검사 도구 정리(전투 종료 `Leave` 사본 셋 C1, 도우미 통합 C8, `session.tests` 보강 C3) → 4 파일 안전(번역·설정 파일 원자적 쓰기 A7) → 5 리팩토링 2차. 사용자가 정할 것 넷은 13 문서 7절 끝.
 
 검사를 돌릴 때의 함정(2026-10-23에 겪음. 6절에도 해당):
 - 측정 명령(`rperf tabs`·`query`·`press`) 뒤 같은 회차에서 `ui-check`를 돌리면 편집기 상태가 남아 실패하거나 요약 없이 끝난다. 검사는 측정 없는 회차에서.
@@ -413,9 +435,11 @@ PowerShell과 도구:
 - 만고신화를 실은 회차에서 `-Restart`하면 첫 안내 이야기 화면이 편집기를 가린다. 화면 검사는 재시작 없는 회차나 `-Exclude` 회차에서.
 - `preset-check ui`는 게임 대화창(`DramaSprite`)이 끼어 가끔 실패한다(develop 기준에서도). 다시 돌려 통과를 본다.
 - (2026-10-27) 검사 안 함수 이름이 PowerShell 별칭과 겹치면(`Mv` = Move-Item, `R`) 별칭이 먼저 잡혀 "Path 매개 변수 없음" 같은 엉뚱한 오류가 난다. 함수 이름은 두 단어 이상으로.
-- (2026-10-27) 전투를 끝내는 검사: 전투 전 화면의 `전투 개시`(btnStart, (956,749))를 먼저 누르고, `bend` 뒤 결과 창의 확인 단추(959,831)가 실제로 맞을 때까지 기다렸다 누르고, `inBattle=False`까지 기다린다. 어기면 다음 전투가 빈 화면으로 뜬다. 고정본에 들어가면 편지 창(`DramaSutraLetter`), 걷기·대화 뒤에는 보상 창(`GetReward`)·우연 사건(`DramaFortuitous`)이 편집기를 가릴 수 있다(05 문서 86.3절의 `OpenRates`).
+- (2026-10-27) 전투를 끝내는 검사(2026-10-30부터 `check-lib.ps1`의 `LeaveBattleScene`이 이 규칙대로 한다. 91절): 전투 전 화면의 `전투 개시`(btnStart, (956,749))를 먼저 누르고, `bend` 뒤 결과 창의 확인 단추(959,831)가 실제로 맞을 때까지 기다렸다 누르고, `inBattle=False`까지 기다린다. 어기면 다음 전투가 빈 화면으로 뜬다. 고정본에 들어가면 편지 창(`DramaSutraLetter`), 걷기·대화 뒤에는 보상 창(`GetReward`)·우연 사건(`DramaFortuitous`)이 편집기를 가릴 수 있다(05 문서 86.3절의 `OpenRates`).
 - (2026-10-27) 회차 스크립트를 PowerShell `-replace`로 고치면 `$_`가 바뀌어 거르기 줄이 깨질 수 있다. 회차 스크립트는 Write로 통째로 쓴다. PowerShell 문자열의 `"$i:"`는 변수 이름 오류다(`${i}:`).
 - Bash heredoc 안에서 `\\`·`\\t`·`\\n`이 바뀐다. 파이썬 수정 스크립트는 파일로 써서 돌린다(메모리의 함정). PowerShell에서 여러 줄 `Replace`는 파일의 줄 끝(CRLF/LF)에 따라 조용히 빠진다 — 바꾼 수를 세어 확인한다. 함수 이름 `R`은 내장 별칭과 겹친다.
+
+- **(2026-11-01) 음양쌍수의 빠진 배경 그림 62장**(05 문서 94~96절): 사용자가 제작자 QQ 그룹(1044452476)에서 그림이 든 판을 구하면, 압축을 푼 폴더를 실행하지 않고 62가지 이름(`.devremote\drama-bgs-1031.txt`의 `ttGCG8_` 줄)과 대조한 뒤 `ModExportData\3426669627`을 바꿔 넣는다(사용자 확인 뒤). 날 PNG만 오면 게임이 읽는지 먼저 회차에서 확인한다(96.3절). 그때까지는 검은 바탕(95절).
 
 ### 8.1 지금까지
 
@@ -735,8 +759,12 @@ PowerShell과 도구:
 
 - 2026-10-28에 쓴 회차 이름: `t4-a`~`d-1028`(87절 설계 전 실험, 실험 브랜치 `feat/trainer4-research`), `t4-e`~`t-1028`(87절 검증. `e`는 실행 스크립트 문제로 일부만 돌았다). 2026-10-29에 사용자 지시("브랜치 정리")로 지운 브랜치(모두 develop에 병합된 뒤): `feat/trainer4-battle`, `docs/install-1028b`, 이 정리의 `docs/release-1029`.
 
-### 8.8 설치 이력(2026-10-17~23, 최신이 위)
+- 2026-10-29~11-01에 쓴 회차 이름: `rv-a-1029`(13 문서), `sf2-a`~`c-1030`(89절), `rsc-a`~`d-1030`(90절), `ctc-a`~`d-1030`(91절), `fs-a`·`b-1030`(92절), `rf2-a`~`j-1030`(93절. `j`는 설치 뒤 배포 구성), `drama-a`~`c-1031`(94절), `dbg-a`~`e-1031`(95절), `dbg-rel-1101`(95절 설치 뒤 배포 구성).
+- 2026-11-01에 사용자 지시("브랜치 정리")로 지운 브랜치(모두 develop에 병합된 뒤): `chore/check-tools-cleanup`, `chore/refactor-2`, `chore/review-1029`, `docs/install-1030`, `feat/rate-service-cleanup`, `fix/file-safety`, `fix/small-fixes-2`, 이 정리의 `docs/release-1101`. 2026-10-31~11-01의 작은 브랜치(`chore/drama-bg-probe`, `fix/drama-blank-bg`, `docs/install-1030b`·`1101`, `docs/missing-art-sources`, `docs/offsite-art`·`-2`·`-3`, `docs/ws-latest-check`·`-fix`)는 병합 즉시 지웠다. 실험 브랜치 스물은 남겼다.
 
+### 8.8 설치 이력(2026-10-17~28, 최신이 위)
+
+  - **2026-10-28 06:58 갱신(84~86절)**: 편집기 DLL을 `develop` 0402190으로 바꿨다 — 사용자 지시("설치")·게임 꺼짐 확인 뒤 `tools/install.ps1`, `installed build: 0402190`(3,025,408바이트). 바로 앞 설치본은 022d832(2026-10-23 22:18). 들어간 것: 미룬 사소한 것 묶음(85절: 모드 비급 경지 표기, 공법 탭 `대도까지 있음`, 법보·전승·대도 채우기의 되돌리기와 문구 등), 배율 탭 확장(86절: 분류 칩 다섯, 지도 속도·전투 이동 속도·호감 변화·정력 소모). 84절은 도구(`session.ps1 -NoEditor`)라 설치본과 상관없다. 게임에서 사용자가 쓰기 전의 확인은 회차(고정본)에서만 했다.
   - **2026-10-23 22:18 갱신(83.7절)**: 편집기 DLL을 `develop` 022d832로 바꿨다 — 사용자 지시("모드 기술 이름에 남는 COLORFFAA00…COLOR 색 표시도 고쳐 줘. 검증하고 develop에 병합한 뒤 설치까지")·게임 꺼짐 뒤 `tools/install.ps1`, `installed build: 022d832`(3,017,216바이트). 바로 앞 설치본은 e0be677(21:53). 고친 것: 모드 기술 이름의 색 태그 글자(이름 다듬기 전에 태그 지움).
   - **2026-10-23 21:53 갱신(83.6절)**: 편집기 DLL을 `develop` e0be677로 바꿨다 — 사용자 지시("게임을 껐어. 검증하고 끝나면 develop에 병합하고 설치해 줘")·게임 꺼짐 뒤 `tools/install.ps1`, `installed build: e0be677`(3,017,216바이트). 바로 앞 설치본은 9c144ef(21:11). 고친 것: 공법 탭이 옵션을 6줄까지만 그리던 것(11줄까지).
   - **2026-10-23 21:11 갱신(83절)**: 편집기 DLL을 `develop` 9c144ef로 바꿨다 — 사용자 지시("feat/mastery-fill을 develop에 --no-ff로 병합하고 브랜치를 지운 뒤 … 게임에 설치해 줘")·게임 꺼짐 뒤 `tools/install.ps1`, `installed build: 9c144ef`(3,017,216바이트). 바로 앞 설치본은 704a567(같은 날 19:54, 77~82절). 더해진 것: 공법 탭의 수련 단계 대도까지 채우기(83절).

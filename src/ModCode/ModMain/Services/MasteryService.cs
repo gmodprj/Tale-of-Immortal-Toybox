@@ -104,6 +104,8 @@ namespace MOD_sWP6UL
             }
             now.AddRange(pending);
             int oldCount = now.Count - pending.Count;
+            // 옵션 행의 레코드는 한 번만 만들어 후보마다의 판정에 함께 쓴다(최종 리뷰 Important 1: 후보마다 만들면 행 수의 제곱으로 게임 값을 읽는다).
+            List<PrefixRow> rows = MartialService.RowsOf(martial.martialType, martial.baseID);
             foreach (ConfBattleSkillPrefixValueItem item in MartialService.ValidItems(martial))
             {
                 if (MartialService.Weight(item, slot) <= 0)
@@ -111,7 +113,7 @@ namespace MOD_sWP6UL
                     continue;
                 }
                 var trial = new List<int>(now) { item.number };
-                if (MartialService.OptionProblem(martial.martialType, martial.baseID, trial.ToArray(), false, oldCount) == null)
+                if (MartialRules.OptionProblem(trial.ToArray(), rows, false, oldCount) == null)
                 {
                     result.Add(item);
                 }
@@ -364,39 +366,17 @@ namespace MOD_sWP6UL
                 }
                 if (error != null)
                 {
-                    // 새 것을 지우고 옛 것을 원래 칸에 되돌린다.
-                    try
-                    {
-                        if (MartialService.IsEquipped(unit, made))
-                        {
-                            unit.CreateAction(new UnitActionMartialUnequip(data.GetActionMartial(made)), false);
-                        }
-                        data.DelActionMartial(made);
-                        if (slot >= 0 && !MartialService.IsEquipped(unit, sole))
-                        {
-                            unit.CreateAction(new UnitActionMartialEquip(action, slot), false);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                    }
+                    RemakeRollback(unit, action, sole, made, slot);
                     tried = made;
                 }
             }
             if (error != null)
             {
-                // 되돌리기가 실제로 됐는지 본다: 새 것이 없고, 옛 것이 원래 칸에 있어야 "그대로"다.
-                // 올린 수도 점수를 되돌린다(05 문서 85절).
                 if (pointsFrom >= 0)
                 {
                     points = RestorePoints(unit, pointsFrom);
                 }
-                bool newGone = tried == null || data.GetActionMartial(tried) == null;
-                bool slotBack = slot < 0 || EquipSlot(unit, sole) == slot;
-                ChangeLog.Add(EditService.NameOf(unit), name + " 수련 단계", before, "다시 만들기 실패", false);
-                string tail = newGone && slotBack ? " 옛 공법은 그대로입니다."
-                    : (newGone ? "" : " 새 공법(" + tried + ")이 남았을 수 있습니다.") + (slotBack ? "" : " 옛 공법이 원래 칸에 다시 장착되지 않았습니다.") + " 공법 탭에서 확인하세요.";
-                return name + ": 다시 만들지 못했습니다(" + error + ")." + tail + points;
+                return RemakeFailText(unit, name, before, error, tried, sole, slot, points);
             }
             try
             {
@@ -420,6 +400,39 @@ namespace MOD_sWP6UL
                 + (crazy != 0 ? " 주화입마 기록(crazyID " + crazy + ")은 옮기지 않았습니다." : "");
         }
 
+        // 다시 만들기 실패: 새 것을 지우고 옛 것을 원래 칸에 되돌린다. 예외는 삼킨다(이미 실패한 길이다. RemakeFailText가 결과를 확인한다).
+        private static void RemakeRollback(WorldUnitBase unit, DataUnit.ActionMartialData oldAction, string sole, string made, int slot)
+        {
+            try
+            {
+                var data = unit.data.unitData;
+                if (MartialService.IsEquipped(unit, made))
+                {
+                    unit.CreateAction(new UnitActionMartialUnequip(data.GetActionMartial(made)), false);
+                }
+                data.DelActionMartial(made);
+                if (slot >= 0 && !MartialService.IsEquipped(unit, sole))
+                {
+                    unit.CreateAction(new UnitActionMartialEquip(oldAction, slot), false);
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        // 다시 만들기 실패의 결과 문장. 되돌리기가 실제로 됐는지 본다: 새 것이 없고, 옛 것이 원래 칸에 있어야 "그대로"다. 이력에도 남긴다.
+        private static string RemakeFailText(WorldUnitBase unit, string name, string before, string error, string tried, string sole, int slot, string points)
+        {
+            var data = unit.data.unitData;
+            bool newGone = tried == null || data.GetActionMartial(tried) == null;
+            bool slotBack = slot < 0 || EquipSlot(unit, sole) == slot;
+            ChangeLog.Add(EditService.NameOf(unit), name + " 수련 단계", before, "다시 만들기 실패", false);
+            string tail = newGone && slotBack ? " 옛 공법은 그대로입니다."
+                : (newGone ? "" : " 새 공법(" + tried + ")이 남았을 수 있습니다.") + (slotBack ? "" : " 옛 공법이 원래 칸에 다시 장착되지 않았습니다.") + " 공법 탭에서 확인하세요.";
+            return name + ": 다시 만들지 못했습니다(" + error + ")." + tail + points;
+        }
+
         // 장착한(또는 장착할) 심법의 수도 점수가 모자라면 모자란 만큼 올린다(프리셋과 같은 규칙, 게임의 장착 거부 코드 61).
         // extra: 아직 장착하지 않은 심법의 비용. 올렸으면 문구, 아니면 "".
         // raisedFrom: 올렸으면 올리기 전 값, 아니면 -1. 게임이 값을 다르게 남기면 SetAttribute의 문구를 붙인다(05 문서 85절).
@@ -428,17 +441,12 @@ namespace MOD_sWP6UL
             raisedFrom = -1;
             try
             {
-                AttributeDef def = AttributeCatalog.All.Find(d => d.Key == "abilityPoint");
-                int used = unit.data.dynUnitData.GetCurUseAbilityPoint() + extra;
-                int total = def.DynValue(unit.data.dynUnitData);
-                if (used <= total)
+                int before, want, now;
+                string reply;
+                if (!RaiseAbilityPoints(unit, extra, out before, out want, out now, out reply))
                 {
                     return "";
                 }
-                int before = def.Get(unit.data.unitData.propertyData);
-                int want = before + (used - total);
-                string reply = EditService.SetAttribute(unit, def, want);
-                int now = def.Get(unit.data.unitData.propertyData);
                 if (now != before)
                 {
                     raisedFrom = before;
@@ -449,6 +457,26 @@ namespace MOD_sWP6UL
             {
                 return " 수도 점수를 맞추지 못했습니다(" + e.GetType().Name + ").";
             }
+        }
+
+        // 수도 점수가 모자라면(쓰는 것 + extra > 총량) 모자란 만큼 올린다. 프리셋 적용과 대도까지 채우기가 함께 쓴다(13 문서 R5).
+        // 올릴 필요가 없으면 거짓. before: 올리기 전 저장값, want: 올리려던 값, now: 올린 뒤 저장값(게임이 다르게 남길 수 있다), reply: SetAttribute의 문구.
+        internal static bool RaiseAbilityPoints(WorldUnitBase unit, int extra, out int before, out int want, out int now, out string reply)
+        {
+            AttributeDef def = AttributeCatalog.All.Find(d => d.Key == "abilityPoint");
+            before = want = now = 0;
+            reply = null;
+            int used = unit.data.dynUnitData.GetCurUseAbilityPoint() + extra;
+            int total = def.DynValue(unit.data.dynUnitData);
+            if (used <= total)
+            {
+                return false;
+            }
+            before = def.Get(unit.data.unitData.propertyData);
+            want = before + (used - total);
+            reply = EditService.SetAttribute(unit, def, want);
+            now = def.Get(unit.data.unitData.propertyData);
+            return true;
         }
 
         // 다시 만들기가 실패했을 때 올린 수도 점수를 원래 값으로 되돌린다.

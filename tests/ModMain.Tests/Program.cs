@@ -65,6 +65,13 @@ namespace MOD_sWP6UL
             MasteryRulesTests();
             KoreanTextTests();
             RateGroupsTests();
+            NumberFieldRulesTests();
+            RateUnitRulesTests();
+            AtomicFileTests();
+            PrefixRulesTests();
+            PresetRulesTests();
+            BreakthroughRulesTests();
+            ChipBarTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -278,6 +285,18 @@ namespace MOD_sWP6UL
             Check("one hit: hp plus max", RateGroups.OneHitDamage(29877, 29877) == 59754);
             Check("one hit: overflow is cut", RateGroups.OneHitDamage(int.MaxValue, 5) == int.MaxValue);
             Check("one hit: never zero", RateGroups.OneHitDamage(0, 0) == 1);
+            // 일격의 대상(13 문서 2.6절): 플레이어의 타격만, 플레이어·동료(PlayerNPC)를 맞힌 것은 제외.
+            Check("onehit: player hitting a monster applies", RateGroups.OneHitApplies(1, 3));
+            Check("onehit: player hitting an ally does not", !RateGroups.OneHitApplies(1, 2));
+            Check("onehit: player hitting the player does not", !RateGroups.OneHitApplies(1, 1));
+            Check("onehit: a monster hitting anything does not", !RateGroups.OneHitApplies(3, 3) && !RateGroups.OneHitApplies(4, 1));
+            // 배율 수치 함수(스펙 2026-10-30-rate-service-cleanup 3절). 반올림 방식이 함수마다 다른 것은 기존 동작 그대로다.
+            Check("scale value: banker's rounding and cap", RateGroups.ScaleValue(5, 0.5f) == 2 && RateGroups.ScaleValue(7, 0.5f) == 4 && RateGroups.ScaleValue(int.MaxValue, 2f) == int.MaxValue && RateGroups.ScaleValue(0, 2f) == 0 && RateGroups.ScaleValue(-3, 2f) == -3);
+            Check("scale day: half rounds away from zero", RateGroups.ScaleDay(5, 0.5f) == 3 && RateGroups.ScaleDay(1, 0.25f) == 0 && RateGroups.ScaleDay(0, 0.5f) == 0);
+            Check("scale skill value: 25 at half is 13", RateGroups.ScaleSkillValue(25, 0.5f) == 13 && RateGroups.ScaleSkillValue(-1, 0.5f) == -1);
+            Check("cooldown rate value: capped at max", RateGroups.CooldownRateValue(100, 10000f, 100000000) == 1000000 && RateGroups.CooldownRateValue(100, 2000000f, 100000000) == 100000000 && RateGroups.CooldownRateValue(0, 2f, 100) == 0);
+            Check("taken damage: never below 1", RateGroups.TakenDamage(1, 0.5f) == 1 && RateGroups.TakenDamage(10, 0.25f) == 2 && RateGroups.TakenDamage(0, 0.5f) == 0);
+            Check("dealt damage: negative untouched, overflow capped", RateGroups.DealtDamage(-5, 100) == -5 && RateGroups.DealtDamage(0, 100) == 0 && RateGroups.DealtDamage(30, 10) == 300 && RateGroups.DealtDamage(int.MaxValue, 2) == int.MaxValue);
             Check("durable: only a drop on an owned artifact is blocked", RateGroups.DurableBlocked(100, 98, true, true) && !RateGroups.DurableBlocked(100, 98, false, true) && !RateGroups.DurableBlocked(98, 100, true, true) && !RateGroups.DurableBlocked(100, 98, true, false));
             Check("cooldown rate: an off row that was never applied is not written", !RateGroups.WritesRate(false, false));
             Check("cooldown rate: an on row is written, and an off row once to restore", RateGroups.WritesRate(true, false) && RateGroups.WritesRate(true, true) && RateGroups.WritesRate(false, true));
@@ -674,6 +693,171 @@ namespace MOD_sWP6UL
             Check("treasure: grade steps 10->10", TreasureRules.GradeSteps(10, 10) == 0);
             Check("treasure: grade steps 14->10", TreasureRules.GradeSteps(14, 10) == 0);
             Check("treasure: grade steps 3->12 stops at 10", TreasureRules.GradeSteps(3, 12) == 7);
+        }
+
+        // 숫자 칸 제출 판정과 자원 탭 보유 칸의 줄이기 규칙(13 문서 B1·B2, 05 문서 89절).
+        private static void NumberFieldRulesTests()
+        {
+            int v;
+            Check("numberfield: blur on an enter-only field is ignored", NumberFieldRules.Decide("5", "3", false, false, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: enter with a number submits", NumberFieldRules.Decide("5", "3", true, false, out v) == NumberFieldRules.Action.Submit && v == 5);
+            Check("numberfield: enter with text rejects", NumberFieldRules.Decide("abc", "3", true, true, out v) == NumberFieldRules.Action.Reject);
+            Check("numberfield: blur with text reverts", NumberFieldRules.Decide("abc", "3", false, true, out v) == NumberFieldRules.Action.Revert);
+            Check("numberfield: blur with the same value is ignored", NumberFieldRules.Decide("3", "3", false, true, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: blur with the same value in other digits is ignored", NumberFieldRules.Decide("03", "3", false, true, out v) == NumberFieldRules.Action.Ignore);
+            Check("numberfield: blur with a new value submits", NumberFieldRules.Decide("4", "3", false, true, out v) == NumberFieldRules.Action.Submit && v == 4);
+            Check("numberfield: enter with the same value still submits", NumberFieldRules.Decide("3", "3", true, true, out v) == NumberFieldRules.Action.Submit);
+            Check("owned: same value is ignored", NumberFieldRules.DecideOwned(10, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ignore);
+            Check("owned: raising sets on blur", NumberFieldRules.DecideOwned(25, 10, false, false, 0) == NumberFieldRules.OwnedAction.Set);
+            Check("owned: raising sets on enter", NumberFieldRules.DecideOwned(25, 10, true, false, 0) == NumberFieldRules.OwnedAction.Set);
+            Check("owned: lowering on blur is ignored", NumberFieldRules.DecideOwned(7, 10, false, false, 0) == NumberFieldRules.OwnedAction.Ignore);
+            Check("owned: lowering on enter asks", NumberFieldRules.DecideOwned(7, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
+            Check("owned: lowering on enter with the same pending value confirms", NumberFieldRules.DecideOwned(7, 10, true, true, 7) == NumberFieldRules.OwnedAction.Confirm);
+            Check("owned: lowering on enter with another pending value asks again", NumberFieldRules.DecideOwned(5, 10, true, true, 7) == NumberFieldRules.OwnedAction.Ask);
+            Check("owned: zero on enter asks", NumberFieldRules.DecideOwned(0, 10, true, false, 0) == NumberFieldRules.OwnedAction.Ask);
+            // 최종 리뷰 Important 1: 콜백이 받아들이지 않은 값은 committed가 되지 않는다. 그래야 같은 값을 다시 쓰고 떠나도 콜백이 다시 불려 칸을 되돌린다.
+            Check("numberfield: a rejected submit keeps the old committed text", NumberFieldRules.NextCommitted("25", "7", false) == "25");
+            Check("numberfield: an accepted submit commits the new text", NumberFieldRules.NextCommitted("25", "30", true) == "30");
+            Check("numberfield: after a rejected blur the same value still submits", NumberFieldRules.Decide("7", NumberFieldRules.NextCommitted("25", "7", false), false, true, out v) == NumberFieldRules.Action.Submit);
+        }
+
+        // 전투 단위 상태의 전환 규칙(스펙 2026-10-30-rate-service-cleanup 2절, 13 문서 A2·A4·2.6절).
+        private static void RateUnitRulesTests()
+        {
+            Check("unit: out of battle with written values holds", RateUnitRules.Decide(false, false, true, true, false, true) == RateUnitRules.Step.Skip);
+            Check("unit: out of battle without written values forgets", RateUnitRules.Decide(false, true, true, false, false, true) == RateUnitRules.Step.Forget);
+            Check("unit: out of battle with nothing held skips", RateUnitRules.Decide(false, true, false, false, false, true) == RateUnitRules.Step.Skip);
+            Check("unit: first sight with a row on captures", RateUnitRules.Decide(true, true, false, false, false, true) == RateUnitRules.Step.Capture);
+            Check("unit: first sight with nothing on skips", RateUnitRules.Decide(true, false, false, false, false, true) == RateUnitRules.Step.Skip);
+            Check("unit: another pointer with a row on captures", RateUnitRules.Decide(true, true, true, true, false, true) == RateUnitRules.Step.Capture);
+            Check("unit: another pointer with nothing on forgets", RateUnitRules.Decide(true, false, true, true, false, true) == RateUnitRules.Step.Forget);
+            Check("unit: same pointer but changed values captures again", RateUnitRules.Decide(true, true, true, true, true, false) == RateUnitRules.Step.Capture);
+            Check("unit: same pointer but changed values with nothing on forgets", RateUnitRules.Decide(true, false, true, true, true, false) == RateUnitRules.Step.Forget);
+            Check("unit: same pointer intact applies", RateUnitRules.Decide(true, true, true, true, true, true) == RateUnitRules.Step.Apply);
+            Check("unit: same pointer, nothing on, written values apply (restore)", RateUnitRules.Decide(true, false, true, true, true, true) == RateUnitRules.Step.Apply);
+            Check("move: attach only when on and not attached", RateUnitRules.MoveAttachNeeded(true, false) && !RateUnitRules.MoveAttachNeeded(true, true) && !RateUnitRules.MoveAttachNeeded(false, false));
+            Check("move: detach only when off and attached", RateUnitRules.MoveDetachNeeded(false, true) && !RateUnitRules.MoveDetachNeeded(true, true) && !RateUnitRules.MoveDetachNeeded(false, false));
+            Check("unit: same pointer, held but nothing written yet applies", RateUnitRules.Decide(true, true, true, false, true, true) == RateUnitRules.Step.Apply);
+            // 줄 단위 원래 값(최종 리뷰 Important 1): 안 쓴 줄은 지금 값이 원래 값, 쓴 줄은 마지막으로 쓴 값 그대로면 원래 값 유지, 다르면 지금 값.
+            Check("row original: a row not written yet takes the current value", RateUnitRules.RowOriginal(false, 100, 250, 0) == 250);
+            Check("row original: an intact written row keeps its original", RateUnitRules.RowOriginal(true, 100, 200, 200) == 100);
+            Check("row original: a changed written row takes the current value", RateUnitRules.RowOriginal(true, 100, 300, 200) == 300);
+            Check("row changed: only a written row whose value moved counts", RateUnitRules.RowChanged(true, 300, 200) && !RateUnitRules.RowChanged(true, 200, 200) && !RateUnitRules.RowChanged(false, 300, 0));
+        }
+
+        private static PrefixRow Row(int number, int multi, int[] weights, params int[] requires)
+        {
+            var w = new int[11];
+            for (int i = 0; i < weights.Length && i < 11; i++) { w[i] = weights[i]; }
+            return new PrefixRow { Number = number, Multi = multi, Weights = w, Requires = requires };
+        }
+
+        // 옵션 번호 치환(78절)과 옵션 규칙(T4): 게임 형식 없이 PrefixRow로(05 문서 93절, 13 문서 T2·T4).
+        private static void PrefixRulesTests()
+        {
+            // 모드 공법의 옵션 행: 101(자리 0·1), 102(자리 1·2), 103(자리 0, multi 3). 원본에서 뽑은 번호 1·2·3·101.
+            var rows = new List<PrefixRow> { Row(101, 1, new[] { 5, 5, 0 }), Row(102, 1, new[] { 0, 5, 5 }), Row(103, 3, new[] { 5, 0, 0 }) };
+            Check("option end: up to the first -1 from index 2", ModSkillRules.OptionEnd(new[] { 9, 9, 1, 2, -1, 0 }) == 4 && ModSkillRules.OptionEnd(new[] { 9, 9, 1, 2 }) == 4);
+            int[] v = { 9, 9, 101, 2, 3, -1 };
+            int changed = ModSkillRules.RemapPrefixNumbers(v, 5, rows, n => 0);
+            // 101은 모드에 있어 그대로(쓴 번호). 자리 1의 2 → 가중치>0인 안 쓴 번호 가운데 첫째(102). 자리 2의 3 → 102는 썼고 103은 자리 2 가중치 0 → 안 쓴 첫 번호 103.
+            Check("remap: keeps mod numbers, fills by slot weight, falls back to the first unused", changed == 2 && v[2] == 101 && v[3] == 102 && v[4] == 103, string.Join(",", v));
+            int[] v2 = { 9, 9, 1, 2, 3, 4, 5, -1 };
+            changed = ModSkillRules.RemapPrefixNumbers(v2, 7, rows, n => 0);
+            // 다섯 자리에 번호 셋: 첫 패스가 101·102·103을 쓰고, 남은 두 자리는 한도(multi) 안에서 103(3개까지)을 되풀이.
+            Check("remap: repeats within the multi limit when numbers run out", changed == 5 && v2[2] == 101 && v2[3] == 102 && v2[4] == 103 && v2[5] == 103 && v2[6] == 103, string.Join(",", v2));
+            int[] v3 = { 9, 9, 1, 2, -1 };
+            changed = ModSkillRules.RemapPrefixNumbers(v3, 4, new List<PrefixRow>(), n => 0);
+            Check("remap: nothing to pick leaves values alone", changed == 0 && v3[2] == 1 && v3[3] == 2);
+            // 무작위는 후보 수를 받아 그 범위의 자리를 고른다(최종 리뷰 Minor 2): 자리 1(가중치 첫 칸)에 맞는 번호는 101·103, rng가 마지막을 고르면 103. 0 칸과 범위 밖은 그대로.
+            int[] v4 = { 7, 8, 1, 0, -1, 55 };
+            int seen = -1;
+            changed = ModSkillRules.RemapPrefixNumbers(v4, 4, rows, n => { seen = n; return n - 1; });
+            Check("remap: the rng gets the fit count and the last pick is used; zero and out-of-range cells stay", changed == 1 && seen == 2 && v4[2] == 103 && v4[3] == 0 && v4[0] == 7 && v4[1] == 8 && v4[5] == 55, string.Join(",", v4) + " seen=" + seen);
+            // OptionProblem: 문구는 MartialService의 것과 글자까지 같다.
+            var prs = new List<PrefixRow> { Row(1, 1, new[] { 5, 5, 5 }), Row(2, 2, new[] { 0, 5, 5 }, 1), Row(3, 1, new[] { 5, 5, 5 }, -1) };
+            Check("option problem: more than eleven", MartialRules.OptionProblem(new int[12], prs, false, 0) == "옵션은 11개까지입니다");
+            Check("option problem: unknown number", MartialRules.OptionProblem(new[] { 7 }, prs, false, 0) == "이 기술에 없는 옵션입니다(7)");
+            Check("option problem: slot weight zero", MartialRules.OptionProblem(new[] { 2 }, prs, false, 0) == "옵션 1: " + MartialRules.SlotReason);
+            Check("option problem: anySlot skips the slot rule but keeps the rest", MartialRules.OptionProblem(new[] { 2 }, prs, true, 0) == "옵션 2번에 필요한 1번 옵션이 없음");
+            // 중복은 목록 전체를 세므로 첫 자리에서 이미 걸린다(옮기기 전 코드와 같다).
+            Check("option problem: duplicate over multi", MartialRules.OptionProblem(new[] { 1, 1 }, prs, false, 0) == "옵션 1: 중복 한도 1개 초과");
+            Check("option problem: exclusive pair", MartialRules.OptionProblem(new[] { 1, 3 }, prs, false, 0) == "옵션 3번과 1번은 함께 둘 수 없음");
+            Check("option problem: slotFrom skips earlier slots", MartialRules.OptionProblem(new[] { 2, 1 }, prs, false, 1) == null);
+            Check("option problem: valid list", MartialRules.OptionProblem(new[] { 1, 2 }, prs, false, 0) == null);
+        }
+
+        // 프리셋의 "같은 공법 고르기"(13 문서 T5).
+        private static void PresetRulesTests()
+        {
+            var a = new PresetRules.Learned { Sole = "a", BaseId = 10, Grade = 3, Options = new[] { 1, 2 }, Suit = 0, Equipped = false };
+            var b = new PresetRules.Learned { Sole = "b", BaseId = 10, Grade = 5, Options = new[] { 1, 2 }, Suit = 0, Equipped = true };
+            var c = new PresetRules.Learned { Sole = "c", BaseId = 10, Grade = 5, Options = new[] { 1, 2 }, Suit = 7, Equipped = false };
+            var all = new List<PresetRules.Learned> { a, b, c };
+            Check("preset find: same options, grade at least, equipped first", PresetRules.Find(all, 10, new[] { 1, 2 }, 3, false, 0).Sole == "b");
+            Check("preset find: lower grade is skipped", PresetRules.Find(all, 10, new[] { 1, 2 }, 4, false, 0).Sole == "b" && PresetRules.Find(new List<PresetRules.Learned> { a }, 10, new[] { 1, 2 }, 4, false, 0) == null);
+            Check("preset find: abilities must match the suit", PresetRules.Find(all, 10, new[] { 1, 2 }, 3, true, 7).Sole == "c" && PresetRules.Find(all, 10, new[] { 1, 2 }, 3, true, 9) == null);
+            Check("preset find: different options do not match", PresetRules.Find(all, 10, new[] { 2, 1 }, 3, false, 0) == null && PresetRules.SameOptions(new[] { 1 }, new[] { 1 }) && !PresetRules.SameOptions(new[] { 1 }, new[] { 1, 1 }));
+        }
+
+        // 돌파 재료 고르기(13 문서 T6).
+        private static void BreakthroughRulesTests()
+        {
+            Check("breakthrough: ParseIds skips zero, text and duplicates", string.Join(",", BreakthroughRules.ParseIds("3_0_x_5_3")) == "3,5" && BreakthroughRules.ParseIds(null).Count == 0);
+            Check("breakthrough: one needed takes the last kind", string.Join(",", BreakthroughRules.NeedItems("1_2_3", 1)) == "3");
+            Check("breakthrough: several needed cycle from the front", string.Join(",", BreakthroughRules.NeedItems("1_2", 3)) == "1,2,1" && BreakthroughRules.NeedItems("1_2", 0).Count == 0 && BreakthroughRules.NeedItems("", 2).Count == 0);
+            Check("breakthrough: treasures cycle the candidates", string.Join(",", BreakthroughRules.Treasures("7_8", 3)) == "7,8,7" && BreakthroughRules.Treasures("", 2).Count == 0);
+        }
+
+        // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.
+        private static void ChipBarTests()
+        {
+            float[] xs = new float[3], ys = new float[3];
+            float h = ChipBar.Layout(new float[] { 100, 100, 100 }, 250, 34, 6, xs, ys);
+            Check("chip bar: wraps at the area width", xs[0] == 0 && xs[1] == 106 && xs[2] == 0 && ys[2] == 40 && h == 74, string.Join(",", xs) + "/" + string.Join(",", ys) + "/" + h);
+            h = ChipBar.Layout(new float[] { 100, 100, 100 }, 0, 34, 6, xs, ys);
+            Check("chip bar: one line when the area is unbounded", xs[2] == 212 && ys[2] == 0 && h == 34);
+        }
+
+        // 임시 파일에 쓴 뒤 바꿔치기(13 문서 A7, 05 문서 92절). 번역표·config.txt 같은 사용자 파일이 쓰는 도중 사라지지 않게.
+        private static void AtomicFileTests()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "tlt-atomic-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string path = Path.Combine(dir, "sub", "a.txt");
+                var utf8 = new System.Text.UTF8Encoding(false);
+                AtomicFile.WriteAllText(path, "one\n", utf8);
+                Check("atomic: writes a new file and creates the folder", File.Exists(path) && File.ReadAllText(path, utf8) == "one\n" && !File.Exists(path + ".tmp"));
+                AtomicFile.WriteAllText(path, "two\n", utf8);
+                Check("atomic: overwrites and leaves no tmp", File.ReadAllText(path, utf8) == "two\n" && !File.Exists(path + ".tmp"));
+                byte[] bytes = File.ReadAllBytes(path);
+                Check("atomic: no BOM", bytes.Length > 0 && bytes[0] != 0xEF);
+                AtomicFile.WriteAllText(path, "한글\n", utf8);
+                Check("atomic: utf-8 text round-trips", File.ReadAllText(path, utf8) == "한글\n");
+                // 실패 경로(최종 리뷰 Important 1·3): 대상이 읽기 전용이면 Replace가 던지고, 원본은 그대로, .tmp는 남지 않는다.
+                File.SetAttributes(path, FileAttributes.ReadOnly);
+                bool threw = false;
+                try { AtomicFile.WriteAllText(path, "three\n", utf8); } catch (Exception) { threw = true; }
+                File.SetAttributes(path, FileAttributes.Normal);
+                Check("atomic: a read-only target throws, keeps the original and leaves no tmp", threw && File.ReadAllText(path, utf8) == "한글\n" && !File.Exists(path + ".tmp"));
+                // 바꿔치기가 대상을 잃은 채 실패하면(ReplaceFile 1176) 임시 파일을 대상 이름으로 되살린다. 대상이 남아 있으면 임시 파일만 지운다.
+                string lost = Path.Combine(dir, "lost.txt");
+                File.WriteAllText(lost + ".tmp", "new\n", utf8);
+                AtomicFile.Recover(lost, lost + ".tmp");
+                Check("atomic: recover moves the tmp into place when the target is gone", File.Exists(lost) && File.ReadAllText(lost, utf8) == "new\n" && !File.Exists(lost + ".tmp"));
+                File.WriteAllText(lost + ".tmp", "newer\n", utf8);
+                AtomicFile.Recover(lost, lost + ".tmp");
+                Check("atomic: recover only drops the tmp when the target survived", File.ReadAllText(lost, utf8) == "new\n" && !File.Exists(lost + ".tmp"));
+            }
+            finally
+            {
+                if (Directory.Exists(dir))
+                {
+                    foreach (string f in Directory.GetFiles(dir, "*", SearchOption.AllDirectories)) { File.SetAttributes(f, FileAttributes.Normal); }
+                    Directory.Delete(dir, true);
+                }
+            }
         }
     }
 }

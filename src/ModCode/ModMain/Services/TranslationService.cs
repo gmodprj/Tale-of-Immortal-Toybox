@@ -50,8 +50,7 @@ namespace MOD_sWP6UL
             {
                 return "없음";
             }
-            Directory.CreateDirectory(Dir);
-            File.WriteAllText(FilePath, text, new UTF8Encoding(false));
+            AtomicFile.WriteAllText(FilePath, text, new UTF8Encoding(false));
             return "풀어 둠";
         }
 
@@ -74,7 +73,7 @@ namespace MOD_sWP6UL
             {
                 all.Append(line).Append('\n');
             }
-            File.WriteAllText(FilePath, all.ToString(), new UTF8Encoding(false));
+            AtomicFile.WriteAllText(FilePath, all.ToString(), new UTF8Encoding(false));
             return missing.Count;
         }
 
@@ -158,8 +157,7 @@ namespace MOD_sWP6UL
                 sb.Append(item.key).Append("\t\t").Append(item.ch.Replace("\r", "").Replace("\n", "\\n")).Append('\n');
                 written++;
             }
-            Directory.CreateDirectory(Dir);
-            File.WriteAllText(UntranslatedPath, sb.ToString(), new UTF8Encoding(false));
+            AtomicFile.WriteAllText(UntranslatedPath, sb.ToString(), new UTF8Encoding(false));
             return written;
         }
 

@@ -160,7 +160,7 @@ namespace MOD_sWP6UL
             TreasureService.Treasure t = TreasureService.Find(Target, forgeSole);
             if (t == null)
             {
-                Ui.Label(content, "법보를 찾지 못했습니다. 돌아가서 다시 고르세요.", 0, y, 800, 36).color = Ui.Warn;
+                MissingNote("법보를 찾지 못했습니다. 돌아가서 다시 고르세요.", y);
                 return;
             }
             string info = GradeName(t.Grade) + "(경지 " + t.Grade + ")   단계 " + t.Level + "   비율 체력 " + t.Rates[0] + " · 공격 " + t.Rates[1] + " · 방어 " + t.Rates[2]
@@ -171,17 +171,15 @@ namespace MOD_sWP6UL
             string sole = t.SoleId;
             Ui.Label(content, "경지", 0, y, 80, 38, 18);
             Ui.Button("ForgeGradeUp", content, "경지 +1", 90, y, 130, 38, new Action(() => Say(TreasureService.GradeUp(Target, sole))), canUp);
-            Ui.Button("ForgeGradeMax", content, "경지 " + TreasureRules.MaxGrade + "까지", 230, y, 150, 38,
+            // 경지는 내리는 길이 없어 끝까지 올리기는 두 번 누른다(13 문서 B4).
+            Confirm.Button("ForgeGradeMax", content, "경지 " + TreasureRules.MaxGrade + "까지", "정말 올리기", 230, y, 150, 38, "forge-grade-max",
+                "경지를 " + TreasureRules.MaxGrade + "까지 올립니다. 내리는 길은 없습니다. 한 번 더 누르면 실행합니다.",
                 new Action(() => Say(TreasureService.GradeUpTo(Target, sole, TreasureRules.MaxGrade))), canUp);
             y += 50;
             Ui.Label(content, "단계", 0, y, 80, 38, 18);
-            for (int n = TreasureRules.MinStage; n <= TreasureRules.MaxStage; n++)
-            {
-                int stage = n;
-                bool last = n == TreasureRules.MaxStage;
-                Ui.Button("ForgeStage" + n, content, last ? n + " 한계돌파" : n.ToString(), 90 + (n - 1) * 66, y, last ? 130 : 60, 38,
-                    new Action(() => Say(TreasureService.SetStage(Target, sole, stage))), true, t.Level == n);
-            }
+            NumberChips.Draw(content, "ForgeStage", TreasureRules.MinStage, TreasureRules.MaxStage, 90, y, 60, 66, 38, t.Level,
+                stage => Say(TreasureService.SetStage(Target, sole, stage)),
+                n => n == TreasureRules.MaxStage ? n + " 한계돌파" : n.ToString(), n => n == TreasureRules.MaxStage ? 130 : 60);
             y += 50;
             Ui.Wrapped(content, "경지를 올리면 옵션이 한 칸 늘고(최대 " + t.PrefixMax + "칸), 게임과 달리 비율은 줄지 않습니다. 단계는 비율 다섯을 같은 값으로 맞춥니다(1: 60 · 2: 80 · 3: 85 · 4: 95 · 5: 100 · 6: 120). 집중력 비율은 100까지만 둡니다(넘기면 집중력 점유가 늘어납니다).",
                 0, y, ContentW, 40, 15).color = Ui.Dim;
@@ -237,13 +235,9 @@ namespace MOD_sWP6UL
             }
             y += 42;
             Ui.Label(content, "단계", 0, y, 60, 36, 17);
-            for (int n = TreasureRules.MinStage; n <= TreasureRules.MaxStage; n++)
-            {
-                int value = n;
-                bool last = n == TreasureRules.MaxStage;
-                Ui.Button("GiveStage" + n, content, last ? n + " 한계돌파" : n.ToString(), 64 + (n - 1) * 60, y, last ? 120 : 56, 36,
-                    new Action(() => { giveStage = value; Redraw(); }), true, giveStage == n);
-            }
+            NumberChips.Draw(content, "GiveStage", TreasureRules.MinStage, TreasureRules.MaxStage, 64, y, 56, 60, 36, giveStage,
+                v => { giveStage = v; Redraw(); },
+                n => n == TreasureRules.MaxStage ? n + " 한계돌파" : n.ToString(), n => n == TreasureRules.MaxStage ? 120 : 56);
             Ui.Wrapped(content, "하나씩 가방에 넣습니다(가방이 가득 차면 들어가지 않습니다). 고른 경지가 법보의 시작 경지보다 낮으면 시작 경지로 둡니다.", 500, y, ContentW - 500, 36, 15).color = Ui.Dim;
             float top = y + 46;
             itemList.Build(content, 0, top, ContentW, ContentH - top, TreasureService.ItemKinds(Target), DrawItemKind);

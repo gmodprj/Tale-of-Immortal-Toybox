@@ -225,8 +225,8 @@ namespace MOD_sWP6UL
                 else if (RateService.Taken.On && data.dynV.baseValue > 0)
                 {
                     int before = data.dynV.baseValue;
-                    // 배율로는 0이 되지 않게 한다(피해 1에 x0.5를 걸면 0이 되어 무적과 같아진다. 0은 무적의 몫이다).
-                    data.dynV.baseValue = Math.Max(1, (int)Math.Round(before * (double)RateService.Taken.Value));
+                    // 배율로는 0이 되지 않게 한다(피해 1에 x0.5를 걸면 0이 되어 무적과 같아진다. 0은 무적의 몫이다). 판정은 RateGroups.TakenDamage.
+                    data.dynV.baseValue = RateGroups.TakenDamage(before, RateService.Taken.Value);
 #if DEVTOOLS
                     DevTaken = "base " + before + "->" + data.dynV.baseValue;
 #endif
@@ -234,8 +234,9 @@ namespace MOD_sWP6UL
                 return;
             }
             UnitCtrlBase attacker = data.hitData == null ? null : data.hitData.attackUnit;
-            if (Multiplier == OneHit && attacker != null && attacker.data != null && attacker.data.unitType == UnitType.Player
-                && data.hitUnit != null && data.hitUnit.data != null)
+            // 일격: 플레이어의 타격만, 플레이어·동료(PlayerNPC)를 맞힌 것은 뺀다(13 문서 2.6절. 판정은 RateGroups.OneHitApplies).
+            if (Multiplier == OneHit && attacker != null && attacker.data != null && data.hitUnit != null && data.hitUnit.data != null
+                && RateGroups.OneHitApplies((int)attacker.data.unitType, (int)data.hitUnit.data.unitType))
             {
                 data.dynV.baseValue = RateGroups.OneHitDamage(data.hitUnit.data.hp, data.hitUnit.data.maxHP.value);
 #if DEVTOOLS
@@ -251,8 +252,8 @@ namespace MOD_sWP6UL
                 int devBase = data.dynV.baseValue;
                 int devValue = data.dynV.value;
 #endif
-                long scaled = (long)data.dynV.baseValue * Multiplier;
-                data.dynV.baseValue = scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+                // 0 이하는 건드리지 않고 넘치면 int 최댓값(13 문서 A5. 판정은 RateGroups.DealtDamage).
+                data.dynV.baseValue = RateGroups.DealtDamage(data.dynV.baseValue, Multiplier);
 #if DEVTOOLS
                 DevScaled++;
                 DevLast = "base " + devBase + "->" + data.dynV.baseValue + " value " + devValue + "->" + data.dynV.value;

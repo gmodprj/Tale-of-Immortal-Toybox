@@ -84,8 +84,14 @@ namespace MOD_sWP6UL
         }
 
         // 분류마다 검색어와 "이 경지만"을 통과한 기술의 수(SkillCatalog.Kinds 순서) + 마지막에 모드 공법의 수.
+        private int[] bookKindCountsCache;   // 그리기(또는 검색어 변경) 한 번 동안의 결과(13 문서 P2: 세 곳이 같은 훑기를 하던 것). Draw·OnQuery 시작에 비운다
+
         private int[] BookKindCounts()
         {
+            if (bookKindCountsCache != null)
+            {
+                return bookKindCountsCache;
+            }
             var counts = new int[SkillCatalog.Kinds.Length + 1];
             for (int k = 0; k < SkillCatalog.Kinds.Length; k++)
             {
@@ -101,6 +107,7 @@ namespace MOD_sWP6UL
                     }
                 }
             }
+            bookKindCountsCache = counts;
             return counts;
         }
 
@@ -130,18 +137,26 @@ namespace MOD_sWP6UL
             {
                 total += counts[k];
             }
-            float x = 0;
-            for (int i = 0; i <= SkillCatalog.Kinds.Length + 1; i++)
+            int n = SkillCatalog.Kinds.Length + 2;
+            var names = new string[n];
+            var widths = new float[n];
+            for (int i = 0; i < n; i++)
             {
                 bool modChip = i == SkillCatalog.Kinds.Length + 1;
-                string name = i == 0 ? "전체" : modChip ? "모드만" : SkillCatalog.Kinds[i - 1].Tab;
+                names[i] = i == 0 ? "전체" : modChip ? "모드만" : SkillCatalog.Kinds[i - 1].Tab;
+                widths[i] = Math.Max(70f, Ui.TextWidth(names[i] + " (00000)", 19) + 28f);
+            }
+            var xs = new float[n];
+            var ys = new float[n];
+            ChipBar.Layout(widths, 0, ChipH, ChipGap, xs, ys);
+            for (int i = 0; i < n; i++)
+            {
+                bool modChip = i == SkillCatalog.Kinds.Length + 1;
                 int count = i == 0 ? total : counts[i - 1];
-                float w = Math.Max(70f, Ui.TextWidth(name + " (00000)", 19) + 28f);
                 int kindValue = modChip ? ModOnly : i - 1;
-                Button chip = Ui.Button("ResKind" + i, content, name + " (" + count + ")", RightX + x, y, w, ChipH,
+                Button chip = Ui.Button("ResKind" + i, content, names[i] + " (" + count + ")", RightX + xs[i], y, widths[i], ChipH,
                     new Action(() => { bookKind = kindValue; Changed(); }), true, bookKind == kindValue);
-                labels.Add(new CountLabel { Text = chip.GetComponentInChildren<Text>(), Name = name, Index = i });
-                x += w + ChipGap;
+                labels.Add(new CountChip { Text = chip.GetComponentInChildren<Text>(), Name = names[i], Index = i });
             }
             return y + ChipH + 6;
         }
@@ -155,11 +170,7 @@ namespace MOD_sWP6UL
             Ui.Button("ResClear", content, "초기화", RightX + 502, y, 100, 38, new Action(ClearFilters));
             float y2 = y + 44;
             Ui.Label(content, "경지", RightX, y2, 50, 38, 18);
-            for (int gr = 1; gr <= 10; gr++)
-            {
-                int value = gr;
-                Ui.Button("ResGrade" + gr, content, gr.ToString(), RightX + 50 + (gr - 1) * 42, y2, 38, 38, new Action(() => { bookGrade = value; Changed(); }), true, BookGrade == gr);
-            }
+            NumberChips.Draw(content, "ResGrade", 1, 10, RightX + 50, y2, 38, 42, 38, BookGrade, grade => { bookGrade = grade; Changed(); });
             Ui.Label(content, "최소 품질", RightX + 486, y2, 90, 38, 18);
             for (int q = 1; q <= 6; q++)
             {
@@ -214,12 +225,13 @@ namespace MOD_sWP6UL
             Ui.Wrapped(row, "비급·" + SkillCatalog.Kinds[kindIndex].Tab, ColKind, 0, KindW, h, 16);
             Ui.Label(row, minLevel + "+", ColLevel, 0, 44, h, 16);
             Ui.Label(row, skill == null ? "-" : BagBooks(baseId).ToString(), ColOwned, 0, 60, h, 16);
+            // 아이템 수량 칸처럼 칸을 떠날 때도 저장한다(13 문서 B5. 같은 값으로 떠나면 NumberField가 넘기지 않는다).
             NumberField.Build(row, "FavBookAmount" + tail, ColAmount, (h - (RowH - 4)) / 2, AmountW, RowH - 4, f.Amount.ToString(), null, new Action<int>(v =>
             {
                 string text;
                 FavoriteStore.SetBookAmount(baseId, grade, minLevel, v, out text);
                 Say(text);
-            }));
+            }), true);
             Ui.Button("FavBookGive" + tail, row, "지급 x" + f.Amount, ColGive, 2, GiveW, RowH - 4,
                 new Action(() => GiveBook(kindIndex, skill, grade, minLevel, FavoriteStore.BookAmountOf(baseId, grade, minLevel))), skill != null);
         }

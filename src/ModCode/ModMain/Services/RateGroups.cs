@@ -131,6 +131,77 @@ namespace MOD_sWP6UL
             return sum > int.MaxValue ? int.MaxValue : (int)Math.Max(1L, sum);
         }
 
+        // ---- 배율 수치(스펙 2026-10-30-rate-service-cleanup 3절). 반올림 방식이 함수마다 다른 것은 기존 동작 그대로다(검사의 기대값). ----
+
+        // 수련치·숙련·호감 등 "늘리는" 배율: 0 이하는 곱하지 않고, 짝수 반올림, int 최댓값으로 자른다.
+        public static int ScaleValue(int value, float rate)
+        {
+            if (value <= 0)
+            {
+                return value;
+            }
+            double scaled = Math.Round(value * (double)rate);
+            return scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+        }
+
+        // 수련·학습의 날짜: 0 이하 그대로, 0.5는 올린다.
+        public static int ScaleDay(int day, float rate)
+        {
+            return day <= 0 ? day : (int)Math.Round(day * (double)rate, MidpointRounding.AwayFromZero);
+        }
+
+        // 기술마다의 영력·집중력·신기 대기 값: 0 이하 그대로, 0.5는 올린다(25의 절반은 13).
+        public static int ScaleSkillValue(int original, float rate)
+        {
+            if (original <= 0)
+            {
+                return original;
+            }
+            return (int)Math.Round(original * (double)rate, MidpointRounding.AwayFromZero);
+        }
+
+        // 단위의 쿨타임 비율(skillCDRate 등): 0 이하(게임이 멈춘 값) 그대로, 짝수 반올림, max로 자른다.
+        public static int CooldownRateValue(int original, float factor, long max)
+        {
+            if (original <= 0)
+            {
+                return original;
+            }
+            double scaled = Math.Round(original * (double)factor);
+            return scaled > max ? (int)max : (int)scaled;
+        }
+
+        // 받는 피해: 0 이하 그대로, 배율로는 0이 되지 않게 최소 1(0은 무적의 몫).
+        public static int TakenDamage(int before, float rate)
+        {
+            if (before <= 0)
+            {
+                return before;
+            }
+            return Math.Max(1, (int)Math.Round(before * (double)rate));
+        }
+
+        // 주는 피해 배수: 0 이하(회복성 타격이 같은 길로 온다면)는 건드리지 않는다(13 문서 A5). 넘치면 int 최댓값.
+        public static int DealtDamage(int before, int multiplier)
+        {
+            if (before <= 0)
+            {
+                return before;
+            }
+            long scaled = (long)before * multiplier;
+            return scaled > int.MaxValue ? int.MaxValue : (int)scaled;
+        }
+
+        // 게임 UnitType의 값(열거형은 게임 어셈블리에 있어 int로 받는다): Player=1, PlayerNPC=2(동료).
+        public const int UnitPlayer = 1;
+        public const int UnitPlayerNpc = 2;
+
+        // 일격을 걸 타격인지: 플레이어의 타격이고, 맞은 쪽이 플레이어·동료가 아닐 때만(13 문서 2.6절).
+        public static bool OneHitApplies(int attackerType, int targetType)
+        {
+            return attackerType == UnitPlayer && targetType != UnitPlayer && targetType != UnitPlayerNpc;
+        }
+
         // 법보 내구 소모 없음: 켜져 있고 플레이어 법보이며 줄어드는 쓰기일 때만 막는다(수리로 늘리는 것은 그대로).
         public static bool DurableBlocked(int now, int next, bool owned, bool on)
         {

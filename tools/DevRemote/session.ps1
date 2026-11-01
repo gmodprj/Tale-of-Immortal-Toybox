@@ -55,6 +55,7 @@ $keptModFolders = Join-Path $dir 'session-modfolders.txt'  # 회차 전부터 Mo
 $parked = Join-Path $dir 'session-parked-mods'              # -Exclude로 회차 동안 옮겨 둔 모드 폴더들
 $configFile = Join-Path $data 'config.txt'
 $keptConfig = Join-Path $dir 'session-config.txt'      # 회차 전의 config.txt(창 위치 등)
+$noConfig = Join-Path $dir 'session-config.absent'      # 회차 전에 config.txt가 없었다는 표시(13 문서 C4)
 $gridFile = Join-Path $data 'martial-grid.txt'
 $keptGrid = Join-Path $dir 'session-martial-grid.txt'    # 회차 전의 기술 학습 상한 설정(05 문서 60절)
 $noGrid = Join-Path $dir 'session-martial-grid.absent'
@@ -139,6 +140,7 @@ function OpenSession {
 if ($MakeFixture) {
   $target = Join-Path $fixtures $MakeFixture
   if (Test-Path $target) { throw "고정본이 이미 있습니다: $target" }
+  $From = $From.TrimEnd('\')   # 끝 역슬래시가 붙으면 Snapshot의 상대경로가 어긋나 "원본과 다릅니다"로 멈춘다(13 문서 C6)
   if (-not $From -or -not (Test-Path -LiteralPath $From -PathType Container)) { throw "고정본의 원본 폴더가 없습니다: $From" }
   [void][IO.Directory]::CreateDirectory($fixtures)
   Copy-Item -LiteralPath $From -Destination $target -Recurse
@@ -197,8 +199,7 @@ if ($Begin) {
     Copy-Item -LiteralPath $dll -Destination $installed -Force
     [IO.File]::WriteAllText($modeFile, $(if ($ReleaseBuild) { 'release' } else { 'dev' }))
   }
-  DeleteFiles $keptConfig
-  if (Test-Path -LiteralPath $configFile) { Copy-Item -LiteralPath $configFile -Destination $keptConfig }
+  KeepFile $configFile $keptConfig $noConfig
   # 프리셋 폴더는 세이브 밖에 있다. 검사(preset-check.ps1)가 폴더를 지우고 다시 만들므로 회차 전의 것을 떠 둔다.
   if (Test-Path -LiteralPath $presetsDir) { Copy-Item -LiteralPath $presetsDir -Destination $keptPresets -Recurse } else { [IO.File]::WriteAllText($noPresets, '') }
   # 번역 폴더도 세이브 밖에 있다. 검사(ui-check.ps1의 translation)가 파일을 지우고 바꾸므로 회차 전의 것을 떠 둔다.
@@ -246,7 +247,8 @@ if ($End) {
   if (-not (Test-Path $bak)) { throw "복사본이 없습니다: $bak" }
   CloseGame
   if (Running) { throw '게임이 아직 실행 중입니다. 이 스크립트가 띄운 게임이 아니므로 닫지 않았고, 세이브도 되돌리지 않았습니다.' }
-  DeleteFiles $flag, $modeFile
+  # park.flag(상주 DLL이 게임 창을 화면 밖에 두는 표식)는 게임을 끈 즉시 지운다. 복원이 도중에 멈춰도 사용자가 켠 게임이 숨지 않게(최종 리뷰).
+  DeleteFiles $flag
 
   # 되돌리기 직전의 세이브를 한 벌 남긴 뒤 복사본으로 되돌린다.
   $pre = Join-Path $dir "save-before-restore-$End"
@@ -287,9 +289,13 @@ if ($End) {
   }
   # 창 위치 등 모드의 설정을 회차 전으로 되돌린다. 창을 옮기는 검사(ui-check.ps1의 move)가 중간에 끝나도 사용자의 창 위치가 바뀐 채 남지 않는다.
   if (Test-Path $keptConfig) {
-    Copy-Item -LiteralPath $keptConfig -Destination $configFile -Force
-    DeleteFiles $keptConfig, (Join-Path $dir 'check-config.txt')
+    RestoreFile $configFile $keptConfig $noConfig
+    DeleteFiles (Join-Path $dir 'check-config.txt')
     'CONFIG RESTORED'
+  } elseif (Test-Path $noConfig) {
+    RestoreFile $configFile $keptConfig $noConfig
+    DeleteFiles (Join-Path $dir 'check-config.txt')
+    'CONFIG RESTORED (there was no file)'
   }
   # 프리셋 폴더를 회차 전으로 되돌린다. 회차 전에 없었으면 지운다.
   if (Test-Path -LiteralPath $keptPresets) {
@@ -339,6 +345,8 @@ if ($End) {
     "WORKSHOP FOLDERS REMOVED: $removedMods"
   }
 
+  # 모드 파일(session.mode)은 복원이 끝난 뒤에 지운다. 복원 도중 멈추면 -Restart가 모드(noeditor·release)를 알아야 한다(13 문서 C5).
+  DeleteFiles $modeFile
   [IO.File]::Delete($marker)
 
   # 회차 동안 모드가 만든 세이브 자동 백업을 지운다(시험 중의 세이브를 뜬 것이라 쓸모가 없다). 회차 전부터 있던 것은 남긴다.

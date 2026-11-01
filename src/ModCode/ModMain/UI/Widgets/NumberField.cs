@@ -6,7 +6,8 @@ namespace MOD_sWP6UL
 {
     // 숫자 입력 칸. 숫자를 쓰고 Enter를 누르면 onSubmit으로 넘긴다.
     // 입력 칸의 끝맺음 이벤트는 다른 곳을 눌러 포커스를 잃을 때도 온다. 그때는 적용하지 않도록 Enter 키인지 확인한다(실측: 스펙 3.4절).
-    // commitOnEndEdit가 참이면 포커스를 잃을 때도 넘긴다(즐겨찾기의 수량 칸. 05 문서 55절). 그때 숫자가 아니면 마지막으로 넘긴 값으로 되돌린다.
+    // commitOnEndEdit가 참이면 포커스를 잃을 때도 넘긴다(즐겨찾기의 수량 칸. 05 문서 55절). 그때 숫자가 아니면 마지막으로 넘긴 값으로 되돌리고,
+    // 마지막으로 넘긴 값과 같은 수면 넘기지 않는다(칸을 눌렀다 떠나기만 해도 다시 그려지던 것. 13 문서 B1). 판정은 NumberFieldRules.Decide.
     internal static class NumberField
     {
         public static InputField Build(Transform parent, string name, float x, float y, float w, float h, string text,
@@ -18,30 +19,34 @@ namespace MOD_sWP6UL
         public static InputField Build(Transform parent, string name, float x, float y, float w, float h, string text,
             Action<string> onChanged, Action<int> onSubmit, bool commitOnEndEdit)
         {
+            return Build(parent, name, x, y, w, h, text, onChanged, new Func<int, bool, bool>((v, enter) => { onSubmit(v); return true; }), commitOnEndEdit);
+        }
+
+        // onSubmit의 둘째 인자는 Enter로 끝났는지(거짓이면 포커스를 잃어 끝남). 돌려주는 값은 그 값을 받아들였는지 — 거짓이면
+        // 마지막으로 넘긴 글이 바뀌지 않아, 같은 값을 다시 쓰고 떠나도 콜백이 다시 불린다(NumberFieldRules.NextCommitted).
+        public static InputField Build(Transform parent, string name, float x, float y, float w, float h, string text,
+            Action<string> onChanged, Func<int, bool, bool> onSubmit, bool commitOnEndEdit)
+        {
             InputField input = Ui.Input(name, parent, text, "", x, y, w, h, onChanged, true);
             string committed = text;
             input.onEndEdit.AddListener(new Action<string>(v =>
             {
                 bool enter = UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter);
-                if (!enter && !commitOnEndEdit)
-                {
-                    return;
-                }
                 int value;
-                if (!int.TryParse(v, out value))
+                switch (NumberFieldRules.Decide(v, committed, enter, commitOnEndEdit, out value))
                 {
-                    if (enter)
-                    {
+                    case NumberFieldRules.Action.Reject:
                         EditorWindow.Say("숫자를 입력하세요.");
-                    }
-                    else
-                    {
+                        return;
+                    case NumberFieldRules.Action.Revert:
                         input.text = committed;
-                    }
-                    return;
+                        return;
+                    case NumberFieldRules.Action.Submit:
+                        committed = NumberFieldRules.NextCommitted(committed, v, onSubmit(value, enter));
+                        return;
+                    default:
+                        return;
                 }
-                committed = v;
-                onSubmit(value);
             }));
             return input;
         }

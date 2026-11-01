@@ -3791,3 +3791,379 @@ Critical·Important 없음. 사소한 것 일곱 가운데 하나를 효과로 �
 - 06 문서 기능 표의 "18줄"을 20줄로.
 
 남긴 것: 일격이 동료·아군 대상인지는 보지 않는다(플레이어 공격이 동료를 맞히는 길은 미확인, 기존 피해 배율과 같은 꼴), 피해 0인 타격도 일격 값이 된다. 일격 판정이 `OnHitCore` 안에 있어 단위 시험이 없다(게임 검사로 덮음). 내구 접두가 감소 쓰기마다 allProps를 훑는다(캐시는 필요해지면). 개발 명령 `bhp`가 지난 전투의 단위를 잡고 있을 수 있고, `iequip`이 카드를 못 찾아도 장착을 부른다(개발 빌드만).
+
+## 88. 리뷰 2026-10-29의 탐침 — 미확인 항목 확인 (2026-10-29 추가)
+
+13 문서(`docs/13-review-2026-10-29.md`)의 2절. 06 문서 8.0절 3번(미확인으로 적어 둔 것)을 고정본 회차 `rv-a-1029`(`-Fixture base -Exclude 2814696167`, 끝 `SAVE RESTORED AND IDENTICAL`)에서 쟀다. 브랜치 `chore/review-1029`. 배포 코드는 바뀌지 않았다.
+
+### 88.1 탐침 명령(개발 빌드만, `Dev/DevCommandsProbe1029.cs`)
+
+- `tswatch start|read|stop`: 매 프레임 `Time.timeScale`과 `SceneType.battle`·`battleMap`·`playerUnitCtrl`·`SceneType.map`·`g.world`의 유무를 보고 바뀐 프레임만 적는다(최대 300줄). `loadingFrames`는 battle은 있고 playerUnitCtrl은 없는 프레임 수, `loadingScaledFrames`는 그 가운데 `timeScale != 1`인 수.
+- `iwatch <i>|read|stop`: 선법 i(`playerUnitCtrl.immortalSkill[i]`)의 `data.cdTime`·`coolTime`·`cool`·`cast`·`isUse`·`energy`·`useCount`·`stopTime`·`delaySkillTime`과 `IsCreate(false)`를 매 프레임 보고 바뀐 프레임만 적는다(최대 400줄).
+- `npcart`: 전투의 플레이어 아닌 단위(`allUnitIncludeDie`)마다 종류·hp와, `UnitDataHuman.worldUnitData.unitData.propData.allProps`의 법보 sole·내구. `RateGuards`의 확인값 `DevDurableOtherCalls`·`DevDurableOtherLast`(내구 접두가 플레이어 것이 아닌 법보의 줄어드는 쓰기를 본 수와 마지막 값. `DEVTOOLS`에서만 센다).
+- 셋은 `EditorHost`의 `DEVTOOLS` 틱에서 돈다(`DevInputWatch`와 같은 자리).
+
+### 88.2 전투 장면을 싣는 동안의 지도 속도(86.4절) — 걸리지 않는다
+
+지도 속도 x3을 켜고 `fight 1011 5` → 전투 진입 → 전투 개시. `tswatch`:
+
+    f1   t=187.14 ts=3 battle=0 battleMap=0 player=0 map=1
+    f442 t=201.39 ts=1 battle=1 battleMap=1 player=1 map=0
+    loadingFrames=0 loadingScaledFrames=0
+
+`battle`·`battleMap`·`playerUnitCtrl`이 같은 프레임에 생기고 그 프레임에서 모드의 `Update`가 보는 `timeScale`은 이미 1이다(`RateService.Tick`이 탐침보다 먼저 돈다). 전투에서 나올 때(`bend` → 확인)도 `battle=0`·`map=1`이 같은 프레임. 86.4절의 염려는 지운다. 한 전투 안에서 `playerUnitCtrl`이 잠깐 사라지는 연출은 이 전투에서 보지 못했다(32·33절의 "판단 보류"는 그대로).
+
+### 88.3 선법 `coolTime`과 쿨타임 없음에서 남는 시간(87.4절)
+
+- 해독(`xrefl`): `ImmortalSkillBase.IsCreate`(173 명령)는 필드 getter를 부르지 않고(IL2CPP 인라인) `UnitCtrlBase.IsState`·`SceneType.battle`·`Time.time`을 읽는다. `IsCool`(22 명령)·`IsCost`(17 명령)는 각각 한 함수만 부른다. `Create`(1087 명령)는 `ConfGameParameter.immortalPublicCd`(공용 쿨타임 문자열)를 읽어 `Single.Parse`한다(값은 미확인).
+- 실측(`iwatch 0`, 등선 40, `iequip 5000 0`, 쿨타임 `없음`):
+
+      f1   t=298.30 cdTime=0.05 coolTime=5.00 cool=0.00 cast=2.00 isUse=0 energy=1.19 canCreate=True
+      f61  t=299.09 … isUse=1 energy=0.00 canCreate=False      ← icast
+      f545 t=303.08 … isUse=0 energy=0.46 useCount=1 canCreate=False
+      f554 t=303.12 … isUse=0 energy=1.03 canCreate=True
+
+  `coolTime`은 내내 5.00, `cool`은 0.00(줄지 않는 설정값. `stopTime=5000`과 같은 수). 남는 시간은 `isUse=1`인 약 4.0초(기술이 나가는 동안)와 그 뒤 `energy`가 1에 닿는 0.04초다. x1에서는 같은 4.0초 뒤 `cdTime=60`과 `energy`가 0.6초에 0.01씩 차서 `canCreate=False`가 유지된다(기력 회복도 쿨타임 비율을 타는 것으로 보인다. 추측).
+- 결론: "쿨타임 없음에서도 남는 약 2초"는 이 선법의 사용 시간이고 쿨타임 줄로는 줄일 수 없다. `coolTime`의 뜻은 여전히 미확인(사용 시간 상한일 가능성).
+
+### 88.4 NPC 법보 내구(87.4절) — 괴수 전투에는 법보가 없다
+
+`npcart`: 전투 1011의 단위 6개는 모두 `UnitType.Monst`이고 `UnitDataHuman`이 아니라(`TryCast` 실패) 법보 목록이 없다. `otherDecrease=0`. 인간 NPC(`UnitCtrlHumanNPC`) 전투는 지도에서 NPC를 공격해야 열리는데 `fight`는 `MonstData`만 받는다. 코드로는 접두가 플레이어 가방의 `soleID`만 막으므로 NPC 법보는 그대로 줄어든다. 남겨 둔다(NPC 공격 도구가 생기면 `npcart`로 바로 볼 수 있다).
+
+### 88.5 전투 불러오기 멈춤(55절) — 재현되지 않음(두 번째)
+
+편집기를 연 채 `awset 1,3` → `fight 1011 20` → 전투 진입: 9초 뒤 `BattleInfo`와 `inBattle=True`, 전투 개시 뒤 진행, `bend`로 `MapMain` 복귀. 캡처 `.devremote\check-probe-stall.png`.
+
+이 전투에서 로그에 `[TlToybox] artifact hud drift (전투 화면, mask=5): G:btnDevilDemon -240,-93 (want -194,-93)`이 남았다. 신기 1(쌍어패)·3(호천안)을 켠 전투 화면에서 호천안 단추가 기대한 x(−194)가 아니라 쌍어패 자리(−240)에 있었다. 55절의 전투 화면 규칙(위로 60씩)이 두 신기일 때 어긋나거나 기대값이 낡았을 수 있다. `artifact-check.ps1 -Part hud-battle`·`hud-battle-slots`로 볼 일(13 문서 7절 묶음 1). 같은 회차에서 이어 돌린 `trainer4-check -Part durable`은 13 PASS, FAIL 1이 이 경고 한 줄(검사가 로그의 경고를 절대값으로 본다)이었다.
+
+### 88.6 코드로만 본 것과 하지 않은 것
+
+- 일격의 동료 대상(87.5절): `UnitType`에 `PlayerNPC = 2`가 있다. `BattleService.OnHitCore`의 일격 분기는 맞는 쪽의 `unitType`을 보지 않는다. `hitUnit.data.unitType`이 `Player`·`PlayerNPC`이면 걸지 않는 가드 한 줄이 안전장치가 된다(묶음 1).
+- 전투 단위를 포인터로만 구분(86.4절): `UnitDataBase`에 고유 번호를 `types.txt`에서 찾지 못했다. 전투마다 상태를 비우는 쪽으로(13 문서 7절 묶음 2, A2·A4와 함께).
+- 하지 않은 것: 편집기를 뺀 회차의 빈 선택지 대화(84.4절. 무작위 사건), 넘친 가방에서 아이템 얻기(84.4절. `-NoEditor`에는 개발 명령이 없다), 옵션 행 없는 기술의 `대도까지…` 화면(83.5절. 보일 길이 없다), 83.6절의 고치기 전 실패 확인(고친 뒤 검사가 통과한다).
+
+## 89. 작은 수정 2차 — 보유 칸·세이브 전환·문구 (2026-10-30 추가)
+
+13 문서 7절의 묶음 1. 사용자 지시 "묶음 1 시작"(B2는 "보유 칸의 줄이기는 Enter + 확인"). 계획 `docs/superpowers/plans/2026-10-30-small-fixes-2.md`, 브랜치 `fix/small-fixes-2`, 회차 `sf2-a`·`b`·`c-1030`(모두 고정본, `-Exclude 2814696167`, 끝 `SAVE RESTORED AND IDENTICAL`). 게임 설치는 하지 않았다.
+
+### 89.1 고친 것
+
+- **A1** 세이브를 떠날 때(`ModMain.ResetState`) 성공·드롭 탭의 훔치기·관계 발전·드롭 배수·참오 최대도 끈다(`SuccessService.Reset`). 전에는 배율·무적·날짜 고정만 껐다.
+- **A3** `Init`·`Destroy`의 `BattleService.OnInit/OnDestroy`를 try로 감싸, 던져도 뒤의 초기화·정리가 돈다.
+- **B1·B2 보유 칸**(자원 탭 `ResOwned<번호>`): 판정을 순수 함수 `NumberFieldRules`(단위 시험 16줄)로 뗐다.
+  - `NumberField`: 칸을 떠날 때 마지막으로 넘긴 값과 같은 수면 넘기지 않는다(전에는 눌렀다 떠나기만 해도 "이미 n개입니다"와 함께 탭이 다시 그려졌다). Enter의 같은 값은 그대로 넘긴다. 새 오버로드 `Build(…, Action<int, bool> onSubmit, bool commitOnEndEdit)`의 둘째 인자가 Enter 여부.
+  - 보유 칸 규칙(`DecideOwned`): 같은 수 → 아무것도 안 함. 늘리기 → Enter·떠나기 모두 적용. 줄이기 → 떠나기는 무시하고 칸을 지금 수로 되돌림, Enter는 먼저 묻고(`BagService.LowerQuestion`: "<이름>: n개에서 m개로 줄입니다(k개 버림). 같은 값에서 Enter를 한 번 더 누르세요.") 칸에 그 값을 남긴 채 다시 그림, 같은 값의 Enter로 실행. 다른 단추를 누르면 대기가 풀린다(`Confirm` 키 `res-set-<번호>`).
+- **B8** `EditorWindow.ResetViews`: 세이브를 떠날 때 모든 탭의 하위 화면(강화·기술 추가·대도까지·전승·제작 재료·세부)을 닫고 결과 문구·확인 대기를 지운다.
+- **B9** 하위 화면의 `돌아가기`(`EditorTab.Pop`)가 결과 문구를 지우지 않는다(`Refresh`).
+- **B3** 기술 추가 화면의 안내 글을 `Ui.Wrapped` 두 줄로(창 밖으로 넘치던 것).
+- **B4** 법보 강화 화면의 `경지 10까지`는 두 번 누르기(`정말 올리기`. 경지는 내리는 길이 없다).
+- **B5·B11** 즐겨찾기 비급 수량 칸도 떠날 때 저장. 안내 "수량 칸에 쓰고 Enter를 누르거나 다른 곳을 누르면 저장됩니다."
+- **일격 대상**(13 문서 2.6절) `RateGroups.OneHitApplies(공격자, 대상)`: 플레이어의 타격이고 맞은 쪽이 플레이어(1)·동료(`PlayerNPC`=2)가 아닐 때만. 단위 시험 4줄.
+- 문구: 성공·드롭 탭 안내에서 내부 문서 번호 제거(B13), 공법 탭 막힌 수련 글 "수련 단계 n/12 · 까닭"(B16), 도호 표 머리글 "버튼" → "동작"(B20).
+
+### 89.2 검사
+
+- `ui-check bagcount`: 줄이기를 `LowerOwned`(Enter → 확인 문구 → 같은 값 Enter)로 바꾸고, 떠나며 줄이기 무시·같은 값으로 떠나기 조용·첫 Enter는 묻기만·대기 값이 칸에 남음·다른 단추로 대기 해제 다섯 줄을 더했다. **깨끗한 회차의 첫 검사로**(고정본 1011011 x10 전제. `favorites`·`items` 뒤에 돌리면 수가 달라 실패한다).
+- `treasure-check forge-ui`: `grade to 10 asks first`(첫 누름은 묻기만, 단추 글 `정말 올리기`) 추가.
+- 회차 `sf2-a-1030`: `ui-check` `base`·`tabs`·`confirm`·`favorites`·`books-ui` FAIL 0(`bagcount`는 앞 검사 때문에 FAIL 6 → `sf2-b`에서 다시). 손 검증: 비급 수량 칸을 떠나면 2 → 4 저장·`지급 x4`·같은 값은 조용(B5), 기술 추가 화면 캡처 `.devremote\check-skill-add-wrap.png`(B3), 하위 화면에서 `모두 배우기`를 한 번 눌러 생긴 문구가 `돌아가기` 뒤에도 남음(B9).
+- 회차 `sf2-b-1030`: `bagcount` FAIL 0, `treasure-check forge-ui` FAIL 0, `mastery-check ui` FAIL 0, `trainer4-check ui`·`onehit` FAIL 0, `ui-check success` FAIL 0. `treasure-check service`는 `bagcount`가 남긴 법보 때문에 고정본 전제가 깨져 FAIL 2(이 묶음은 `TreasureService`를 고치지 않아 다시 돌리지 않음).
+- 회차 `sf2-c-1030`: `artifact-check hud-battle-slots` FAIL 0, 경고 없음 — 13 문서 2.5절의 `artifact hud drift (전투 화면, mask=5)`는 깨끗한 회차에서 재현되지 않았다(어제는 같은 회차에서 전투를 두 번 다녀온 뒤에 났다). 미확인으로 둔다.
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(NumberFieldRules 16, OneHitApplies 4 추가).
+
+### 89.4 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 하나, 사소 여섯.
+- **Important** 보유 칸에서 떠나며 줄이기를 두 번 하면 두 번째에 칸이 되돌아오지 않았다: `NumberField`가 콜백을 부르기 전에 `committed`를 바꿔, 받아들이지 않은 값이 "마지막으로 넘긴 값"이 되고 같은 값의 두 번째 떠나기가 `Ignore`로 걸러졌다(계획이 정한 순서의 결함). 제출 콜백이 받아들였는지 `bool`로 돌려주고(`Func<int, bool, bool>`), 받아들였을 때만 바꾼다(`NumberFieldRules.NextCommitted`, 단위 시험 3줄). `bagcount`에 "다시 그리지 않고 같은 값으로 한 번 더 떠나기" 줄을 더해 회차 `sf2-d-1030`에서 FAIL 0.
+- 사소(남김): 음수를 쓰고 Enter하면 "n개에서 -5개로 줄입니다" 문구 뒤에야 `SetCount`가 거절한다 / 확인 문구의 "(k개 버림)"이 장착분(전투 아이템 칸 1개·장착 법보)을 세지 않는다 / 하위 화면에서 확인 단추를 한 번 누르고 `돌아가기`를 누르면 그 문구가 결과 칸에 남는다(B9의 부작용) / 확인 문구가 "칸을 다시 눌러" Enter하라고 말하지 않는다 / `LowerOwned`의 재시도가 "첫 Enter가 바로 실행되는" 회귀를 가릴 수 있다 / 개발 명령 `unload`가 `ResetViews` 뒤 창을 다시 그리지 않는다.
+- 판단 보류로 남긴 것: 피해 배율 x2~x100은 동료를 맞힌 타격에도 곱해진다(기존 동작, 13 문서 A5·T3), 세이브를 바꿔도 편집 대상·탭 순번·탭별 선택은 남는다(B8의 범위 밖).
+
+### 89.3 확인하지 못한 것
+
+- A1·B8은 세이브 전환(주 화면으로 나가 다른 세이브 열기)을 회차 도구가 만들지 못해 코드로만 확인했다. 사용자 플레이에서: 성공·드롭 탭을 켠 채 다른 세이브를 열면 꺼져 있어야 하고, 하위 화면을 연 채 세이브를 바꾸면 탭의 첫 화면이 보여야 한다.
+- 일격의 동료 제외는 동료가 함께 싸우는 전투를 도구로 열 수 없어 단위 시험과 코드로만.
+- 보유 칸의 Enter는 `Key 0x0D`가 화면 밖 게임에서 빠질 때가 있어 검사가 한 번 더 보낸다(인계 6절). 실제 키보드에서는 해당 없음.
+
+## 90. 배율 서비스 다듬기 — 전투 단위 상태 규칙, 수치 함수, 파일 나누기 (2026-10-30 추가)
+
+13 문서 7절의 묶음 2. 사용자 지시 "묶음 2 시작". 스펙 `docs/superpowers/specs/2026-10-30-rate-service-cleanup-design.md`, 계획 `plans/2026-10-30-rate-service-cleanup.md`, 브랜치 `feat/rate-service-cleanup`, 회차 `rsc-a`~`d-1030`(모두 고정본, `-Exclude 2814696167`, 끝 `SAVE RESTORED AND IDENTICAL`). **동작 불변**(배율 수치·반올림·하한 그대로). 게임 설치는 하지 않았다.
+
+### 90.1 전투 단위 상태의 전환 규칙(`RateUnitRules`, 순수)
+
+`RateService`의 세 틱(쿨타임 비율·기술 값·전투 이동 속도)이 전투 플레이어 단위 하나에 떠 둔 원래 값을 어떻게 다룰지를 한 함수 `Decide(inBattle, anyOn, held, applied, same, intact)`가 정한다(단위 시험 13줄).
+
+| 상황 | 판정 |
+|---|---|
+| 전투 밖, 쓴 값이 남아 있음 | `Skip`(잊지 않는다. 같은 단위가 다시 보이면 되돌린다 — 13 문서 A4) |
+| 전투 밖, 쓴 값 없음(또는 떠 둔 것 없음) | `Forget`/`Skip` |
+| 전투 안, 떠 둔 단위 없음 | 켜진 줄이 있으면 `Capture`(원래 값 뜨기), 없으면 `Skip` |
+| 전투 안, 다른 포인터 | 켜진 줄이 있으면 `Capture`, 없으면 `Forget` |
+| 전투 안, 같은 포인터, 쓴 값이 마지막으로 쓴 것과 다름 | 켜진 줄이 있으면 `Capture`, 없으면 `Forget`(같은 주소에 새 단위가 잡혔거나 게임이 바꿈. 옛 원래 값을 쓰지 않는다 — 13 문서 2.6절) |
+| 전투 안, 같은 포인터, 그대로 | `Apply`(줄마다 `WritesRate`로 쓰고, 모두 꺼졌으면 되돌린 뒤 잊는다) |
+
+- 쿨타임 비율: `skillWritten`·`stepWritten`·`itemWritten`(마지막으로 쓴 값). 단위 수준의 "그대로"는 늘 참으로 두고 **줄마다** 원래 값을 정한다(`RowOriginal`: 안 쓴 줄은 지금 값, 쓴 줄은 마지막으로 쓴 값 그대로면 떠 둔 원래 값, 다르면 지금 값). 한 줄이 바뀌었다고 다른 줄을 다시 뜨지 않는다. 두 번 고쳤다: 처음 안은 안 쓴 줄의 낡은 Written까지 비교해 매 프레임 "바뀜"으로 보여 1e8까지 겹쳤고(회차 `rsc-a-1030`의 `combat`), 다음 안("쓴 줄 가운데 하나라도 다르면 셋을 다시 뜬다")은 최종 리뷰가 그대로였던 줄의 배율이 겹치는 길을 짚어 줄 단위로 바꿨다(90.6절).
+- 기술 값(`skillValues`): 항목마다 `Written`. 같은 단위에서 `baseValue != Written`인 항목은 되돌리지 않고 잊는다.
+- 전투 이동 속도(13 문서 A2): 처리기가 붙어 있는지를 포인터가 아니라 `moveSpeed.allAddCall`의 태그(`TlToybox.battleMove`)로 본다(`IsMoveAttached`). 켜져 있고 안 붙어 있으면 붙이고, 꺼져 있고 붙어 있으면 뗀다. 전투 밖에서는 켜져 있으면 상태를 남기고 꺼져 있으면 잊는다. 두 번 붙어 배율이 겹치는 길이 없어졌다.
+
+### 90.2 수치 함수(`RateGroups`, 단위 시험 6줄)
+
+`ScaleValue`(짝수 반올림·int 상한)·`ScaleDay`(0.5 올림)·`ScaleSkillValue`(0.5 올림)·`CooldownRateValue`(짝수 반올림·max 상한)·`TakenDamage`(최소 1)·`DealtDamage`(0 이하 그대로 — 13 문서 A5, 넘치면 int 최댓값). 반올림 방식이 함수마다 다른 것은 기존 동작이라 그대로 두고 시험에 적었다. `RateService`·`BattleService.OnHitCore`는 이 함수들을 부른다.
+
+### 90.3 리팩토링
+
+- `MartialService.IsPlainSuitRecord(string)`: 전승 기록 정규식 세 곳을 한 함수로(13 문서 R1).
+- `RateService.cs`(625줄: Rate 정의·단계·패치·접두)와 `RateService.Tick.cs`(519줄: 매 프레임 틱 다섯과 전투 단위 상태)로 나눔(13 문서 R7). 코드 이동만.
+
+### 90.4 검사
+
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(RateUnitRules 13, RateGroups 6 추가).
+- `rsc-a-1030`: `ui-check rates`·`rates-battle` FAIL 0, `combat` FAIL 4(위의 intact 결함. 고친 뒤) → `rsc-b-1030`: `combat`·`rates2-battle`·`mpnone` FAIL 0 → `rsc-c-1030`: `trainer4-check items`·`skills` FAIL 0(`durable`은 `items`가 남긴 법보가 `$sole`로 잡혀 FAIL 4 — 검사가 "깨끗한 회차" 전제라 순서 탓) → `rsc-d-1030`: `durable` FAIL 0.
+- 최종 리뷰 뒤(줄 단위 판정): `rsc-e-1030`: `combat`·`rates2-battle` FAIL 0, `rsc-f-1030`: `trainer4-check items`·`skills` FAIL 0. 개발 확인값 `rstate`의 `rowChanged`(쓴 줄의 값이 마지막으로 쓴 것과 달랐던 프레임 수)는 두 회차 모두 0 — 고정본 전투에서 게임이 `skillCDRate` 등을 스스로 바꾸는 일은 없었다.
+
+### 90.5 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 둘, 사소 여섯.
+- **Important 1** 같은 포인터에서 한 줄만 바뀌어도 세 줄을 모두 다시 떠 그대로였던 줄의 배율이 겹쳤다(스펙의 결함). 줄 단위 판정 `RateUnitRules.RowOriginal`로 고쳤다(90.1절). 시험 5줄(`RowOriginal`·`RowChanged`, `Decide`의 빠진 갈래).
+- **Important 2** 단위 시험이 배선(intact 계산·Capture 뒤 흐름)을 덮지 못했다 — 줄 판정을 순수 함수로 떼어 시험으로 고정했고, 틱 흐름은 회차 검사로 덮는다. 개발 확인값 `rowChanged`를 두어 "게임이 비율을 스스로 바꾸는가"를 실측할 수 있게 했다.
+- 사소 고침: `DelValue`에 `moveHandler != null` 가드, 안 쓰는 `moveSpeedOf` 제거, 스펙 문구.
+- 사소 남김: `TickSkillValues`는 바뀐 항목을 버린 **다음** 프레임에 다시 뜬다(게임이 매 프레임 덮는다면 한 프레임 걸러 걸림. `mpnone` FAIL 0) / `DealtDamage`가 0 이하를 건드리지 않는 것은 의도된 동작 변경(13 문서 A5. `DevScaled`는 음수 타격도 센다) / `CooldownRateValue`의 `(int)max`는 max가 int를 넘으면 넘침(호출은 1e8 하나).
+- 판정: 값이 바뀐 줄은 지금 값을 새 원래 값으로 본다(게임이 우리 값에 더했다면 그 줄 하나는 겹칠 수 있다). 다른 안(그 줄을 놓아 버림)은 그 전투에서 배율이 듣지 않고, 더하기 가정은 근거가 없다. `rowChanged`가 0이 아닌 회차가 보이면 다시 본다.
+
+### 90.6 확인하지 못한 것
+
+- 새 규칙이 실제로 다르게 행동하는 상황(한 전투 안에서 `playerUnitCtrl`이 잠깐 사라졌다 다시 보임, 같은 주소에 새 단위) 은 도구로 만들 수 없다. 단위 시험과 코드로만.
+- 게임이 전투 중 `skillCDRate.baseValue`를 스스로 바꾸는 경우(버프 등. 미확인)가 있다면 `!intact` → `Capture`로 곱한 값을 원래 값으로 뜰 수 있다(이전 코드는 원래 값을 유지하고 덮어쓰기만 했다). 고정본 전투 셋(`combat`)과 선법·아이템·내구 검사에서는 보이지 않았다.
+
+## 91. 검사 도구 정리 — 공통 도우미, session.ps1 복원 빈틈, 시험 다섯 (2026-10-30 추가)
+
+13 문서 7절의 묶음 3(5.1절 C1~C6·C8~C11). 사용자 지시 "묶음 3 시작". 계획 `docs/superpowers/plans/2026-10-30-check-tools-cleanup.md`, 브랜치 `chore/check-tools-cleanup`. 검사의 판정은 바꾸지 않았다. 배포 코드는 바뀌지 않았다.
+
+### 91.1 `check-lib.ps1`의 공통 도우미(13 문서 C1·C8)
+
+검사 아홉에 복붙돼 있던 함수를 한 곳으로 모았다. 뜻이 다른 사본(`ui-check` combat의 `Num`은 못 읽으면 throw, `Has($cmd,$pattern)`, `artifact-check` costs의 `Num`은 기본 −999)은 각 검사에 남겼다.
+
+| 함수 | 뜻 | 대신한 사본 |
+|---|---|---|
+| `EnterBattleScene [수준=20] [-NoStart]` | `fight 1011` → 전투 진입(960,684) → 전투 개시(956,749. `-NoStart`면 안 누름) | trainer4·preset·ui-check combat의 `Into`, artifact의 `IntoBattle` 4벌(무적 `bgod on`은 호출부에 남김) |
+| `LeaveBattleScene [캡처 이름]` | 06 문서 8.0절의 규칙: 개시를 안 눌렀으면 누르고, `bend` 최대 3번, 결과 창의 확인 단추가 **맞을 때까지** 기다렸다 누르고, `MapMain`과 `inBattle=False`까지 기다림 | trainer4·preset·ui-check combat·artifact 3벌의 옛 `Leave`/`LeaveBattle`(확인 단추를 맞는지 안 보고 10번 누르고 `inBattle`을 안 기다리던 것), ui-check rates2-map·rates2-battle의 새 판 2벌 |
+| `LogHasLine <패턴>` | `changes.log` 마지막 40줄에 패턴 | `LogHas` 4벌(`-Tail` 20·30·40이 제각각 → 40) |
+| `ButtonIsOff <이름>` | 누르면 `not interactable`(켜져 있으면 실제로 눌림) | `IsOff`·`IsOffBtn` 4벌 |
+| `UiText <이름>`, `UiHas <이름>` | 글 요소의 글 / 있는지 | `T`·`Has`·`Text` 3벌 |
+| `NumIn <글> <패턴> [기본=-1]` | 첫 그룹을 수로 | trainer4의 `Num` |
+| `FieldsOf <글>` | `k=v` 쌍을 표로(값에 `=`가 들어도 됨 — preset-check 판) | `Fields` 3벌 |
+| `OpenEditorTab <번호>` | `editor` 뒤 `Tab<번호>` | `Tab` 5벌(ui-check itemuse·mpnone·success·combat, trainer4) |
+
+### 91.2 `session.ps1`(13 문서 C4·C5·C6)과 시험(C3)
+
+- `config.txt`가 회차 전에 없었으면 `-End`가 회차 중 생긴 파일을 지운다(`KeepFile/RestoreFile`, `CONFIG RESTORED (there was no file)`). 전에는 `.absent` 표식이 없어 남았다.
+- `-End`는 회차 표식(`park.flag`·`session.mode`)을 **복원이 끝난 뒤** 지운다. 전에는 복원 전에 지워, 복원 도중 멈춘 뒤 `-Restart`하면 `noeditor`·`release` 모드를 잃었다.
+- `-MakeFixture -From "…\"`처럼 끝 역슬래시가 붙어도 `Snapshot`의 상대경로가 어긋나지 않는다(`TrimEnd`).
+- `session.tests.ps1` 45 → 50: config 없던 회차(46), `martial-grid.txt` 복원(47), `-From` 끝 역슬래시(48), DLL 보관본 잔존 시 `-Begin` 거부(49), 복원 도중 실패 시 표식 유지(50. 복사본 자리에 파일을 둬 robocopy가 16으로 실패하게 함). 고치기 전 옛 `session.ps1`로 46·48·50이 FAIL, 고친 뒤 50/50 PASS. 47·49는 이미 되던 동작을 처음 덮었다.
+
+### 91.3 그 밖의 고침
+
+- `treasure-check`: 트램펄린 예외를 절대값(`-eq 0`)이 아니라 부분 시작 때 뜬 수와의 차이로 본다(C2. 다른 검사와 같은 꼴. `artifact`·`immortal`·`preset`은 "부분마다 깨끗한 회차" 전제라 그대로 둠).
+- `mastery-check persist`: sole을 `$env:TEMP`가 아니라 `.devremote\mastery-persist.txt`에 쓰고, 시작 때 앞 실행의 파일을 지운다(C10).
+- `trainer4-check`: 예열 명령 `ping`(없는 명령) → `uistate`(C11. 89절에서 함께 고침). 머리 주석 갱신: mastery(부분 여섯), trainer3(persist), treasure(give·forge-ui), check-lib(검사 아홉), trainer4(C9).
+
+### 91.4 회차 검증
+
+- 회차 `ctc-a-1030`: `trainer4-check ui`·`items`, `ui-check combat`(전투 셋) FAIL 0. `ctc-b`: `trainer4-check onehit`(전투 둘), `treasure-check service`·`forge-ui`(Traps 차이 판정) FAIL 0. `ctc-c`: `mastery-check persist` → `-Restart` → `persist-restart`(sole 파일이 `.devremote`에), `trainer3-check suit-ui` FAIL 0. `ctc-d`: `artifact-check hud-battle`이 전투 뒤 지도 복귀를 15초 안에 못 봐 FAIL 2(첫 전투 뒤 장면 적재가 길었다) → `LeaveBattleScene`이 30초까지 기다리고 결과 창이 남아 있으면 확인을 다시 누르게 고침. `ctc-e`: `hud-battle-slots` FAIL 0; `preset-check extras-battle`이 `Fields $x` 꼴 호출(11개)이 치환에서 빠져 멈춤 → 고침. `ctc-f`: `hud-one`·`hud-battle` FAIL 0(`hud`는 신기 셋이 켜진 세이브를 전제하는 부분이라 고정본 그대로는 FAIL 5 — 바뀐 코드 없음, 전제 위반). `ctc-g`: `preset-check extras`·`extras-battle`, `immortal-check catalog` FAIL 0. 일곱 회차 모두 `SAVE RESTORED AND IDENTICAL`.
+- `artifact-check costs`(06 5절 목록에 없던 부분)는 FAIL 3: 검사의 기대값(호천안 기술 영력 30 → 15)이 고정본 실측(393 → 197)과 다르다. 반감(393→197, 25000→12500, 12→6, 50→25)과 x1 복원은 맞게 보여 낡은 기대값으로 본다. 이 묶음 밖(남은 일).
+- `pwsh tools/DevRemote/session.tests.ps1` 51/51 PASS.
+- 최종 리뷰 뒤 회차 `ctc-h-1030`: 판정이 넓어진 부분 — `mastery-check ui`(`UiText`가 `text='…'` 안쪽만 돌려줌), `treasure-check ui`·`repair` → `-Restart` → `repair-restart`(Traps 차이, `LogHasLine` 40줄), `trainer4-check items`(확인 단추 조건부 누름) 모두 FAIL 0.
+
+### 91.5 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 둘, 사소 열.
+- **Important 1** `-End`의 표식 삭제를 뒤로 옮기면서 `park.flag`(상주 DLL `TlToyboxDevRemote.dll`이 게임 창을 1920x1080 화면 밖에 두는 표식)까지 늦게 지워져, 복원 도중 멈춘 뒤 사용자가 게임을 켜면 창이 보이지 않을 수 있었다(계획과 13 문서 C5 문구의 결함). `park.flag`는 게임을 끈 즉시 지우고 `session.mode`만 복원 뒤에 지운다. 시험 51(`-DryRun`은 flag를 만들지 않아 손으로 둔다) RED → GREEN.
+- **Important 2** 판정이 넓어진 부분이 회차에서 돌지 않았다 → 위의 `ctc-h-1030`.
+- 사소 고침: `LeaveBattleScene`은 확인 단추가 실제로 맞을 때만 누른다(이미 지도면 그 자리를 누르지 않음), `repair-restart`의 안 쓰는 `$traps`, 시험 46이 `.absent` 표식 삭제도 봄, 주석 둘.
+- 사소 남김: 옛 꼴의 전투 종료(확인 단추를 맞는지 안 보고 연타)가 인라인으로 남은 곳 — `artifact-check` slot-clicks, `ui-check`의 itemuse·mpnone·success(3085·3135·3230 부근), `mastery-check battle`(C1 범위 밖. 다음에 전투 코드를 손댈 때 `LeaveBattleScene`으로) / `FieldsOf`는 쌍 안 줄바꿈을 값에 담는다(옛 정규식판은 그 쌍을 버림. 여러 줄 출력을 내는 명령이 있는지 미확인) / `EnterBattleScene`은 전투 개시를 조건 없이 누른다(옛 `Into`와 같음) / `TrimEnd('\\')`는 `C:\`를 `C:`로 만든다(드문 입력) / config 복원 두 갈래는 하나로 합칠 수 있다.
+
+## 92. 파일 안전과 예외 경로 — AtomicFile, 깨진 공법 건너뛰기, 도호 표시 비우기 (2026-10-30 추가)
+
+13 문서 7절의 묶음 4(3절 A7·A8·A10·A11·A12·A15, 4절 B22). 사용자 지시 "묶음 4 시작". 계획 `docs/superpowers/plans/2026-10-30-file-safety.md`, 브랜치 `fix/file-safety`. 동작은 바뀌지 않고 실패 경로만 닫았다. 게임 설치는 하지 않았다.
+
+### 92.1 `AtomicFile`(A7)
+
+사용자가 손으로 고치는 파일을 쓰는 도중 게임이 죽으면 파일이 통째로 사라질 수 있었다(`File.WriteAllText`가 먼저 비우고 쓴다). `AtomicFile.WriteAllText(path, text, encoding)`은 `<path>.tmp`에 다 쓴 뒤 `File.Replace`(대상이 있으면)/`File.Move`(없으면)로 바꿔치기한다(`FavoriteStore.Change`가 쓰던 꼴을 한 곳으로). 쓰는 곳: 번역표 셋(`translations\mods.txt`·`texts.txt`·`tables.txt`의 풀기·덧붙이기, `untranslated.txt`), `config.txt`(쓰기·만들기), `martial-grid.txt`, `favorites.txt`. 단위 시험 4줄(새 파일·덮어쓰기·BOM 없음·`.tmp` 없음). `ConfigFile.Write`는 `File.WriteAllLines`와 같은 모양(줄마다 CRLF, BOM 없음)을 유지한다. 프리셋 파일 쓰기와 내보내기(`ExportFiles.Write`)는 덮어쓰지 않거나 사용자가 고치는 파일이 아니라 그대로 두었다.
+
+### 92.2 예외 경로
+
+- **A15** `ConfigFile` 읽기·쓰기·만들기의 `catch`가 `IOException`·`UnauthorizedAccessException`만 받던 것을 `Exception`으로. 경로 오류 같은 다른 예외가 `EditorHost` 초기화까지 올라가지 않는다.
+- **A8** `PresetService.FolderStamp`(프리셋 폴더 표지)가 던지면 `"ERR:" + ticks`(매번 다른 표지)를 돌려줘 `List()`(예외를 삼킨다)가 다시 읽게 한다. 전에는 프리셋 탭 그리기까지 올라갔다.
+- **A11** `MartialService.SuitsFor`(전승 화면)와 `SkillCatalog.LearnedCounts`(기술 추가의 배운 수)가 공법 목록을 돌 때 줄 단위 `try`로 깨진 공법을 건너뛴다(`CharacterExportService.Import`의 꼴). 첫 번만 로그 `깨진 공법 건너뜀(전승|배운 수)`.
+- **A12** 프리셋 `PutSkill`의 `finally` 되돌리기(`Equip(other)`)가 던지면 원래 예외를 가리지 않게 로그만 남긴다. 심법의 원래 칸 번호 보존은 하지 않았다(`Equip`이 빈 첫 칸을 고른다. 남김).
+- **B22** `TextPatch.TextPrefix`(게임 `Text.text` 설정자의 Harmony 앞붙임)를 `try`로 감싸 치환이 던지면 원문을 그대로 두고 첫 번만 로그.
+- **A10** `AppellationService.ForgetQuiet()`: 편집기가 준·뺀 도호 번호의 "조용히 닫기" 표시(`quiet`·`quietLoss`)와 보상 창 기억(`lossOf`)을 `ModMain.Destroy`에서 비운다. 남겨 두면 다른 세이브에서 게임이 같은 도호를 정당하게 줄 때 그 획득 창을 편집기가 닫았다.
+
+### 92.3 검사
+
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(AtomicFile 4줄 추가).
+- 회차 `fs-a-1030`(만고신화 포함): `ui-check translation`(번역 파일 수정·BOM·삭제·주석만·미번역 내보내기) → `favstore` → `-Restart` → `favstore-restart` → `move` → `-Restart` → `move-restart` 모두 FAIL 0. 끝에 데이터 폴더에 `*.tmp` 없음.
+- 회차 `fs-b-1030`: `mbreak`로 깨진 공법을 만들어 둔 채 `trainer3-check suit-ui`를 돌리자 전승 화면은 정상으로 그려졌지만(캡처 `.devremote\check-fs-hang.png`), 몇 초 뒤 게임 자체의 주기 작업(`GMFunc.xiufuNPCmijicitiao` → `MartialInfoData..ctor`에서 `NullReferenceException`, `Player.log`)이 그 공법을 읽다 죽어 게임의 `TimerMgr` 코루틴이 멈췄고, 그 위에서 도는 개발 명령 폴링(`g.timer.Frame`)도 함께 멈췄다(게임 프로세스는 살아 있음, `-End` 정상). **깨진 공법을 오래 살려 두는 검증은 하지 않는다**(기존 `actions` 검사처럼 만들자마자 지운다). 로그에 "깨진 공법 건너뜀"이 없으므로 A11의 가드는 그 공법에서는 불리지 않았다(`To<MartialData>()`와 `martialType`·`valuesStr` 읽기는 던지지 않고, 던지는 것은 `martialInfo` 조회였다 — `SuitsFor`도 세트가 붙은 심법의 이름을 읽을 때(`Name(m)`) 그 조회를 쓴다. 최종 리뷰가 짚어 그 호출도 try 안에 넣었다, 92.5절). 가드는 안전장치로 남는다.
+- 회차 `fs-c-1030`: `trainer3-check suit-ui`, `ui-check tabs`·`actions`(mbreak → 깨진 줄 그리기 → 삭제), `preset-check ui` FAIL 0. 회차 `fs-d-1030`: `ui-check appellation-ui` FAIL 0.
+- `ui-check grid`는 깨끗한 회차 첫 검사인데도 FAIL 1 — 사용자 데이터 폴더의 `martial-grid.txt`가 2026-10-19부터 50이라(플레이 중 올린 값. 변경 이력에 매 실행 "+50 -> +10") 검사의 전제(상한 0)가 그때부터 깨져 있었다. 회차 `fs-e-1030`에서 `mgridset 0` 뒤 돌리면 FAIL 0(파일은 `AtomicFile`로 쓰이고 `.tmp` 없음), `-End`가 50으로 되돌린다(`MARTIAL GRID RESTORED`). 앞으로 `grid`는 회차 안에서 `mgridset 0` 뒤에 돌린다.
+- 다섯 회차 모두 `SAVE RESTORED AND IDENTICAL`.
+
+### 92.4 최종 리뷰 뒤 고친 것(opus 검토자 한 번)
+
+Critical 없음, Important 셋, 사소 일곱.
+- **Important 1** `AtomicFile`이 `File.Replace` 실패 뒤 `.tmp`를 무조건 지웠다. `ReplaceFile`이 대상을 잃은 채 실패하는 경우(오류 1176: 백신·색인기가 임시 파일을 잡은 순간)에는 `.tmp`가 새 내용의 유일한 사본이라 원본과 새 내용을 함께 잃을 수 있었다(옛 `FavoriteStore.Change`는 `.tmp`를 남겨 손으로 살릴 수 있었다). `Recover(path, tmp)`: 대상이 사라졌고 임시 파일이 있으면 대상 이름으로 옮기고, 대상이 남아 있을 때만 임시 파일을 지운다. 시험 3줄(읽기 전용 대상 → 던지고 원본 그대로·`.tmp` 없음, 대상이 사라진 복구, 대상이 남은 복구).
+- **Important 2** `SuitsFor`의 `Name(m)`(실측된 예외 지점 `martialInfo`를 읽는다)이 줄 단위 try 밖에 있어 세트가 붙은 깨진 심법이 있으면 전승 화면이 통째로 실패했다 → try 안으로.
+- **Important 3** 실패 경로 시험이 없었다 → 위 3줄.
+- 사소 고침: 시험 6줄(RateUnitRules)이 `AtomicFileTests`에 잘못 붙어 있던 것, 프리셋 되돌리기의 조건식(`IsEquipped`)도 try 안으로, `PresetService.List`의 catch를 `FolderStamp`와 같은 범위(`Exception`)로.
+- 사소 남김: `ReplaceFile`은 대상의 공유 삭제 권한이 필요해 옛 `WriteAllText`가 되던 드문 경우(다른 프로세스가 공유 쓰기만 허용한 채 열어 둠)에 실패할 수 있다(로그만) / 임시 파일을 `Flush(true)` 없이 바꿔치기해 전원 차단은 보호하지 못한다(목표는 게임이 죽는 경우) / `brokenWarned`가 프로세스 전체에서 한 번이고 전승·배운 수 두 지점이 공유 / B22 로그 문구 "원문 그대로 둠"은 `Leftover` 기록에서 던진 경우에는 맞지 않는다(던질 일이 없다).
+- 고친 뒤 회차 `fs-f-1030`(만고신화 포함): `ui-check translation`·`favstore`, `trainer3-check suit-ui` FAIL 0, 데이터 폴더에 `.tmp` 없음, `SAVE RESTORED AND IDENTICAL`. 단위 시험 FAILS=0(atomic 7줄).
+
+### 92.5 확인하지 못한 것
+
+- 쓰기 도중 죽는 상황은 도구로 만들 수 없다(단위 시험으로 `.tmp`가 남지 않고 내용이 바뀌는 것만). `File.Replace`가 다른 프로세스의 잠금으로 던지면 호출부의 기존 `catch`(`TranslationService.Ensure`·`ConfigFile`·`FavoriteStore.Change`)가 로그로 받는다(코드로만).
+- A8(프리셋 폴더 접근 거부)·B22(치환이 던지는 경우)는 회차에서 만들 수 없어 코드로만.
+
+## 93. 리팩토링 2차 — 순수 판정 넷, 서비스 중복, UI 위젯·분할·되풀이 (2026-10-30 추가)
+
+13 문서 7절의 묶음 5(3절 R2·R3·R5·R6·R8·T2·T4·T5·T6, 4절 S1~S5·S7·P1~P6). 사용자 지시 "묶음 5 시작". 계획 `docs/superpowers/plans/2026-10-30-refactor-2.md`, 브랜치 `chore/refactor-2`. **동작 불변**(화면 요소 이름·문구·검사 기대값 그대로). 게임 설치는 하지 않았다.
+
+### 93.1 순수 판정 넷(단위 시험 22줄)
+
+게임 형식(`ConfBattleSkillPrefixValueItem` 등)에 묶여 시험이 없던 판정을 `PrefixRow`(번호·중복 한도·자리 가중치 11칸·선행/배타) 레코드로 떼어 냈다. 게임 행 → 레코드는 `MartialService.RowOf`.
+
+| 판정 | 전 | 후 | 시험 |
+|---|---|---|---|
+| 모드 공법 비급의 옵션 번호 치환(78절. T2·R3) | `SkillCatalog.RemapPrefixNumbers` 118줄(게임 행·`Il2CppStructArray`) | `ModSkillRules.RemapPrefixNumbers(int[] values, int end, List<PrefixRow>, Func<int,int> rng)` + `OptionEnd`. 무작위는 주입 | 모드 번호 유지·자리 가중치로 채움·안 쓴 첫 번호 대체·한도 안 되풀이·바꿀 것 없음 5줄 |
+| 옵션 목록 규칙(T4) | `MartialService.OptionProblem` | `MartialRules.OptionProblem(options, rows, anySlot, slotFrom)`. 문구 그대로(`SlotReason`도 여기) | 11개 초과·없는 번호·자리·anySlot·중복(목록 전체를 세어 첫 자리에서 걸림)·배타·slotFrom·정상 8줄 |
+| 프리셋의 같은 공법 고르기(T5) | `PresetService.Learned`·`SameOptions`·`Find` | `PresetRules.Learned`·`SameOptions`·`Find(learned, baseId, options, grade, matchSuit, suit)`. `PresetService`는 별칭으로 씀 | 장착 우선·낮은 경지 제외·심법 세트 일치·다른 옵션 4줄 |
+| 돌파 재료 고르기(T6) | `EditService.ParseIds`·`BreakthroughNeedItems`·`BreakthroughTreasures` | `BreakthroughRules.ParseIds`·`NeedItems(itemShowA, growItemNum)`·`Treasures(itemShowB, materialsNum)` | 0·글·중복 제외, 한 개면 마지막, 순환, 천재지보 4줄 |
+
+### 93.2 서비스 중복
+
+- R8 `PresetService.Entry`: 분류마다 `SkillCatalog.Find(kind, 번호 글)`(부분 문자열 검색) 뒤 거르던 것을 `SkillCatalog.Get(kind, baseId)`로.
+- R6 `ItemCatalog`: `CountByGroup`·`CountByKind`·`Counts` 세 훑기를 `Counts` 하나로(자원 탭·개발 명령 `rgroups`·`rperf`가 쓴다).
+- R5 수도 점수 올리기: `MasteryService.RaiseAbilityPoints(unit, extra, out before, out want, out now, out reply)` 한 벌을 프리셋 적용(`PresetService.Apply.RaisePoints`)과 대도까지 채우기가 함께 쓴다(문구·기록은 각자).
+- R2 `MasteryService.Remake`(160줄): 되돌리기(`RemakeRollback`)와 실패 문장(`RemakeFailText`)을 떼어 냈다. 코드 이동만.
+- **R4(백업 보일러플레이트 76곳)는 하지 않았다**: C#에서 "실패하면 return"은 호출부에 남아야 해 4줄이 3줄이 될 뿐이다.
+
+### 93.3 UI
+
+- S3 `EditorTab.ToggleRow(y, rowH, name, label, value, on, note, onClick, noteName)`: 배율·성공 탭의 같은 `Row`.
+- S4 `Widgets/ChipBar.Layout(widths, areaW, chipH, gap, xs, ys)`(순수. 줄바꿈 배치, `areaW` 0이면 한 줄. 시험 2줄)와 `Widgets/CountChip`(수가 적힌 글. 자원·도호 탭의 `CountLabel` 둘을 하나로): 자원 종류 칩·도호 분류 칩·배율 칩·기술 서적 칩이 쓴다. 폭 계산식은 각자 그대로.
+- S5 `Widgets/NumberChips.Draw(parent, prefix, from, to, x, y, w, step, h, selected, onPick, label, widthOf)`: `SkillGrade`·`ResGrade`·`ForgeStage`·`GiveStage`(`GiveGrade`는 0번이 "시작 경지"라 그대로).
+- S7 `EditorTab.MissingNote(text, y)`: "…를 찾지 못했습니다. 돌아가서…" 네 곳.
+- S1 `ResourcesTab.cs` 760줄 → 568 + `ResourcesTab.Favorites.cs` 150 + `ResourcesTab.Currency.cs` 58(+ `Books.cs`). S2 `MartialTab.cs` 649줄 → 288 + `MartialTab.Views.cs` 368(대도까지·전승·기술 추가·옵션 교체). 코드 이동만.
+- **S6(읽을 수 없는 파일 줄 두 벌)은 하지 않았다**: 목록 형식이 다르고 폭(16/158)도 달라 공통으로 묶으면 더 길어진다.
+- P1 즐겨찾기 줄을 그리기(검색)마다 한 번만 만든다(`favRowsNow`). P2 기술 서적 분류 수를 그리기마다 한 번(`bookKindCountsCache`). P3 기예 서적의 "배울 수 없는 까닭"을 그리기마다 서적당 한 번. P4 공법 탭의 선택 공법 조회 한 번. P5 프리셋 탭은 열 때·보일 때 목록을 비우기만 하고 그릴 때 읽는다(Insert마다 디스크를 읽던 것). P6 `Ui.TextHeight` 캐시가 4096개를 넘으면 비운다.
+
+### 93.4 검사
+
+- 단위 시험 `dotnet run --project tests/ModMain.Tests -c Release` FAILS=0(PrefixRules 14, PresetRules 4, BreakthroughRules 4, ChipBar 2 추가).
+- 회차 일곱(모두 고정본, 끝 `SAVE RESTORED AND IDENTICAL`). 검사 결과 FAIL 0: `rf2-a`(`-Exclude`) `ui-check base`·`tabs`·`people`·`confirm`·`wrap`·`fateguard`·`groups`·`favorites`·`books-ui`·`prefixforce`·`traits`·`success`·`history` / `rf2-b` `rates`·`bagcount`·`items`·`numbers`·`status` / `rf2-c`(만고신화 포함) `translation`·`mastery-check modname` / `rf2-d` `preset-check state`·`martial`·`files`·`grade` / `rf2-e` `preset-check ui` / `rf2-f` `mastery-check service`·`trainer3 suit-ui`·`appellation-ui`·`rates2`·`trainer4 ui`·`treasure-check service`·`ui`·`forge-ui`·`artifact-check ui`·`modbooks` / `rf2-g` `mastery-check ui`.
+- 처음 실패했다가 회차 조건을 맞춰 통과한 것(코드 문제 아님): `status`는 87절의 일격 단계로 주는 피해가 여섯 단계가 된 뒤 낡아 있던 검사(x2에서 4번 눌러 x1로 본 것) → 5번으로 고침. `modbooks`는 만고신화 회차에서 FAIL 6(`can=2` — 경지 표가 바뀌어 고정본 인물이 축기로 읽힘. 06 5절대로 `-Exclude` 회차에서), 또 preset `grade` 뒤에 FAIL 2(인물 경지가 10이 되어 기본 경지가 바뀜) → 깨끗한 회차 끝에서 FAIL 0. `preset ui`는 `grade` 뒤에 FAIL 3(4단계 잠김 전제) → 깨끗한 회차에서 FAIL 0. `preset ui`가 단계를 적용해 장착·게임 창을 바꾸므로 그 뒤의 검사(`mastery service` 등)는 멈추거나 실패한다 → `preset ui`는 회차의 마지막에. `mastery ui`는 같은 회차의 `mastery service`가 고정본 공법을 12/12로 채운 뒤라 FAIL → 단독 회차에서 FAIL 0.
+- 회차 조건 정리(06 5절에 더함): `preset-check ui`·`grade`는 그 회차의 마지막, `mastery-check`의 부분은 각각 깨끗한 회차, `modbooks`는 `-Exclude` 회차.
+
+### 93.5 최종 리뷰 뒤 고친 것
+
+읽기 전용 리뷰(opus): Critical 0, Important 1, Minor 7.
+
+- **Important 1 — `MartialService.OptionProblem`이 호출마다 그 기술의 옵션 행 전부를 `PrefixRow`로 바꾼다.** 대도까지 채우기의 후보 고르기(`MasteryService.Candidates`)는 후보 행마다 이것을 불러 행 수의 제곱으로 게임 값을 읽었다(옮기기 전에는 게임 행을 바로 보았으므로 리팩토링이 들여온 비용). 행 변환을 `MartialService.RowsOf(type, baseId)`로 떼어 `Candidates`가 한 번만 만들고 `MartialRules.OptionProblem(options, rows, …)`를 직접 부른다. 다른 호출부(만들기·끼워 넣기·프리셋)는 한 번 판정이라 그대로.
+- Minor: `RemakeRollback`이 `oldAction.data.soleID`를 다시 읽던 것을 `sole` 인자로(같은 값이지만 되돌리기가 옛 행에 기대지 않게). `RemapPrefixNumbers`의 무작위 가지(rng가 후보 수를 받고 마지막 자리를 골라도 되는지)와 0 칸·범위 밖 칸이 그대로인지 시험 1줄. `ChipBar` 시험 2줄을 `ChipBarTests`로 분리(돌파 재료 시험 안에 있었다). 람다 매개변수 `g`를 `grade`로(공법·자원 탭). `ArtTab.blockReasons` 주석에 "Draw 시작에 비우고 다음 Draw까지"를 적음.
+- 그대로 둔 것: `SlotReason` 별칭(`MartialService.SlotReason = MartialRules.SlotReason`. 호출부가 많아 이번엔 두 이름을 유지), `CountChip.Set`이 폭을 다시 재지 않는 것(폭 계산식은 탭마다 달라 호출부가 맡는다 — 93.3).
+- 재검: `rf2-h-1030`(`-Exclude`) `mastery-check service` FAILS=0, `rf2-i-1030` `mastery-check ui` FAILS=0(각각 깨끗한 회차). 둘 다 `SAVE RESTORED AND IDENTICAL`.
+
+### 93.6 확인하지 못한 것
+
+- 순수 판정의 결과가 옮기기 전과 같은지는 단위 시험(규칙표)과 회차의 기존 검사로만 봤다. 모드 공법 비급의 무작위 선택은 주입된 rng로 고정해 시험했다.
+- `TextHeight` 캐시 상한(P6)이 실제로 닿는지는 재지 않았다(결과 문구가 4천 가지를 넘어야 한다).
+
+## 94. 극 대화 창의 흰 배경 조사: 음양쌍수 패키지에 배경 그림 62장이 없음 (2026-10-31 추가)
+
+사용자 보고(2026-10-31 20:52, 화면 첨부): 대사 "아니, 아무것도 아니에요. 만나서 기뻤어요! 쪽~" 창의 위쪽이 흰 판이다. "흰색 이미지는 이유가 뭐야" → "확인해 줘". 브랜치 `chore/drama-bg-probe`. 편집기 동작은 바꾸지 않았다(개발 명령만 더함).
+
+### 94.1 결론
+
+- 그 창은 게임의 기연 창(`UIDramaFortuitous`. 배경 `imgBG1`·`imgBG2`, 대사 `ptextInfo`, 가로 선택지)이다(95절에서 바로잡음: 처음엔 큰 그림 대화 창 `UIDramaDialogueBigTexture`로 적었다. 그 창은 `uiType` 12, 기연 창은 2). 배경은 대화 표(`ConfDramaDialogueItem.backgroud`)의 이름으로 정해지고, 그림을 못 만들면 Image의 기본 흰 사각형이 남는다.
+- 그 대사(LocalText 키 `x72UY38x`)의 줄은 **[蛋]음양쌍수(3426669627, 모드ID `ttGCG8`)**의 id -1017852448, `uiType` 2, `backgroud` `ttGCG8_2`다(雨萱 이야기).
+- **음양쌍수의 대화가 가리키는 배경 62가지(대화 96줄)는 모드 폴더 어디에도 그림 파일이 없다.** 이 모드의 `Assets\Texture\FortuiousBigBG`에는 접두사 없는 12장(`001 (1)`~`(3)`, `11120`~`11128`)만 있고, 그 가운데 대화가 쓰는 것은 `11120` 하나다. SteamCMD로 받은 원본(`E:\SteamCmd\steamapps\workshop\content\1468810\3426669627\Assets`)과 설치본은 같다 — **제작자 패키지의 누락**이고 설치나 편집기·Fatury 문제가 아니다.
+- 다른 모드는 그렇지 않다: 만고신화(`dH6k0J`) 155가지·운상요지(`Rh7JeP`) 23가지는 모두 파일이 있다. 환희연 강화판(`RoDPXQ`, 원판 접두사 `qOfHjU`)은 대화 배경을 쓰지 않는다(이 화면의 출처라는 앞선 짐작은 틀렸다).
+
+### 94.2 확인 방법
+
+- 개발 명령 `rdrama <대사 키|행 번호>`(`Dev/DevCommandsDrama.cs`): 그 줄과 그 줄을 `nextDialogue`로 가리키는 줄의 칸들, 배경 이름의 접두사 모드가 실렸는지(`ModMgr.IsLoadMod`)·뿌리(`GetModPathRoot`), 모드 폴더들의 `Assets\Texture\FortuiousBigBG`·`Fortuitous`에 `<이름>.png`가 있는 곳, 그리고 그림 적재 시험.
+- 그림 적재 시험: `g.res.Load`와 `ModMgr.LoadSpriteBigTex`는 경로 형식 넷(`<이름>`, `Texture/FortuiousBigBG/<이름>`, `Texture/BG/<이름>`, `Texture/Fortuitous/<이름>`) 모두 **파일이 있는 만고신화 배경(대조, id 447266701 `dH6k0J_帝子登场2`)에서도 null**이었다 — 대화 창이 쓰는 길이 아니다. 파일을 게임의 복호화로 직접 푸는 `ModTool.LoadSpriteInFile(file, true)`은 대조에서 2880×1050 그림을 만들었다. 대화 창이 정확히 어느 함수로 읽는지는 IL2CPP 본문이 없어 **미확인**이지만, 모드 배경은 모드 폴더의 파일에서 나온다는 것은 대조로 확인했다.
+- `rdrama bgs <출력 파일>`: 대화 표 36,066줄의 배경 값 2,710가지를 점검해 파일로(`.devremote\drama-bgs-1031.txt`). 실린 모드의 접두사인데 파일이 없는 것은 `ttGCG8` 62가지뿐이었다.
+- 회차 `drama-a`·`b`·`c-1031`(고정본, 만고신화 포함), 모두 `SAVE RESTORED AND IDENTICAL`.
+
+### 94.3 확인하지 못한 것
+
+- 접두사가 실린 모드가 아닌 이름(`zhuxian_…` 42가지, `mingyaoqiyu_…` 37가지 등)과 접두사 없는 이름(`treasure` 등)은 게임 원본 자원으로 보고 점검하지 않았다. 그쪽에서 흰 판이 나는지는 미확인이다.
+- 손볼 수 있는 길: (1) 배경 그림이 없을 때 흰 판 대신 검은 바탕으로 두기 — 사용자 결정("검게 바꿔 줘")으로 95절에서 했다, (2) 음양쌍수 제작자에게 누락 보고. 이름만으로 다른 그림을 대신 끼우는 것은 근거가 없어 하지 않는다.
+
+## 95. 극 창의 빠진 배경 그림을 검은 바탕으로 (2026-10-31 추가)
+
+사용자 지시(2026-10-31): 94절의 흰 판을 "검게 바꿔 줘". 브랜치 `fix/drama-blank-bg`.
+
+### 95.1 규칙
+
+- `Services/DramaBackgroundService.cs`: 기연 창(`UIDramaFortuitous`)과 큰 그림 대화 창(`UIDramaDialogueBigTexture`)의 `Update`에 후위 패치를 건다(Init에서 한 번). 두 창 모두 배경이 `imgBG1`·`imgBG2`다.
+- 프레임마다 두 Image를 본다. 그림(`sprite`)이 비었고 보이는(알파 > 0) 밝은 색이면 그 색을 기억하고 RGB만 검게 한다. 알파는 그대로 둬 게임의 옅어지기 연출을 따른다. 그림이 없는 동안 게임이 색을 다시 밝게 바꾸면 다시 검게 한다.
+- 우리가 검게 칠한 Image에 그림이 생기면, 색이 아직 우리가 칠한 검정일 때만 기억한 색으로 되돌린다(게임이 색을 바꿨으면 손대지 않는다). 그림이 늦게 붙어도 진짜 그림을 검게 물들이지 않기 위해서다.
+- 이미 어둡거나 투명한 Image는 건드리지 않는다. 큰 그림 창의 평소 `imgBG2`(그림 없음, 0,0,0,0)와 기연 창의 평소 `imgBG2`(그림 없음, 알파 0)가 그렇다.
+- 패치를 걸지 못하면 로그에 한 줄 남기고 예전처럼 흰 판이 나온다. 세이브를 떠날 때 기억한 Image를 비운다.
+- 게임의 다른 극 창(`UIDramaDialogue` 등)은 배경 Image가 없어 대상이 아니다. `UIDramaBigTexture`(만고신화 첫 안내 이야기 같은 창)는 이번에 보지 않았다(미확인).
+
+### 95.2 검사
+
+- `tools/research/drama-bg-check.ps1`(회차 안, 고정본, 만고신화 포함): 열린 극(고정본에 들어가면 만고신화의 첫 안내 이야기가 떠 있다)을 먼저 닫고 대화 줄을 직접 연다(`rdrama open`, 선택지는 누르지 않는다).
+  1. 고치기를 끈 채(`rdrama fix off`) 음양쌍수 줄(id -1017852448, `ttGCG8_2`): 기연 창, `imgBG1` 그림 없음·색 1,1,1,1 — 사용자 화면과 같은 흰 판(캡처 `check-drama-off.png`).
+  2. 고치기를 켠 채: 같은 Image가 0,0,0,1(캡처 `check-drama-on.png`, 흰 판 자리가 검정).
+  3. 대조 — 만고신화 큰 그림 창(id 447266701, 2880×1050 그림): 그림·흰색 그대로.
+  4. 대조 — 그림이 있는 기연 창 둘(`rdrama fort`가 고른 게임 원본 배경 `tiaoya` 794×496, 운상요지 배경 800×500): 그림·흰색 그대로.
+- 결과 FAIL 0(회차 `dbg-e-1031`, `SAVE RESTORED AND IDENTICAL`). 앞 회차 `dbg-a`~`d-1031`의 실패는 검사의 전제였다: 첫 안내 이야기가 떠 있어 새 극이 안 열림, 그림 없는 줄이 큰 그림 창이 아니라 기연 창으로 열림, `DramaTool.CloseDrame`만으로는 큰 그림 창이 안 닫힘(`g.ui.CloseUI`로 직접 닫게 고침), 대조로 고른 줄이 기연 줄(`uiType` 2)이 아님.
+- 단위 시험 FAILS=0(바뀐 순수 로직 없음), 배포 빌드 오류 0.
+- 개발 명령 `rdrama`에 더한 것: `open <id>`·`close`·`ui`(열린 극 창 이름과 두 창의 배경 Image 상태)·`fix on|off`·`fort`(대조용 기연 줄)·`bg=<이름>`(그 배경을 쓰는 줄).
+
+### 95.3 확인하지 못한 것
+
+- 실제 플레이에서 그 극이 자연히 열렸을 때의 모습(검사는 줄을 직접 열었다). 대사 넘김·선택지 뒤 다음 줄의 배경이 바뀔 때의 되돌리기는 단계 4의 규칙으로만 보장한다.
+- `UIDramaBigTexture` 창에도 빠진 그림이 있는지와 그 창의 모습.
+
+## 96. 빠진 그림을 채울 곳 조사 (2026-11-01 추가)
+
+사용자 지시(2026-11-01): "그림이 빠진 모드들은 어디서 빠진 부분을 채울 수 있는지 확인하기". 게임 폴더와 받은 파일은 읽기만 했고, 새로 받은 것은 없다(웹 페이지와 Steam 공개 API 조회만).
+
+### 96.1 대상
+
+- [蛋]음양쌍수(3426669627, `ttGCG8`)의 극 배경 62가지(대화 96줄, 94절). 이름은 `.devremote\drama-bgs-1031.txt`의 `ttGCG8_` 줄.
+- 예전에 확인된 깨진 그림: 원작 여성 17명 입화 교체(2815562168)의 몸 149번(PNG가 아님, 52절), [剑来](2818763591)의 같은 파일 14장(74절).
+
+### 96.2 찾은 것
+
+- **이 PC 안에는 없다.** SteamCmd로 받은 45개 항목(설치·보류·제외 모두)과 게임 `ModExportData`의 파일 24,222개에서 62가지 이름(접두사 있음·없음, 확장자 무시)을 찾았다. 같은 이름은 넷뿐이고 모두 다른 용도다: 같은 모드의 NPC 반신 그림 `Assets\Texture\Game\NPC\banshen\ttGCG8_123`·`ttGCG8_6`, 다른 모드의 입화 조각 `120`(2956998877)·`未标题-1`(3662905899).
+- **제작자가 일부러 뺐다.** 창작마당 설명에 "工坊的有白图，最近没空，四月后更新"(창작마당 판에는 흰 그림이 있다), 댓글에서 제작자 계정(76561198840589506, 偷吃傻瓜蛋！)이 2025-04-22에 "工坊里的都是白图"(창작마당 것은 모두 흰 그림)라고 답했다. 그림은 제작자의 QQ 그룹으로 나눈 것으로 보인다: 큰 그룹 884147304는 2025-11-15 댓글에서 "已经寄了"(없어짐), 새 그룹(4群) 1044452476.
+- **받아 둔 판이 최신판이 아니다.** 받아 둔 판은 2025-02-15(manifest 8920828773699996074, 30.0MB), 창작마당 최신판은 2026-02-01(manifest 6522765468256819356, 33.7MB). 2026-10-16에 받을 때 SteamCmd의 `appworkshop_1468810.acf`가 옛 판을 최신으로 적고 있어 새 판을 가져오지 않았다. 받아 둔 45개 가운데 최신판이 아닌 것은 이 하나다(나머지 44개는 manifest가 같다). 최신판의 변경 기록은 "이 모드의 마지막 업데이트, 앞으로는 仙胴을 업데이트"와 "군자국 대문 제거"뿐이라 흰 그림을 채웠다는 말은 없다. 늘어난 3.7MB에 그림이 들었는지는 받아 보지 않아 **미확인**이다.
+- **제작자의 다른 항목**: 【蛋】仙胴炼天录(3473280803, "阴阳双修重制版" 리메이크, 새 세이브용, 101.9MB, 2026-05-06 기준 "인물과 종문만, 극은 아직 미공개"), 【蛋】剑修三姐妹(3371429092), 你老婆(3361626009). 리메이크에 같은 그림이 들었는지는 **미확인**이고, 극이 미공개라 가능성은 낮다.
+- **2815562168·2818763591**: 받아 둔 판이 창작마당 최신판과 같다. 창작마당에서 고친 판을 받을 길은 없다. 149번은 원작 101번 옷 그림으로 보인다(52절).
+
+### 96.3 채울 수 있는 곳(가능성 순)
+
+1. 제작자의 QQ 그룹(1044452476) — 그림 전체가 있을 가능성이 가장 크다. QQ 계정과 가입이 필요해 사용자만 할 수 있다.
+2. 음양쌍수 창작마당 최신판(2026-02-01, 33.7MB) — 받아서 62가지가 들었는지 대조할 수 있다. 사용자 확인 뒤에 받는다.
+3. 리메이크 仙胴炼天录(101.9MB) — 극이 미공개라 가능성이 낮다.
+- 그림을 구해도 게임은 모드 그림 파일을 복호화해 읽는다(`ModTool.LoadSpriteInFile(file, true)`, 94.2절). 모드 에디터로 내보낸 모드 폴더를 받으면 그대로 바꿔 넣으면 되지만, 날 PNG를 그대로 넣어도 읽히는지는 **미확인**이다.
+
+### 96.4 창작마당 밖의 사본 (2026-11-01 추가)
+
+사용자 지시: "창작마당이 수위 문제로 빠진 것 같아 창작마당 외 다른 곳에 올린 자료를 찾아볼 것". 웹 검색과 페이지 읽기만 했고 받은 것은 없다.
+
+- **游侠网(ali213) 《鬼谷八荒》男档仙子师傅双修剧情MOD** — `https://patch.ali213.net/showpatch/286089.html`. 설명이 음양쌍수의 창작마당 설명과 글자 그대로 같고 "由玩家'偷吃傻瓜蛋！'上传的模组"(제작자 이름)로 출처를 밝힌다. 갱신 2024-12-25, **252.0MB**, 설치법은 "ModExportData 폴더에 옮긴다"(모드 폴더째). 지금 창작마당 항목(2025-02-13 "重新上传" 재업로드, 30~34MB)보다 먼저 올라온 판이라 내려가기 전의 옛 업로드를 옮긴 것으로 보이고, 용량이 8배쯤이라 그림이 들었을 가능성이 크다(받아 보지 않아 **미확인**). 사이트의 "본지 받기" 링크는 `dd.youxi5253.com`(제3자 다운로드 중개)로 이어진다.
+- 같은 사이트의 剧情mod 整合包(282133, 589MB)는 목록에 음양쌍수가 없다.
+- 3DM(mod.3dmgame.com·dl.3dmgame.com), 游民星空, 빌리빌리, 바이두 티에바, NGA를 검색어 "阴阳双修"·"偷吃傻瓜蛋"·"仙胴炼天录"·"剑修三姐妹"·"登仙女帝师尊"으로 찾았으나 이 모드의 사본은 나오지 않았다. 후속작 仙胴炼天录은 창작마당 밖 기록이 없다.
+- 제3자 사이트의 파일은 출처를 믿을 수 없으므로 에이전트가 받지 않는다. 사용자가 받아 압축을 푼 폴더를 주면, 실행하지 않고 파일 이름과 그림 수만 대조할 수 있다(62가지 이름은 `.devremote\drama-bgs-1031.txt`).
+- 사용자 확인(2026-11-01): 游侠网 페이지의 받기 버튼이 모두 동작하지 않는다. 페이지 구조: "高速下载" 둘은 같은 외부 주소 `dd.youxi5253.com`(xmod 다운로더), "本地下载"는 같은 페이지 책갈피, "点击查找资源地址" 다섯은 눌러야 다른 사이트 주소가 채워지는 빈 상자다. "版本说明"의 포럼 글(`game.ali213.net/thread-3584469`)은 안내 메시지 페이지만 나온다.
+- 游侠网 설명의 고유한 문장("偷吃傻瓜蛋" 上传的模组, "初始带登仙女帝师尊", 252M)으로 옮겨 올린 다른 사이트를 다시 찾았으나 없었다. 3DM 대형 묶음(mod.3dmgame.com/pack/67, 쉰레이 클라우드)은 목록에 음양쌍수가 없고 "대부분 창작마당에서 모았다"고 적혀 있다.
+- 남은 길(이 시점): 제작자 QQ 그룹(1044452476, 사용자만 가능)과 창작마당 최신판(2026-02-01, 가능성 낮음).
+- **창작마당 최신판은 SteamCmd로 받을 수 없다**(사용자 지시 "받아서 대조", 2026-11-01). 옛 판을 `.devremote\ws-old\3426669627-20250215`에 보관한 뒤 `workshop.ps1 -Download -Id 3426669627 -NoHistory`로 받았다. 처음은 받은 폴더를 그대로 두어 넘어갔고, 폴더를 잠시 옮긴 뒤 다시 받자 실제로 29MB를 받았지만 manifest가 다시 8920828773699996074(2025-02-15 판)였고 옛 판과 바이트까지 같았다. Steam 공개 API는 2026-02-01 판(manifest 6522765468256819356, 33.7MB)을 가리키지만 다운로드 서버는 옛 판을 내준다(까닭 미확인. 공개 정보에 차단·숨김 표시는 없다). 사용자의 Steam 앱(C:\Program Files (x86)\Steam, E:\SteamLibrary)에는 이 게임의 창작마당 사본이 없다. 받은 폴더는 옛 판 그대로라 설치본도 그대로다.
+- 그래서 그림을 채울 길은 제작자 QQ 그룹뿐이다.
+- 추가 탐색(사용자 지시 "찾아", 2026-11-01): QQ 그룹 번호 둘(1044452476·884147304)과 클라우드 공유(바이두·쿼크·란조우) 검색, 빌리빌리 영상·사용자 검색(같은 이름 계정 9개는 모두 다른 사람), 바이두 티에바 鬼谷八荒吧 검색, 창작마당 검색에서 그림이 든 사본은 없었다.
+- 티에바 글 `tieba.baidu.com/p/9887778633`(2025-07-21, 답글 없음): "偷吃傻瓜蛋 대가의 **그룹 내부 최신 모드** 가진 사람? 그룹이 다 차서 못 들어간다". 제작자가 그룹 안에서만 나누는 판이 따로 있다는 다른 사용자의 증언이다.
+- 창작마당 검색은 로그인하지 않으면 성인 항목이 숨겨져 결과가 0이다(에이전트는 로그인하지 않는다). 다른 사람이 다시 올린 사본이 창작마당에 있는지는 **미확인**이다.

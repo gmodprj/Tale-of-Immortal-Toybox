@@ -1,4 +1,4 @@
-# 게임 내 검증 스크립트가 함께 쓰는 함수. datebag-check.ps1과 ui-check.ps1이 점(.)으로 불러 쓴다.
+# 게임 내 검증 스크립트가 함께 쓰는 함수. tools/research의 검사 아홉(major-breakthrough-check.ps1 빼고)이 점(.)으로 불러 쓴다.
 # 줄마다 PASS/FAIL이 나오고 Finish가 마지막 줄 FAILS=<수>를 낸다. "SHOT <파일>"은 눈으로 확인할 캡처다.
 $ErrorActionPreference = 'Stop'
 $tools = Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote'
@@ -58,6 +58,56 @@ function Press([string]$name, [int]$wait = 800) {
   if ($o -notmatch "Button\.onClick: $([regex]::Escape($p.name))\s*$") { throw "버튼이 눌리지 않았습니다: $name ($o)" }
   $o
 }
+# ---- 검사 아홉에 복붙돼 있던 도우미(05 문서 91절, 13 문서 C1·C8). 뜻이 다른 사본은 각 검사에 남겼다. ----
+
+# 전투에 들어간다: fight → 전투 진입 확인(960,684) → 전투 개시(956,749. -NoStart면 누르지 않는다). 고정본 인물은 수준 20까지 안전.
+function EnterBattleScene([int]$level = 20, [switch]$NoStart) {
+  Cmd "fight 1011 $level" 6000 | Out-Null
+  Rc 'click 960 684' 12000 | Out-Null
+  if (-not $NoStart) { Rc 'click 956 749' 4000 | Out-Null }
+}
+# 전투를 끝내고 지도로 나온다(06 문서 8.0절의 규칙): 전투 개시를 안 눌렀으면 누르고, bend를 최대 3번, 결과 창의 확인 단추가
+# 실제로 맞을 때까지 기다렸다 누르고, MapMain과 inBattle=False까지 기다린다. 어기면 다음 전투가 빈 화면으로 뜬다(회차 rx-g·rx-n-1027).
+function LeaveBattleScene([string]$shotName = 'leave-fail') {
+  Start-Sleep -Seconds 3
+  if ((Rc 'hit 956 749' 200) -match 'btnStart') { Rc 'click 956 749' 4000 | Out-Null }
+  for ($t = 0; $t -lt 3 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $t++) {
+    "INFO bend: $(Cmd 'bend' 3000)"
+    for ($i = 0; $i -lt 10 -and (Cmd 'uilist' 100) -notmatch 'BattleEnd'; $i++) { Start-Sleep -Milliseconds 500 }
+  }
+  if ((Cmd 'uilist' 100) -notmatch 'BattleEnd') { Shot $shotName }
+  for ($i = 0; $i -lt 20 -and (Rc 'hit 959 831' 200) -notmatch 'btnOK'; $i++) { Start-Sleep -Milliseconds 500 }
+  # 확인 단추가 맞을 때만 누른다(이미 지도라면 지도의 그 자리를 누르지 않는다. 최종 리뷰).
+  if ((Rc 'hit 959 831' 200) -match 'btnOK') { Rc 'click 959 831' 2000 | Out-Null }
+  # 지도가 돌아올 때까지 최대 60번(0.5초 + 명령 답 시간. 첫 전투 뒤의 장면 적재는 15초를 넘길 때가 있다. 회차 ctc-d-1030). 결과 창이 아직 떠 있으면 확인을 다시 누른다.
+  for ($i = 0; $i -lt 60 -and ((Cmd 'uilist' 100) -notmatch 'MapMain' -or (Cmd 'rstate' 200) -match 'inBattle=True'); $i++) {
+    if ($i % 10 -eq 9 -and (Cmd 'uilist' 100) -match 'BattleEnd' -and (Rc 'hit 959 831' 200) -match 'btnOK') { Rc 'click 959 831' 1000 | Out-Null }
+    Start-Sleep -Milliseconds 500
+  }
+  Start-Sleep -Seconds 2
+}
+# 변경 이력(changes.log)의 마지막 40줄에 패턴이 있는지(검사마다 20·30·40으로 달랐다. 가장 큰 40).
+function LogHasLine([string]$pattern) { @(Get-Content -LiteralPath (Join-Path $data 'changes.log') -Tail 40 -Encoding UTF8 | Where-Object { $_ -match $pattern }).Count -gt 0 }
+# 그 이름의 단추가 꺼져 있는지(누르면 "not interactable"). 켜져 있으면 실제로 눌린다.
+function ButtonIsOff([string]$name) { $p = Pos $name; (Rc "click $($p.x) $($p.y)" 300) -match 'not interactable' }
+# 편집기 글 요소의 글(text='…'의 안쪽). 없으면 빈 글.
+function UiText([string]$name) { if ((Cmd "uitext $name" 200) -match "text='([^']*)'") { $Matches[1] } else { '' } }
+function UiHas([string]$name) { (Cmd "uitext $name" 200) -notmatch 'no element' }
+# 글에서 패턴의 첫 그룹을 수로. 없으면 기본값.
+function NumIn([string]$text, [string]$pattern, [double]$default = -1) { if ($text -match $pattern) { [double]$Matches[1] } else { $default } }
+# "이름=값 이름=값 …" 한 줄을 표로. 명령의 머리("명령 -> ")와 " | " 뒤의 문장은 뗀다. 값에 '='가 들어도 된다.
+function FieldsOf([string]$text) {
+  $body = ($text -replace '^[^>]*-> ', '') -replace ' \| .*$', ''
+  $map = @{}
+  foreach ($pair in ($body -split ' ')) {
+    $at = $pair.IndexOf('=')
+    if ($at -gt 0) { $map[$pair.Substring(0, $at)] = $pair.Substring($at + 1) }
+  }
+  $map
+}
+# 편집기를 열고(이미 열려 있어도 됨) 그 번호의 탭을 누른다.
+function OpenEditorTab([int]$tab) { Cmd 'editor' | Out-Null; Press "Tab$tab" | Out-Null }
+
 function Finish {
   "FAILS=$script:fails"
   if ($script:fails -gt 0) { exit 1 }

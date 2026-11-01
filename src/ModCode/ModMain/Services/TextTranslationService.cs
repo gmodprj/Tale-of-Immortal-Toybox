@@ -83,15 +83,14 @@ namespace MOD_sWP6UL
                 {
                     all.Append(line).Append('\n');
                 }
-                File.WriteAllText(filePath, all.ToString(), new UTF8Encoding(false));
+                AtomicFile.WriteAllText(filePath, all.ToString(), new UTF8Encoding(false));
                 return "덧붙임 " + missing.Count;
             }
             if (text == null)
             {
                 return "없음";
             }
-            Directory.CreateDirectory(TranslationService.Dir);
-            File.WriteAllText(filePath, text, new UTF8Encoding(false));
+            AtomicFile.WriteAllText(filePath, text, new UTF8Encoding(false));
             return "풀어 둠";
         }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Learned = MOD_sWP6UL.PresetRules.Learned;
 
 namespace MOD_sWP6UL
 {
@@ -242,7 +243,15 @@ namespace MOD_sWP6UL
         private static string FolderStamp()
         {
             // .defaults(풀어 놓은 기본 파일 기록)도 표지에 넣는다. 밖에서 지우거나 고치면 다음에 다시 읽는다(05 문서 85절).
-            return FileStamp.Of(Dir, "*.json") + "#" + FileStamp.Of(Dir, PresetDefaults.RecordName);
+            // 폴더에 접근하지 못하면 매번 다른 표지를 돌려줘 List()(예외를 삼킨다)가 다시 읽게 한다(13 문서 A8: 예외가 프리셋 탭 그리기까지 올라가던 것).
+            try
+            {
+                return FileStamp.Of(Dir, "*.json") + "#" + FileStamp.Of(Dir, PresetDefaults.RecordName);
+            }
+            catch (Exception)
+            {
+                return "ERR:" + DateTime.UtcNow.Ticks;
+            }
         }
 
         public static List<Preset> ListCached()
@@ -307,10 +316,7 @@ namespace MOD_sWP6UL
                     result.Add(Read(file));
                 }
             }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
+            catch (Exception)
             {
             }
             return result;
@@ -332,18 +338,12 @@ namespace MOD_sWP6UL
         // 그 종류의 기술 목록에서 번호로 찾는다. 없으면 null.
         private static SkillCatalog.Entry Entry(MartialType type, int baseId)
         {
+            // 번호로 바로 찾는다(13 문서 R8: 부분 문자열 검색 뒤 거르던 것).
             for (int kind = 0; kind < SkillCatalog.Kinds.Length; kind++)
             {
-                if (SkillCatalog.Kinds[kind].Type != type)
+                if (SkillCatalog.Kinds[kind].Type == type)
                 {
-                    continue;
-                }
-                foreach (SkillCatalog.Entry entry in SkillCatalog.Find(kind, baseId.ToString()))
-                {
-                    if (entry.BaseId == baseId)
-                    {
-                        return entry;
-                    }
+                    return SkillCatalog.Get(kind, baseId);
                 }
             }
             return null;
@@ -846,16 +846,6 @@ namespace MOD_sWP6UL
 
         // ---- 상태 ----
 
-        public class Learned
-        {
-            public string Sole;
-            public int BaseId;
-            public int Grade;
-            public int[] Options;
-            public int Suit;
-            public bool Equipped;
-        }
-
         // 익힌 공법의 사본. 상태를 여러 번 물을 때 게임 객체를 다시 읽지 않도록 한 번 떠 둔다.
         public static List<Learned> Snapshot()
         {
@@ -885,42 +875,11 @@ namespace MOD_sWP6UL
             return result;
         }
 
-        private static bool SameOptions(int[] a, int[] b)
-        {
-            if (a.Length != b.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < a.Length; i++)
-            {
-                if (a[i] != b[i])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
         // 그 줄과 같은 공법: 같은 기술과 옵션, 그 경지 이상, 심법이면 세트 번호도 같다. 장착한 것을 먼저 고른다. 없으면 null.
+        // 판정은 PresetRules.Find(순수. 05 문서 93절).
         public static Learned Find(List<Learned> learned, SkillLine line, int grade)
         {
-            Learned found = null;
-            foreach (Learned each in learned)
-            {
-                if (each.BaseId != line.BaseId || each.Grade < grade || !SameOptions(each.Options, line.Options))
-                {
-                    continue;
-                }
-                if (line.Type == MartialType.Ability && each.Suit != line.Suit)
-                {
-                    continue;
-                }
-                if (found == null || (each.Equipped && !found.Equipped))
-                {
-                    found = each;
-                }
-            }
-            return found;
+            return PresetRules.Find(learned, line.BaseId, line.Options, grade, line.Type == MartialType.Ability, line.Suit);
         }
 
         // 그 대경지의 역천개명 기록. 없으면 0.

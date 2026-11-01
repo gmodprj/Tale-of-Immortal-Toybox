@@ -1,7 +1,9 @@
 using System;
+using MelonLoader;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Learned = MOD_sWP6UL.PresetRules.Learned;
 using Outcome = MOD_sWP6UL.ApplyOutcome;
 using Put = MOD_sWP6UL.ApplyPut;
 using Tally = MOD_sWP6UL.ApplyTally;
@@ -79,22 +81,19 @@ namespace MOD_sWP6UL
         // 이 심법을 장착하기에 수도 점수가 모자라면 모자라지 않을 만큼만 올린다(게임의 거부 코드 61).
         private static void RaisePoints(WorldUnitBase me, string sole, Points points)
         {
-            AttributeDef def = AttributeCatalog.All.Find(d => d.Key == "abilityPoint");
-            var saved = me.data.unitData.propertyData;
+            // 올리기 자체는 MasteryService.RaiseAbilityPoints(한 벌. 13 문서 R5). 여기서는 처음 값과 마지막 값만 적는다.
             int cost = MartialService.Martial(me, sole).martialInfo.abilityPoint;
-            int used = me.data.dynUnitData.GetCurUseAbilityPoint();
-            int total = def.DynValue(me.data.dynUnitData);
-            if (used + cost <= total)
+            int before, want, now;
+            string reply;
+            if (!MasteryService.RaiseAbilityPoints(me, cost, out before, out want, out now, out reply))
             {
                 return;
             }
-            int before = def.Get(saved);
-            EditService.SetAttribute(me, def, before + (used + cost - total));
             if (points.Before < 0)
             {
                 points.Before = before;
             }
-            points.After = def.Get(saved);
+            points.After = now;
         }
 
         // 공법·심법 한 줄: 같은 것이 없으면 그 경지로 만들고, 칸을 비운 뒤 장착한다.
@@ -154,9 +153,17 @@ namespace MOD_sWP6UL
             finally
             {
                 // 장착하지 못했으면(게임이 거부했거나 중간에 예외가 났으면) 비운 칸을 빈 채로 두지 않는다.
-                if (other != null && !MartialService.IsEquipped(me, sole) && !MartialService.IsEquipped(me, other))
+                // 되돌리기가 던지면 원래 예외를 가리지 않게 로그만 남긴다(13 문서 A12). 심법의 원래 칸 번호 보존은 하지 않는다(Equip이 빈 첫 칸을 고른다).
+                try
                 {
-                    MartialService.Equip(me, other);
+                    if (other != null && !MartialService.IsEquipped(me, sole) && !MartialService.IsEquipped(me, other))
+                    {
+                        MartialService.Equip(me, other);
+                    }
+                }
+                catch (Exception e)
+                {
+                    MelonLogger.Msg("[TlToybox] 프리셋 되돌리기 실패(" + label + "): " + e.GetType().Name + ": " + e.Message);
                 }
             }
             if (!MartialService.IsEquipped(me, sole))

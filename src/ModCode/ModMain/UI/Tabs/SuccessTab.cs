@@ -33,20 +33,14 @@ namespace MOD_sWP6UL
             Row(y, "SuccessRealize", "참오 결과 최대", SuccessService.Realize ? "켜짐" : "꺼짐", SuccessService.Realize,
                 "게임의 참오 창에서 참오·다시 참오로 굴린 값이 그 기술의 최대 품질 맨 위가 됩니다. 비용은 그대로 듭니다.",
                 new Action(() => Say(SuccessService.SetRealize(!SuccessService.Realize))));
-            Ui.Label(content, "종문 초빙·호요 포획·도주는 판정 위치만 찾았고 아직 넣지 않았습니다(05 문서 67절).", 16, 60 + 4 * RowH + 30, ContentW - 32, 30, 15)
+            Ui.Label(content, "종문 초빙·호요 포획·도주는 판정 위치만 찾았고 아직 넣지 않았습니다.", 16, 60 + 4 * RowH + 30, ContentW - 32, 30, 15)
                 .gameObject.name = "SuccessLeftOut";
         }
 
         // 줄 하나: 이름, 값 단추, 설명(배율 탭과 같은 꼴). 다음 줄의 y를 돌려준다.
         private float Row(float y, string name, string label, string value, bool on, string note, Action onClick)
         {
-            Ui.Label(content, label, 16, y + 10, 220, 40, 19);
-            float h = RowH - 12;
-            Ui.Button(name, content, value, 240, y + 6, 150, h, onClick, true, on);
-            UnityEngine.UI.Text text = Ui.Wrapped(content, note, 410, y + 6, ContentW - 430, h, 15);
-            text.color = Ui.Dim;
-            text.gameObject.name = name + "Note";
-            return y + RowH;
+            return ToggleRow(y, RowH, name, label, value, on, note, onClick, name + "Note");
         }
     }
 }

@@ -290,14 +290,26 @@ namespace MOD_sWP6UL
             MartialType type = Kinds[kindIndex].Type;
             foreach (var pair in unit.data.unitData.allActionMartial)
             {
-                DataProps.MartialData martial = pair.Value.data.To<DataProps.MartialData>();
-                if (martial == null || martial.martialType != type)
+                // 깨진 공법 하나가 모두 배우기를 통째로 막지 않게 줄 단위로 건너뛴다(13 문서 A11).
+                DataProps.MartialData martial;
+                int baseId;
+                try
                 {
+                    martial = pair.Value.data.To<DataProps.MartialData>();
+                    if (martial == null || martial.martialType != type)
+                    {
+                        continue;
+                    }
+                    baseId = martial.baseID;
+                }
+                catch (Exception e)
+                {
+                    MartialService.BrokenSkipped("배운 수", e);
                     continue;
                 }
                 int n;
-                counts.TryGetValue(martial.baseID, out n);
-                counts[martial.baseID] = n + 1;
+                counts.TryGetValue(baseId, out n);
+                counts[baseId] = n + 1;
             }
             return counts;
         }
@@ -429,102 +441,24 @@ namespace MOD_sWP6UL
             {
                 return;
             }
-            var modNumbers = new List<int>();
+            // 게임 행을 PrefixRow로 바꾸고 판정은 ModSkillRules(순수. 단위 시험이 덮는다. 05 문서 93절).
+            var rows = new List<PrefixRow>();
             for (int i = 0; i < modItems.Count; i++)
             {
-                modNumbers.Add(modItems[i].number);
+                rows.Add(MartialService.RowOf(modItems[i]));
             }
-            int end = values.Length;
-            for (int i = 2; i < values.Length; i++)
+            var plain = new int[values.Length];
+            for (int i = 0; i < values.Length; i++)
             {
-                if (values[i] == -1)
-                {
-                    end = i;
-                    break;
-                }
+                plain[i] = values[i];
             }
-            var used = new HashSet<int>();
-            for (int i = 2; i < end; i++)
+            int end = ModSkillRules.OptionEnd(plain);
+            if (ModSkillRules.RemapPrefixNumbers(plain, end, rows, n => rng.Next(n)) > 0)
             {
-                if (modNumbers.Contains(values[i]))
+                for (int i = 2; i < end; i++)
                 {
-                    used.Add(values[i]);
+                    values[i] = plain[i];
                 }
-            }
-            for (int i = 2; i < end; i++)
-            {
-                if (values[i] <= 0 || modNumbers.Contains(values[i]))
-                {
-                    continue;
-                }
-                // 그 자리(i-2)에 나올 수 있는(자리 가중치 > 0) 안 쓴 번호 가운데 하나를 무작위로. 없으면 안 쓴 첫 번호(읽기 시험에 맡긴다).
-                var fit = new List<int>();
-                int first = -1;
-                for (int k = 0; k < modItems.Count; k++)
-                {
-                    int n = modItems[k].number;
-                    if (used.Contains(n))
-                    {
-                        continue;
-                    }
-                    if (first < 0)
-                    {
-                        first = n;
-                    }
-                    if (MartialService.Weight(modItems[k], i - 2) > 0)
-                    {
-                        fit.Add(n);
-                    }
-                }
-                int pick = fit.Count > 0 ? fit[rng.Next(fit.Count)] : first;
-                if (pick >= 0)
-                {
-                    values[i] = pick;
-                    used.Add(pick);
-                }
-            }
-            // 모드 번호를 한 번씩 다 써도 남은 자리(모드 공법의 옵션 행이 원본의 칸 수보다 적음, 대부분 5개)는
-            // 같은 번호를 중복 한도(multi) 안에서 되풀이해 채운다. 자리 가중치가 0보다 큰 번호를 먼저, 없으면 한도 안의 아무 번호.
-            // 실측(묶음 2, 회차 msl-1023b·c): 이름·설명 있는 모드 공법 103개 가운데 97개(경지 2·5·10)가 10번 모두 읽히고 게임 학습이 받아들였다(05 문서 78절).
-            var count = new Dictionary<int, int>();
-            for (int i = 2; i < end; i++)
-            {
-                if (modNumbers.Contains(values[i]))
-                {
-                    int c;
-                    count.TryGetValue(values[i], out c);
-                    count[values[i]] = c + 1;
-                }
-            }
-            for (int i = 2; i < end; i++)
-            {
-                if (values[i] <= 0 || modNumbers.Contains(values[i]))
-                {
-                    continue;
-                }
-                int pick = -1;
-                for (int pass = 0; pass < 2 && pick < 0; pass++)
-                {
-                    for (int k = 0; k < modItems.Count; k++)
-                    {
-                        int n = modItems[k].number;
-                        int c;
-                        count.TryGetValue(n, out c);
-                        if (c < modItems[k].multi && (pass == 1 || MartialService.Weight(modItems[k], i - 2) > 0))
-                        {
-                            pick = n;
-                            break;
-                        }
-                    }
-                }
-                if (pick < 0)
-                {
-                    break;
-                }
-                values[i] = pick;
-                int cc;
-                count.TryGetValue(pick, out cc);
-                count[pick] = cc + 1;
             }
         }
 

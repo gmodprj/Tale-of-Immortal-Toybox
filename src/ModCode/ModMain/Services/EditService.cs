@@ -312,52 +312,15 @@ namespace MOD_sWP6UL
             return result;
         }
 
-        private static System.Collections.Generic.List<int> ParseIds(string text)
-        {
-            var result = new System.Collections.Generic.List<int>();
-            foreach (string part in (text ?? "").Split('_'))
-            {
-                int id;
-                if (int.TryParse(part, out id) && id > 0 && !result.Contains(id))
-                {
-                    result.Add(id);
-                }
-            }
-            return result;
-        }
-
-        // 돌파 방식 하나의 "필요 재료" 칸에 넣을 재료. 게임의 돌파 정보 화면이 보여 주는 종류(itemShowA)에서 고른다.
-        // 한 개만 필요하면 가장 좋은 것(표의 마지막, 축기단은 1품), 여러 개면 서로 다른 종류를 앞에서부터 하나씩.
+        // 돌파 방식 하나의 "필요 재료" 칸에 넣을 재료와 "천재지보" 칸에 넣을 것. 판정은 BreakthroughRules(순수. 05 문서 93절).
         public static System.Collections.Generic.List<int> BreakthroughNeedItems(ConfRoleGradeItem row)
         {
-            var kinds = ParseIds(row.itemShowA);
-            var result = new System.Collections.Generic.List<int>();
-            if (row.growItemNum <= 0 || kinds.Count == 0)
-            {
-                return result;
-            }
-            if (row.growItemNum == 1)
-            {
-                result.Add(kinds[kinds.Count - 1]);
-                return result;
-            }
-            for (int i = 0; i < row.growItemNum; i++)
-            {
-                result.Add(kinds[i % kinds.Count]);
-            }
-            return result;
+            return BreakthroughRules.NeedItems(row.itemShowA, row.growItemNum);
         }
 
-        // "천재지보" 칸에 넣을 것. 후보(itemShowB)에서 서로 다른 종류를 앞에서부터 필요한 수만큼.
         public static System.Collections.Generic.List<int> BreakthroughTreasures(ConfRoleGradeItem row)
         {
-            var kinds = ParseIds(row.itemShowB);
-            var result = new System.Collections.Generic.List<int>();
-            for (int i = 0; i < row.materialsNum && kinds.Count > 0; i++)
-            {
-                result.Add(kinds[i % kinds.Count]);
-            }
-            return result;
+            return BreakthroughRules.Treasures(row.itemShowB, row.materialsNum);
         }
 
         // 돌파 방식 하나에 필요한 재료와 천재지보를 지급한다.

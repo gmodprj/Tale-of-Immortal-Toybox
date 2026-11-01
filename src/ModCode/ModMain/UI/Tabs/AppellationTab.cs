@@ -19,18 +19,11 @@ namespace MOD_sWP6UL
         private const float ColAct = ContentW - Ui.ScrollBarWidth - ActW - 4;
 
         // 검색어가 바뀌면 탭을 다시 그리지 않고(검색 칸의 포커스를 지킨다) 칩의 수만 고친다.
-        private sealed class CountLabel
-        {
-            public Text Text;
-            public string Name;
-            public string Key;
-        }
-
         private delegate bool TitleAction(WorldUnitBase unit, int id, out string text);
 
         private readonly ListView<AppellationService.Entry> list = new ListView<AppellationService.Entry>("AplTable", RowH);
         private readonly DetailPane detail = new DetailPane("AplDetail", "줄을 누르면 여기에 효과와 얻는 법이 나옵니다.");
-        private readonly List<CountLabel> labels = new List<CountLabel>();
+        private readonly List<CountChip> labels = new List<CountChip>();
         private string classKey = AppellationService.AllKey;
         private string query = "";
         private bool ownedOnly;
@@ -200,23 +193,23 @@ namespace MOD_sWP6UL
                 keys.Add(group.Key);
                 names.Add(group.Name);
             }
-            float x = 0, cy = y;
             Dictionary<string, int> counts = Counts();
+            var widths = new float[keys.Count];
+            for (int i = 0; i < keys.Count; i++)
+            {
+                widths[i] = Math.Max(70f, Ui.TextWidth(names[i] + " 000", 18) + 28f);
+            }
+            var xs = new float[keys.Count];
+            var ys = new float[keys.Count];
+            float allH = ChipBar.Layout(widths, ContentW, ChipH, ChipGap, xs, ys);
             for (int i = 0; i < keys.Count; i++)
             {
                 string key = keys[i];
-                float w = Math.Max(70f, Ui.TextWidth(names[i] + " 000", 18) + 28f);
-                if (x > 0 && x + w > ContentW)
-                {
-                    x = 0;
-                    cy += ChipH + ChipGap;
-                }
-                Button chip = Ui.Button("AplClass" + key, content, names[i] + " " + CountOf(counts, key), x, cy, w, ChipH,
+                Button chip = Ui.Button("AplClass" + key, content, names[i] + " " + CountOf(counts, key), xs[i], y + ys[i], widths[i], ChipH,
                     new Action(() => { classKey = key; Changed(); }), true, classKey == key);
-                labels.Add(new CountLabel { Text = chip.GetComponentInChildren<Text>(), Name = names[i], Key = key });
-                x += w + ChipGap;
+                labels.Add(new CountChip { Text = chip.GetComponentInChildren<Text>(), Name = names[i], Key = key });
             }
-            return cy + ChipH + 8;
+            return y + allH + 8;
         }
 
         private float DrawFilters(float y)
@@ -242,7 +235,7 @@ namespace MOD_sWP6UL
             Ui.Label(content, "분류", ColClass, y, ClassW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "잃는 경지", ColLoss, y, LossW, 30, 16).color = Ui.Dim;
             Ui.Label(content, "다른 보유자", ColHolder, y, HolderW, 30, 16).color = Ui.Dim;
-            Ui.Label(content, "버튼", ColAct, y, ActW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
+            Ui.Label(content, "동작", ColAct, y, ActW, 30, 16, TextAnchor.MiddleCenter).color = Ui.Dim;
         }
 
         // 분류·가진 것만·초기화: 목록을 맨 위로, 아래 칸을 비우고 다시 그린다.
@@ -262,7 +255,7 @@ namespace MOD_sWP6UL
             detail.Clear();
             list.SetItems(Rows());
             Dictionary<string, int> counts = Counts();
-            foreach (CountLabel label in labels)
+            foreach (CountChip label in labels)
             {
                 label.Text.text = label.Name + " " + CountOf(counts, label.Key);
             }
