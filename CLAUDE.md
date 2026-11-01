@@ -7,7 +7,8 @@
 - `main`은 보호 브랜치다. 직접 커밋하지 않는다.
 - `develop`이 통합 브랜치다. 직접 커밋하지 않는다.
 - 작업은 `develop`에서 분기한 `feat/*`, `fix/*`, `chore/*`, `docs/*` 브랜치에서 한다.
-- 현재는 원격 저장소가 없다. 작업 브랜치는 로컬에서 `git merge --no-ff`로 `develop`에 병합한다.
+- 원격 `origin`은 GitHub 공개 저장소 https://github.com/gmodprj/Tale-of-Immortal-Toybox.git다(2026-11-01부터). 작업 브랜치는 로컬에서 `git merge --no-ff`로 `develop`에 병합하고, 릴리스 때 `develop`을 `main`에 `--no-ff`로 병합한 뒤 `main`·`develop`을 푸시한다. 실험 브랜치(`feat/*-research`)는 원격에 올리지 않는다.
+- 공개 저장소이므로 비밀번호·토큰·게임 DLL·세이브를 커밋하지 않는다(`.devremote`·`ModProject_sWP6UL/`은 git에서 제외).
 - `main`에는 릴리스 시점에 `develop`만 병합한다.
 
 ## 게임 폴더 규칙
