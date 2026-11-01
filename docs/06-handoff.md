@@ -6,6 +6,7 @@
 **이어받는 순서**: 아래 "지금 한 줄 요약"을 읽고 → 8.0절(다음에 할 일)을 읽고 → 일을 시작할 때 5절(검증 방법)과 6절(함정)을 본다. 1절의 날짜별 줄은 필요할 때만.
 
 **지금 한 줄 요약(2026-11-01)**:
+- **게임 위치를 Steam 라이브러리로 옮김(2026-11-01 오후, 05 문서 97절, 브랜치 `chore/game-dir-steam`, 병합 전)**: 새 경로 `E:\SteamLibrary\steamapps\common\鬼谷八荒`(정품 Steam판). 설치 모드 41개·조작 도구를 옮겼고, 배포돼 온 낡은 프록시 어셈블리를 옛 설치본 것으로 바꿨다. **막힌 것 셋**: Steam 구독 40개와 설치본이 두 벌 실림(어느 쪽을 쓸지 사용자 결정), 고정본 `base`가 세계 진입에서 멈춤(`GetMartialLevel` null, DLC·언어 의심, 미확인), Steam 클라우드 때문에 회차가 세이브를 바꿔 끼우는 것이 위험. 풀릴 때까지 새 설치본에서 회차를 열지 않는다.
 - **네 번째 릴리스와 GitHub 공개(2026-11-01)**: 사용자 지시("전체 작업 정리 - 문서작성 - develop 커밋 - main 로컬 머지 - 브랜치 정리 - GitHub 푸시")로 이 문서 정리까지를 `develop`에 병합하고, `develop`을 `main`에 `--no-ff`로 병합한 뒤 `main`·`develop`을 원격 `origin`(https://github.com/gmodprj/Tale-of-Immortal-Toybox.git, 공개 저장소)에 처음 올렸다. 이제 `main` = `develop` = 설치본(3d7725c) 뒤의 문서 변경까지. 병합을 마친 작업·문서 브랜치는 지웠고(8.7절), 실험 브랜치 스물은 로컬에만 남겼다(원격에 올리지 않음).
 - **2026-10-29~11-01에 한 것**: 리뷰(13 문서)와 그 개선 묶음 1~5(05 문서 89~93절: 작은 수정 2차, 배율 서비스 다듬기, 검사 도구 정리, 파일 안전, 리팩토링 2차), 극 창의 흰 배경 조사(94절)와 빠진 배경을 검은 바탕으로(95절), 빠진 그림을 채울 곳 조사(96절: [蛋]음양쌍수의 배경 62장은 제작자가 창작마당에서 뺀 것. 공개된 사본은 못 찾음, 제작자 QQ 그룹만 남음). 설치본은 3d7725c(2026-11-01 07:32).
 - 남은 일은 8.0절: 사용자 확인(검은 바탕, 묶음 2·4·5의 동작 불변, 그 앞의 확인들), 음양쌍수 그림(사용자가 QQ 그룹에서 구하면 대조·설치), 13 문서 7절의 6·7.
@@ -23,7 +24,7 @@
 
 ## 1. 한눈에 보는 상태
 
-- 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\Games\Tale of Immortal`. Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
+- 대상 게임: 귀곡팔황(Tale of Immortal) v1.2.113.259, `E:\SteamLibrary\steamapps\common\鬼谷八荒`(정품 Steam판. 2026-11-01에 옛 에뮬레이터 설치본 `E:\Games\Tale of Immortal`에서 옮김, 05 문서 97절). Unity 2020.3 IL2CPP, MelonLoader 0.5.4.
 - 결과물: 게임 안에서 `Insert`로 여닫는 편집기(코드로 만든 uGUI 창, 1500x1000). 공식 모드 경로(`ModMain.Init/Destroy`)로 로드된다. 모드 ID `sWP6UL`, 어셈블리 `MOD_sWP6UL.dll`.
 - 저장소 `E:\TlToybox`. 원격 `origin` = https://github.com/gmodprj/Tale-of-Immortal-Toybox.git(GitHub 공개 저장소, 2026-11-01에 `main`·`develop`을 처음 올림. 실험 브랜치는 올리지 않는다). 통합 브랜치 `develop`이 최신이다. `main`은 2026-10-24에 `develop`을 처음 병합했고(첫 릴리스), 2026-10-28에 두 번째, 2026-10-29에 세 번째, 2026-11-01에 네 번째로 병합했다(요약 참고). 브랜치는 `main`, `develop`, 병합하지 않는 실험 브랜치 스물(`feat/*-research`. 목록은 8.7절)뿐이다(2026-10-21 정리, 2026-10-22에 `feat/perf-research`·`feat/mastery-research`, 2026-10-23에 `feat/trainer3-research`·`feat/mastery2-research`, 2026-10-27에 `feat/rate2-research`, 2026-10-28에 `feat/trainer4-research` 추가. 8.7절). 메인 체크아웃 `E:\TlToybox`는 `develop`에 있고 워크트리는 없다. 작업은 `develop`에서 딴 브랜치로 하고, 다른 세션과 겹치면 `.claude\worktrees\<이름>`에 워크트리를 만든다. 병합은 `develop`을 체크아웃해 `--no-ff`로 한다. 병합을 마친 작업·문서 브랜치는 사용자 지시로 지운다.
 - **지금 게임에 설치된 것**(2026-11-01 07:32 기준. 앞 설치본의 기록은 8.8절):

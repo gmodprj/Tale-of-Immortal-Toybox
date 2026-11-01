@@ -1,4 +1,4 @@
-param([string]$Game = 'E:\Games\Tale of Immortal', [string]$TypeRegex, [string]$MethodRegex = '^\.ctor$', [int]$Max = 80)
+param([string]$Game = 'E:\SteamLibrary\steamapps\common\鬼谷八荒', [string]$TypeRegex, [string]$MethodRegex = '^\.ctor$', [int]$Max = 80)
 Add-Type -Path "$Game\MelonLoader\Mono.Cecil.dll"
 $rp = New-Object Mono.Cecil.ReaderParameters
 $asm = [Mono.Cecil.AssemblyDefinition]::ReadAssembly("$Game\MelonLoader\Managed\Assembly-CSharp.dll", $rp)

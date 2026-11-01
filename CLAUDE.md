@@ -13,7 +13,7 @@
 
 ## 게임 폴더 규칙
 
-- 게임 설치 경로: `E:\Games\Tale of Immortal`
+- 게임 설치 경로: `E:\SteamLibrary\steamapps\common\鬼谷八荒`(정품 Steam판, 2026-11-01부터. 그 전의 `E:\Games\Tale of Immortal`은 없어졌다). Steam을 거쳐 띄워야 한다(`docs/05-editor-v0.1.md` 97절).
 - 게임 폴더는 읽기 전용으로 다룬다. 빌드 산출물을 게임 폴더로 복사하는 일은 사용자 확인을 받은 뒤에만 한다.
 - 창작마당 모드는 `tools/workshop.ps1 -Install -Yes`로 `ModExportData\<창작마당ID>\`에 설치한다. `-Yes`는 사용자 확인 뒤에만 붙인다(`-Yes` 없이는 계획만 보인다). 목록은 `tools/workshop/mods.txt`.
 - 사용자 승인(2026-10-12)으로 편집기 모드를 게임의 `ModExportData\Mod_sWP6UL`에 설치해 두었다. 갱신은 `tools/install.ps1`로 한다.

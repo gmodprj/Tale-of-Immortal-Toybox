@@ -4167,3 +4167,40 @@ Critical 없음, Important 셋, 사소 일곱.
 - 추가 탐색(사용자 지시 "찾아", 2026-11-01): QQ 그룹 번호 둘(1044452476·884147304)과 클라우드 공유(바이두·쿼크·란조우) 검색, 빌리빌리 영상·사용자 검색(같은 이름 계정 9개는 모두 다른 사람), 바이두 티에바 鬼谷八荒吧 검색, 창작마당 검색에서 그림이 든 사본은 없었다.
 - 티에바 글 `tieba.baidu.com/p/9887778633`(2025-07-21, 답글 없음): "偷吃傻瓜蛋 대가의 **그룹 내부 최신 모드** 가진 사람? 그룹이 다 차서 못 들어간다". 제작자가 그룹 안에서만 나누는 판이 따로 있다는 다른 사용자의 증언이다.
 - 창작마당 검색은 로그인하지 않으면 성인 항목이 숨겨져 결과가 0이다(에이전트는 로그인하지 않는다). 다른 사람이 다시 올린 사본이 창작마당에 있는지는 **미확인**이다.
+
+## 97. 게임 설치 위치를 Steam 라이브러리로 옮김 (2026-11-01 추가)
+
+사용자 지시: "게임 설치 위치를 E:\Games\Tale of Immortal에서 E:\SteamLibrary\steamapps\common\鬼谷八荒로 바꾸고 설치모드도 옮긴후 적용 확인하기". 브랜치 `chore/game-dir-steam`, 회차 `gd-a`~`d-1101`.
+
+### 97.1 새 설치본
+
+- 새 경로는 사용자가 2026-11-01 13:30에 Steam으로 받은 정품 설치본이다(`appmanifest_1468810.acf`: buildid 21758240, 저장소 1468811만, 게임 언어 `english`). 옛 설치본은 Steam 에뮬레이터(`tenoke.ini`, 01 문서)였다.
+- `GameAssembly.dll`·`global-metadata.dat`·`version.dll`·`MelonLoader.dll`·`Mods\GGBH_MOD.dll`의 해시가 옛 설치본과 같다(같은 게임 판).
+- 세이브(`LocalLow\guigugame\guigubahuang\Steam\CacheData`)와 모드 데이터 폴더(`TlToybox`), 레지스트리의 `Mod_LoadData`는 두 설치본이 같은 곳을 쓴다. 옮길 것이 없다.
+- 옛 설치본 폴더 `E:\Games\Tale of Immortal`은 14:00 무렵 통째로 사라졌다(이 작업은 지우지 않았다. 바깥에서 지운 것으로 본다). 필요한 것은 그 전에 옮기거나 복사해 두었다.
+
+### 97.2 바꾼 것
+
+- 저장소의 기본 게임 경로 12곳(`ModMain.csproj`, `DevRemote.csproj`, `install.ps1`, `workshop.ps1`, `DevRemote\session.ps1`·`enter.ps1`, `research\check-lib.ps1`·`immortal-check.ps1`·`methods.ps1`·`fatury-scan.py`·`fatury-log.py`)를 새 경로로. `fatury-log.py`의 `Load:` 정규식은 경로에 매이지 않게(구독 폴더에서 실린 모드도 센다).
+- `enter.ps1`: 게임 경로가 `steamapps\common` 아래면 `steam.exe -applaunch 1468810`로 띄운다. exe를 바로 띄우면 `SteamAPI_Init() failed`가 나고 게임이 세이브 진입 전에 꺼졌다(회차 `gd-a-1101`, 14:02:30).
+- 게임 폴더: 옛 `ModExportData`의 41개 폴더(파일 11,379개, 2.75GB)와 `Mods\TlToyboxDevRemote.dll`을 새 설치본으로 옮겼다.
+- 게임 폴더: **MelonLoader 프록시 어셈블리를 옛 설치본 것으로 바꿨다.** 새 설치본에 배포돼 온 `MelonLoader\Managed`는 이전 게임 빌드로 만든 것이었다(`Il2CppAssemblyGenerator\Config.cfg`의 `GameAssemblyHash`가 `cb8968…`. 실제 GameAssembly는 `f9e412…`). `Assembly-CSharp.dll`이 33.8MB(옛 설치본 45.6MB)이고 `PotMonMgr`·`UIDramaDialogueBigTexture`가 없어 편집기 빌드가 오류 3개로 실패했다. 옛 설치본의 `Managed`(202개, 2026-10-11 생성)와 `Config.cfg`를 복사했고, 배포본은 `Managed_depot_20261101`·`Config.cfg.depot_20261101`로 남겼다. 뒤의 실행에서 `Assembly is up to date. No Generation Needed`, 빌드 경고 0·오류 0. **Steam이 게임을 갱신하거나 파일 검사를 하면 배포본으로 다시 덮일 수 있다** — 빌드가 같은 오류로 깨지면 이것부터 본다.
+
+### 97.3 실행해 본 결과
+
+- 편집기는 새 설치본에서 실린다: `Init build=c19ed3a-dirty`, `translations: rows=16184 applied=16184`, `texts:`·`tables:` 줄 정상, `ui-check base`의 `editor opens` PASS.
+- **창작마당 모드가 두 벌 실린다.** 사용자의 Steam 계정이 같은 40개를 구독하고 있고 Steam이 13:35에 `E:\SteamLibrary\steamapps\workshop\content\1468810`에 받아 두었다. Steam으로 띄우면 게임은 구독본과 `ModExportData`를 모두 싣는다(회차 `gd-b-1101`: `加载模组` 82줄 = 구독 41 + 설치본 41). `Mod_LoadData`는 폴더 이름(창작마당 ID)만 담아 한쪽만 끌 수 없다.
+- 구독본 40개 가운데 34개는 설치본과 파일 수·크기가 같다. 6개(2818763591·2819617569·2819712935·2905956493·2929805068·3390738990)는 꾸러미 안에 `debug\Mod_*`가 있는 모양이고 게임이 그 안을 스스로 찾아 싣는다. 2819617569는 강화판(`Mod_RoDPXQ`)과 옛 원판 사본(`Mod_qOfHjU`)이 **둘 다** 실린다(설치 도구는 강화판만 골랐었다, 50절).
+- Steam으로 띄우면 적재 순서가 `Mod_LoadData` 순서가 아니다(exe로 띄운 `gd-a`는 그 순서). 만고신화는 여전히 마지막이다. 순서를 정하는 자리는 미확인.
+- **고정본 `base`로는 세계에 들어가지 못한다.** Steam으로 띄운 세 구성 — 두 벌(`gd-b`), 구독본만(`gd-c`, `-Exclude`로 설치본 40개를 뺌), 설치본만(`gd-d`, 회차 동안 구독 폴더 이름을 바꿔 숨김) — 모두 만고신화의 불러오기 화면에서 멈췄다. `Player.log`에 `WorldMgr.IntoWorld` 뒤 `PointResourcesMgr.UpdateSchoolsAction` → `WorldSpecialAppellationGrant.OnGrant` → `FormulaTool.UnitPower.GetMartialLevel`의 NullReferenceException이 12번 나고 로그가 멈춘다. 옛 설치본에서는 없던 것이다. 구성과 무관하므로 원인은 새 환경 쪽이다. 후보(미확인): 에뮬레이터가 열어 주던 DLC 넷(01 문서 6절, 특히 不归玄境 2408730)을 이 계정이 갖지 않음, Steam 게임 언어 `english`(로그인 화면 단추가 `btnInto_En`).
+- 사용자의 세이브는 사용자가 13:35에 Steam판으로 들어가 저장한 흔적이 있다(`1_fjSwpw` 13:35). 사용자 세이브로 세계에 들어가는지는 회차로 확인하지 않았다.
+
+### 97.4 Steam 클라우드
+
+- 정품 Steam은 이 게임의 세이브를 클라우드와 맞춘다(`CacheData\steam_autocloud.vdf`, `Steam\userdata\59132039\1468810\remotecache.vdf` 61항목). 마지막 업로드는 13:15이고 회차 동안(14:01~14:28) 올라간 것은 없다. 고정본 슬롯 `1_tiD87o`도 클라우드에 없다. 네 회차 모두 `SAVE RESTORED AND IDENTICAL`.
+- 회차 스크립트는 회차 동안 세이브 폴더를 고정본으로 바꿔 끼우므로, 게임이 꺼질 때 Steam이 고정본을 올리거나 다음 실행 때 클라우드 판을 내려받을 위험이 있다. 대책(회차 동안 이 게임의 클라우드 끄기 등)은 정하지 않았다. 정할 때까지 새 설치본에서 회차를 열지 않는다.
+
+### 97.5 남은 결정
+
+- 창작마당 모드를 어느 쪽에서 실을지: (가) 설치본(`ModExportData`, 검증한 판과 고른 사본)을 쓰고 Steam 구독 40개를 해제, (나) Steam 구독을 쓰고 `ModExportData`에는 편집기만. 지금은 둘 다 있어 두 벌 실린다.
+- 세계 진입 멈춤의 원인(DLC·언어)과 회차의 클라우드 대책.

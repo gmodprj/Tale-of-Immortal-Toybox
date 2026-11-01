@@ -12,7 +12,7 @@
 # 설치 원본: <ID>\ModExportData.cache가 있으면 <ID>\ 전체, 없으면 <ID>\debug\Mod_*\ 가운데 cache가 있는 폴더가 하나일 때 그것.
 param([switch]$Status, [switch]$Download, [switch]$Install, [switch]$Uninstall, [switch]$Search, [switch]$Doc, [switch]$Yes,
   [string]$Id = '',
-  [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$SteamCmd = 'E:\SteamCmd\steamcmd.exe', [string]$Account = 'deepestlight',
+  [string]$GameDir = 'E:\SteamLibrary\steamapps\common\鬼谷八荒', [string]$SteamCmd = 'E:\SteamCmd\steamcmd.exe', [string]$Account = 'deepestlight',
   [string]$List = '', [int]$AppId = 1468810,
   [string]$History = '', [switch]$NoHistory,
   # -Search (3.3절)
