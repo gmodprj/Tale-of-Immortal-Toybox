@@ -36,6 +36,8 @@ namespace MOD_sWP6UL
                     return p.Length > 1 ? DressThumbService.Describe(p[1]) : DressThumbService.Stats();
                 case "ruigrid":
                     return UiGrid(p.Length > 1 ? p[1] : "srItems", p.Length > 2 && p[2] == "all");
+                case "rparts":
+                    return Parts();
                 case "rnpcinfo":
                     return NpcInfo(p.Length > 1 ? p[1] : "", p.Length > 2 ? p[2] : "");
                 case "ropenui":
@@ -277,6 +279,35 @@ namespace MOD_sWP6UL
 
         // 화면에 떠 있는 스크롤 목록(이름에 scrollName이 든 ScrollRect의 Viewport/Content)의 칸마다 그림(Image)의 스프라이트 상태를 적는다.
         // 캐릭터 만들기의 의복 목록(G:srItems) 확인용: 칸 이름(의상 줄 번호)과 그림의 이름·텍스처 크기. 기본은 그림이 없는 칸만, all이면 전부.
+        // 캐릭터 만들기 외형의 부위 단추(G:goHuman_*의 자식 Item 들): 순서·이름·켜진 토글·이름표 글(05 문서 99절).
+        private static string Parts()
+        {
+            UICreatePlayer ui = g.ui.GetUI<UICreatePlayer>(UIType.CreatePlayer);
+            if (ui == null)
+            {
+                return "no CreatePlayer";
+            }
+            var sb = new StringBuilder();
+            foreach (Transform t in ui.GetComponentsInChildren<Transform>(true))
+            {
+                if (!t.name.StartsWith("G:goHuman", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                sb.Append(t.name).Append(" active=").Append(t.gameObject.activeInHierarchy).Append(':');
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    Transform item = t.GetChild(i);
+                    var toggle = item.GetComponentInChildren<UnityEngine.UI.Toggle>(true);
+                    var text = item.GetComponentInChildren<UnityEngine.UI.Text>(true);
+                    sb.Append(" [").Append(i).Append(' ').Append(item.name).Append(" on=").Append(toggle != null && toggle.isOn)
+                      .Append(" text=").Append(text == null ? "" : text.text).Append(']');
+                }
+                sb.Append(" | ");
+            }
+            return sb.ToString();
+        }
+
         private static string UiGrid(string scrollName, bool all)
         {
             Transform content = null;
