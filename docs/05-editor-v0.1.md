@@ -4237,3 +4237,13 @@ Critical 없음, Important 셋, 사소 일곱.
 - 메인 화면의 DLC 단추 셋(동천복지·황금 꽃 다섯 송이·팔황 기록지)에 "Claimed" 표시가 붙어 있다. 게임 안에서 Steam은 넷 다 `BIsSubscribedApp=False`라고 답했으므로(97.7절) 이 표시가 무엇을 뜻하는지는 미확인이다.
 - 새 게임에서 `UnityEngine.UI.Text::set_text`의 Harmony 패치 안 null 예외가 97번 났다(진입 직후 한꺼번에). 어느 모드의 패치인지와 옛 설치본에서도 났는지는 미확인이다. 진행은 막지 않았다.
 - `-End`: `SAVE RESTORED AND IDENTICAL`(새 칸은 사라짐). 클라우드 마지막 업로드 2026-11-01 13:15 그대로.
+
+## 98. 구독 모드의 Fatury 그림 폴더 — 의복 145~204·210~221이 빔 (2026-11-02 추가)
+
+사용자 보고(캡처 둘): 캐릭터 만들기 의복 145~204·210~221번 칸이 비고, NPC 상호작용 창에 머리만 보인다. 브랜치 `fix/fatury-debug-path`, 회차 `fp-a-1102`.
+
+- 원인: Fatury(2814703549)는 모드 그림 폴더를 `Fatury.BwY.GetHome()`으로 정한다. IL(Cecil로 읽음): 모드 폴더 이름(`Hj.cW`, `Mod_LoadData`의 `modFolderName`)이 `Mod`로 시작하면 `<게임>\ModExportData\<이름>\ModAssets\Fatury`, 아니면 `Path.Combine(Hj.RA, 이름, "ModAssets", "Fatury")`(구독 폴더). `ModMain.Init`은 이 경로가 있을 때만 그 모드를 훑는다(`Prefetch <ID>`). 구독본 [剑来] 정적 입화 확장(2818763591)과 등선 모녀(2905956493)는 그림이 `debug\Mod_dSpCmQ\…`·`debug\Mod_kgVpet\ModAssets\Fatury`에만 있어 훑기에서 빠졌다. 예전 설치본은 `workshop.ps1 -Install`이 안쪽 폴더를 꺼내 두어 보였다(97.6절에서 구독으로 바꾼 뒤 생긴 일).
+- 고침: `Services/FaturyPathService.cs`가 `Init`에서 `Fatury.BwY.GetHome`에 뒤붙임을 건다(편집기가 모드 순서 맨 앞이라 Fatury의 `Init`보다 먼저). 돌려준 경로가 없고 `…\<모드>\ModAssets\Fatury` 모양이면 `<모드>\debug\*\ModAssets\Fatury` 가운데 있는 것(이름순 첫째)으로 바꾼다(판정 `Services/FaturyPathRules.cs`, 단위 시험 4줄). 경로마다 한 번만 판정해 기억한다. `BwY`는 난독화 이름이라 Fatury가 바뀌면 `fatury path: GetHome not found`를 남기고 걸지 않는다.
+- 확인(회차 `fp-a-1102`, `-Login`, 개발 빌드): `fatury path: hooked`, 두 모드의 경로 바꿈 줄, `Prefetch 2818763591` 블록이 생겼다. 캐릭터 만들기(여성) 의복 목록 `ruigrid srItems all` 300칸에서 141~204번째·210~221번째 칸(dressID 244~307·311~322)의 `G:imgPart`가 Fatury가 만든 그림(1920x1920 등)으로 채워졌고, 화면에서 156~170번 칸 그림과 158번을 입힌 몸 그림을 봤다. 210~221번째 칸은 목록이 한 틱에 열다섯 칸씩 넘어가 화면에서 고르지 못했다(목록 정보로만 확인).
+- NPC 창의 머리만 보이는 입화도 같은 그림 폴더라 같이 풀릴 것으로 보지만 회차에서 그 NPC를 보지는 않았다(미확인).
+- 사용자: "모든 DLC가 설치되어 있다"(2026-11-02). 97.7절에서 게임 안 `SteamApps.BIsSubscribedApp`가 넷 다 False였던 것과 맞지 않는다. 97.7절의 DLC 해석은 미확인으로 둔다.
