@@ -72,6 +72,8 @@ namespace MOD_sWP6UL
             PresetRulesTests();
             BreakthroughRulesTests();
             ChipBarTests();
+            KnownSkillIdsTests();
+            FaturyPathRulesTests();
             Console.WriteLine("FAILS=" + fails);
             return fails > 0 ? 1 : 0;
         }
@@ -807,6 +809,36 @@ namespace MOD_sWP6UL
             Check("breakthrough: one needed takes the last kind", string.Join(",", BreakthroughRules.NeedItems("1_2_3", 1)) == "3");
             Check("breakthrough: several needed cycle from the front", string.Join(",", BreakthroughRules.NeedItems("1_2", 3)) == "1,2,1" && BreakthroughRules.NeedItems("1_2", 0).Count == 0 && BreakthroughRules.NeedItems("", 2).Count == 0);
             Check("breakthrough: treasures cycle the candidates", string.Join(",", BreakthroughRules.Treasures("7_8", 3)) == "7,8,7" && BreakthroughRules.Treasures("", 2).Count == 0);
+        }
+
+        // Fatury 그림 폴더의 대체 경로(05 문서 98절): 없는 ModAssets\Fatury면 debug\*\ModAssets\Fatury 가운데 이름순 첫째.
+        private static void FaturyPathRulesTests()
+        {
+            var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                @"W\1\ModAssets\Fatury",
+                @"W\2\debug", @"W\2\debug\Mod_b\ModAssets\Fatury", @"W\2\debug\Mod_a\ModAssets\Fatury",
+                @"W\3\debug",
+            };
+            Func<string, bool> exists = p => dirs.Contains(p);
+            Func<string, IEnumerable<string>> sub = p => p == @"W\2\debug" ? new[] { @"W\2\debug\Mod_b", @"W\2\debug\Mod_a" } : p == @"W\3\debug" ? new[] { @"W\3\debug\Mod_c" } : new string[0];
+            Check("fatury path: an existing home is kept", FaturyPathRules.Alternative(@"W\1\ModAssets\Fatury", exists, sub) == null);
+            Check("fatury path: a missing home uses the first debug copy", FaturyPathRules.Alternative(@"W\2\ModAssets\Fatury", exists, sub) == @"W\2\debug\Mod_a\ModAssets\Fatury");
+            Check("fatury path: no debug copy with Fatury keeps the original", FaturyPathRules.Alternative(@"W\3\ModAssets\Fatury", exists, sub) == null && FaturyPathRules.Alternative(@"W\4\ModAssets\Fatury", exists, sub) == null);
+            Check("fatury path: other paths are ignored", FaturyPathRules.Alternative(@"W\2\ModAssets\Other", exists, sub) == null && FaturyPathRules.Alternative("", exists, sub) == null);
+        }
+
+        // 기술 본표 번호(05 문서 97.8절): 본표에 없는 기술만 막고, 본표가 비었거나 다른 표의 번호는 막지 않는다.
+        private static void KnownSkillIdsTests()
+        {
+            var known = new KnownSkillIds();
+            Check("skill ids: an empty table blocks nothing", !known.Missing(KnownSkillIds.Attack, 24118) && known.Stale(KnownSkillIds.Attack, 0));
+            known.Fill(KnownSkillIds.Attack, new[] { 24116, 34111 }, 2);
+            Check("skill ids: a missing id is blocked, a present one is not", known.Missing(KnownSkillIds.Attack, 24118) && !known.Missing(KnownSkillIds.Attack, 24116));
+            Check("skill ids: tables are separate", !known.Missing(KnownSkillIds.Step, 24118));
+            Check("skill ids: stale only when the row count changes", !known.Stale(KnownSkillIds.Attack, 2) && known.Stale(KnownSkillIds.Attack, 3));
+            known.Fill(KnownSkillIds.Attack, new[] { 24116, 24118, 34111 }, 3);
+            Check("skill ids: refilling picks up new rows", !known.Missing(KnownSkillIds.Attack, 24118) && !known.Stale(KnownSkillIds.Attack, 3));
         }
 
         // 칩 줄 배치(13 문서 S4): 넘치면 다음 줄, areaW 0이면 한 줄.

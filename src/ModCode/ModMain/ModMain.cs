@@ -75,10 +75,40 @@ namespace MOD_sWP6UL
             {
                 MelonLogger.Msg("[TlToybox] drama background failed: " + e.GetType().Name + ": " + e.Message);
             }
+            try
+            {
+                // 본표에 없는 기술(갖지 않은 DLC의 기술)의 수준 계산을 0으로(05 문서 97.8절).
+                MissingSkillGuard.Ensure();
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] skill guard failed: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
+                // 꾸러미가 debug\Mod_* 안에 든 구독 모드의 Fatury 그림 폴더(05 문서 98절).
+                FaturyPathService.Ensure();
+                MelonLogger.Msg("[TlToybox] " + FaturyPathService.LastNote);
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] fatury path failed: " + e.GetType().Name + ": " + e.Message);
+            }
+            try
+            {
+                // 동료 모드의 캐릭터 정보창 탭이 이 게임판에서 터지는 것 막기(05 문서 99절).
+                TeamBestGuard.Ensure();
+                MelonLogger.Msg("[TlToybox] " + TeamBestGuard.LastNote);
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Msg("[TlToybox] teambest guard failed: " + e.GetType().Name + ": " + e.Message);
+            }
             // 단계별 시간(성능 1 스펙 4.5의 1). 번역 두 단계의 시간은 translations:·texts: 줄에 있다.
             MelonLogger.Msg("[TlToybox] init ms=" + total.ElapsedMilliseconds + " dress=" + dressMs + " grid=" + gridMs + " patch=" + patchMs);
 #if DEVTOOLS
             StartDevPoll();
+            DevCommandsPower.HookProbes();
 #endif
         }
 

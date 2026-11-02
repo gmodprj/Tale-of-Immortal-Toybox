@@ -57,7 +57,7 @@ namespace MOD_sWP6UL
                     textures.Add(s.texture.GetInstanceID());
                 }
             }
-            return "requested=" + requested.Count + " loaded=" + sprites.Count + " distinct=" + textures.Count + " filled=" + Filled + " missing=" + Missing;
+            return "requested=" + requested.Count + " loaded=" + sprites.Count + " distinct=" + textures.Count + " filled=" + Filled + " missing=" + Missing + " hair=" + HairReplaced;
         }
 
         // 개발 확인용: 목록 칸 하나의 그림(G:imgPart) 상태(켜짐·색·크기·스프라이트). 칸이 없으면 그 사실을 적는다.
@@ -101,6 +101,13 @@ namespace MOD_sWP6UL
                     return;
                 }
                 string sex = IsWoman(ui.transform) ? "Woman" : "Man";
+                // 뒷머리(부위 2)·앞머리(부위 3) 목록은 원작 그림이 붙어 있어도 모드가 바꾼 그림으로 바꾼다(05 문서 99절).
+                int openPart = OpenPart(ui.transform);
+                if (openPart == HairPart || openPart == HairFrontPart)
+                {
+                    PollHair(content, sex, openPart == HairFrontPart ? "HairFront" : "Hair");
+                    return;
+                }
                 float box = BoxSize(content);
                 var emptyNow = new HashSet<string>();
                 int sent = 0;
@@ -167,6 +174,83 @@ namespace MOD_sWP6UL
             }
         }
 
+        // 외형 부위 단추의 순서(G:goHuman_<언어>의 자식 Item 순서, 회차 hair-a-1102의 rparts): 2 뒷머리, 3 앞머리, 8 의복.
+        private const int HairPart = 2;
+        private const int HairFrontPart = 3;
+
+        public static int HairReplaced { get; private set; }
+
+        // 머리 목록: 칸(Content/<번호>)마다 Fatury를 거친 그림(g.res.LoadAsync)을 읽어, 원작 그림과 텍스처가 다르면(모드가 바꾼 머리) 그 그림을 붙인다.
+        // 칸 그림의 화면 크기(긴 변 × 배율)는 그대로 두고 배율만 다시 맞춘다. 모드가 바꾸지 않은 번호는 같은 텍스처가 와서 건드리지 않는다.
+        private static void PollHair(Transform content, string sex, string kind)
+        {
+            int sent = 0;
+            for (int i = 0; i < content.childCount; i++)
+            {
+                Transform cell = content.GetChild(i);
+                int id;
+                if (!int.TryParse(cell.name, out id))
+                {
+                    continue;
+                }
+                Transform part = cell.Find("G:imgPart");
+                UnityEngine.UI.Image image = part == null ? null : part.GetComponent<UnityEngine.UI.Image>();
+                if (image == null || image.sprite == null)
+                {
+                    continue;
+                }
+                string key = sex + "/" + kind + "/" + id;
+                Sprite sprite;
+                if (sprites.TryGetValue(key, out sprite))
+                {
+                    if (sprite != null && image.sprite != sprite && image.sprite.texture != sprite.texture)
+                    {
+                        Rect r = part.GetComponent<RectTransform>().rect;
+                        float box = Mathf.Max(r.width, r.height) * part.localScale.x;
+                        image.sprite = sprite;
+                        image.preserveAspect = true;
+                        image.SetNativeSize();
+                        Rect n = part.GetComponent<RectTransform>().rect;
+                        float side = Mathf.Max(n.width, n.height);
+                        if (box > 0f && side > 0f)
+                        {
+                            float s = box / side;
+                            part.localScale = new Vector3(s, s, 1f);
+                        }
+                        HairReplaced++;
+                    }
+                    continue;
+                }
+                if (sent < RequestsPerPoll && !requested.Contains(key))
+                {
+                    Request(key, "Game/Portrait/" + key);
+                    sent++;
+                }
+            }
+        }
+
+        // 켜져 있는 외형 부위 단추의 순서. 없으면 -1. 보이는 G:goHuman_<언어>만 본다.
+        private static int OpenPart(Transform root)
+        {
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(false))
+            {
+                if (!t.name.StartsWith("G:goHuman_", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    var toggle = t.GetChild(i).GetComponentInChildren<UnityEngine.UI.Toggle>(true);
+                    if (toggle != null && toggle.isOn)
+                    {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+            return -1;
+        }
+
         // 창이 닫히면 읽어 둔 그림을 놓는다(큰 입화 텍스처를 세계에서까지 붙잡지 않게. 리뷰 I2). 아직 안 온 콜백은 세대 번호로 버린다.
         private static void Clear()
         {
@@ -178,6 +262,7 @@ namespace MOD_sWP6UL
             filledCells.Clear();
             lastError = null;
             Filled = 0;     // 창마다 새로 센다(12 문서 A2)
+            HairReplaced = 0;
             Missing = 0;
             if (pending == 0)
             {

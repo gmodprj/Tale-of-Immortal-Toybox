@@ -25,7 +25,7 @@
 #   - 고정본을 썼어도 -End 뒤의 세이브는 회차 전의 사용자 것이다. 고정본 자체는 바뀌지 않는다.
 #   - -End는 최근 다섯 회차의 복사본만 남기고 오래된 것을 지운다. 회차 동안 모드가 만든 세이브 자동 백업도 지운다(회차 전부터 있던 것은 남긴다).
 param([string]$Begin = '', [string]$End = '', [switch]$Restart, [switch]$ReleaseBuild, [switch]$Login, [string]$Fixture = '', [string]$MakeFixture = '', [string]$From = '', [string[]]$Exclude = @(), [switch]$NoEditor,
-  [string]$GameDir = 'E:\Games\Tale of Immortal', [string]$ModId = 'sWP6UL',
+  [string]$GameDir = 'E:\SteamLibrary\steamapps\common\鬼谷八荒', [string]$ModId = 'sWP6UL',
   # 아래는 session.tests.ps1이 쓰는 시험용 매개변수다. 평소에는 주지 않는다.
   [string]$SaveDir = '', [string]$WorkDir = '', [string]$DataDir = '', [string]$ProcessName = 'guigubahuang', [switch]$DryRun)
 $ErrorActionPreference = 'Stop'

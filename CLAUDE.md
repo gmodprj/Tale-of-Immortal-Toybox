@@ -13,9 +13,9 @@
 
 ## 게임 폴더 규칙
 
-- 게임 설치 경로: `E:\Games\Tale of Immortal`
+- 게임 설치 경로: `E:\SteamLibrary\steamapps\common\鬼谷八荒`(정품 Steam판, 2026-11-01부터. 그 전의 `E:\Games\Tale of Immortal`은 없어졌다). Steam을 거쳐 띄워야 한다(`docs/05-editor-v0.1.md` 97절).
 - 게임 폴더는 읽기 전용으로 다룬다. 빌드 산출물을 게임 폴더로 복사하는 일은 사용자 확인을 받은 뒤에만 한다.
-- 창작마당 모드는 `tools/workshop.ps1 -Install -Yes`로 `ModExportData\<창작마당ID>\`에 설치한다. `-Yes`는 사용자 확인 뒤에만 붙인다(`-Yes` 없이는 계획만 보인다). 목록은 `tools/workshop/mods.txt`.
+- 창작마당 모드는 Steam 구독으로 싣는다(2026-11-01 사용자 결정, 05 문서 97.6절). `ModExportData`에는 편집기 `Mod_sWP6UL`만 둔다. 예전 설치본 사본 40개는 `.devremote\modexport-archive-1101`에 있다. `tools/workshop.ps1 -Install`은 쓰지 않는다(목록 `tools/workshop/mods.txt`는 기록으로 남긴다).
 - 사용자 승인(2026-10-12)으로 편집기 모드를 게임의 `ModExportData\Mod_sWP6UL`에 설치해 두었다. 갱신은 `tools/install.ps1`로 한다.
 - 예외: 개발용 조작 도구 `tools/DevRemote`의 DLL이 게임의 `Mods\TlToyboxDevRemote.dll`로 설치되어 있다(2026-10-12 사용자 지시). 게임 창을 백그라운드에서 조작하는 용도이며 `tools/DevRemote/rc.ps1`로 쓴다. 지우면 원상태가 된다.
 - 게임 DLL을 저장소에 복사하지 않는다. 참조는 `$(GameDir)\MelonLoader`를 가리킨다.
@@ -42,6 +42,6 @@
 
 - 먼저 `docs/06-handoff.md`를 읽는다. 현재 상태, 게임에서 검증하는 방법, 반복해서 겪은 함정, 남은 일(8절)이 있다.
 - 작업 단위의 설계 스펙과 구현 계획은 `docs/superpowers/specs/`, `docs/superpowers/plans/`에 둔다.
-- 게임 검증은 `tools/DevRemote/session.ps1`의 회차(`-Begin <이름> -Fixture base` … `-End <이름>`) 안에서 한다. 세이브 복사와 복원, 게임 실행과 종료를 이 스크립트가 맡는다. `-Fixture base`는 사용자의 세이브 대신 고정본 세이브에서 돌린다(인계 문서 5절). 회차 이름은 다시 쓰지 않는다.
+- 게임 검증은 `tools/DevRemote/session.ps1`의 회차(`-Begin <이름> -Fixture base` … `-End <이름>`) 안에서 한다. 세이브 복사와 복원, 게임 실행과 종료를 이 스크립트가 맡는다. `-Fixture base`는 사용자의 세이브 대신 고정본 세이브에서 돌린다(인계 문서 5절). 다만 2026-11-02 기준 고정본 `base`는 옛 에뮬레이터 세이브라 Steam판에서 세계 진입이 멈춰 쓸 수 없다(5절의 Steam판 주의). 회차 이름은 다시 쓰지 않는다.
 - 기능별 규칙과 실험 기록은 `docs/05-editor-v0.1.md`에 절 단위로 쌓여 있다. 기능을 바꾸면 그 문서에 절을 추가한다.
 - 게임에서 확인하지 않은 변경은 완료로 보고하지 않는다. 사용자의 게임이 켜져 있으면 끄도록 알리고 기다린다(임의로 끄지 않는다).

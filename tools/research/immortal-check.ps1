@@ -5,7 +5,7 @@ param([Parameter(Mandatory)][string]$Part)
 
 # 설정 표(게임 폴더의 읽기 전용 JSON)에서 센 카드 수: 선인마다 주동(0이 아니면)과 피동, 같은 번호는 한 번, 표에 있는 것만.
 function ExpectedCount {
-  $dir = 'E:\Games\Tale of Immortal\Mod\modFQA\配置修改教程\配置（只读）Json格式'
+  $dir = 'E:\SteamLibrary\steamapps\common\鬼谷八荒\Mod\modFQA\配置修改教程\配置（只读）Json格式'
   $active = @{}; foreach ($r in (Get-Content -LiteralPath (Join-Path $dir 'ImmortalMethod.json') -Raw | ConvertFrom-Json)) { $active[[string]$r.id] = 1 }
   $passive = @{}; foreach ($r in (Get-Content -LiteralPath (Join-Path $dir 'PassiveMethod.json') -Raw | ConvertFrom-Json)) { $passive[[string]$r.passiveId] = 1 }
   $seen = @{}

@@ -18,7 +18,7 @@
     <DefineConstants Condition="'$(DevTools)' == 'true'">$(DefineConstants);DEVTOOLS</DefineConstants>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>none</DebugType>
-    <GameDir Condition="'$(GameDir)' == ''">E:\Games\Tale of Immortal</GameDir>
+    <GameDir Condition="'$(GameDir)' == ''">E:\SteamLibrary\steamapps\common\鬼谷八荒</GameDir>
     <ManagedDir>$(GameDir)\MelonLoader\Managed</ManagedDir>
   </PropertyGroup>
 
