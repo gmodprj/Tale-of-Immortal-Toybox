@@ -1,7 +1,7 @@
 # 배포 빌드(개발 도구 제외)를 만들어 게임의 로컬 모드 폴더에 설치한다.
 # 게임 폴더(ModExportData)에 파일을 쓴다. 게임이 켜져 있으면 DLL이 잠겨 있으므로 먼저 끈다.
 # 처음 한 번은 모드 에디터의 "게임 디버깅 시작"으로 만들어진 debug\Mod_<ID> 폴더가 있어야 한다(ModExportData.cache가 거기서 나온다).
-param([string]$GameDir = 'E:\Games\Tale of Immortal', [string]$ModId = 'sWP6UL')
+param([string]$GameDir = 'E:\SteamLibrary\steamapps\common\鬼谷八荒', [string]$ModId = 'sWP6UL')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 if (Get-Process guigubahuang -ErrorAction SilentlyContinue) { throw '게임이 실행 중입니다. 종료한 뒤 다시 실행하세요.' }

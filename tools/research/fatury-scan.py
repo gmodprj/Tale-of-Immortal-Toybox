@@ -3,7 +3,7 @@
 #   py -3 -I -X utf8 tools/research/fatury-scan.py [ModExportData 경로]
 # 깨진 그림(PNG 아님)이나 그림보다 큰 rect는 Fatury의 Sprite.Create에서 예외가 나고, 같은 틀(template)을 쓰는 뒤의 자산까지 깨뜨릴 수 있다.
 import os, re, struct, sys, collections
-root = sys.argv[1] if len(sys.argv) > 1 else r'E:\Games\Tale of Immortal\ModExportData'
+root = sys.argv[1] if len(sys.argv) > 1 else r'E:\SteamLibrary\steamapps\common\鬼谷八荒\ModExportData'
 mods = [d for d in os.listdir(root) if d.isdigit()]
 tot = collections.Counter()
 problems = collections.defaultdict(list)

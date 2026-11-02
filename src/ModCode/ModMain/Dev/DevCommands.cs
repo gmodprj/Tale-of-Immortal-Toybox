@@ -176,6 +176,11 @@ namespace MOD_sWP6UL
             {
                 return drama;
             }
+            string power = DevCommandsPower.Execute(p);
+            if (power != null)
+            {
+                return power;
+            }
             string dress = DevCommandsDress.Execute(p);
             if (dress != null)
             {

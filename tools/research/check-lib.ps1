@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $tools = Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote'
 $work = & (Join-Path (Split-Path -Parent $PSScriptRoot) 'DevRemote\devremote-dir.ps1')   # .devremote 경로는 한 곳(05 문서 49절)
 $data = Join-Path $env:USERPROFILE 'AppData\LocalLow\guigugame\guigubahuang\TlToybox'
-$log = 'E:\Games\Tale of Immortal\MelonLoader\Latest.log'
+$log = 'E:\SteamLibrary\steamapps\common\鬼谷八荒\MelonLoader\Latest.log'
 $script:fails = 0
 if (-not (Test-Path (Join-Path $work 'session.name'))) { throw 'session.ps1 -Begin으로 연 회차 안에서만 실행합니다(세이브와 모드 파일을 바꾸는 시험이다).' }
 

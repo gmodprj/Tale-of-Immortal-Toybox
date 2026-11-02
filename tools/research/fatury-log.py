@@ -5,7 +5,7 @@
 #         (2) Fatury의 ERROR·WARNING 종류와 수, (3) 입화 층(Body·Hair…)마다 어느 모드가 몇 개를 실었는지(Load: 줄), 두 모드가 같은 번호를 실은 것.
 import os, re, sys, collections
 
-latest = sys.argv[1] if len(sys.argv) > 1 else r'E:\Games\Tale of Immortal\MelonLoader\Latest.log'
+latest = sys.argv[1] if len(sys.argv) > 1 else r'E:\SteamLibrary\steamapps\common\鬼谷八荒\MelonLoader\Latest.log'
 player = sys.argv[2] if len(sys.argv) > 2 else os.path.expandvars(r'%USERPROFILE%\AppData\LocalLow\guigugame\guigubahuang\Player.log')
 BS = chr(92)
 
@@ -44,7 +44,7 @@ for i, ln in enumerate(lines):
         prev = next((lines[j] for j in range(i - 1, max(i - 6, -1), -1) if 'Prefetch:' in lines[j]), '')
         print('  sprite 오류 직전 처리 중이던 자산:', prev[prev.find('Prefetch:'):] if prev else '(모름)')
 
-pat = re.compile(r'Load:E:.Games.Tale of Immortal.ModExportData.(\d+).ModAssets.Fatury.(Game/Portrait(?:Dynamic)?/(?:Woman|Man|Hat)/?[A-Za-z]*/[0-9A-Za-z-]+)$')
+pat = re.compile(r'Load:.*[\\/](\d+)[\\/]ModAssets.Fatury.(Game/Portrait(?:Dynamic)?/(?:Woman|Man|Hat)/?[A-Za-z]*/[0-9A-Za-z-]+)$')
 loads = collections.defaultdict(list)
 for ln in lines:
     m = pat.search(ln)
