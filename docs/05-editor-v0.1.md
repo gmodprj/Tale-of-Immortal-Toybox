@@ -4227,3 +4227,13 @@ Critical 없음, Important 셋, 사소 일곱.
 - **그래도 세계 진입은 끝나지 않는다.** 불러오기 화면이 남고, 그다음 오류가 둘이다: `EventsMgr.Init` 안의 null 예외와 극 함수 `DramaFunction.OptionsFunction`의 null 예외. 개발 빌드의 탐침(`DevCommandsPower.HookProbes`, 회차 `gd-k-1101`): `EventsMgr.Init`은 넘겨받은 Action을 부르기만 하고(32바이트), 터지는 Action은 `MapWorldMgr+<>c.<Init>b__76_0`(지도 세계 초기화의 다음 단계)이다. 극 함수는 `callDrama_1137355225|addGridArrtRange_6_1_0_400|addGridArrtRange_8_1_0_400`에서 터진다(지도가 덜 만들어진 채 열린 극으로 본다).
 - `xrefl`로 `MapWorldMgr+<>c.<Init>b__76_0`을 해독하면 호출 대상 대부분이 이름 없는 주소이거나 무관한 이름(`DynamicBoneColliderBase.Collide`, `Color.Lerp`)으로 나와 읽을 수 없었다. 지도 초기화가 무엇을 못 찾는지는 미확인이다. DLC 쪽 자료로 짐작하지만 확인하지 못했다.
 - 클라우드: 회차 `gd-i`~`k` 뒤에도 마지막 업로드 13:15. 설치본 DLL은 `-End`가 3d7725c로 되돌렸다(보호는 아직 설치하지 않았다).
+
+### 97.9 새 게임으로 원인 확인 (사용자 선택, 2026-11-02)
+
+- 회차 `gd-n-1102`(`-Login`, 보호 빌드 = 개발 빌드 a709b12): 메인 화면 → 팔황 진입하기 → 빈 2번 칸 → 모드 경고 확인 → 난이도 보통 → 캐릭터 만들기(기본 외형, 선천운명 앞의 셋) → 게임 시작 → 예.
+- **새 게임은 세계에 들어간다.** 만고신화의 첫 안내 글(`IntoGameInfo`)과 소개 극("클릭으로 계속")이 뜨고, 개발 명령이 답한다: `wdate` → `worldDay=1 date=1-1-2`, `rpower` → `guarded=0 powerZeroed=0 units=1750 failed=0`. `MapWorldMgr+<>c.<Init>b__76_0`도 null 예외 없이 지나갔다(`EventsMgr::Init` 오류 줄 없음).
+- 결론: 세계 진입 멈춤은 **에뮬레이터 시절에 만든 세이브**의 자료(DLC 기술을 배운 인물 90명과, 지도 초기화가 걸리는 미확인 자료) 때문이다. 이 계정의 Steam판으로 새로 만든 세계에는 그런 자료가 없다.
+- 사용자 세이브 1번 칸은 "응명, 연기 초기, 1년 3월"(`worldDay=62`)로, 옛 설치본에서 새로 시작한 지 두 달 된 세이브다.
+- 메인 화면의 DLC 단추 셋(동천복지·황금 꽃 다섯 송이·팔황 기록지)에 "Claimed" 표시가 붙어 있다. 게임 안에서 Steam은 넷 다 `BIsSubscribedApp=False`라고 답했으므로(97.7절) 이 표시가 무엇을 뜻하는지는 미확인이다.
+- 새 게임에서 `UnityEngine.UI.Text::set_text`의 Harmony 패치 안 null 예외가 97번 났다(진입 직후 한꺼번에). 어느 모드의 패치인지와 옛 설치본에서도 났는지는 미확인이다. 진행은 막지 않았다.
+- `-End`: `SAVE RESTORED AND IDENTICAL`(새 칸은 사라짐). 클라우드 마지막 업로드 2026-11-01 13:15 그대로.
